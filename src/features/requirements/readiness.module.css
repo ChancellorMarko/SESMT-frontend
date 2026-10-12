@@ -1,0 +1,20 @@
+.filters { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 1rem; align-items: end; }
+.filters > * { min-width: 0; }
+.filters select { width: 100%; }
+.summary { display: flex; flex-wrap: wrap; gap: .7rem 1.8rem; padding: .5rem 0; color: var(--muted); }
+.summary strong { color: var(--text); font-size: 1.45rem; margin-right: .3rem; }
+.appointment { overflow-wrap: anywhere; }
+.appointmentHeader, .personHeader, .resultHeader { display: flex; gap: 1rem; justify-content: space-between; align-items: center; }
+.appointmentHeader h2, .personHeader h3 { margin: .25rem 0; }
+.person { border: 1px solid var(--border); border-radius:12px; padding: 1rem; }
+.requirements { list-style: none; padding: 0; margin: 1rem 0 0; }
+.requirements li { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .75rem 0; border-top: 1px solid var(--border); }
+.requirements p { margin: .3rem 0 0; }
+.requirements svg { vertical-align: middle; }
+@media (max-width: 1100px) { .filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) {
+  .filters { grid-template-columns: 1fr; }
+  .appointmentHeader, .personHeader, .resultHeader { align-items: flex-start; flex-direction: column; }
+  .requirements li { flex-direction: column; align-items: flex-start; gap: .5rem; }
+  .appointmentHeader > a { width: 100%; }
+}

@@ -1,0 +1,856 @@
+{
+  "inspectedAt": "2026-10-10",
+  "sourcePolicy": "Referência documental recebida; leitura de células sem executar macros ou avaliar fórmulas. Revisões observadas não comprovam vigência.",
+  "models": [
+    {
+      "modelId": "pt-primary",
+      "code": "RI-S-36001",
+      "shortName": "PT escolhida",
+      "role": "PRIMARY_REFERENCE",
+      "sourceFileName": "RI-S-36001 PT_Permissão de Trabalho.xls",
+      "sourceRelativePath": "MODELOS DE RELATORIOS DE SST/RI-S-36001 - Permissão de Trabalho/RI-S-36001 PT_Permissão de Trabalho.xls",
+      "sourceSha256": "568e2116b243b61f6f927af95de89a2fc1c157683cf3dc7932e4b72143007606",
+      "sizeBytes": 1123840,
+      "sheets": [
+        {
+          "name": "Plan1",
+          "rows": 213,
+          "columns": 10
+        }
+      ],
+      "title": {
+        "label": "REGISTRO\nPERMISSÃO PARA TRABALHO - PT",
+        "sourceCell": "Plan1!A6"
+      },
+      "codeCell": {
+        "label": "RI-S-36001",
+        "sourceCell": "Plan1!G6"
+      },
+      "revision": {
+        "label": "A",
+        "sourceCell": "Plan1!J9"
+      },
+      "fields": [
+        {
+          "label": "FORNECEDOR DE SERVIÇO:",
+          "sourceCell": "Plan1!A18"
+        },
+        {
+          "label": "FORNECEDOR QUARTERIZADO:",
+          "sourceCell": "Plan1!D18"
+        },
+        {
+          "label": "GRUPO:",
+          "sourceCell": "Plan1!F18"
+        },
+        {
+          "label": "No APT:",
+          "sourceCell": "Plan1!H18"
+        },
+        {
+          "label": "No PT:",
+          "sourceCell": "Plan1!I18"
+        },
+        {
+          "label": "FRENTE DE SERVIÇO",
+          "sourceCell": "Plan1!A20"
+        },
+        {
+          "label": "LOCAL:",
+          "sourceCell": "Plan1!D20"
+        },
+        {
+          "label": "NOME/ASS. EXECUTANTE:",
+          "sourceCell": "Plan1!G20"
+        },
+        {
+          "label": "NOME/ASS. EMITENTE:",
+          "sourceCell": "Plan1!I20"
+        },
+        {
+          "label": "ATIVIDADE A SER REALIZADO:",
+          "sourceCell": "Plan1!A23"
+        }
+      ],
+      "blocks": [
+        {
+          "label": "Tipos de atividade",
+          "sourceHeading": {
+            "label": "INSTALAÇÕES ELÉTRICAS",
+            "sourceCell": "Plan1!A24"
+          },
+          "sourceRange": "Plan1!A24:J26"
+        },
+        {
+          "label": "Conferências por atividade",
+          "sourceHeading": {
+            "label": "TRABALHOS EM INSTALAÇÕES ELETRICAS",
+            "sourceCell": "Plan1!A27"
+          },
+          "sourceRange": "Plan1!A27:J139"
+        },
+        {
+          "label": "EPI / EPC",
+          "sourceHeading": {
+            "label": "EPI / EPC - EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL / COLETIVA",
+            "sourceCell": "Plan1!A142"
+          },
+          "sourceRange": "Plan1!A143:J147"
+        },
+        {
+          "label": "Ações gerais",
+          "sourceHeading": {
+            "label": "AÇÕES GERAIS",
+            "sourceCell": "Plan1!A151"
+          },
+          "sourceRange": "Plan1!A152:J156"
+        },
+        {
+          "label": "Participantes",
+          "sourceHeading": {
+            "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO",
+            "sourceCell": "Plan1!A168"
+          },
+          "sourceRange": "Plan1!A168:J180"
+        },
+        {
+          "label": "Liberação",
+          "sourceHeading": {
+            "label": "LIBERAÇÃO PELO EXECUTANTE DA TAREFA E EMITENTE DA PT",
+            "sourceCell": "Plan1!A181"
+          },
+          "sourceRange": "Plan1!A181:J187"
+        },
+        {
+          "label": "Revalidação",
+          "sourceHeading": {
+            "label": "ASSINATURAS DE REVALIDAÇÃO",
+            "sourceCell": "Plan1!A190"
+          },
+          "sourceRange": "Plan1!A190:J201"
+        },
+        {
+          "label": "Encerramento",
+          "sourceHeading": {
+            "label": "CHECK LIST DE ENCERRAMENTO",
+            "sourceCell": "Plan1!A204"
+          },
+          "sourceRange": "Plan1!A204:J213"
+        }
+      ],
+      "catalogReference": "ri-s-36001.source.json",
+      "sourceStatus": [
+        {
+          "label": "PARA APROVAÇÃO",
+          "sourceCell": "Plan1!C15"
+        }
+      ],
+      "counts": {
+        "activityCategories": 13,
+        "activityChecks": 155,
+        "equipment": 25,
+        "generalControls": 15,
+        "closingChecks": 12
+      }
+    },
+    {
+      "modelId": "authorization",
+      "code": "RI-S-36002",
+      "shortName": "Autorização de Trabalho",
+      "role": "FUTURE_REFERENCE",
+      "sourceFileName": "RI-S-36002 - Autorização de Trabalho.xlsx",
+      "sourceRelativePath": "MODELOS DE RELATORIOS DE SST/RI-S-36002 - Autorização de Trabalho/RI-S-36002 - Autorização de Trabalho.xlsx",
+      "sourceSha256": "c2e2ef8a26e5044295353a530d917b84080b760c84e23119c1ab39f8f0b99d99",
+      "sizeBytes": 30503,
+      "sheets": [
+        {
+          "name": "Aut. Trabalho",
+          "rows": 122,
+          "columns": 10
+        }
+      ],
+      "title": {
+        "label": "REGISTRO\nAUTORIZAÇÃO DE TRABALHO",
+        "sourceCell": "Aut. Trabalho!A6"
+      },
+      "codeCell": {
+        "label": "RI-S-36002",
+        "sourceCell": "Aut. Trabalho!G6"
+      },
+      "revision": {
+        "label": "0",
+        "sourceCell": "Aut. Trabalho!J9"
+      },
+      "fields": [
+        {
+          "label": "GERÊNCIA RESPONSÁVEL PELO SERVIÇO:",
+          "sourceCell": "Aut. Trabalho!A12"
+        },
+        {
+          "label": "FORNECEDOR DE SERVIÇO:",
+          "sourceCell": "Aut. Trabalho!D12"
+        },
+        {
+          "label": "SERVIÇO A SER EXECUTADO:",
+          "sourceCell": "Aut. Trabalho!F12"
+        },
+        {
+          "label": "No PT (se houver):",
+          "sourceCell": "Aut. Trabalho!I12"
+        },
+        {
+          "label": "FRENTE DE SERVIÇO:",
+          "sourceCell": "Aut. Trabalho!A14"
+        },
+        {
+          "label": "LOCAL:",
+          "sourceCell": "Aut. Trabalho!D14"
+        },
+        {
+          "label": "GERÊNCIA RESPONSÁVEL PELA ÁREA (DONO DA ÁREA):",
+          "sourceCell": "Aut. Trabalho!G14"
+        },
+        {
+          "label": "DATA DE INÍCIO:",
+          "sourceCell": "Aut. Trabalho!A16"
+        },
+        {
+          "label": "DATA PREVISTA PARA O FINAL:",
+          "sourceCell": "Aut. Trabalho!D16"
+        },
+        {
+          "label": "OBSERVAÇÃO:",
+          "sourceCell": "Aut. Trabalho!F16"
+        }
+      ],
+      "blocks": [
+        {
+          "label": "Condições mínimas",
+          "sourceHeading": {
+            "label": "CONDIÇÕES MÍNIMAS PARA AUTORIZAÇÃO",
+            "sourceCell": "Aut. Trabalho!A19"
+          },
+          "sourceRange": "Aut. Trabalho!B21:B31"
+        },
+        {
+          "label": "Ações gerais",
+          "sourceHeading": {
+            "label": "AÇÕES GERAIS",
+            "sourceCell": "Aut. Trabalho!A34"
+          },
+          "sourceRange": "Aut. Trabalho!A35:J39"
+        },
+        {
+          "label": "Medidas adicionais",
+          "sourceHeading": {
+            "label": "OUTRAS MEDIDAS DE CONTROLE NECESSÁRIAS",
+            "sourceCell": "Aut. Trabalho!A43"
+          },
+          "sourceRange": "Aut. Trabalho!A43:J49"
+        },
+        {
+          "label": "Participantes",
+          "sourceHeading": {
+            "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO",
+            "sourceCell": "Aut. Trabalho!A51"
+          },
+          "sourceRange": "Aut. Trabalho!A51:J62"
+        },
+        {
+          "label": "Liberação",
+          "sourceHeading": {
+            "label": "LIBERAÇÃO PELO EMITENTE DA AUTORIZAÇÃO",
+            "sourceCell": "Aut. Trabalho!A64"
+          },
+          "sourceRange": "Aut. Trabalho!A64:J69"
+        },
+        {
+          "label": "Revalidação",
+          "sourceHeading": {
+            "label": "ASSINATURAS DE REVALIDAÇÃO",
+            "sourceCell": "Aut. Trabalho!A72"
+          },
+          "sourceRange": "Aut. Trabalho!A72:J83"
+        },
+        {
+          "label": "Encerramento",
+          "sourceHeading": {
+            "label": "CHECK LIST DE ENCERRAMENTO",
+            "sourceCell": "Aut. Trabalho!A86"
+          },
+          "sourceRange": "Aut. Trabalho!A86:J95"
+        }
+      ],
+      "checks": [
+        {
+          "label": "A empresa contratada responsável pela área onde acontecerão os serviços foi comunicada?",
+          "sourceCell": "Aut. Trabalho!B21"
+        },
+        {
+          "label": "As  determinações da ART estão sendo consideradas e são adequadas riscos de interferências?",
+          "sourceCell": "Aut. Trabalho!B22"
+        },
+        {
+          "label": "A área de trabalho foi isolada e identificada ?",
+          "sourceCell": "Aut. Trabalho!B23"
+        },
+        {
+          "label": "Quais meios de comunicação de emergência estão disponíveis?",
+          "sourceCell": "Aut. Trabalho!B24"
+        },
+        {
+          "label": "Os meios de comunicação de emergência foram testados e estão funcionando?",
+          "sourceCell": "Aut. Trabalho!B25"
+        },
+        {
+          "label": "Existem outras atividades sendo realizadas no mesmo local que poderá gerar risco?",
+          "sourceCell": "Aut. Trabalho!B26"
+        },
+        {
+          "label": "Os trabalhos foram repassados de forma clara para os empregados que o executarão?",
+          "sourceCell": "Aut. Trabalho!B27"
+        },
+        {
+          "label": "Existe encarredo/líder de equipe responsável em acompanhar os serviços? na ausência o serviço não pode acontecer!",
+          "sourceCell": "Aut. Trabalho!B28"
+        },
+        {
+          "label": "As equipes estão com efetivo limitado a 20 pessoas por encarregado/líder de equipe?",
+          "sourceCell": "Aut. Trabalho!B29"
+        },
+        {
+          "label": "As frentes de serviços estão cobertas por área de apoio com água potável e banheiro?",
+          "sourceCell": "Aut. Trabalho!B30"
+        },
+        {
+          "label": "Acessos estão em condições de tráfego?",
+          "sourceCell": "Aut. Trabalho!B31"
+        }
+      ],
+      "counts": {
+        "activityCategories": 1,
+        "activityChecks": 11,
+        "equipment": 0,
+        "generalControls": 15,
+        "closingChecks": 12
+      }
+    },
+    {
+      "modelId": "confined-space",
+      "code": "RI-S-36003",
+      "shortName": "PET de espaço confinado",
+      "role": "FUTURE_REFERENCE",
+      "sourceFileName": "RI-S-36003 - PET..xlsx",
+      "sourceRelativePath": "MODELOS DE RELATORIOS DE SST/RI-S-36003 - PET - Permissão para Entrada e Trabalho em Espaço Confinado/RI-S-36003 - PET..xlsx",
+      "sourceSha256": "9550a5e6f715ebc87fb09e70f52dc9009d18162fb4bd683ec776f520eaafe78b",
+      "sizeBytes": 52284,
+      "sheets": [
+        {
+          "name": "PET",
+          "rows": 118,
+          "columns": 10
+        }
+      ],
+      "title": {
+        "label": "REGISTRO\nPERMISSÃO PARA ENTRADA E TRABALHO EM ESPAÇO CONFINADO - PET",
+        "sourceCell": "PET!A6"
+      },
+      "codeCell": {
+        "label": "RI-S-36003",
+        "sourceCell": "PET!G6"
+      },
+      "revision": {
+        "label": "0",
+        "sourceCell": "PET!J9"
+      },
+      "fields": [
+        {
+          "label": "EMPRESA:",
+          "sourceCell": "PET!A12"
+        },
+        {
+          "label": "FORNECEDOR QUARTERIZADO:",
+          "sourceCell": "PET!D12"
+        },
+        {
+          "label": "No ART:",
+          "sourceCell": "PET!G12"
+        },
+        {
+          "label": "Nº PET",
+          "sourceCell": "PET!H12"
+        },
+        {
+          "label": "Nº do ESPAÇO CONFINADO:",
+          "sourceCell": "PET!I12"
+        },
+        {
+          "label": "FRENTE DE SERVIÇO:",
+          "sourceCell": "PET!A14"
+        },
+        {
+          "label": "DATA DE INÍCIO:",
+          "sourceCell": "PET!D14"
+        },
+        {
+          "label": "DATA PREVISTA PARA CONCLUSÃO:",
+          "sourceCell": "PET!G14"
+        },
+        {
+          "label": "TAREFA A SER REALIZADA:",
+          "sourceCell": "PET!A16"
+        },
+        {
+          "label": "Aparelho utilizado:",
+          "sourceCell": "PET!E36"
+        },
+        {
+          "label": "Nomes dos Vigias:",
+          "sourceCell": "PET!E37"
+        },
+        {
+          "label": "Nome do Supervisor Espaço Confinado:",
+          "sourceCell": "PET!E39"
+        },
+        {
+          "label": "Equipe de Resgate:",
+          "sourceCell": "PET!E41"
+        },
+        {
+          "label": "Contato do bombeiros:",
+          "sourceCell": "PET!E42"
+        },
+        {
+          "label": "Segurança:",
+          "sourceCell": "PET!H42"
+        }
+      ],
+      "blocks": [
+        {
+          "label": "Conferência específica de espaço confinado",
+          "sourceHeading": {
+            "label": "TRABALHOS EM ESPAÇOS CONFINADOS",
+            "sourceCell": "PET!A18"
+          },
+          "sourceRange": "PET!B20:B42"
+        },
+        {
+          "label": "Atmosfera inicial",
+          "sourceHeading": {
+            "label": "TESTES INICIAL DE ATMOSFERA / MEDIÇÕES AMBIENTAIS",
+            "sourceCell": "PET!E19"
+          },
+          "sourceRange": "PET!E19:J28"
+        },
+        {
+          "label": "Atmosfera posterior",
+          "sourceHeading": {
+            "label": "TESTES DE ATMOSFERA APÓS / MEDIÇÕES AMBIENTAIS",
+            "sourceCell": "PET!E29"
+          },
+          "sourceRange": "PET!E29:J34"
+        },
+        {
+          "label": "Instrumento, vigias, supervisor e resgate",
+          "sourceHeading": {
+            "label": "Aparelho utilizado:",
+            "sourceCell": "PET!E36"
+          },
+          "sourceRange": "PET!E36:J42"
+        },
+        {
+          "label": "EPI / EPC",
+          "sourceHeading": {
+            "label": "EPI / EPC - EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL / COLETIVA",
+            "sourceCell": "PET!A44"
+          },
+          "sourceRange": "PET!A45:J48"
+        },
+        {
+          "label": "Ações gerais",
+          "sourceHeading": {
+            "label": "AÇÕES GERAIS",
+            "sourceCell": "PET!A49"
+          },
+          "sourceRange": "PET!A50:J54"
+        },
+        {
+          "label": "Medidas adicionais",
+          "sourceHeading": {
+            "label": "OUTRAS MEDIDAS DE CONTROLE NECESSÁRIAS",
+            "sourceCell": "PET!A56"
+          },
+          "sourceRange": "PET!A56:J59"
+        },
+        {
+          "label": "Participantes",
+          "sourceHeading": {
+            "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO",
+            "sourceCell": "PET!A61"
+          },
+          "sourceRange": "PET!A61:J72"
+        },
+        {
+          "label": "Liberação",
+          "sourceHeading": {
+            "label": "LIBERAÇÃO PELO EMITENTE DA PET",
+            "sourceCell": "PET!A74"
+          },
+          "sourceRange": "PET!A74:J80"
+        },
+        {
+          "label": "Encerramento",
+          "sourceHeading": {
+            "label": "CHECK LIST DE ENCERRAMENTO",
+            "sourceCell": "PET!A83"
+          },
+          "sourceRange": "PET!A83:J91"
+        }
+      ],
+      "checks": [
+        {
+          "label": "Os instrumentos, ferramentas e iluminação utilizados são intrinsecamente seguros ?",
+          "sourceCell": "PET!B20"
+        },
+        {
+          "label": "Providenciado equipamentos de respiração autônoma ou sistema de ar mandado com cilindro de escape ?",
+          "sourceCell": "PET!B21"
+        },
+        {
+          "label": "Realizado bloqueio e identificação de fontes de energia (elétrico, mecânico, pneumático, hidráulico e outros) ?",
+          "sourceCell": "PET!B22"
+        },
+        {
+          "label": "Providenciado exaustores e ventiladores para adequação da atmosfera do espaço confinado ?",
+          "sourceCell": "PET!B23"
+        },
+        {
+          "label": "Providenciado cintos de segurança e linha de vida para trabalhadores e equipe de resgate ?",
+          "sourceCell": "PET!B24"
+        },
+        {
+          "label": "Previsto um vigia designado, treinado e autorizado para prontidão fora do espaço confinado ?",
+          "sourceCell": "PET!B25"
+        },
+        {
+          "label": "Os meios de comunicação entre vigia e equipe de trabalho foram providenciados e são à prova explosão ?",
+          "sourceCell": "PET!B26"
+        },
+        {
+          "label": "Equipamento drenado / purgado / lavado / limpo ?",
+          "sourceCell": "PET!B27"
+        },
+        {
+          "label": "Tubulações desconectadas / raqueteadas ?",
+          "sourceCell": "PET!B28"
+        },
+        {
+          "label": "Quantidade de material e ferramentas para trabalhar no espaço confinado são suficientes ?",
+          "sourceCell": "PET!B29"
+        },
+        {
+          "label": "Medições ambientais abaixo dos limites de tolerância ?",
+          "sourceCell": "PET!B30"
+        },
+        {
+          "label": "Medições ambientais realizadas com aparelhos calibrados e a prova de explosão com alarme funcionando?",
+          "sourceCell": "PET!B31"
+        },
+        {
+          "label": "Providenciado os EPI´s necessários aos trabalhadores ?",
+          "sourceCell": "PET!B32"
+        },
+        {
+          "label": "Providenciado proteção térmica aos trabalhadores ?",
+          "sourceCell": "PET!B33"
+        },
+        {
+          "label": "Equipamentos elétricos estão aterrados e são a prova de explosão?",
+          "sourceCell": "PET!B34"
+        },
+        {
+          "label": "Providenciado lanterna a prova de explosão ?",
+          "sourceCell": "PET!B35"
+        },
+        {
+          "label": "Providenciado sinalização / isolamento do local ?",
+          "sourceCell": "PET!B36"
+        },
+        {
+          "label": "Existem extintores disponíveis no local ?",
+          "sourceCell": "PET!B37"
+        },
+        {
+          "label": "Realizada medições de pressão arterial nos trabalhadores que irão trabalhar em espaço confinado ?",
+          "sourceCell": "PET!B38"
+        },
+        {
+          "label": "Supervisores e trabalhadores são treinados e autorizados para realizar trabalhos em espaço confinado ? Está atualizado?",
+          "sourceCell": "PET!B39"
+        },
+        {
+          "label": "Existem procedimentos e equipamentos de resgate no local (Ex.: Suportes e movimentação vertical, etc) ?",
+          "sourceCell": "PET!B40"
+        },
+        {
+          "label": "Acessos / escadas disponíveis e adequados ?",
+          "sourceCell": "PET!B41"
+        },
+        {
+          "label": "As  determinações  da  ART estão  sendo  consideradas  e  são  adequadas ?",
+          "sourceCell": "PET!B42"
+        }
+      ],
+      "historicalFields": [
+        {
+          "label": "Oxigênio (O2) \n> 19,5% e < 23,0%",
+          "sourceCell": "PET!E35"
+        },
+        {
+          "label": "Monóxido Carbono (CO) < 39 ppm",
+          "sourceCell": "PET!F35"
+        },
+        {
+          "label": "Explosividade \n< 10,0% (LIE)",
+          "sourceCell": "PET!G35"
+        },
+        {
+          "label": "Cloro (Cl2) < 0,8 ppm",
+          "sourceCell": "PET!H35"
+        },
+        {
+          "label": "Gás Sulfídrico (H2S) < 8 ppm",
+          "sourceCell": "PET!I35"
+        },
+        {
+          "label": "← Limites",
+          "sourceCell": "PET!J35"
+        },
+        {
+          "label": "Realizada medições de pressão arterial nos trabalhadores que irão trabalhar em espaço confinado ?",
+          "sourceCell": "PET!B38"
+        }
+      ],
+      "counts": {
+        "activityCategories": 1,
+        "activityChecks": 23,
+        "equipment": 17,
+        "generalControls": 15,
+        "closingChecks": 11
+      }
+    },
+    {
+      "modelId": "pt-alternate",
+      "code": "RI-S-36001",
+      "shortName": "PT alternativa — arquivo Rev.06",
+      "role": "ALTERNATE_REFERENCE",
+      "sourceFileName": "RI-S-36001 PT_Permissão de Trabalho_Rev.06.xls",
+      "sourceRelativePath": "MODELOS DE RELATORIOS DE SST/RI-S-36001 - Permissão de Trabalho/RI-S-36001 PT_Permissão de Trabalho_Rev.06.xls",
+      "sourceSha256": "4aa40288dcf5b228cb915c30e7715b1abdae8e8687e566df16cdbe0d4d9478a7",
+      "sizeBytes": 836096,
+      "sheets": [
+        {
+          "name": "PT",
+          "rows": 167,
+          "columns": 10
+        }
+      ],
+      "title": {
+        "label": "REGISTRO\nPERMISSÃO PARA TRABALHO - PT",
+        "sourceCell": "PT!A6"
+      },
+      "codeCell": {
+        "label": "RI-S-36001",
+        "sourceCell": "PT!G6"
+      },
+      "revision": {
+        "label": "3",
+        "sourceCell": "PT!J9"
+      },
+      "fields": [
+        {
+          "label": "EMPRESA:",
+          "sourceCell": "PT!A12"
+        },
+        {
+          "label": "FORNECEDOR QUARTERIZADO:",
+          "sourceCell": "PT!D12"
+        },
+        {
+          "label": "No ART:",
+          "sourceCell": "PT!G12"
+        },
+        {
+          "label": "Nº PT",
+          "sourceCell": "PT!I12"
+        },
+        {
+          "label": "FRENTE DE SERVIÇO:",
+          "sourceCell": "PT!A14"
+        },
+        {
+          "label": "DATA DE INÍCIO:",
+          "sourceCell": "PT!E14"
+        },
+        {
+          "label": "DATA PREVISTA PARA CONCLUSÃO:",
+          "sourceCell": "PT!H14"
+        },
+        {
+          "label": "TRABALHO A SER REALIZADO:",
+          "sourceCell": "PT!A16"
+        },
+        {
+          "label": "TAREFA:",
+          "sourceCell": "PT!F16"
+        }
+      ],
+      "blocks": [
+        {
+          "label": "Instalações elétricas",
+          "sourceHeading": {
+            "label": "1 - TRABALHOS EM INSTALAÇÕES ELETRICAS",
+            "sourceCell": "PT!A18"
+          },
+          "sourceRange": "PT!B20:B35"
+        },
+        {
+          "label": "Gamagrafia",
+          "sourceHeading": {
+            "label": "2 - TESTES RADIOGRÁFICOS ENVOLVENDO TRABALHO DE GAMAGRAFIA.",
+            "sourceCell": "PT!A36"
+          },
+          "sourceRange": "PT!B37:B48"
+        },
+        {
+          "label": "Altura",
+          "sourceHeading": {
+            "label": "3 - TRABALHOS EM ALTURA SUPERIOR À 1,80 METROS",
+            "sourceCell": "PT!A49"
+          },
+          "sourceRange": "PT!B51:B68"
+        },
+        {
+          "label": "Içamento de cargas",
+          "sourceHeading": {
+            "label": "4 - IÇAMENTO E MOVIMENTAÇÃO DE CARGAS",
+            "sourceCell": "PT!A70"
+          },
+          "sourceRange": "PT!B72:B89"
+        },
+        {
+          "label": "Explosivos",
+          "sourceHeading": {
+            "label": "5 - TRABALHOS COM EXPLOSIVOS / DETONAÇÕES",
+            "sourceCell": "PT!A90"
+          },
+          "sourceRange": "PT!B92:B101"
+        },
+        {
+          "label": "Serviços não elétricos em zona controlada",
+          "sourceHeading": {
+            "label": "6 - SERVIÇOS NÃO RELACIONADOS COM ELETRICIDADE DENTRO DA ZONA CONTROLADA1",
+            "sourceCell": "PT!E18"
+          },
+          "sourceRange": "PT!F20:F27"
+        },
+        {
+          "label": "Sistema Elétrico de Potência",
+          "sourceHeading": {
+            "label": "7 - QUALQUER TRABALHO NAS INSTALAÇÕES DE SISTEMAS ELÉTRICOS DE POTÊNCIA - SEP",
+            "sourceCell": "PT!E28"
+          },
+          "sourceRange": "PT!F30:F34"
+        },
+        {
+          "label": "Riscos simultâneos",
+          "sourceHeading": {
+            "label": "8 - ATIVIDADES COM RISCO SIMULTÂNEAS, COORD. POR MAIS DE UM INDIVÍDUO",
+            "sourceCell": "PT!E39"
+          },
+          "sourceRange": "PT!F41:F47"
+        },
+        {
+          "label": "Trabalho a quente",
+          "sourceHeading": {
+            "label": "9 - TRABALHOS A QUENTE",
+            "sourceCell": "PT!E49"
+          },
+          "sourceRange": "PT!F51:F68"
+        },
+        {
+          "label": "Escavação",
+          "sourceHeading": {
+            "label": "10 - TRABALHOS DE ESCAVAÇÃO / PERFURAÇÃO / FUNDAÇÃO",
+            "sourceCell": "PT!E70"
+          },
+          "sourceRange": "PT!F72:F82"
+        },
+        {
+          "label": "Abertura de linhas e equipamentos",
+          "sourceHeading": {
+            "label": "11 - ATIVIDADES ENVOLVENDO ABERTURA DE LINHAS (TUBULAÇÃO) E EQUIPAMENTOS",
+            "sourceCell": "PT!E90"
+          },
+          "sourceRange": "PT!F92:F102"
+        },
+        {
+          "label": "EPI / EPC",
+          "sourceHeading": {
+            "label": "EPI / EPC - EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL / COLETIVA",
+            "sourceCell": "PT!A103"
+          },
+          "sourceRange": "PT!A104:J108"
+        },
+        {
+          "label": "Ações gerais",
+          "sourceHeading": {
+            "label": "AÇÕES GERAIS",
+            "sourceCell": "PT!A111"
+          },
+          "sourceRange": "PT!A112:J116"
+        },
+        {
+          "label": "Participantes",
+          "sourceHeading": {
+            "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO",
+            "sourceCell": "PT!A123"
+          },
+          "sourceRange": "PT!A123:J134"
+        },
+        {
+          "label": "Liberação",
+          "sourceHeading": {
+            "label": "LIBERAÇÃO PELO EMITENTE DA PT",
+            "sourceCell": "PT!A136"
+          },
+          "sourceRange": "PT!A136:J142"
+        },
+        {
+          "label": "Revalidação",
+          "sourceHeading": {
+            "label": "ASSINATURAS DE REVALIDAÇÃO",
+            "sourceCell": "PT!A145"
+          },
+          "sourceRange": "PT!A145:J156"
+        },
+        {
+          "label": "Encerramento",
+          "sourceHeading": {
+            "label": "CHECK LIST DE ENCERRAMENTO",
+            "sourceCell": "PT!A159"
+          },
+          "sourceRange": "PT!A159:J167"
+        }
+      ],
+      "filenameRevision": "06",
+      "counts": {
+        "activityCategories": 11,
+        "activityChecks": 134,
+        "equipment": 25,
+        "generalControls": 14,
+        "closingChecks": 11
+      }
+    }
+  ]
+}

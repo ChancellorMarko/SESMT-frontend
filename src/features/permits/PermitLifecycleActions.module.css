@@ -1,0 +1,2 @@
+.confirmation { display: flex; align-items: flex-start; gap: .65rem; font-size: 13px; line-height: 1.6; }
+.confirmation input { flex: 0 0 auto; margin-top: .25rem; }

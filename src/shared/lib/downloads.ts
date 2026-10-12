@@ -1,0 +1,15 @@
+/** Links temporários recebidos da API só podem usar origens explicitamente autorizadas. */
+export function isDownloadUrlAllowed(value: string, origin = window.location.origin): boolean {
+  try {
+    const url = new URL(value, origin);
+    if (url.username || url.password) return false;
+    if (url.origin === origin && ['http:', 'https:', 'blob:'].includes(url.protocol)) return true;
+    if (url.protocol !== 'https:') return false;
+    const apiOrigin = new URL(import.meta.env.VITE_API_BASE_URL || '/api/v1', origin).origin;
+    const additional = String(import.meta.env.VITE_DOWNLOAD_ALLOWED_ORIGINS || '').split(',').flatMap(item => {
+      try { const candidate = new URL(item.trim()); return candidate.protocol === 'https:' && !candidate.username && !candidate.password ? [candidate.origin] : []; }
+      catch { return []; }
+    });
+    return url.origin === apiOrigin || additional.includes(url.origin);
+  } catch { return false; }
+}

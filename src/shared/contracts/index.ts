@@ -1,0 +1,29 @@
+export interface PageDto<T> { items: T[]; page: number; pageSize: number; total: number }
+export interface ErrorDto { code: string; message: string; fieldErrors?: { field: string; code: string; message: string }[]; requestId: string }
+export interface ScopeDto { companyIds: string[]; unitIds: string[]; sectorIds: string[]; teamIds: string[]; ownOnly: boolean; expiresAt?: string }
+export interface SessionDto { accessToken: string; tokenType: 'Bearer'; accessExpiresAt: string }
+export interface MfaChallengeDto { status: 'MFA_REQUIRED'; challengeId: string; expiresAt: string; methods: string[] }
+export interface MeDto { user: { id: string; displayName: string; email: string }; roles: string[]; permissions: string[]; scope: ScopeDto; workerId?: string; accessExpiresAt: string }
+export interface UserDto { id: string; displayName: string; email: string; status: 'ACTIVE' | 'DISABLED' | 'INVITED'; roles: string[]; scope: ScopeDto; mfaRequired: boolean; revision: number }
+export interface RoleDto { code: string; label: string; permissions: string[] }
+export interface AssigneeDto { id: string; displayName: string }
+export interface OrganizationItemDto { id: string; name: string; code?: string; status: 'ACTIVE' | 'INACTIVE'; revision: number; taxId?: string; address?: string; companyId?: string; establishmentId?: string; unitId?: string; sectorId?: string; jobId?: string; description?: string; occupationCode?: string; responsibleIds?: string[] }
+export interface OrganizationDto { companies: OrganizationItemDto[]; establishments: OrganizationItemDto[]; units: OrganizationItemDto[]; sectors: OrganizationItemDto[]; jobs: OrganizationItemDto[]; jobFunctions: OrganizationItemDto[]; workCenters: OrganizationItemDto[] }
+export type WorkerStatus = 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED';
+export interface WorkerDto { id: string; registration: string; fullName: string; companyId: string; unitId: string; sectorId: string; jobId?: string; jobFunctionId?: string; workCenterId?: string; managerId?: string; employmentType: string; admissionDate: string; status: WorkerStatus; revision: number }
+export interface WorkerAssignment { companyId?: string; unitId: string; sectorId: string; jobId?: string; jobFunctionId?: string; workCenterId?: string; managerId?: string }
+export interface WorkerMovementDto { id: string; workerId: string; type: 'ADMISSION' | 'TRANSFER' | 'LEAVE' | 'RETURN' | 'TERMINATION'; effectiveDate: string; previousAssignment: WorkerAssignment | null; newAssignment?: WorkerAssignment; reason: string; createdAt: string; createdBy: string }
+export type DocumentStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'ACTIVE' | 'EXPIRED' | 'SUPERSEDED' | 'ARCHIVED';
+export type AccessClass = 'INTERNAL' | 'RESTRICTED' | 'MEDICAL';
+export type ScanStatus = 'PENDING' | 'CLEAN' | 'REJECTED';
+export interface DocumentTypeDto { id: string; code: string; name: string; category: string; requiredFields: string[]; allowedAccessClasses: AccessClass[]; defaultAccessClass: AccessClass; allowedMimeTypes: string[]; maxFileSizeBytes: number; renewalPolicy: { enabled: boolean; noticeDays: number; periodMonths?: number }; retentionPolicyReference: { code: string; version: string; source: string }; workflow: { reviewRequired: boolean; signatureRequired: boolean; allowSelfApproval: boolean; allowMultipleActiveVersions: boolean }; revision: number }
+export interface DocumentWriteDto { code: string; title: string; typeId: string; companyId: string; unitId: string; ownerId: string; accessClass: AccessClass; issueDate: string; sectorId?: string; workerIds?: string[]; responsibleIds?: string[]; validFrom?: string; validUntil?: string; keywords?: string[] }
+export interface DocumentDto extends DocumentWriteDto { id: string; workerIds: string[]; responsibleIds: string[]; keywords: string[]; status: DocumentStatus; currentVersionId?: string; activeVersionId?: string; activeVersionIds: string[]; availableActions: string[]; revision: number }
+export interface FileDto { id: string; name: string; mimeType: string; sizeBytes: number; sha256: string; scanStatus: ScanStatus }
+export interface SignatureEvidenceDto { id: string; versionId: string; signerName: string; signedAt: string; method: 'UPLOADED_EVIDENCE'; evidenceFileId: string; file: FileDto; verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED' }
+export interface DocumentVersionDto { id: string; documentId: string; versionNumber: number; reason: string; status: DocumentStatus; metadataSnapshot: DocumentWriteDto; file: FileDto; createdAt: string; createdBy: string; review?: { decision: 'ACCEPT' | 'REQUEST_CHANGES'; comment: string; actorId?: string }; approval?: { comment?: string; actorId?: string; approvedAt?: string }; signatureEvidences: SignatureEvidenceDto[]; availableActions: string[]; revision: number }
+export interface DocumentHistoryDto { id: string; documentId: string; versionId?: string; action: string; actor: { id: string; displayName: string }; occurredAt: string; reason?: string; changes?: Record<string, unknown> }
+export interface DownloadUrlDto { url: string; expiresAt: string; fileName: string; mimeType: string }
+export interface NotificationDto { id: string; type: string; title: string; summary: string; resourceType: string; resourceId: string; dueDate?: string; readAt?: string; createdAt: string }
+export interface DashboardDto { generatedAt: string; filters: { unitId?: string; from?: string; to?: string }; indicators: { code: string; label: string; value: number; formula: string; period: string; source: string; updatedAt: string }[]; pendingItems: { id: string; title: string; resourceType: string; resourceId: string; status?: string; dueDate?: string }[] }
+export interface AuditLogDto { id: string; actorId: string; action: string; resourceType: string; resourceId: string; occurredAt: string; requestId: string; outcome: string }

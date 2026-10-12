@@ -1,0 +1,71 @@
+import type { AppointmentDto, PermitPreparationDto, PermitSourceCheckDto } from '../../../shared/contracts/work-permits';
+import source from './ri-s-36001.source.json';
+
+export const PT_SOURCE = source;
+export const PT_ACTIVITIES = source.activities;
+export const PT_EQUIPMENT = source.equipment;
+export const PT_CONTROLS = source.controls;
+const adaptedLabel = (label: string) => /pressão arterial|perfeitas condições físicas/i.test(label)
+  ? 'A conferência ocupacional administrativa aplicável foi realizada por profissional competente, sem registro clínico neste formulário?'
+  : label;
+export const PT_CHECKS = source.checks.map(item => ({ ...item, label: adaptedLabel(item.label) }));
+export const PT_CLOSING_CHECKS = source.closingChecks;
+export const answerLabel = (answer: PermitSourceCheckDto['answer']) => answer === 'YES' ? 'Sim' : answer === 'NO' ? 'Não' : answer === 'NA' ? 'Não aplicável' : 'Não respondido';
+const blankChecks = (items: typeof PT_CHECKS): PermitSourceCheckDto[] => items.map(item => ({ ...item, answer: null }));
+
+export function createPermitPreparation(appointment: AppointmentDto): PermitPreparationDto {
+  return {
+    sourceId: source.sourceId, sourceRevision: source.sourceRevision,
+    identification: { serviceProvider: '', subcontractor: '', group: '', workFront: '', location: appointment.location, activityDescription: '', riskAnalysisReference: '', executorName: '', issuerName: appointment.responsibleName, atmosphereNotes: '', watchers: '', supervisors: '' },
+    activities: [], equipment: [], controls: [], additionalControls: '', checks: blankChecks(PT_CHECKS), closingChecks: blankChecks(PT_CLOSING_CHECKS), measurements: [],
+  };
+}
+
+/** Checks only completeness and justification, never interprets YES as universally safe. */
+export function validateSourceChecks(checks: PermitSourceCheckDto[], complete = false): string | undefined {
+  if (complete && checks.some(item => item.answer === null)) return 'Responda todos os itens aplicáveis do modelo.';
+  if (checks.some(item => item.answer !== null && !['YES', 'NO', 'NA'].includes(item.answer))) return 'Selecione Sim, Não ou Não aplicável.';
+  if (checks.some(item => (item.answer === 'NO' || item.answer === 'NA') && !item.note?.trim())) return 'Justifique as respostas Não e Não aplicável em cada item.';
+  if (checks.some(item => (item.note?.length ?? 0) > 1000)) return 'Cada justificativa deve ter até 1.000 caracteres.';
+  return undefined;
+}
+
+export function validatePreparation(preparation: PermitPreparationDto, complete = false): string | undefined {
+  if (preparation.sourceId !== source.sourceId || preparation.sourceRevision !== source.sourceRevision) return 'A identificação do modelo não corresponde à versão desta PT.';
+  if (Object.values(preparation.identification).some(value => typeof value !== 'string' || value.length > 2000) || preparation.additionalControls.length > 4000) return 'Confira o tamanho dos textos da preparação.';
+  if (complete) {
+    if (preparation.identification.activityDescription.trim().length < 10) return 'Descreva a atividade com pelo menos 10 caracteres.';
+    if (!preparation.identification.location.trim() || !preparation.identification.workFront.trim() || !preparation.identification.serviceProvider.trim() || !preparation.identification.riskAnalysisReference.trim()) return 'Informe fornecedor, frente, local e referência da análise de risco.';
+    if (!preparation.activities.length) return 'Selecione pelo menos uma categoria de atividade do modelo.';
+    if (preparation.activities.includes('pressurized') && preparation.additionalControls.trim().length < 10) return 'Sistemas pressurizados: descreva os controles complementares com pelo menos 10 caracteres.';
+  }
+  return validateSourceChecks(preparation.checks.filter(item => preparation.activities.includes(item.section)), complete);
+}
+
+/** Canonicalizes writable values; IDs, sections, source cells and labels come from the source catalog. */
+export function canonicalPreparation(input: PermitPreparationDto, current: PermitPreparationDto): PermitPreparationDto {
+  if (!input || typeof input !== 'object' || !input.identification || typeof input.additionalControls !== 'string') throw new Error('Envie a preparação completa desta versão.');
+  if (input.sourceId !== current.sourceId || input.sourceRevision !== current.sourceRevision) throw new Error('Não substitua a identidade do modelo desta versão.');
+  const identification = Object.fromEntries(Object.keys(current.identification).map(key => {
+    const value = input.identification[key as keyof typeof input.identification];
+    if (typeof value !== 'string' || value.length > 2000) throw new Error('Preencha os campos de identificação com até 2.000 caracteres.');
+    return [key, value.trim()];
+  })) as PermitPreparationDto['identification'];
+  const options = (values: string[], catalog: { id: string }[]) => {
+    if (!Array.isArray(values) || new Set(values).size !== values.length || values.some(value => !catalog.some(item => item.id === value))) throw new Error('Selecione opções do catálogo desta versão, sem duplicação.');
+    return [...values];
+  };
+  const checks = canonicalChecks(input.checks, current.checks);
+  const measurements = input.measurements ?? [];
+  if (!Array.isArray(measurements) || measurements.length > 50 || measurements.some(item => !item || ['id', 'oxygen', 'carbonMonoxide', 'explosivity', 'other', 'measuredAt', 'responsible', 'instrument'].some(key => typeof item[key as keyof typeof item] !== 'string' || item[key as keyof typeof item].length > 500)) || new Set(measurements.map(item => item.id)).size !== measurements.length) throw new Error('Confira as medições e use no máximo 50 registros de até 500 caracteres por campo.');
+  return { sourceId: current.sourceId, sourceRevision: current.sourceRevision, identification, activities: options(input.activities, PT_ACTIVITIES), equipment: options(input.equipment, PT_EQUIPMENT), controls: options(input.controls, PT_CONTROLS), additionalControls: input.additionalControls.trim(), checks, closingChecks: structuredClone(current.closingChecks), measurements: measurements.map(({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument }) => ({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument })) };
+}
+
+export function canonicalChecks(input: PermitSourceCheckDto[], current: PermitSourceCheckDto[]): PermitSourceCheckDto[] {
+  if (!Array.isArray(input) || input.length !== current.length || new Set(input.map(item => item?.id)).size !== current.length || input.some(item => !item || !current.some(original => original.id === item.id))) throw new Error('Envie todos os itens do modelo sem substituir perguntas.');
+  return current.map(original => {
+    const value = input.find(item => item.id === original.id)!;
+    if (![null, 'YES', 'NO', 'NA'].includes(value.answer) || value.note !== undefined && (typeof value.note !== 'string' || value.note.length > 1000)) throw new Error('Confira a resposta e a justificativa de cada item.');
+    return { ...original, answer: value.answer, note: value.note?.trim() };
+  });
+}

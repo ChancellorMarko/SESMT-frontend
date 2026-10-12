@@ -1,0 +1,2836 @@
+{
+  "sourceId": "RI-S-36001",
+  "sourceRevision": "A",
+  "sourceFileName": "RI-S-36001 PT_Permissão de Trabalho.xls",
+  "sourceSha256": "568e2116b243b61f6f927af95de89a2fc1c157683cf3dc7932e4b72143007606",
+  "sheet": "Plan1",
+  "sourceStatus": "PARA APROVAÇÃO (Plan1!C15); arquivo histórico recebido, sem confirmação de vigência operacional",
+  "answerOptions": [
+    {
+      "id": "YES",
+      "label": "Sim"
+    },
+    {
+      "id": "NO",
+      "label": "Não"
+    },
+    {
+      "id": "NA",
+      "label": "Não aplicável"
+    }
+  ],
+  "activities": [
+    {
+      "id": "electrical",
+      "label": "Instalações elétricas",
+      "sourceCell": "Plan1!A27",
+      "sourceLabel": "TRABALHOS EM INSTALAÇÕES ELETRICAS"
+    },
+    {
+      "id": "roof",
+      "label": "Trabalho em telhado",
+      "sourceCell": "Plan1!E27",
+      "sourceLabel": "TRABALHO SOBRE TELHADOS"
+    },
+    {
+      "id": "radiation",
+      "label": "Fontes radioativas",
+      "sourceCell": "Plan1!E36",
+      "sourceLabel": "TRABALHOS COM FONTES RADIOATIVAS"
+    },
+    {
+      "id": "overlapping",
+      "label": "Trabalho sobreposto",
+      "sourceCell": "Plan1!A48",
+      "sourceLabel": "TRABALHO SOBREPOSTO"
+    },
+    {
+      "id": "grinder",
+      "label": "Corte com lixadeira",
+      "sourceCell": "Plan1!E48",
+      "sourceLabel": "CORTE DE PEÇAS METÁLICAS COM LIXADEIRA"
+    },
+    {
+      "id": "height",
+      "label": "Trabalho em altura",
+      "sourceCell": "Plan1!A58",
+      "sourceLabel": "TRABALHOS EM ALTURA SUPERIOR À 1,80 METROS"
+    },
+    {
+      "id": "hot-work",
+      "label": "Trabalho a quente",
+      "sourceCell": "Plan1!E58",
+      "sourceLabel": "TRABALHOS A QUENTE (SOLDA E CORTE COM OXIACETILENO / SOLDA ELÉTRICA)"
+    },
+    {
+      "id": "lifting",
+      "label": "Içamento e movimentação de cargas",
+      "sourceCell": "Plan1!A80",
+      "sourceLabel": "IÇAMENTO E MOVIMENTAÇÃO DE CARGAS"
+    },
+    {
+      "id": "excavation",
+      "label": "Escavação, perfuração e fundação",
+      "sourceCell": "Plan1!E80",
+      "sourceLabel": "TRABALHOS DE ESCAVAÇÃO / PERFURAÇÃO / FUNDAÇÃO"
+    },
+    {
+      "id": "explosives",
+      "label": "Explosivos e detonação",
+      "sourceCell": "Plan1!A101",
+      "sourceLabel": "TRABALHOS COM EXPLOSIVOS / DETONAÇÕES"
+    },
+    {
+      "id": "chemicals",
+      "label": "Sistemas e produtos químicos perigosos",
+      "sourceCell": "Plan1!E101",
+      "sourceLabel": "TRABAHOS COM SISTEMAS / PRODUTOS QUÍMICOS PERIGOSOS"
+    },
+    {
+      "id": "confined-space",
+      "label": "Espaço confinado",
+      "sourceCell": "Plan1!A114",
+      "sourceLabel": "TRABALHOS EM ESPAÇOS CONFINADOS"
+    },
+    {
+      "id": "pressurized",
+      "label": "Sistemas pressurizados",
+      "sourceCell": "Plan1!I24",
+      "sourceLabel": "SISTEMAS PRESSURIZADOS"
+    }
+  ],
+  "checks": [
+    {
+      "id": "electrical-29",
+      "section": "electrical",
+      "sourceCell": "Plan1!B29",
+      "label": "Escadas utilizadas são de material isolante ?"
+    },
+    {
+      "id": "electrical-30",
+      "section": "electrical",
+      "sourceCell": "Plan1!B30",
+      "label": "Circuito elétrico esta desligado, bloqueado e identificado ?"
+    },
+    {
+      "id": "electrical-31",
+      "section": "electrical",
+      "sourceCell": "Plan1!B31",
+      "label": "Verificado ausência de energia no circuito de trabalhado ?"
+    },
+    {
+      "id": "electrical-32",
+      "section": "electrical",
+      "sourceCell": "Plan1!B32",
+      "label": "Aterramento elétrico foi realizado ?"
+    },
+    {
+      "id": "electrical-33",
+      "section": "electrical",
+      "sourceCell": "Plan1!B33",
+      "label": "Pontos energizados próximos da área de trabalho estão desconectados, isolados e sinalizados ?"
+    },
+    {
+      "id": "electrical-34",
+      "section": "electrical",
+      "sourceCell": "Plan1!B34",
+      "label": "Os trabalhadores são qualificados, habilitados, capacitados, autorizados para execução das atividades ?"
+    },
+    {
+      "id": "electrical-35",
+      "section": "electrical",
+      "sourceCell": "Plan1!B35",
+      "label": "Existe tapete isolante nos trabalhos em subestações/painéis elétricos ?"
+    },
+    {
+      "id": "electrical-36",
+      "section": "electrical",
+      "sourceCell": "Plan1!B36",
+      "label": "Os painéis de distribuição estão trancados e chaves mantidas com pessoal autorizado ?"
+    },
+    {
+      "id": "electrical-37",
+      "section": "electrical",
+      "sourceCell": "Plan1!B37",
+      "label": "Cabos de extensão e ferramentas elétricas em bom estado ?"
+    },
+    {
+      "id": "electrical-38",
+      "section": "electrical",
+      "sourceCell": "Plan1!B38",
+      "label": "Ferramentas manuais possuem isolamentos nos cabos ?"
+    },
+    {
+      "id": "electrical-39",
+      "section": "electrical",
+      "sourceCell": "Plan1!B39",
+      "label": "Carga estática de capacitores foram descarregadas ?"
+    },
+    {
+      "id": "electrical-40",
+      "section": "electrical",
+      "sourceCell": "Plan1!B40",
+      "label": "Os EPIs estão disponibilizados, em boas condições e adequados as atividades (Ex.: luva eletricista, etc) ?"
+    },
+    {
+      "id": "electrical-41",
+      "section": "electrical",
+      "sourceCell": "Plan1!B41",
+      "label": "As botoeiras dos equipamentos foram testadas e confirmado os desligamentos ?"
+    },
+    {
+      "id": "electrical-42",
+      "section": "electrical",
+      "sourceCell": "Plan1!B42",
+      "label": "A área de trabalho foi isolada e identificada ?"
+    },
+    {
+      "id": "electrical-43",
+      "section": "electrical",
+      "sourceCell": "Plan1!B43",
+      "label": "Cabos de etensão e ferramentas elétricas em bom estado ?"
+    },
+    {
+      "id": "electrical-44",
+      "section": "electrical",
+      "sourceCell": "Plan1!B44",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "id": "roof-29",
+      "section": "roof",
+      "sourceCell": "Plan1!F29",
+      "label": "Uso de cinto-paraquedista e  trava-quedas c/ talabarte duplo fixados em cabo-guia de aço ?"
+    },
+    {
+      "id": "roof-30",
+      "section": "roof",
+      "sourceCell": "Plan1!F30",
+      "label": "Cabo-guia de pelo menos 3/8\" está fixado em estrutura definitiva da edificação ?"
+    },
+    {
+      "id": "roof-31",
+      "section": "roof",
+      "sourceCell": "Plan1!F31",
+      "label": "Realizado o isolamento e sinalização do piso inferior ?"
+    },
+    {
+      "id": "roof-32",
+      "section": "roof",
+      "sourceCell": "Plan1!F32",
+      "label": "Trabalhadores treinados e com pressão arterial avaliada ?"
+    },
+    {
+      "id": "roof-33",
+      "section": "roof",
+      "sourceCell": "Plan1!F33",
+      "label": "Emanação de gases em processos industriais foi eliminada ou está controlada ?"
+    },
+    {
+      "id": "roof-34",
+      "section": "roof",
+      "sourceCell": "Plan1!F34",
+      "label": "As condições climáticas (ausência de chuvas e ventos fortes) estão adequadas para a realização da atividade ?"
+    },
+    {
+      "id": "roof-35",
+      "section": "roof",
+      "sourceCell": "Plan1!F35",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "radiation-38",
+      "section": "radiation",
+      "sourceCell": "Plan1!F38",
+      "label": "Área de trabalho esta isolada e sinalizada ?"
+    },
+    {
+      "id": "radiation-39",
+      "section": "radiation",
+      "sourceCell": "Plan1!F39",
+      "label": "Nenhum trabalhador não autorizado permanece no local ?"
+    },
+    {
+      "id": "radiation-40",
+      "section": "radiation",
+      "sourceCell": "Plan1!F40",
+      "label": "Distância da área restrita atende requisito da CNEN / aprovado pelo Supervisor de Radioproteção ?"
+    },
+    {
+      "id": "radiation-41",
+      "section": "radiation",
+      "sourceCell": "Plan1!F41",
+      "label": "Monitor de radiação esta calibrado, pussui certificado e está no local ?"
+    },
+    {
+      "id": "radiation-42",
+      "section": "radiation",
+      "sourceCell": "Plan1!F42",
+      "label": "Empregados executantes do trabalho estão portanto filmes dosimétricos ?"
+    },
+    {
+      "id": "radiation-43",
+      "section": "radiation",
+      "sourceCell": "Plan1!F43",
+      "label": "Supervisor de Radioproteção ou o RIA está presente no local ?"
+    },
+    {
+      "id": "radiation-44",
+      "section": "radiation",
+      "sourceCell": "Plan1!F44",
+      "label": "Equipamentos para resgate estão no local ?"
+    },
+    {
+      "id": "radiation-45",
+      "section": "radiation",
+      "sourceCell": "Plan1!F45",
+      "label": "Foi estabelecido e aprovado um plano para realização do teste radiográfico ?"
+    },
+    {
+      "id": "radiation-46",
+      "section": "radiation",
+      "sourceCell": "Plan1!F46",
+      "label": "As fontes radioativas possuem colimador e estão adequadas ?"
+    },
+    {
+      "id": "radiation-47",
+      "section": "radiation",
+      "sourceCell": "Plan1!F47",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "overlapping-50",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B50",
+      "label": "Todas as alternativas para evitar o trabalho sobrepostos foram avaliadas ?"
+    },
+    {
+      "id": "overlapping-51",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B51",
+      "label": "Um sistema de sinalização e isolamento foi realizado ?"
+    },
+    {
+      "id": "overlapping-52",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B52",
+      "label": "Foi instalado anteparos contra queda materiais para o piso inferior ?"
+    },
+    {
+      "id": "overlapping-53",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B53",
+      "label": "As ferramentas manuais estão em caixas e/ou amarradas no uso?"
+    },
+    {
+      "id": "overlapping-54",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B54",
+      "label": "Existe alarme sonoro para movimentação dos equipamentos ?"
+    },
+    {
+      "id": "overlapping-55",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B55",
+      "label": "Os EPI / EPC necesários estão em boas condições / disponibilizados ?"
+    },
+    {
+      "id": "overlapping-56",
+      "section": "overlapping",
+      "sourceCell": "Plan1!B56",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "id": "grinder-50",
+      "section": "grinder",
+      "sourceCell": "Plan1!F50",
+      "label": "O disco de corte esta dentro do limite de desgaste ?"
+    },
+    {
+      "id": "grinder-51",
+      "section": "grinder",
+      "sourceCell": "Plan1!F51",
+      "label": "O disco de corte é adequado para a atividade (rpm, material, tamanho, etc) ?"
+    },
+    {
+      "id": "grinder-52",
+      "section": "grinder",
+      "sourceCell": "Plan1!F52",
+      "label": "O trabalhador esta treinado e autorizado a utilizar o equipamento ?"
+    },
+    {
+      "id": "grinder-53",
+      "section": "grinder",
+      "sourceCell": "Plan1!F53",
+      "label": "O equipamento possue dispositivo liga-desliga, proteção do disco, flange e arruela de fixação de disco,  adequados em boas condições ?"
+    },
+    {
+      "id": "grinder-54",
+      "section": "grinder",
+      "sourceCell": "Plan1!F54",
+      "label": "A área esta sinalizada e isolada adequadamente ?"
+    },
+    {
+      "id": "grinder-55",
+      "section": "grinder",
+      "sourceCell": "Plan1!F55",
+      "label": "Esta previsto o ângulo de corte em 90º ?"
+    },
+    {
+      "id": "grinder-56",
+      "section": "grinder",
+      "sourceCell": "Plan1!F56",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "height-60",
+      "section": "height",
+      "sourceCell": "Plan1!B60",
+      "label": "Todos os envolvidos estão em perfeitas condições físicas para trabalhar em altura (pressão arterial) ?"
+    },
+    {
+      "id": "height-61",
+      "section": "height",
+      "sourceCell": "Plan1!B61",
+      "label": "Foi realizada a reunião para análise dos riscos antes do início dos trabalhos ?"
+    },
+    {
+      "id": "height-62",
+      "section": "height",
+      "sourceCell": "Plan1!B62",
+      "label": "Escadas coletivas e manuais (< 7m) em boas condições ?"
+    },
+    {
+      "id": "height-63",
+      "section": "height",
+      "sourceCell": "Plan1!B63",
+      "label": "Os trabalhadores conhecem e foram treinados no procedimento de prevenção de quedas ?"
+    },
+    {
+      "id": "height-64",
+      "section": "height",
+      "sourceCell": "Plan1!B64",
+      "label": "Os EPI´s necessários estão em bom estado/disponíveis ?"
+    },
+    {
+      "id": "height-65",
+      "section": "height",
+      "sourceCell": "Plan1!B65",
+      "label": "Os EPC´s necessários estão em bom estado/disponíveis ?"
+    },
+    {
+      "id": "height-66",
+      "section": "height",
+      "sourceCell": "Plan1!B66",
+      "label": "Ferramentas/equipamentos mantidos e guardados de modo seguro ?"
+    },
+    {
+      "id": "height-67",
+      "section": "height",
+      "sourceCell": "Plan1!B67",
+      "label": "Os andaimes/plataformas estão com piso completo, são mantidas limpas, secas e sem obstrução ?"
+    },
+    {
+      "id": "height-68",
+      "section": "height",
+      "sourceCell": "Plan1!B68",
+      "label": "Andaimes e plataformas estão afastados da rede elétrica ?"
+    },
+    {
+      "id": "height-69",
+      "section": "height",
+      "sourceCell": "Plan1!B69",
+      "label": "Andaimes/plataformas inspecionados, em boas condições, bem construídos, fixados, sinalizados e com ART ?"
+    },
+    {
+      "id": "height-70",
+      "section": "height",
+      "sourceCell": "Plan1!B70",
+      "label": "Os balancins estão em boas condições, instalados adequadamente e ART do responsável ?"
+    },
+    {
+      "id": "height-71",
+      "section": "height",
+      "sourceCell": "Plan1!B71",
+      "label": "Área de trabalho isolada e sinalizada ?"
+    },
+    {
+      "id": "height-72",
+      "section": "height",
+      "sourceCell": "Plan1!B72",
+      "label": "Guarda corpo com travessa e rodapé ?"
+    },
+    {
+      "id": "height-73",
+      "section": "height",
+      "sourceCell": "Plan1!B73",
+      "label": "Cinto de segurança tipo paraquedista com talabarte duplo ?"
+    },
+    {
+      "id": "height-75",
+      "section": "height",
+      "sourceCell": "Plan1!B75",
+      "label": "Linha de vida de 3/8\" e fixado em local adequado ?"
+    },
+    {
+      "id": "height-76",
+      "section": "height",
+      "sourceCell": "Plan1!B76",
+      "label": "O acesso ao local de trabalho é adequado ?"
+    },
+    {
+      "id": "height-77",
+      "section": "height",
+      "sourceCell": "Plan1!B77",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "id": "hot-work-60",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F60",
+      "label": "Os cabos elétricos estão isolados, protegidos contra umidade, fora de estruturas metálicas, de forma adequada ?"
+    },
+    {
+      "id": "hot-work-61",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F61",
+      "label": "Os trabalhadores são qualificados e autorizados para realizarem as atividades a quente ?"
+    },
+    {
+      "id": "hot-work-62",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F62",
+      "label": "O local esta isolado, sinalizado e possue anteparos contra raios ultravioleta ?"
+    },
+    {
+      "id": "hot-work-63",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F63",
+      "label": "Esta feito isolamento do piso inferior para trabalhos com corte e solda ?"
+    },
+    {
+      "id": "hot-work-64",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F64",
+      "label": "Máquinas de solda com instalações adequadas, aterradas e protegidas contra intemperies ?"
+    },
+    {
+      "id": "hot-work-65",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F65",
+      "label": "Painel elétrico da máquina de solda com disjuntores na tensão adequada ?"
+    },
+    {
+      "id": "hot-work-66",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F66",
+      "label": "Extintores de incêndio disponíveis onde será realizada a atividade ?"
+    },
+    {
+      "id": "hot-work-67",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F67",
+      "label": "Os cilindros estão em carrihos, com capacetes, fixados e em áreas livres de faíscas ou resto de solda quente ?"
+    },
+    {
+      "id": "hot-work-68",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F68",
+      "label": "Os cilindros possuem mangueiras sem ressecamento, manômetros e livres de óleo ou graxa ?"
+    },
+    {
+      "id": "hot-work-69",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F69",
+      "label": "O conjunto oxi-acetileno possue válvulas corta-chama na saída dos cilindros e na entrada dos maçaricos ?"
+    },
+    {
+      "id": "hot-work-70",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F70",
+      "label": "O local possue ventilação adequada e suficiente para realização das atividades a quente ?"
+    },
+    {
+      "id": "hot-work-71",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F71",
+      "label": "Os empregados não estão utilizando roupas sintéticas durante a atividade ?"
+    },
+    {
+      "id": "hot-work-72",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F72",
+      "label": "Está previsto o uso de EPI´s para proteção dos olhos contra raios ultravioleta, inclusive para o ajudante de solda ?"
+    },
+    {
+      "id": "hot-work-73",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F73",
+      "label": "Os EPIs / EPCs estão disponibilizados e em boas condições ?"
+    },
+    {
+      "id": "hot-work-75",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F75",
+      "label": "Foram removidos combustíveis, área limpa e livre de materiais inflamáveis ?"
+    },
+    {
+      "id": "hot-work-76",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F76",
+      "label": "Área, cilindros e tanques desgaseificados e isento de nível de explosividade ?"
+    },
+    {
+      "id": "hot-work-77",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F77",
+      "label": "O transporte por içamento de conjuntos oxi-acetileno é feito em gaiola apropriada ?"
+    },
+    {
+      "id": "hot-work-78",
+      "section": "hot-work",
+      "sourceCell": "Plan1!F78",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "lifting-82",
+      "section": "lifting",
+      "sourceCell": "Plan1!B82",
+      "label": "Foi feita inspeção pré operacional nos equipamentos (guindaste, grua, ponte, etc) ?"
+    },
+    {
+      "id": "lifting-83",
+      "section": "lifting",
+      "sourceCell": "Plan1!B83",
+      "label": "Os equipamentos de guindar tem a indicação da carga e atendem a capacidade requisitada ?"
+    },
+    {
+      "id": "lifting-84",
+      "section": "lifting",
+      "sourceCell": "Plan1!B84",
+      "label": "As plataformas de trabalho são mantidas limpas, secas e sem obstrução?"
+    },
+    {
+      "id": "lifting-85",
+      "section": "lifting",
+      "sourceCell": "Plan1!B85",
+      "label": "Os operadores dos equipamentos são qualificados e autorizados ?"
+    },
+    {
+      "id": "lifting-86",
+      "section": "lifting",
+      "sourceCell": "Plan1!B86",
+      "label": "Foi proibida a permanência de pessoas na área de movimentação de carga ?"
+    },
+    {
+      "id": "lifting-87",
+      "section": "lifting",
+      "sourceCell": "Plan1!B87",
+      "label": "Os cabos de aço e cintas foram inspecionados e estão em boas condições de uso ?"
+    },
+    {
+      "id": "lifting-88",
+      "section": "lifting",
+      "sourceCell": "Plan1!B88",
+      "label": "A ponta da lança do equipamento esta a uma distância segura de redes elétricas (Ex.: > 4,0 m) ?"
+    },
+    {
+      "id": "lifting-89",
+      "section": "lifting",
+      "sourceCell": "Plan1!B89",
+      "label": "Se equipamento a combustão em ambiente fechado, o local possue ventilação ou exaustão adequada ?"
+    },
+    {
+      "id": "lifting-90",
+      "section": "lifting",
+      "sourceCell": "Plan1!B90",
+      "label": "A carga a ser içada está devidamente amarrada ?"
+    },
+    {
+      "id": "lifting-91",
+      "section": "lifting",
+      "sourceCell": "Plan1!B91",
+      "label": "Existe um Rigger no local responsável pela atividade ?"
+    },
+    {
+      "id": "lifting-92",
+      "section": "lifting",
+      "sourceCell": "Plan1!B92",
+      "label": "Existe Plano Rigging ou Plano de Içamento para a atividade ?"
+    },
+    {
+      "id": "lifting-93",
+      "section": "lifting",
+      "sourceCell": "Plan1!B93",
+      "label": "As condições climáticas são adequadas (ventos, chuva) ?"
+    },
+    {
+      "id": "lifting-94",
+      "section": "lifting",
+      "sourceCell": "Plan1!B94",
+      "label": "O local esta isolado e sinalizado nos limites necessários ?"
+    },
+    {
+      "id": "lifting-95",
+      "section": "lifting",
+      "sourceCell": "Plan1!B95",
+      "label": "Os equipamentos estão bem nivelados e patolados ?"
+    },
+    {
+      "id": "lifting-96",
+      "section": "lifting",
+      "sourceCell": "Plan1!B96",
+      "label": "Os ganchos dos equipamentos possuem travas ?"
+    },
+    {
+      "id": "lifting-97",
+      "section": "lifting",
+      "sourceCell": "Plan1!B97",
+      "label": "Estão disponíveis os EPIs e EPCs necesários ?"
+    },
+    {
+      "id": "lifting-98",
+      "section": "lifting",
+      "sourceCell": "Plan1!B98",
+      "label": "O uso de cintas de carga foi proibido ?"
+    },
+    {
+      "id": "lifting-99",
+      "section": "lifting",
+      "sourceCell": "Plan1!B99",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "id": "excavation-82",
+      "section": "excavation",
+      "sourceCell": "Plan1!F82",
+      "label": "Existe projeto ou plano de escavação para a atividade ?"
+    },
+    {
+      "id": "excavation-83",
+      "section": "excavation",
+      "sourceCell": "Plan1!F83",
+      "label": "O projeto ou plano de escavação preve as interferências de redes elétricas, hidráulicas, tubulações, telefonia, muros ou paredes próximas, etc ?"
+    },
+    {
+      "id": "excavation-84",
+      "section": "excavation",
+      "sourceCell": "Plan1!F84",
+      "label": "Na existência de interferências de redes elétricas, tubulações de gases, etc, esta previsto o desligamento / bloqueio da fonte de energia antes do início dos trabalhos ?"
+    },
+    {
+      "id": "excavation-85",
+      "section": "excavation",
+      "sourceCell": "Plan1!F85",
+      "label": "O material retirado da escavação, esta previsto ser colocado distante da borda no mínimo na metade da profundidade da escavação ?"
+    },
+    {
+      "id": "excavation-86",
+      "section": "excavation",
+      "sourceCell": "Plan1!F86",
+      "label": "Nas escavações com profundidade > 1,25 m foi previsto escoramentos ou, não sendo previsto escoramento, uma avaliação e aprovação por profissional habilitado ?"
+    },
+    {
+      "id": "excavation-87",
+      "section": "excavation",
+      "sourceCell": "Plan1!F87",
+      "label": "Nas escavações esta previsto sinalização e isolamento com cerca, tela ou tapume a distância mínima da borda de 2x a profundidade ?"
+    },
+    {
+      "id": "excavation-88",
+      "section": "excavation",
+      "sourceCell": "Plan1!F88",
+      "label": "Nas escavações próximas de vias de circulação de veículos esta previsto sinalização e iluminação noturna ?"
+    },
+    {
+      "id": "excavation-89",
+      "section": "excavation",
+      "sourceCell": "Plan1!F89",
+      "label": "Foi previsto avaliar a presença de gases nas escavações que possam caracterizar espaços confinados ou gerar/formar gases tóxicos ?"
+    },
+    {
+      "id": "excavation-90",
+      "section": "excavation",
+      "sourceCell": "Plan1!F90",
+      "label": "Nas escavações com profundidade > 1,25 m foram previstos uso de escadas a cada 8 m ?"
+    },
+    {
+      "id": "excavation-91",
+      "section": "excavation",
+      "sourceCell": "Plan1!F91",
+      "label": "As escavações com remoção de vegetação nativa possuem autorização do órgão ambiental ?"
+    },
+    {
+      "id": "excavation-92",
+      "section": "excavation",
+      "sourceCell": "Plan1!F92",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "explosives-103",
+      "section": "explosives",
+      "sourceCell": "Plan1!B103",
+      "label": "A empresa possue licenças e registros dos produtos controlados pelo ministério do exército e outros órgãos ?"
+    },
+    {
+      "id": "explosives-104",
+      "section": "explosives",
+      "sourceCell": "Plan1!B104",
+      "label": "A quantidade de explosivos em paiol esta conforme legislação aplicável ?"
+    },
+    {
+      "id": "explosives-105",
+      "section": "explosives",
+      "sourceCell": "Plan1!B105",
+      "label": "Existe plano de fogo para desmonte de rochas aprovado por Engo. de Minas ?"
+    },
+    {
+      "id": "explosives-106",
+      "section": "explosives",
+      "sourceCell": "Plan1!B106",
+      "label": "As atividades de desmonte de rochas são executadas por \"Blaster\" qualificado ?"
+    },
+    {
+      "id": "explosives-107",
+      "section": "explosives",
+      "sourceCell": "Plan1!B107",
+      "label": "A área detonação será delimitada na extensão apropriada ?"
+    },
+    {
+      "id": "explosives-108",
+      "section": "explosives",
+      "sourceCell": "Plan1!B108",
+      "label": "Esta previsto soar sirene de aviso momentos antes das detonações ?"
+    },
+    {
+      "id": "explosives-109",
+      "section": "explosives",
+      "sourceCell": "Plan1!B109",
+      "label": "O transporte e armazenameto de explosivos é feito por \"Blaster\" qualificado ?"
+    },
+    {
+      "id": "explosives-110",
+      "section": "explosives",
+      "sourceCell": "Plan1!B110",
+      "label": "Esta previsto avaliar a área para confirmar a evacuação de todo o pessoal local antes da detonação ?"
+    },
+    {
+      "id": "explosives-111",
+      "section": "explosives",
+      "sourceCell": "Plan1!B111",
+      "label": "Comnicação entre os envolvidos na detonação é feita via rádio ?"
+    },
+    {
+      "id": "explosives-112",
+      "section": "explosives",
+      "sourceCell": "Plan1!B112",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "id": "chemicals-103",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F103",
+      "label": "A FISPQ do produto químico envolvido na atividade esta disponível ?"
+    },
+    {
+      "id": "chemicals-104",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F104",
+      "label": "Os equipamentos envolvidos na atividade serão despressurizados / drenados / lavados / neutralizados / inertizados para eliminar a ação do produto químico envolvido ?"
+    },
+    {
+      "id": "chemicals-105",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F105",
+      "label": "Esta previsto bloqueio e identificação das fontes de energia (elétrica, mecânica, pneumática, hidráulica, etc) envolvidas na atividade ?"
+    },
+    {
+      "id": "chemicals-106",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F106",
+      "label": "Esta previsto o drenagem, recolhimento, identificação e armazenamento adequado de resíduos de produtos químicos existentes no equipamento ?"
+    },
+    {
+      "id": "chemicals-107",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F107",
+      "label": "Esta previsto o isolamento e identificação da área onde serão realizadas as atividades ?"
+    },
+    {
+      "id": "chemicals-108",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F108",
+      "label": "Os EPIs necessários foram definidos e estão disponíveis aos trabalhadores ?"
+    },
+    {
+      "id": "chemicals-109",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F109",
+      "label": "Os EPCs necessários foram definidos e estão disponíveis (Ex.: Chuveiro lava-olhos, etc) ?"
+    },
+    {
+      "id": "chemicals-110",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F110",
+      "label": "Válvulas de alimentação das linhas foram fechadas, bloqueadas e sinalizadas ?"
+    },
+    {
+      "id": "chemicals-111",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F111",
+      "label": "O ambiente possue ventilação suficiente e adequada ?"
+    },
+    {
+      "id": "chemicals-112",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F112",
+      "label": "Medições ambientais abaixo dos limites de tolerância ? (Ex.: Explosividade, gases tóxicos, etc)"
+    },
+    {
+      "id": "chemicals-113",
+      "section": "chemicals",
+      "sourceCell": "Plan1!F113",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "id": "confined-space-116",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B116",
+      "label": "Os instrumentos, ferramentas e iluminação utilizados são intrinsicamente seguros ?"
+    },
+    {
+      "id": "confined-space-117",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B117",
+      "label": "Providenciado equipamentos de respiração autônoma ou sistema de ar mandado com cilindro de escape ?"
+    },
+    {
+      "id": "confined-space-118",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B118",
+      "label": "Realizado bloqueio e identificação de fontes de energia (elétrico, mecânico, pneumático, hidráulico e outros) ?"
+    },
+    {
+      "id": "confined-space-119",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B119",
+      "label": "Providenciado exaustores e ventiladores para adequação da atmosfera do espaço confinado ?"
+    },
+    {
+      "id": "confined-space-120",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B120",
+      "label": "Providenciado cintos de segurança e linha de vida para trabalhadores e equipe de resgate ?"
+    },
+    {
+      "id": "confined-space-121",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B121",
+      "label": "Previsto um vigia designado, treinado e autorizado para prontidão fora do espaço confinado ?"
+    },
+    {
+      "id": "confined-space-122",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B122",
+      "label": "Os meios de comunicação entre vigia e equipe de trabalho foram providenciados e são à prova explosão ?"
+    },
+    {
+      "id": "confined-space-123",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B123",
+      "label": "Equipamento drenado / purgado / lavado / limpo ?"
+    },
+    {
+      "id": "confined-space-124",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B124",
+      "label": "Tubulações desconectadas / raqueteadas ?"
+    },
+    {
+      "id": "confined-space-125",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B125",
+      "label": "Quantidade de material e ferramentas para trabalhar no espaço confinado são suficientes ?"
+    },
+    {
+      "id": "confined-space-126",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B126",
+      "label": "Medições ambientais abaixo dos limites de tolerância ?"
+    },
+    {
+      "id": "confined-space-127",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B127",
+      "label": "Medições ambientais realizadas com aparelhos calibrados ?"
+    },
+    {
+      "id": "confined-space-128",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B128",
+      "label": "Providenciado os EPI´s necessários aos trabalhadores ?"
+    },
+    {
+      "id": "confined-space-129",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B129",
+      "label": "Providenciado proteção térmica aos trabalhadores ?"
+    },
+    {
+      "id": "confined-space-130",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B130",
+      "label": "Equipamentos elétricos estão aterrados ?"
+    },
+    {
+      "id": "confined-space-131",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B131",
+      "label": "Providenciado lanterna a prova de explosão ?"
+    },
+    {
+      "id": "confined-space-133",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B133",
+      "label": "Providenciado sinalização / isolamento do local ?"
+    },
+    {
+      "id": "confined-space-134",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B134",
+      "label": "Existem extintores disponíveis no local ?"
+    },
+    {
+      "id": "confined-space-135",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B135",
+      "label": "Realizada medições de pressão arterial nos trabalhadores que irão trabalhar em espaço confinado ?"
+    },
+    {
+      "id": "confined-space-136",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B136",
+      "label": "Supervisores e trabalhadores são treinados e autorizados para realizar trabalhos em espaço confinado ?"
+    },
+    {
+      "id": "confined-space-137",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B137",
+      "label": "Existem procedimentos e equipamentos de resgate no local (Ex.: Suportes e movimentação vertical, etc) ?"
+    },
+    {
+      "id": "confined-space-138",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B138",
+      "label": "Acessos / escadas disponíveis e adequados ?"
+    },
+    {
+      "id": "confined-space-139",
+      "section": "confined-space",
+      "sourceCell": "Plan1!B139",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    }
+  ],
+  "equipment": [
+    {
+      "id": "equipment-143-0",
+      "sourceCell": "Plan1!A143",
+      "label": "Capacete"
+    },
+    {
+      "id": "equipment-143-2",
+      "sourceCell": "Plan1!C143",
+      "label": "Luvas de eletricista"
+    },
+    {
+      "id": "equipment-143-4",
+      "sourceCell": "Plan1!E143",
+      "label": "Máscara contra poeiras"
+    },
+    {
+      "id": "equipment-143-6",
+      "sourceCell": "Plan1!G143",
+      "label": "Blusão de raspa"
+    },
+    {
+      "id": "equipment-143-8",
+      "sourceCell": "Plan1!I143",
+      "label": "Tripé"
+    },
+    {
+      "id": "equipment-144-0",
+      "sourceCell": "Plan1!A144",
+      "label": "Botina de segurança"
+    },
+    {
+      "id": "equipment-144-2",
+      "sourceCell": "Plan1!C144",
+      "label": "Bota de PVC"
+    },
+    {
+      "id": "equipment-144-4",
+      "sourceCell": "Plan1!E144",
+      "label": "Máscara respiratória gás"
+    },
+    {
+      "id": "equipment-144-6",
+      "sourceCell": "Plan1!G144",
+      "label": "Perneira de raspa"
+    },
+    {
+      "id": "equipment-144-8",
+      "sourceCell": "Plan1!I144",
+      "label": "Maca"
+    },
+    {
+      "id": "equipment-145-0",
+      "sourceCell": "Plan1!A145",
+      "label": "Óculos de segurança"
+    },
+    {
+      "id": "equipment-145-2",
+      "sourceCell": "Plan1!C145",
+      "label": "Cinto de segurança"
+    },
+    {
+      "id": "equipment-145-4",
+      "sourceCell": "Plan1!E145",
+      "label": "Avental"
+    },
+    {
+      "id": "equipment-145-6",
+      "sourceCell": "Plan1!G145",
+      "label": "Protetor facial"
+    },
+    {
+      "id": "equipment-145-8",
+      "sourceCell": "Plan1!I145",
+      "label": "Escada"
+    },
+    {
+      "id": "equipment-146-0",
+      "sourceCell": "Plan1!A146",
+      "label": "Protetor auricular"
+    },
+    {
+      "id": "equipment-146-2",
+      "sourceCell": "Plan1!C146",
+      "label": "Máscara autônoma"
+    },
+    {
+      "id": "equipment-146-4",
+      "sourceCell": "Plan1!E146",
+      "label": "Creme protetor"
+    },
+    {
+      "id": "equipment-146-6",
+      "sourceCell": "Plan1!G146",
+      "label": "Traje para eletricista - arco voltáico"
+    },
+    {
+      "id": "equipment-146-8",
+      "sourceCell": "Plan1!I146",
+      "label": "Linha de vida"
+    },
+    {
+      "id": "equipment-147-0",
+      "sourceCell": "Plan1!A147",
+      "label": "Luvas de vaqueta / raspa"
+    },
+    {
+      "id": "equipment-147-2",
+      "sourceCell": "Plan1!C147",
+      "label": "Protetor facial"
+    },
+    {
+      "id": "equipment-147-4",
+      "sourceCell": "Plan1!E147",
+      "label": "Luva de PVC ou hexanol"
+    },
+    {
+      "id": "equipment-147-6",
+      "sourceCell": "Plan1!G147",
+      "label": "Respirador com ar mandado"
+    },
+    {
+      "id": "equipment-147-8",
+      "sourceCell": "Plan1!I147",
+      "label": "Extintor de incêndio"
+    }
+  ],
+  "controls": [
+    {
+      "id": "control-152-0",
+      "sourceCell": "Plan1!A152",
+      "label": "APT para a atividade está disponível"
+    },
+    {
+      "id": "control-152-4",
+      "sourceCell": "Plan1!E152",
+      "label": "Equipamentos de combate a incêndio posicionados"
+    },
+    {
+      "id": "control-152-8",
+      "sourceCell": "Plan1!I152",
+      "label": "Sinalização/ isolamento instalados"
+    },
+    {
+      "id": "control-153-0",
+      "sourceCell": "Plan1!A153",
+      "label": "Bloqueio e etiquetagem concluídos"
+    },
+    {
+      "id": "control-153-4",
+      "sourceCell": "Plan1!E153",
+      "label": "Procedimentos/ desenhos consultados"
+    },
+    {
+      "id": "control-153-8",
+      "sourceCell": "Plan1!I153",
+      "label": "Iluminação local adequada"
+    },
+    {
+      "id": "control-154-0",
+      "sourceCell": "Plan1!A154",
+      "label": "Ferramentas / equipamentos inspecionados"
+    },
+    {
+      "id": "control-154-4",
+      "sourceCell": "Plan1!E154",
+      "label": "Proteção de aberturas pisos / laterais"
+    },
+    {
+      "id": "control-154-8",
+      "sourceCell": "Plan1!I154",
+      "label": "Trabalho no mínimo em duplas"
+    },
+    {
+      "id": "control-155-0",
+      "sourceCell": "Plan1!A155",
+      "label": "Limpeza / desobstrução / descontaminação"
+    },
+    {
+      "id": "control-155-4",
+      "sourceCell": "Plan1!E155",
+      "label": "Supervisão da área notificada"
+    },
+    {
+      "id": "control-155-8",
+      "sourceCell": "Plan1!I155",
+      "label": "Dispor de pessoa stand by (vigia)"
+    },
+    {
+      "id": "control-156-0",
+      "sourceCell": "Plan1!A156",
+      "label": "Condições meteorológicas favoráveis"
+    },
+    {
+      "id": "control-156-4",
+      "sourceCell": "Plan1!E156",
+      "label": "Tubulações isoladas com raquetes"
+    },
+    {
+      "id": "control-156-8",
+      "sourceCell": "Plan1!I156",
+      "label": "Ventilação / exaustão"
+    }
+  ],
+  "closingChecks": [
+    {
+      "id": "closing-205-0",
+      "section": "closing",
+      "label": "Outras áreas / equipes informadas sobre o término da atividade",
+      "sourceCell": "Plan1!A205"
+    },
+    {
+      "id": "closing-205-4",
+      "section": "closing",
+      "label": "Isolamento e sinalização removidas",
+      "sourceCell": "Plan1!E205"
+    },
+    {
+      "id": "closing-205-7",
+      "section": "closing",
+      "label": "Energias religadas",
+      "sourceCell": "Plan1!H205"
+    },
+    {
+      "id": "closing-206-0",
+      "section": "closing",
+      "label": "Equipamento / instalação inspecionada",
+      "sourceCell": "Plan1!A206"
+    },
+    {
+      "id": "closing-206-4",
+      "section": "closing",
+      "label": "Área desobstruída",
+      "sourceCell": "Plan1!E206"
+    },
+    {
+      "id": "closing-206-7",
+      "section": "closing",
+      "label": "Trabalhadores fora do espaço confinado",
+      "sourceCell": "Plan1!H206"
+    },
+    {
+      "id": "closing-207-0",
+      "section": "closing",
+      "label": "Proteções recolocadas",
+      "sourceCell": "Plan1!A207"
+    },
+    {
+      "id": "closing-207-4",
+      "section": "closing",
+      "label": "Área limpa e organizada",
+      "sourceCell": "Plan1!E207"
+    },
+    {
+      "id": "closing-208-0",
+      "section": "closing",
+      "label": "Etiquetas e cadeados de bloqueio retirados",
+      "sourceCell": "Plan1!A208"
+    },
+    {
+      "id": "closing-208-4",
+      "section": "closing",
+      "label": "Resíduos acondicionados e identificados",
+      "sourceCell": "Plan1!E208"
+    },
+    {
+      "id": "closing-209-0",
+      "section": "closing",
+      "label": "Equipamemtos e instalações testadas",
+      "sourceCell": "Plan1!A209"
+    },
+    {
+      "id": "closing-209-4",
+      "section": "closing",
+      "label": "Comando / botoeiras na posição desligado",
+      "sourceCell": "Plan1!E209"
+    }
+  ],
+  "fields": [
+    {
+      "sourceCell": "Plan1!A18",
+      "label": "FORNECEDOR DE SERVIÇO:"
+    },
+    {
+      "sourceCell": "Plan1!D18",
+      "label": "FORNECEDOR QUARTERIZADO:"
+    },
+    {
+      "sourceCell": "Plan1!F18",
+      "label": "GRUPO:"
+    },
+    {
+      "sourceCell": "Plan1!H18",
+      "label": "No APT:"
+    },
+    {
+      "sourceCell": "Plan1!I18",
+      "label": "No PT:"
+    },
+    {
+      "sourceCell": "Plan1!A20",
+      "label": "FRENTE DE SERVIÇO"
+    },
+    {
+      "sourceCell": "Plan1!D20",
+      "label": "LOCAL:"
+    },
+    {
+      "sourceCell": "Plan1!G20",
+      "label": "NOME/ASS. EXECUTANTE:"
+    },
+    {
+      "sourceCell": "Plan1!I20",
+      "label": "NOME/ASS. EMITENTE:"
+    },
+    {
+      "sourceCell": "Plan1!A23",
+      "label": "ATIVIDADE A SER REALIZADO:"
+    },
+    {
+      "sourceCell": "Plan1!E115",
+      "label": "TESTES DE ATMOSFERA / MEDIÇÕES AMBIENTAIS"
+    },
+    {
+      "sourceCell": "Plan1!E126",
+      "label": "Nomes dos Vigias:"
+    },
+    {
+      "sourceCell": "Plan1!E129",
+      "label": "Nomes dos Supervisores Espaço Confinado:"
+    },
+    {
+      "sourceCell": "Plan1!A160",
+      "label": "OUTRAS MEDIDAS DE CONTROLE NECESSÁRIAS"
+    },
+    {
+      "sourceCell": "Plan1!A168",
+      "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO"
+    },
+    {
+      "sourceCell": "Plan1!A181",
+      "label": "LIBERAÇÃO PELO EXECUTANTE DA TAREFA E EMITENTE DA PT"
+    },
+    {
+      "sourceCell": "Plan1!A190",
+      "label": "ASSINATURAS DE REVALIDAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!A211",
+      "label": "ASSINATURAS DE ENCERRAMENTO"
+    }
+  ],
+  "sourceCells": [
+    {
+      "sourceCell": "Plan1!G1",
+      "label": "REGISTRO S&S"
+    },
+    {
+      "sourceCell": "Plan1!D2",
+      "label": "LOGOMARCA DA CONTRATADA"
+    },
+    {
+      "sourceCell": "Plan1!D3",
+      "label": "OU SIGLA DA ÁREA FUNCIONAL"
+    },
+    {
+      "sourceCell": "Plan1!G3",
+      "label": "PROJETO S11 D"
+    },
+    {
+      "sourceCell": "Plan1!A5",
+      "label": "TÍTULO"
+    },
+    {
+      "sourceCell": "Plan1!G5",
+      "label": "Nº VALE"
+    },
+    {
+      "sourceCell": "Plan1!J5",
+      "label": "PÁGINA"
+    },
+    {
+      "sourceCell": "Plan1!A6",
+      "label": "REGISTRO\nPERMISSÃO PARA TRABALHO - PT"
+    },
+    {
+      "sourceCell": "Plan1!G6",
+      "label": "RI-S-36001"
+    },
+    {
+      "sourceCell": "Plan1!J8",
+      "label": "REV."
+    },
+    {
+      "sourceCell": "Plan1!J9",
+      "label": "A"
+    },
+    {
+      "sourceCell": "Plan1!A12",
+      "label": "TE: TIPO DE EMISSÃO"
+    },
+    {
+      "sourceCell": "Plan1!B12",
+      "label": "A - PRELIMINAR"
+    },
+    {
+      "sourceCell": "Plan1!D12",
+      "label": "C - PARA CONHECIMENTO"
+    },
+    {
+      "sourceCell": "Plan1!F12",
+      "label": "E - PARA CONSTRUÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!H12",
+      "label": "G - CONFORME CONSTRUÍDO"
+    },
+    {
+      "sourceCell": "Plan1!B13",
+      "label": "B - PARA APROVAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!D13",
+      "label": "D - PARA COTAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!F13",
+      "label": "F - CONFORME COMPRADO"
+    },
+    {
+      "sourceCell": "Plan1!H13",
+      "label": "H -  CANCELADO"
+    },
+    {
+      "sourceCell": "Plan1!A14",
+      "label": "Rev."
+    },
+    {
+      "sourceCell": "Plan1!B14",
+      "label": "TE"
+    },
+    {
+      "sourceCell": "Plan1!C14",
+      "label": "Descrição"
+    },
+    {
+      "sourceCell": "Plan1!F14",
+      "label": "Por"
+    },
+    {
+      "sourceCell": "Plan1!G14",
+      "label": "Ver."
+    },
+    {
+      "sourceCell": "Plan1!H14",
+      "label": "Apr"
+    },
+    {
+      "sourceCell": "Plan1!I14",
+      "label": "Aut."
+    },
+    {
+      "sourceCell": "Plan1!J14",
+      "label": "Data"
+    },
+    {
+      "sourceCell": "Plan1!A15",
+      "label": "A"
+    },
+    {
+      "sourceCell": "Plan1!B15",
+      "label": "B"
+    },
+    {
+      "sourceCell": "Plan1!C15",
+      "label": "PARA APROVAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!F15",
+      "label": "AMC"
+    },
+    {
+      "sourceCell": "Plan1!A18",
+      "label": "FORNECEDOR DE SERVIÇO:"
+    },
+    {
+      "sourceCell": "Plan1!D18",
+      "label": "FORNECEDOR QUARTERIZADO:"
+    },
+    {
+      "sourceCell": "Plan1!F18",
+      "label": "GRUPO:"
+    },
+    {
+      "sourceCell": "Plan1!H18",
+      "label": "No APT:"
+    },
+    {
+      "sourceCell": "Plan1!I18",
+      "label": "No PT:"
+    },
+    {
+      "sourceCell": "Plan1!A20",
+      "label": "FRENTE DE SERVIÇO"
+    },
+    {
+      "sourceCell": "Plan1!D20",
+      "label": "LOCAL:"
+    },
+    {
+      "sourceCell": "Plan1!G20",
+      "label": "NOME/ASS. EXECUTANTE:"
+    },
+    {
+      "sourceCell": "Plan1!I20",
+      "label": "NOME/ASS. EMITENTE:"
+    },
+    {
+      "sourceCell": "Plan1!A23",
+      "label": "ATIVIDADE A SER REALIZADO:"
+    },
+    {
+      "sourceCell": "Plan1!A24",
+      "label": "INSTALAÇÕES ELÉTRICAS"
+    },
+    {
+      "sourceCell": "Plan1!C24",
+      "label": "TRABALHO EM ALTURA"
+    },
+    {
+      "sourceCell": "Plan1!E24",
+      "label": "TRABALHO EM TELHADO"
+    },
+    {
+      "sourceCell": "Plan1!G24",
+      "label": "FONTES RADIOATIVAS"
+    },
+    {
+      "sourceCell": "Plan1!I24",
+      "label": "SISTEMAS PRESSURIZADOS"
+    },
+    {
+      "sourceCell": "Plan1!A25",
+      "label": "ESCAVAÇÃO / PERFURAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!C25",
+      "label": "SOLDA E CORTE COM OXIACETILENO"
+    },
+    {
+      "sourceCell": "Plan1!E25",
+      "label": "CORTE COM LIXADEIRA"
+    },
+    {
+      "sourceCell": "Plan1!G25",
+      "label": "TRABALHO SOBREPOSTO"
+    },
+    {
+      "sourceCell": "Plan1!I25",
+      "label": "IÇAMENTO DE CARGAS"
+    },
+    {
+      "sourceCell": "Plan1!A26",
+      "label": "EXPLOSIVOS / DETONAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!C26",
+      "label": "SISTEMAS / PROD. QUÍMICO PERIGOSO"
+    },
+    {
+      "sourceCell": "Plan1!E26",
+      "label": "SOLDA ELÉTRICA"
+    },
+    {
+      "sourceCell": "Plan1!G26",
+      "label": "ESPAÇO CONFINADO"
+    },
+    {
+      "sourceCell": "Plan1!A27",
+      "label": "TRABALHOS EM INSTALAÇÕES ELETRICAS"
+    },
+    {
+      "sourceCell": "Plan1!E27",
+      "label": "TRABALHO SOBRE TELHADOS"
+    },
+    {
+      "sourceCell": "Plan1!A28",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E28",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B29",
+      "label": "Escadas utilizadas são de material isolante ?"
+    },
+    {
+      "sourceCell": "Plan1!F29",
+      "label": "Uso de cinto-paraquedista e  trava-quedas c/ talabarte duplo fixados em cabo-guia de aço ?"
+    },
+    {
+      "sourceCell": "Plan1!B30",
+      "label": "Circuito elétrico esta desligado, bloqueado e identificado ?"
+    },
+    {
+      "sourceCell": "Plan1!F30",
+      "label": "Cabo-guia de pelo menos 3/8\" está fixado em estrutura definitiva da edificação ?"
+    },
+    {
+      "sourceCell": "Plan1!B31",
+      "label": "Verificado ausência de energia no circuito de trabalhado ?"
+    },
+    {
+      "sourceCell": "Plan1!F31",
+      "label": "Realizado o isolamento e sinalização do piso inferior ?"
+    },
+    {
+      "sourceCell": "Plan1!B32",
+      "label": "Aterramento elétrico foi realizado ?"
+    },
+    {
+      "sourceCell": "Plan1!F32",
+      "label": "Trabalhadores treinados e com pressão arterial avaliada ?"
+    },
+    {
+      "sourceCell": "Plan1!B33",
+      "label": "Pontos energizados próximos da área de trabalho estão desconectados, isolados e sinalizados ?"
+    },
+    {
+      "sourceCell": "Plan1!F33",
+      "label": "Emanação de gases em processos industriais foi eliminada ou está controlada ?"
+    },
+    {
+      "sourceCell": "Plan1!B34",
+      "label": "Os trabalhadores são qualificados, habilitados, capacitados, autorizados para execução das atividades ?"
+    },
+    {
+      "sourceCell": "Plan1!F34",
+      "label": "As condições climáticas (ausência de chuvas e ventos fortes) estão adequadas para a realização da atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B35",
+      "label": "Existe tapete isolante nos trabalhos em subestações/painéis elétricos ?"
+    },
+    {
+      "sourceCell": "Plan1!F35",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!B36",
+      "label": "Os painéis de distribuição estão trancados e chaves mantidas com pessoal autorizado ?"
+    },
+    {
+      "sourceCell": "Plan1!E36",
+      "label": "TRABALHOS COM FONTES RADIOATIVAS"
+    },
+    {
+      "sourceCell": "Plan1!B37",
+      "label": "Cabos de extensão e ferramentas elétricas em bom estado ?"
+    },
+    {
+      "sourceCell": "Plan1!E37",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B38",
+      "label": "Ferramentas manuais possuem isolamentos nos cabos ?"
+    },
+    {
+      "sourceCell": "Plan1!F38",
+      "label": "Área de trabalho esta isolada e sinalizada ?"
+    },
+    {
+      "sourceCell": "Plan1!B39",
+      "label": "Carga estática de capacitores foram descarregadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F39",
+      "label": "Nenhum trabalhador não autorizado permanece no local ?"
+    },
+    {
+      "sourceCell": "Plan1!B40",
+      "label": "Os EPIs estão disponibilizados, em boas condições e adequados as atividades (Ex.: luva eletricista, etc) ?"
+    },
+    {
+      "sourceCell": "Plan1!F40",
+      "label": "Distância da área restrita atende requisito da CNEN / aprovado pelo Supervisor de Radioproteção ?"
+    },
+    {
+      "sourceCell": "Plan1!B41",
+      "label": "As botoeiras dos equipamentos foram testadas e confirmado os desligamentos ?"
+    },
+    {
+      "sourceCell": "Plan1!F41",
+      "label": "Monitor de radiação esta calibrado, pussui certificado e está no local ?"
+    },
+    {
+      "sourceCell": "Plan1!B42",
+      "label": "A área de trabalho foi isolada e identificada ?"
+    },
+    {
+      "sourceCell": "Plan1!F42",
+      "label": "Empregados executantes do trabalho estão portanto filmes dosimétricos ?"
+    },
+    {
+      "sourceCell": "Plan1!B43",
+      "label": "Cabos de etensão e ferramentas elétricas em bom estado ?"
+    },
+    {
+      "sourceCell": "Plan1!F43",
+      "label": "Supervisor de Radioproteção ou o RIA está presente no local ?"
+    },
+    {
+      "sourceCell": "Plan1!B44",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F44",
+      "label": "Equipamentos para resgate estão no local ?"
+    },
+    {
+      "sourceCell": "Plan1!F45",
+      "label": "Foi estabelecido e aprovado um plano para realização do teste radiográfico ?"
+    },
+    {
+      "sourceCell": "Plan1!F46",
+      "label": "As fontes radioativas possuem colimador e estão adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F47",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!A48",
+      "label": "TRABALHO SOBREPOSTO"
+    },
+    {
+      "sourceCell": "Plan1!E48",
+      "label": "CORTE DE PEÇAS METÁLICAS COM LIXADEIRA"
+    },
+    {
+      "sourceCell": "Plan1!A49",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E49",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B50",
+      "label": "Todas as alternativas para evitar o trabalho sobrepostos foram avaliadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F50",
+      "label": "O disco de corte esta dentro do limite de desgaste ?"
+    },
+    {
+      "sourceCell": "Plan1!B51",
+      "label": "Um sistema de sinalização e isolamento foi realizado ?"
+    },
+    {
+      "sourceCell": "Plan1!F51",
+      "label": "O disco de corte é adequado para a atividade (rpm, material, tamanho, etc) ?"
+    },
+    {
+      "sourceCell": "Plan1!B52",
+      "label": "Foi instalado anteparos contra queda materiais para o piso inferior ?"
+    },
+    {
+      "sourceCell": "Plan1!F52",
+      "label": "O trabalhador esta treinado e autorizado a utilizar o equipamento ?"
+    },
+    {
+      "sourceCell": "Plan1!B53",
+      "label": "As ferramentas manuais estão em caixas e/ou amarradas no uso?"
+    },
+    {
+      "sourceCell": "Plan1!F53",
+      "label": "O equipamento possue dispositivo liga-desliga, proteção do disco, flange e arruela de fixação de disco,  adequados em boas condições ?"
+    },
+    {
+      "sourceCell": "Plan1!B54",
+      "label": "Existe alarme sonoro para movimentação dos equipamentos ?"
+    },
+    {
+      "sourceCell": "Plan1!F54",
+      "label": "A área esta sinalizada e isolada adequadamente ?"
+    },
+    {
+      "sourceCell": "Plan1!B55",
+      "label": "Os EPI / EPC necesários estão em boas condições / disponibilizados ?"
+    },
+    {
+      "sourceCell": "Plan1!F55",
+      "label": "Esta previsto o ângulo de corte em 90º ?"
+    },
+    {
+      "sourceCell": "Plan1!B56",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F56",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!A58",
+      "label": "TRABALHOS EM ALTURA SUPERIOR À 1,80 METROS"
+    },
+    {
+      "sourceCell": "Plan1!E58",
+      "label": "TRABALHOS A QUENTE (SOLDA E CORTE COM OXIACETILENO / SOLDA ELÉTRICA)"
+    },
+    {
+      "sourceCell": "Plan1!A59",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E59",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B60",
+      "label": "Todos os envolvidos estão em perfeitas condições físicas para trabalhar em altura (pressão arterial) ?"
+    },
+    {
+      "sourceCell": "Plan1!F60",
+      "label": "Os cabos elétricos estão isolados, protegidos contra umidade, fora de estruturas metálicas, de forma adequada ?"
+    },
+    {
+      "sourceCell": "Plan1!B61",
+      "label": "Foi realizada a reunião para análise dos riscos antes do início dos trabalhos ?"
+    },
+    {
+      "sourceCell": "Plan1!F61",
+      "label": "Os trabalhadores são qualificados e autorizados para realizarem as atividades a quente ?"
+    },
+    {
+      "sourceCell": "Plan1!B62",
+      "label": "Escadas coletivas e manuais (< 7m) em boas condições ?"
+    },
+    {
+      "sourceCell": "Plan1!F62",
+      "label": "O local esta isolado, sinalizado e possue anteparos contra raios ultravioleta ?"
+    },
+    {
+      "sourceCell": "Plan1!B63",
+      "label": "Os trabalhadores conhecem e foram treinados no procedimento de prevenção de quedas ?"
+    },
+    {
+      "sourceCell": "Plan1!F63",
+      "label": "Esta feito isolamento do piso inferior para trabalhos com corte e solda ?"
+    },
+    {
+      "sourceCell": "Plan1!B64",
+      "label": "Os EPI´s necessários estão em bom estado/disponíveis ?"
+    },
+    {
+      "sourceCell": "Plan1!F64",
+      "label": "Máquinas de solda com instalações adequadas, aterradas e protegidas contra intemperies ?"
+    },
+    {
+      "sourceCell": "Plan1!B65",
+      "label": "Os EPC´s necessários estão em bom estado/disponíveis ?"
+    },
+    {
+      "sourceCell": "Plan1!F65",
+      "label": "Painel elétrico da máquina de solda com disjuntores na tensão adequada ?"
+    },
+    {
+      "sourceCell": "Plan1!B66",
+      "label": "Ferramentas/equipamentos mantidos e guardados de modo seguro ?"
+    },
+    {
+      "sourceCell": "Plan1!F66",
+      "label": "Extintores de incêndio disponíveis onde será realizada a atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B67",
+      "label": "Os andaimes/plataformas estão com piso completo, são mantidas limpas, secas e sem obstrução ?"
+    },
+    {
+      "sourceCell": "Plan1!F67",
+      "label": "Os cilindros estão em carrihos, com capacetes, fixados e em áreas livres de faíscas ou resto de solda quente ?"
+    },
+    {
+      "sourceCell": "Plan1!B68",
+      "label": "Andaimes e plataformas estão afastados da rede elétrica ?"
+    },
+    {
+      "sourceCell": "Plan1!F68",
+      "label": "Os cilindros possuem mangueiras sem ressecamento, manômetros e livres de óleo ou graxa ?"
+    },
+    {
+      "sourceCell": "Plan1!B69",
+      "label": "Andaimes/plataformas inspecionados, em boas condições, bem construídos, fixados, sinalizados e com ART ?"
+    },
+    {
+      "sourceCell": "Plan1!F69",
+      "label": "O conjunto oxi-acetileno possue válvulas corta-chama na saída dos cilindros e na entrada dos maçaricos ?"
+    },
+    {
+      "sourceCell": "Plan1!B70",
+      "label": "Os balancins estão em boas condições, instalados adequadamente e ART do responsável ?"
+    },
+    {
+      "sourceCell": "Plan1!F70",
+      "label": "O local possue ventilação adequada e suficiente para realização das atividades a quente ?"
+    },
+    {
+      "sourceCell": "Plan1!B71",
+      "label": "Área de trabalho isolada e sinalizada ?"
+    },
+    {
+      "sourceCell": "Plan1!F71",
+      "label": "Os empregados não estão utilizando roupas sintéticas durante a atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B72",
+      "label": "Guarda corpo com travessa e rodapé ?"
+    },
+    {
+      "sourceCell": "Plan1!F72",
+      "label": "Está previsto o uso de EPI´s para proteção dos olhos contra raios ultravioleta, inclusive para o ajudante de solda ?"
+    },
+    {
+      "sourceCell": "Plan1!B73",
+      "label": "Cinto de segurança tipo paraquedista com talabarte duplo ?"
+    },
+    {
+      "sourceCell": "Plan1!F73",
+      "label": "Os EPIs / EPCs estão disponibilizados e em boas condições ?"
+    },
+    {
+      "sourceCell": "Plan1!A74",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E74",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B75",
+      "label": "Linha de vida de 3/8\" e fixado em local adequado ?"
+    },
+    {
+      "sourceCell": "Plan1!F75",
+      "label": "Foram removidos combustíveis, área limpa e livre de materiais inflamáveis ?"
+    },
+    {
+      "sourceCell": "Plan1!B76",
+      "label": "O acesso ao local de trabalho é adequado ?"
+    },
+    {
+      "sourceCell": "Plan1!F76",
+      "label": "Área, cilindros e tanques desgaseificados e isento de nível de explosividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B77",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F77",
+      "label": "O transporte por içamento de conjuntos oxi-acetileno é feito em gaiola apropriada ?"
+    },
+    {
+      "sourceCell": "Plan1!F78",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!A80",
+      "label": "IÇAMENTO E MOVIMENTAÇÃO DE CARGAS"
+    },
+    {
+      "sourceCell": "Plan1!E80",
+      "label": "TRABALHOS DE ESCAVAÇÃO / PERFURAÇÃO / FUNDAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!A81",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E81",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B82",
+      "label": "Foi feita inspeção pré operacional nos equipamentos (guindaste, grua, ponte, etc) ?"
+    },
+    {
+      "sourceCell": "Plan1!F82",
+      "label": "Existe projeto ou plano de escavação para a atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B83",
+      "label": "Os equipamentos de guindar tem a indicação da carga e atendem a capacidade requisitada ?"
+    },
+    {
+      "sourceCell": "Plan1!F83",
+      "label": "O projeto ou plano de escavação preve as interferências de redes elétricas, hidráulicas, tubulações, telefonia, muros ou paredes próximas, etc ?"
+    },
+    {
+      "sourceCell": "Plan1!B84",
+      "label": "As plataformas de trabalho são mantidas limpas, secas e sem obstrução?"
+    },
+    {
+      "sourceCell": "Plan1!F84",
+      "label": "Na existência de interferências de redes elétricas, tubulações de gases, etc, esta previsto o desligamento / bloqueio da fonte de energia antes do início dos trabalhos ?"
+    },
+    {
+      "sourceCell": "Plan1!B85",
+      "label": "Os operadores dos equipamentos são qualificados e autorizados ?"
+    },
+    {
+      "sourceCell": "Plan1!F85",
+      "label": "O material retirado da escavação, esta previsto ser colocado distante da borda no mínimo na metade da profundidade da escavação ?"
+    },
+    {
+      "sourceCell": "Plan1!B86",
+      "label": "Foi proibida a permanência de pessoas na área de movimentação de carga ?"
+    },
+    {
+      "sourceCell": "Plan1!F86",
+      "label": "Nas escavações com profundidade > 1,25 m foi previsto escoramentos ou, não sendo previsto escoramento, uma avaliação e aprovação por profissional habilitado ?"
+    },
+    {
+      "sourceCell": "Plan1!B87",
+      "label": "Os cabos de aço e cintas foram inspecionados e estão em boas condições de uso ?"
+    },
+    {
+      "sourceCell": "Plan1!F87",
+      "label": "Nas escavações esta previsto sinalização e isolamento com cerca, tela ou tapume a distância mínima da borda de 2x a profundidade ?"
+    },
+    {
+      "sourceCell": "Plan1!B88",
+      "label": "A ponta da lança do equipamento esta a uma distância segura de redes elétricas (Ex.: > 4,0 m) ?"
+    },
+    {
+      "sourceCell": "Plan1!F88",
+      "label": "Nas escavações próximas de vias de circulação de veículos esta previsto sinalização e iluminação noturna ?"
+    },
+    {
+      "sourceCell": "Plan1!B89",
+      "label": "Se equipamento a combustão em ambiente fechado, o local possue ventilação ou exaustão adequada ?"
+    },
+    {
+      "sourceCell": "Plan1!F89",
+      "label": "Foi previsto avaliar a presença de gases nas escavações que possam caracterizar espaços confinados ou gerar/formar gases tóxicos ?"
+    },
+    {
+      "sourceCell": "Plan1!B90",
+      "label": "A carga a ser içada está devidamente amarrada ?"
+    },
+    {
+      "sourceCell": "Plan1!F90",
+      "label": "Nas escavações com profundidade > 1,25 m foram previstos uso de escadas a cada 8 m ?"
+    },
+    {
+      "sourceCell": "Plan1!B91",
+      "label": "Existe um Rigger no local responsável pela atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!F91",
+      "label": "As escavações com remoção de vegetação nativa possuem autorização do órgão ambiental ?"
+    },
+    {
+      "sourceCell": "Plan1!B92",
+      "label": "Existe Plano Rigging ou Plano de Içamento para a atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!F92",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!B93",
+      "label": "As condições climáticas são adequadas (ventos, chuva) ?"
+    },
+    {
+      "sourceCell": "Plan1!B94",
+      "label": "O local esta isolado e sinalizado nos limites necessários ?"
+    },
+    {
+      "sourceCell": "Plan1!B95",
+      "label": "Os equipamentos estão bem nivelados e patolados ?"
+    },
+    {
+      "sourceCell": "Plan1!B96",
+      "label": "Os ganchos dos equipamentos possuem travas ?"
+    },
+    {
+      "sourceCell": "Plan1!B97",
+      "label": "Estão disponíveis os EPIs e EPCs necesários ?"
+    },
+    {
+      "sourceCell": "Plan1!B98",
+      "label": "O uso de cintas de carga foi proibido ?"
+    },
+    {
+      "sourceCell": "Plan1!B99",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!A101",
+      "label": "TRABALHOS COM EXPLOSIVOS / DETONAÇÕES"
+    },
+    {
+      "sourceCell": "Plan1!E101",
+      "label": "TRABAHOS COM SISTEMAS / PRODUTOS QUÍMICOS PERIGOSOS"
+    },
+    {
+      "sourceCell": "Plan1!A102",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E102",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B103",
+      "label": "A empresa possue licenças e registros dos produtos controlados pelo ministério do exército e outros órgãos ?"
+    },
+    {
+      "sourceCell": "Plan1!F103",
+      "label": "A FISPQ do produto químico envolvido na atividade esta disponível ?"
+    },
+    {
+      "sourceCell": "Plan1!B104",
+      "label": "A quantidade de explosivos em paiol esta conforme legislação aplicável ?"
+    },
+    {
+      "sourceCell": "Plan1!F104",
+      "label": "Os equipamentos envolvidos na atividade serão despressurizados / drenados / lavados / neutralizados / inertizados para eliminar a ação do produto químico envolvido ?"
+    },
+    {
+      "sourceCell": "Plan1!B105",
+      "label": "Existe plano de fogo para desmonte de rochas aprovado por Engo. de Minas ?"
+    },
+    {
+      "sourceCell": "Plan1!F105",
+      "label": "Esta previsto bloqueio e identificação das fontes de energia (elétrica, mecânica, pneumática, hidráulica, etc) envolvidas na atividade ?"
+    },
+    {
+      "sourceCell": "Plan1!B106",
+      "label": "As atividades de desmonte de rochas são executadas por \"Blaster\" qualificado ?"
+    },
+    {
+      "sourceCell": "Plan1!F106",
+      "label": "Esta previsto o drenagem, recolhimento, identificação e armazenamento adequado de resíduos de produtos químicos existentes no equipamento ?"
+    },
+    {
+      "sourceCell": "Plan1!B107",
+      "label": "A área detonação será delimitada na extensão apropriada ?"
+    },
+    {
+      "sourceCell": "Plan1!F107",
+      "label": "Esta previsto o isolamento e identificação da área onde serão realizadas as atividades ?"
+    },
+    {
+      "sourceCell": "Plan1!B108",
+      "label": "Esta previsto soar sirene de aviso momentos antes das detonações ?"
+    },
+    {
+      "sourceCell": "Plan1!F108",
+      "label": "Os EPIs necessários foram definidos e estão disponíveis aos trabalhadores ?"
+    },
+    {
+      "sourceCell": "Plan1!B109",
+      "label": "O transporte e armazenameto de explosivos é feito por \"Blaster\" qualificado ?"
+    },
+    {
+      "sourceCell": "Plan1!F109",
+      "label": "Os EPCs necessários foram definidos e estão disponíveis (Ex.: Chuveiro lava-olhos, etc) ?"
+    },
+    {
+      "sourceCell": "Plan1!B110",
+      "label": "Esta previsto avaliar a área para confirmar a evacuação de todo o pessoal local antes da detonação ?"
+    },
+    {
+      "sourceCell": "Plan1!F110",
+      "label": "Válvulas de alimentação das linhas foram fechadas, bloqueadas e sinalizadas ?"
+    },
+    {
+      "sourceCell": "Plan1!B111",
+      "label": "Comnicação entre os envolvidos na detonação é feita via rádio ?"
+    },
+    {
+      "sourceCell": "Plan1!F111",
+      "label": "O ambiente possue ventilação suficiente e adequada ?"
+    },
+    {
+      "sourceCell": "Plan1!B112",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!F112",
+      "label": "Medições ambientais abaixo dos limites de tolerância ? (Ex.: Explosividade, gases tóxicos, etc)"
+    },
+    {
+      "sourceCell": "Plan1!F113",
+      "label": "As determinações da APT estão sendo consideradas e são adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!A114",
+      "label": "TRABALHOS EM ESPAÇOS CONFINADOS"
+    },
+    {
+      "sourceCell": "Plan1!A115",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!E115",
+      "label": "TESTES DE ATMOSFERA / MEDIÇÕES AMBIENTAIS"
+    },
+    {
+      "sourceCell": "Plan1!B116",
+      "label": "Os instrumentos, ferramentas e iluminação utilizados são intrinsicamente seguros ?"
+    },
+    {
+      "sourceCell": "Plan1!E116",
+      "label": "O2"
+    },
+    {
+      "sourceCell": "Plan1!F116",
+      "label": "CO"
+    },
+    {
+      "sourceCell": "Plan1!G116",
+      "label": "Explosividade"
+    },
+    {
+      "sourceCell": "Plan1!H116",
+      "label": "Outros:"
+    },
+    {
+      "sourceCell": "Plan1!I116",
+      "label": "Data / Hora / Responsável"
+    },
+    {
+      "sourceCell": "Plan1!B117",
+      "label": "Providenciado equipamentos de respiração autônoma ou sistema de ar mandado com cilindro de escape ?"
+    },
+    {
+      "sourceCell": "Plan1!I117",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B118",
+      "label": "Realizado bloqueio e identificação de fontes de energia (elétrico, mecânico, pneumático, hidráulico e outros) ?"
+    },
+    {
+      "sourceCell": "Plan1!I118",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B119",
+      "label": "Providenciado exaustores e ventiladores para adequação da atmosfera do espaço confinado ?"
+    },
+    {
+      "sourceCell": "Plan1!I119",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B120",
+      "label": "Providenciado cintos de segurança e linha de vida para trabalhadores e equipe de resgate ?"
+    },
+    {
+      "sourceCell": "Plan1!I120",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B121",
+      "label": "Previsto um vigia designado, treinado e autorizado para prontidão fora do espaço confinado ?"
+    },
+    {
+      "sourceCell": "Plan1!I121",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B122",
+      "label": "Os meios de comunicação entre vigia e equipe de trabalho foram providenciados e são à prova explosão ?"
+    },
+    {
+      "sourceCell": "Plan1!I122",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B123",
+      "label": "Equipamento drenado / purgado / lavado / limpo ?"
+    },
+    {
+      "sourceCell": "Plan1!I123",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B124",
+      "label": "Tubulações desconectadas / raqueteadas ?"
+    },
+    {
+      "sourceCell": "Plan1!B125",
+      "label": "Quantidade de material e ferramentas para trabalhar no espaço confinado são suficientes ?"
+    },
+    {
+      "sourceCell": "Plan1!I125",
+      "label": "/                 /"
+    },
+    {
+      "sourceCell": "Plan1!B126",
+      "label": "Medições ambientais abaixo dos limites de tolerância ?"
+    },
+    {
+      "sourceCell": "Plan1!E126",
+      "label": "Nomes dos Vigias:"
+    },
+    {
+      "sourceCell": "Plan1!B127",
+      "label": "Medições ambientais realizadas com aparelhos calibrados ?"
+    },
+    {
+      "sourceCell": "Plan1!B128",
+      "label": "Providenciado os EPI´s necessários aos trabalhadores ?"
+    },
+    {
+      "sourceCell": "Plan1!B129",
+      "label": "Providenciado proteção térmica aos trabalhadores ?"
+    },
+    {
+      "sourceCell": "Plan1!E129",
+      "label": "Nomes dos Supervisores Espaço Confinado:"
+    },
+    {
+      "sourceCell": "Plan1!B130",
+      "label": "Equipamentos elétricos estão aterrados ?"
+    },
+    {
+      "sourceCell": "Plan1!B131",
+      "label": "Providenciado lanterna a prova de explosão ?"
+    },
+    {
+      "sourceCell": "Plan1!A132",
+      "label": "SIM  NÃO  NA"
+    },
+    {
+      "sourceCell": "Plan1!B133",
+      "label": "Providenciado sinalização / isolamento do local ?"
+    },
+    {
+      "sourceCell": "Plan1!B134",
+      "label": "Existem extintores disponíveis no local ?"
+    },
+    {
+      "sourceCell": "Plan1!E134",
+      "label": "LIMITES DE TOLERÂNCIA"
+    },
+    {
+      "sourceCell": "Plan1!B135",
+      "label": "Realizada medições de pressão arterial nos trabalhadores que irão trabalhar em espaço confinado ?"
+    },
+    {
+      "sourceCell": "Plan1!E135",
+      "label": "Oxigênio (O2)……………….. > 19,5% e < 23,0%"
+    },
+    {
+      "sourceCell": "Plan1!B136",
+      "label": "Supervisores e trabalhadores são treinados e autorizados para realizar trabalhos em espaço confinado ?"
+    },
+    {
+      "sourceCell": "Plan1!E136",
+      "label": "Explosividade……………….. < 10,0% (LIE)"
+    },
+    {
+      "sourceCell": "Plan1!B137",
+      "label": "Existem procedimentos e equipamentos de resgate no local (Ex.: Suportes e movimentação vertical, etc) ?"
+    },
+    {
+      "sourceCell": "Plan1!E137",
+      "label": "Monóxido Carbono (CO)…… < 39 ppm"
+    },
+    {
+      "sourceCell": "Plan1!B138",
+      "label": "Acessos / escadas disponíveis e adequados ?"
+    },
+    {
+      "sourceCell": "Plan1!E138",
+      "label": "Cloro (Cl2)……………………. < 0,8 ppm"
+    },
+    {
+      "sourceCell": "Plan1!B139",
+      "label": "As  determinações  da  APT estão  sendo  consideradas  e  são  adequadas ?"
+    },
+    {
+      "sourceCell": "Plan1!E139",
+      "label": "Gás Sulfídrico (H2S)……….. < 8 ppm"
+    },
+    {
+      "sourceCell": "Plan1!A142",
+      "label": "EPI / EPC - EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL / COLETIVA"
+    },
+    {
+      "sourceCell": "Plan1!A143",
+      "label": "Capacete"
+    },
+    {
+      "sourceCell": "Plan1!C143",
+      "label": "Luvas de eletricista"
+    },
+    {
+      "sourceCell": "Plan1!E143",
+      "label": "Máscara contra poeiras"
+    },
+    {
+      "sourceCell": "Plan1!G143",
+      "label": "Blusão de raspa"
+    },
+    {
+      "sourceCell": "Plan1!I143",
+      "label": "Tripé"
+    },
+    {
+      "sourceCell": "Plan1!A144",
+      "label": "Botina de segurança"
+    },
+    {
+      "sourceCell": "Plan1!C144",
+      "label": "Bota de PVC"
+    },
+    {
+      "sourceCell": "Plan1!E144",
+      "label": "Máscara respiratória gás"
+    },
+    {
+      "sourceCell": "Plan1!G144",
+      "label": "Perneira de raspa"
+    },
+    {
+      "sourceCell": "Plan1!I144",
+      "label": "Maca"
+    },
+    {
+      "sourceCell": "Plan1!A145",
+      "label": "Óculos de segurança"
+    },
+    {
+      "sourceCell": "Plan1!C145",
+      "label": "Cinto de segurança"
+    },
+    {
+      "sourceCell": "Plan1!E145",
+      "label": "Avental"
+    },
+    {
+      "sourceCell": "Plan1!G145",
+      "label": "Protetor facial"
+    },
+    {
+      "sourceCell": "Plan1!I145",
+      "label": "Escada"
+    },
+    {
+      "sourceCell": "Plan1!A146",
+      "label": "Protetor auricular"
+    },
+    {
+      "sourceCell": "Plan1!C146",
+      "label": "Máscara autônoma"
+    },
+    {
+      "sourceCell": "Plan1!E146",
+      "label": "Creme protetor"
+    },
+    {
+      "sourceCell": "Plan1!G146",
+      "label": "Traje para eletricista - arco voltáico"
+    },
+    {
+      "sourceCell": "Plan1!I146",
+      "label": "Linha de vida"
+    },
+    {
+      "sourceCell": "Plan1!A147",
+      "label": "Luvas de vaqueta / raspa"
+    },
+    {
+      "sourceCell": "Plan1!C147",
+      "label": "Protetor facial"
+    },
+    {
+      "sourceCell": "Plan1!E147",
+      "label": "Luva de PVC ou hexanol"
+    },
+    {
+      "sourceCell": "Plan1!G147",
+      "label": "Respirador com ar mandado"
+    },
+    {
+      "sourceCell": "Plan1!I147",
+      "label": "Extintor de incêndio"
+    },
+    {
+      "sourceCell": "Plan1!A151",
+      "label": "AÇÕES GERAIS"
+    },
+    {
+      "sourceCell": "Plan1!A152",
+      "label": "APT para a atividade está disponível"
+    },
+    {
+      "sourceCell": "Plan1!E152",
+      "label": "Equipamentos de combate a incêndio posicionados"
+    },
+    {
+      "sourceCell": "Plan1!I152",
+      "label": "Sinalização/ isolamento instalados"
+    },
+    {
+      "sourceCell": "Plan1!A153",
+      "label": "Bloqueio e etiquetagem concluídos"
+    },
+    {
+      "sourceCell": "Plan1!E153",
+      "label": "Procedimentos/ desenhos consultados"
+    },
+    {
+      "sourceCell": "Plan1!I153",
+      "label": "Iluminação local adequada"
+    },
+    {
+      "sourceCell": "Plan1!A154",
+      "label": "Ferramentas / equipamentos inspecionados"
+    },
+    {
+      "sourceCell": "Plan1!E154",
+      "label": "Proteção de aberturas pisos / laterais"
+    },
+    {
+      "sourceCell": "Plan1!I154",
+      "label": "Trabalho no mínimo em duplas"
+    },
+    {
+      "sourceCell": "Plan1!A155",
+      "label": "Limpeza / desobstrução / descontaminação"
+    },
+    {
+      "sourceCell": "Plan1!E155",
+      "label": "Supervisão da área notificada"
+    },
+    {
+      "sourceCell": "Plan1!I155",
+      "label": "Dispor de pessoa stand by (vigia)"
+    },
+    {
+      "sourceCell": "Plan1!A156",
+      "label": "Condições meteorológicas favoráveis"
+    },
+    {
+      "sourceCell": "Plan1!E156",
+      "label": "Tubulações isoladas com raquetes"
+    },
+    {
+      "sourceCell": "Plan1!I156",
+      "label": "Ventilação / exaustão"
+    },
+    {
+      "sourceCell": "Plan1!A160",
+      "label": "OUTRAS MEDIDAS DE CONTROLE NECESSÁRIAS"
+    },
+    {
+      "sourceCell": "Plan1!A168",
+      "label": "ASSINATURAS DAS PESSOAS QUE EXECUTARÃO O TRABALHO"
+    },
+    {
+      "sourceCell": "Plan1!A169",
+      "label": "No CRACHÁ"
+    },
+    {
+      "sourceCell": "Plan1!B169",
+      "label": "NOME"
+    },
+    {
+      "sourceCell": "Plan1!F169",
+      "label": "FUNÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!H169",
+      "label": "ASSINATURA"
+    },
+    {
+      "sourceCell": "Plan1!A181",
+      "label": "LIBERAÇÃO PELO EXECUTANTE DA TAREFA E EMITENTE DA PT"
+    },
+    {
+      "sourceCell": "Plan1!A182",
+      "label": "\"Certifico que todas as exigências descritas nesta Permissão para Trabalho (PT) serão atendidas e que é seguro iniciar e realizar o trabalho especificado\""
+    },
+    {
+      "sourceCell": "Plan1!A183",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!B184",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!F184",
+      "label": "NOME/ASS. EXECUTANTE: _____________________________________"
+    },
+    {
+      "sourceCell": "Plan1!B186",
+      "label": "HORÁRIO: _____________"
+    },
+    {
+      "sourceCell": "Plan1!F187",
+      "label": "NOME/ASS. EMITENTE DA PTE:________________________________"
+    },
+    {
+      "sourceCell": "Plan1!A190",
+      "label": "ASSINATURAS DE REVALIDAÇÃO"
+    },
+    {
+      "sourceCell": "Plan1!A191",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!F191",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!A192",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!C192",
+      "label": "NOME/ASS. EXECUTANTE: _________________________"
+    },
+    {
+      "sourceCell": "Plan1!F192",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!H192",
+      "label": "NOME/ASS. EXECUTANTE: ___________________"
+    },
+    {
+      "sourceCell": "Plan1!A193",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!C193",
+      "label": "NOME/ASS.EMITENTE DA PTE:_______________________"
+    },
+    {
+      "sourceCell": "Plan1!F193",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!H193",
+      "label": "NOME/ASS.EMITENTE DA PTE:_________________"
+    },
+    {
+      "sourceCell": "Plan1!A195",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!F195",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!A196",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!C196",
+      "label": "NOME/ASS. EXECUTANTE: _________________________"
+    },
+    {
+      "sourceCell": "Plan1!F196",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!H196",
+      "label": "NOME/ASS. EXECUTANTE: ___________________"
+    },
+    {
+      "sourceCell": "Plan1!A197",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!C197",
+      "label": "NOME/ASS.EMITENTE DA PTE:_______________________"
+    },
+    {
+      "sourceCell": "Plan1!F197",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!H197",
+      "label": "NOME/ASS.EMITENTE DA PTE:_________________"
+    },
+    {
+      "sourceCell": "Plan1!A199",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!F199",
+      "label": "LIBERAÇÃO:"
+    },
+    {
+      "sourceCell": "Plan1!A200",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!C200",
+      "label": "NOME/ASS. EXECUTANTE: _________________________"
+    },
+    {
+      "sourceCell": "Plan1!F200",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!H200",
+      "label": "NOME/ASS. EXECUTANTE: ___________________"
+    },
+    {
+      "sourceCell": "Plan1!A201",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!C201",
+      "label": "NOME/ASS.EMITENTE DA PTE:_______________________"
+    },
+    {
+      "sourceCell": "Plan1!F201",
+      "label": "HORÁRIO: __________"
+    },
+    {
+      "sourceCell": "Plan1!H201",
+      "label": "NOME/ASS.EMITENTE DA PTE:_________________"
+    },
+    {
+      "sourceCell": "Plan1!A204",
+      "label": "CHECK LIST DE ENCERRAMENTO"
+    },
+    {
+      "sourceCell": "Plan1!A205",
+      "label": "Outras áreas / equipes informadas sobre o término da atividade"
+    },
+    {
+      "sourceCell": "Plan1!E205",
+      "label": "Isolamento e sinalização removidas"
+    },
+    {
+      "sourceCell": "Plan1!H205",
+      "label": "Energias religadas"
+    },
+    {
+      "sourceCell": "Plan1!A206",
+      "label": "Equipamento / instalação inspecionada"
+    },
+    {
+      "sourceCell": "Plan1!E206",
+      "label": "Área desobstruída"
+    },
+    {
+      "sourceCell": "Plan1!H206",
+      "label": "Trabalhadores fora do espaço confinado"
+    },
+    {
+      "sourceCell": "Plan1!A207",
+      "label": "Proteções recolocadas"
+    },
+    {
+      "sourceCell": "Plan1!E207",
+      "label": "Área limpa e organizada"
+    },
+    {
+      "sourceCell": "Plan1!A208",
+      "label": "Etiquetas e cadeados de bloqueio retirados"
+    },
+    {
+      "sourceCell": "Plan1!E208",
+      "label": "Resíduos acondicionados e identificados"
+    },
+    {
+      "sourceCell": "Plan1!A209",
+      "label": "Equipamemtos e instalações testadas"
+    },
+    {
+      "sourceCell": "Plan1!E209",
+      "label": "Comando / botoeiras na posição desligado"
+    },
+    {
+      "sourceCell": "Plan1!A211",
+      "label": "ASSINATURAS DE ENCERRAMENTO"
+    },
+    {
+      "sourceCell": "Plan1!D213",
+      "label": "DATA: _________________"
+    },
+    {
+      "sourceCell": "Plan1!F213",
+      "label": "NOME/ASS. EXECUTANTE: ______________________"
+    }
+  ]
+}

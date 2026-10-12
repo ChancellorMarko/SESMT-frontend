@@ -1,0 +1,57 @@
+import { expect, test } from '@playwright/test';
+import { loginDemo, navigateWithinApp } from './helpers';
+
+test('notificações recuperam filtros inválidos e registram leitura sem resolver a pendência documental', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await loginDemo(page, 'Gestor SESMT');
+  await navigateWithinApp(page, '/app/notificacoes?page=Infinity&read=invalida');
+  await expect(page.getByRole('region', { name: 'Lista de notificações' })).toBeVisible();
+  await expect(page).toHaveURL(/page=1$/);
+  await expect(page.getByLabel('Leitura')).toHaveValue('');
+  await page.getByLabel('Leitura').selectOption('false');
+  const firstNotice = page.getByRole('article').first();
+  const summary = await firstNotice.locator('p').first().innerText();
+  await firstNotice.getByRole('button', { name: /^Marcar como lida:/ }).click();
+  await expect(page.getByText(/Leitura registrada:/)).toBeVisible();
+  await expect(page.getByText(/A pendência do registro continua sendo acompanhada/)).toBeVisible();
+  await expect(page.getByLabel('Leitura')).toBeEnabled();
+  await page.getByLabel('Leitura').selectOption('true');
+  await expect(page.getByRole('article').getByText(summary, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Marcar como lida:/ })).toHaveCount(0);
+  await page.getByLabel('Leitura').selectOption('false');
+  await expect(page.getByRole('region', { name: 'Lista de notificações' })).toBeVisible();
+  await expect(page.getByRole('article').getByText(summary, { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Limpar filtro' }).click();
+  await expect(page.getByRole('article').getByText(summary, { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('auditoria filtra ações disponíveis, bloqueia períodos inválidos e recupera paginação fora do total', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await loginDemo(page, 'Auditor');
+  await navigateWithinApp(page, '/app/auditoria?from=2026-02-30&page=Infinity');
+  await expect(page.getByText('Corrija as datas do período ou limpe os filtros para consultar os eventos.')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Eventos de auditoria' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Limpar filtros' }).click();
+  await expect(page.getByRole('region', { name: 'Eventos de auditoria' })).toBeVisible();
+  await page.getByLabel('Ação', { exact: true }).selectOption('DOCUMENT_CREATED');
+  await page.getByRole('button', { name: 'Filtrar eventos' }).click();
+  await expect(page.getByRole('cell', { name: 'Documento cadastrado' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Demonstração' }).first()).toBeVisible();
+  await page.getByLabel('De', { exact: true }).fill('2026-12-31');
+  await page.getByLabel('Até', { exact: true }).fill('2026-01-01');
+  await page.getByRole('button', { name: 'Filtrar eventos' }).click();
+  await expect(page.getByText('A data final deve ser igual ou posterior à inicial.')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Eventos de auditoria' })).toHaveCount(0);
+  await navigateWithinApp(page, '/app/auditoria?action=DOCUMENT_CREATED&page=99');
+  await expect(page.getByRole('region', { name: 'Eventos de auditoria' })).toBeVisible();
+  await expect(page).toHaveURL(/action=DOCUMENT_CREATED&page=1$/);
+  await expect(page.getByRole('button', { name: 'Próxima' })).toBeDisabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});

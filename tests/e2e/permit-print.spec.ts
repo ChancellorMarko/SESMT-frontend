@@ -1,0 +1,34 @@
+import { expect, test } from '@playwright/test';
+import { loginDemo, navigateWithinApp } from './helpers';
+
+test('impressão distingue revisão pendente, aprovação e preserva os avisos no PDF', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await loginDemo(page, 'Engenheiro');
+  const path = '/app/pts/00000000-0000-4000-8000-000000000230';
+  await navigateWithinApp(page, `${path}/imprimir`);
+  const document = page.getByRole('article', { name: 'Registro imprimível da PT' });
+  await expect(document.getByText('PENDENTE DE REVISÃO', { exact: true }).first()).toBeVisible();
+  await expect(document.getByText('DEMONSTRAÇÃO · DADOS FICTÍCIOS · SEM VALIDADE OPERACIONAL', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Imprimir / salvar PDF' })).toBeEnabled();
+  await page.getByRole('link', { name: 'Voltar à PT', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar encerramento da versão 1', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Confirmar aprovação', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('link', { name: 'Visualizar / imprimir PT', exact: true }).click();
+  await expect(document.getByText('ENCERRAMENTO VALIDADO', { exact: true }).first()).toBeVisible();
+  await expect(document.getByText('Marina Demo', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: 'docs/frontend/qa/pt-impressao-desktop.png', fullPage: true });
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByRole('navigation', { name: 'Menu principal' })).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Imprimir / salvar PDF' })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: 'Pular para o conteúdo' })).not.toBeVisible();
+  await expect(document).toBeVisible();
+  await page.pdf({ path: 'docs/frontend/qa/pt-demonstracao.pdf', format: 'A4', printBackground: true, margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' } });
+  await page.emulateMedia({ media: 'screen' });
+  await navigateWithinApp(page, `${path}/imprimir?version=9`);
+  await expect(page.getByRole('heading', { name: 'Versão indisponível' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

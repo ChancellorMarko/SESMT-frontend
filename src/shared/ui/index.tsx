@@ -1,0 +1,82 @@
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
+import { X, LoaderCircle, Inbox } from 'lucide-react';
+
+export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
+  return <button type="button" {...props} className={`button button--${variant} ${className}`} />;
+}
+export function PageHeader({ eyebrow = 'GESTÃO DOCUMENTAL', title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
+  return <div className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1>{description && <p className="muted page-description">{description}</p>}</div>{actions && <div className="actions">{actions}</div>}</div>;
+}
+export type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) { return <span className={`badge badge--${tone}`}>{children}</span>; }
+export function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+  const generatedId=useId(); let controlId:string|undefined;
+  type ControlProps={id?:string;children?:ReactNode;'aria-invalid'?:boolean|'true'|'false'|'grammar'|'spelling';'aria-describedby'?:string};
+  function connect(node:ReactNode):ReactNode {
+    if(controlId || !isValidElement(node) || typeof node.type!=='string') return node;
+    const element=node as ReactElement<ControlProps>;
+    if(['input','select','textarea'].includes(node.type)) {
+      controlId=element.props.id || generatedId;
+      const description=[element.props['aria-describedby'],error?`${generatedId}-error`:undefined].filter(Boolean).join(' ') || undefined;
+      return cloneElement(element,{id:controlId,'aria-invalid':error?true:element.props['aria-invalid'],'aria-describedby':description});
+    }
+    return element.props.children ? cloneElement(element,{children:Children.map(element.props.children,connect)}) : element;
+  }
+  const content=Children.map(children,connect);
+  const message=error && <span className="field-error" id={`${generatedId}-error`} role="alert">{error}</span>;
+  return controlId ? <div className="field"><label htmlFor={controlId}>{label}</label>{content}{message}</div> : <label className="field"><span>{label}</span>{content}{message}</label>;
+}
+export function Feedback({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) { return <div className={`feedback feedback--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>{children}</div>; }
+export function EmptyState({ title, description }: { title: string; description?: string }) { return <div className="empty-state"><Inbox size={32} aria-hidden="true" /><h3>{title}</h3>{description && <p className="muted">{description}</p>}</div>; }
+export function Spinner() { return <div className="loading" role="status"><LoaderCircle className="spin" size={22} aria-hidden="true" /> Carregando informações…</div>; }
+type ModalLayer = { dialog: RefObject<HTMLDivElement|null>; previous: HTMLElement|null };
+const modalLayers:ModalLayer[]=[];
+let unlockedOverflow='';
+export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null); const titleId = useId();
+  const closeRef=useRef(onClose); closeRef.current=onClose;
+  useEffect(() => {
+    if (!open) return;
+    const layer:ModalLayer={dialog:ref,previous:document.activeElement as HTMLElement|null};
+    if(!modalLayers.length) unlockedOverflow=document.body.style.overflow;
+    modalLayers.push(layer); document.body.style.overflow = 'hidden';
+    const focusables = () => Array.from(ref.current?.querySelectorAll<HTMLElement>('button,a[href],input,select,textarea,[tabindex]') || []).filter(node => {
+      if(node.tabIndex<0 || node.matches(':disabled,input[type="hidden"]') || node.closest('[hidden],[inert],[aria-hidden="true"]')) return false;
+      for(let element:HTMLElement|null=node;element&&element!==ref.current;element=element.parentElement) {
+        const style=window.getComputedStyle(element);
+        if(style.display==='none'||style.visibility==='hidden') return false;
+      }
+      return true;
+    });
+    // Focus the dialog itself; closing or destructive actions never receive automatic focus.
+    ref.current?.focus();
+    const handler = (event: KeyboardEvent) => {
+      if(modalLayers.at(-1)!==layer || event.defaultPrevented) return;
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
+      if (event.key === 'Tab') {
+        const nodes = focusables(); const first = nodes[0]; const last = nodes.at(-1);
+        if (!first) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || document.activeElement === ref.current)) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => {
+      document.removeEventListener('keydown', handler);
+      const index=modalLayers.indexOf(layer),wasTop=modalLayers.at(-1)===layer;
+      const next=modalLayers[index+1];
+      // Keep a usable return target if a parent dialog is closed first.
+      if(next && next.previous && (!next.previous.isConnected || ref.current?.contains(next.previous))) next.previous=layer.previous;
+      if(index>=0) modalLayers.splice(index,1);
+      if(!modalLayers.length) document.body.style.overflow=unlockedOverflow;
+      if(wasTop) {
+        const top=modalLayers.at(-1);
+        if(layer.previous?.isConnected && (!top || top.dialog.current?.contains(layer.previous))) layer.previous.focus();
+        else top?.dialog.current?.focus();
+      }
+    };
+  }, [open]);
+  if (!open) return null;
+  return createPortal(<div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><div className="modal" ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><div className="modal-header"><h2 id={titleId}>{title}</h2><Button variant="ghost" aria-label="Fechar janela" onClick={onClose}><X size={20} /></Button></div>{children}</div></div>, document.body);
+}

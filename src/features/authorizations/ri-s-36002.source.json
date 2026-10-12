@@ -1,0 +1,236 @@
+{
+  "sourceId": "RI-S-36002",
+  "sourceRevision": "0",
+  "sourceSha256": "c2e2ef8a26e5044295353a530d917b84080b760c84e23119c1ab39f8f0b99d99",
+  "sourceFileName": "RI-S-36002 - Autorização de Trabalho.xlsx",
+  "sourceSheet": "Aut. Trabalho",
+  "checks": [
+    {
+      "id": "at-check-b21",
+      "label": "A empresa contratada responsável pela área onde acontecerão os serviços foi comunicada?",
+      "sourceCell": "Aut. Trabalho!B21",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b22",
+      "label": "As determinações da ART estão sendo consideradas e são adequadas riscos de interferências?",
+      "sourceCell": "Aut. Trabalho!B22",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b23",
+      "label": "A área de trabalho foi isolada e identificada ?",
+      "sourceCell": "Aut. Trabalho!B23",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b24",
+      "label": "Os meios de comunicação de emergência foram definidos?",
+      "sourceCell": "Aut. Trabalho!B24",
+      "section": "authorization",
+      "originalLabel": "Quais meios de comunicação de emergência estão disponíveis?"
+    },
+    {
+      "id": "at-check-b25",
+      "label": "Os meios de comunicação de emergência foram testados e estão funcionando?",
+      "sourceCell": "Aut. Trabalho!B25",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b26",
+      "label": "Existem outras atividades sendo realizadas no mesmo local que poderá gerar risco?",
+      "sourceCell": "Aut. Trabalho!B26",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b27",
+      "label": "Os trabalhos foram repassados de forma clara para os empregados que o executarão?",
+      "sourceCell": "Aut. Trabalho!B27",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b28",
+      "label": "Existe encarredo/líder de equipe responsável em acompanhar os serviços? na ausência o serviço não pode acontecer!",
+      "sourceCell": "Aut. Trabalho!B28",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b29",
+      "label": "A composição e o acompanhamento por liderança foram conferidos conforme os critérios definidos para este serviço?",
+      "sourceCell": "Aut. Trabalho!B29",
+      "section": "authorization",
+      "originalLabel": "As equipes estão com efetivo limitado a 20 pessoas por encarregado/líder de equipe?"
+    },
+    {
+      "id": "at-check-b30",
+      "label": "As frentes de serviços estão cobertas por área de apoio com água potável e banheiro?",
+      "sourceCell": "Aut. Trabalho!B30",
+      "section": "authorization"
+    },
+    {
+      "id": "at-check-b31",
+      "label": "Acessos estão em condições de tráfego?",
+      "sourceCell": "Aut. Trabalho!B31",
+      "section": "authorization"
+    }
+  ],
+  "controls": [
+    {
+      "id": "at-control-a35",
+      "label": "ART para a atividade está disponível",
+      "sourceCell": "Aut. Trabalho!A35"
+    },
+    {
+      "id": "at-control-e35",
+      "label": "Equipamentos de combate a incêndio posicionados",
+      "sourceCell": "Aut. Trabalho!E35"
+    },
+    {
+      "id": "at-control-i35",
+      "label": "Sinalização/ isolamento instalados",
+      "sourceCell": "Aut. Trabalho!I35"
+    },
+    {
+      "id": "at-control-a36",
+      "label": "Bloqueio e etiquetagem concluídos",
+      "sourceCell": "Aut. Trabalho!A36"
+    },
+    {
+      "id": "at-control-e36",
+      "label": "Procedimentos/ desenhos consultados",
+      "sourceCell": "Aut. Trabalho!E36"
+    },
+    {
+      "id": "at-control-i36",
+      "label": "Iluminação local adequada",
+      "sourceCell": "Aut. Trabalho!I36"
+    },
+    {
+      "id": "at-control-a37",
+      "label": "Ferramentas / equipamentos inspecionados",
+      "sourceCell": "Aut. Trabalho!A37"
+    },
+    {
+      "id": "at-control-e37",
+      "label": "Proteção de aberturas pisos / laterais",
+      "sourceCell": "Aut. Trabalho!E37"
+    },
+    {
+      "id": "at-control-i37",
+      "label": "Trabalho no mínimo em duplas",
+      "sourceCell": "Aut. Trabalho!I37"
+    },
+    {
+      "id": "at-control-a38",
+      "label": "Limpeza / desobstrução / descontaminação",
+      "sourceCell": "Aut. Trabalho!A38"
+    },
+    {
+      "id": "at-control-e38",
+      "label": "Supervisão da área notificada",
+      "sourceCell": "Aut. Trabalho!E38"
+    },
+    {
+      "id": "at-control-i38",
+      "label": "Dispor de pessoa stand by (vigia)",
+      "sourceCell": "Aut. Trabalho!I38"
+    },
+    {
+      "id": "at-control-a39",
+      "label": "Condições meteorológicas favoráveis",
+      "sourceCell": "Aut. Trabalho!A39"
+    },
+    {
+      "id": "at-control-e39",
+      "label": "Tubulações isoladas com raquetes",
+      "sourceCell": "Aut. Trabalho!E39"
+    },
+    {
+      "id": "at-control-i39",
+      "label": "Ventilação / exaustão",
+      "sourceCell": "Aut. Trabalho!I39"
+    }
+  ],
+  "closingChecks": [
+    {
+      "id": "at-close-a87",
+      "label": "Outras áreas / equipes informadas sobre o término da atividade",
+      "sourceCell": "Aut. Trabalho!A87",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-e87",
+      "label": "Isolamento e sinalização removidas",
+      "sourceCell": "Aut. Trabalho!E87",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-h87",
+      "label": "Energias religadas",
+      "sourceCell": "Aut. Trabalho!H87",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-a88",
+      "label": "Equipamento / instalação inspecionada",
+      "sourceCell": "Aut. Trabalho!A88",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-e88",
+      "label": "Área desobstruída",
+      "sourceCell": "Aut. Trabalho!E88",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-h88",
+      "label": "Trabalhadores fora do espaço confinado",
+      "sourceCell": "Aut. Trabalho!H88",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-a89",
+      "label": "Proteções recolocadas",
+      "sourceCell": "Aut. Trabalho!A89",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-e89",
+      "label": "Área limpa e organizada",
+      "sourceCell": "Aut. Trabalho!E89",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-a90",
+      "label": "Etiquetas e cadeados de bloqueio retirados",
+      "sourceCell": "Aut. Trabalho!A90",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-e90",
+      "label": "Resíduos acondicionados e identificados",
+      "sourceCell": "Aut. Trabalho!E90",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-a91",
+      "label": "Equipamentos e instalações testadas",
+      "sourceCell": "Aut. Trabalho!A91",
+      "section": "closing"
+    },
+    {
+      "id": "at-close-e91",
+      "label": "Comando / botoeiras na posição desligado",
+      "sourceCell": "Aut. Trabalho!E91",
+      "section": "closing"
+    }
+  ],
+  "revalidationSourceRanges": [
+    "Aut. Trabalho!A73:E75",
+    "Aut. Trabalho!F73:J75",
+    "Aut. Trabalho!A77:E79",
+    "Aut. Trabalho!F77:J79",
+    "Aut. Trabalho!A81:E83",
+    "Aut. Trabalho!F81:J83"
+  ]
+}

@@ -1,0 +1,18 @@
+.records { display: flex; flex-direction: column; }
+.record { display: flex; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--border); padding: 20px 0; }
+.record:last-child { border: 0; }
+.record > div { min-width: 0; }
+.record a { text-decoration: none; font-size: 13px; }
+.record h2 { margin: 10px 0 6px; font-size: 16px; overflow-wrap: anywhere; }
+.record p { margin: 0 0 8px; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.record small { color: var(--muted); font-size: 11px; }
+.recordMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; font-size: 12px; }
+.pending { padding-left: 20px; margin: 0; font-size: 12px; line-height: 1.8; }
+.preparation { overflow-wrap: anywhere; }
+.preparation section { margin-top: 26px; }
+.preparation > section:first-child { margin-top: 0; }
+.preparation h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.history { padding-left: 20px; margin: 0; font-size: 12px; }
+.history p { font-size: 11px; color: var(--muted); }
+.hash { font-size: 11px; overflow-wrap: anywhere; margin-top: 14px; }
+@media(max-width:650px) { .record { flex-direction: column; gap: 16px; } .recordMeta { align-items: flex-start; } }

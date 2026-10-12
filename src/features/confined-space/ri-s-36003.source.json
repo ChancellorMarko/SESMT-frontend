@@ -1,0 +1,340 @@
+{
+  "sourceId": "RI-S-36003",
+  "sourceRevision": "0",
+  "sourceSha256": "9550a5e6f715ebc87fb09e70f52dc9009d18162fb4bd683ec776f520eaafe78b",
+  "sourceFileName": "RI-S-36003 - PET..xlsx",
+  "sourceSheet": "PET",
+  "sizeBytes": 52284,
+  "checks": [
+    {
+      "id": "pet-check-b20",
+      "label": "Os instrumentos, ferramentas e iluminação utilizados são intrinsecamente seguros ?",
+      "sourceCell": "PET!B20",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b21",
+      "label": "Providenciado equipamentos de respiração autônoma ou sistema de ar mandado com cilindro de escape ?",
+      "sourceCell": "PET!B21",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b22",
+      "label": "Realizado bloqueio e identificação de fontes de energia (elétrico, mecânico, pneumático, hidráulico e outros) ?",
+      "sourceCell": "PET!B22",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b23",
+      "label": "Providenciado exaustores e ventiladores para adequação da atmosfera do espaço confinado ?",
+      "sourceCell": "PET!B23",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b24",
+      "label": "Providenciado cintos de segurança e linha de vida para trabalhadores e equipe de resgate ?",
+      "sourceCell": "PET!B24",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b25",
+      "label": "Previsto um vigia designado, treinado e autorizado para prontidão fora do espaço confinado ?",
+      "sourceCell": "PET!B25",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b26",
+      "label": "Os meios de comunicação entre vigia e equipe de trabalho foram providenciados e são à prova explosão ?",
+      "sourceCell": "PET!B26",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b27",
+      "label": "Equipamento drenado / purgado / lavado / limpo ?",
+      "sourceCell": "PET!B27",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b28",
+      "label": "Tubulações desconectadas / raqueteadas ?",
+      "sourceCell": "PET!B28",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b29",
+      "label": "Quantidade de material e ferramentas para trabalhar no espaço confinado são suficientes ?",
+      "sourceCell": "PET!B29",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b30",
+      "label": "Medições ambientais abaixo dos limites de tolerância ?",
+      "sourceCell": "PET!B30",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b31",
+      "label": "Medições ambientais realizadas com aparelhos calibrados e a prova de explosão com alarme funcionando?",
+      "sourceCell": "PET!B31",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b32",
+      "label": "Providenciado os EPI´s necessários aos trabalhadores ?",
+      "sourceCell": "PET!B32",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b33",
+      "label": "Providenciado proteção térmica aos trabalhadores ?",
+      "sourceCell": "PET!B33",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b34",
+      "label": "Equipamentos elétricos estão aterrados e são a prova de explosão?",
+      "sourceCell": "PET!B34",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b35",
+      "label": "Providenciado lanterna a prova de explosão ?",
+      "sourceCell": "PET!B35",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b36",
+      "label": "Providenciado sinalização / isolamento do local ?",
+      "sourceCell": "PET!B36",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b37",
+      "label": "Existem extintores disponíveis no local ?",
+      "sourceCell": "PET!B37",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b38",
+      "label": "A evidência administrativa de aptidão para trabalho em espaço confinado foi conferida conforme o ASO e os critérios aplicáveis?",
+      "sourceCell": "PET!B38",
+      "section": "confined-space",
+      "originalLabel": "Realizada medições de pressão arterial nos trabalhadores que irão trabalhar em espaço confinado ?",
+      "adaptation": "Conferência administrativa de evidência; não coleta pressão arterial ou dados clínicos."
+    },
+    {
+      "id": "pet-check-b39",
+      "label": "Supervisores e trabalhadores são treinados e autorizados para realizar trabalhos em espaço confinado ? Está atualizado?",
+      "sourceCell": "PET!B39",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b40",
+      "label": "Existem procedimentos e equipamentos de resgate no local (Ex.: Suportes e movimentação vertical, etc) ?",
+      "sourceCell": "PET!B40",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b41",
+      "label": "Acessos / escadas disponíveis e adequados ?",
+      "sourceCell": "PET!B41",
+      "section": "confined-space"
+    },
+    {
+      "id": "pet-check-b42",
+      "label": "As  determinações  da  ART estão  sendo  consideradas  e  são  adequadas ?",
+      "sourceCell": "PET!B42",
+      "section": "confined-space"
+    }
+  ],
+  "equipment": [
+    {
+      "id": "pet-equipment-a45",
+      "label": "Capacete",
+      "sourceCell": "PET!A45"
+    },
+    {
+      "id": "pet-equipment-c45",
+      "label": "Cinto de segurança",
+      "sourceCell": "PET!C45"
+    },
+    {
+      "id": "pet-equipment-e45",
+      "label": "Máscara contra poeiras",
+      "sourceCell": "PET!E45"
+    },
+    {
+      "id": "pet-equipment-g45",
+      "label": "Extintor de incêndio",
+      "sourceCell": "PET!G45"
+    },
+    {
+      "id": "pet-equipment-i45",
+      "label": "Tripé",
+      "sourceCell": "PET!I45"
+    },
+    {
+      "id": "pet-equipment-a46",
+      "label": "Botina de segurança",
+      "sourceCell": "PET!A46"
+    },
+    {
+      "id": "pet-equipment-c46",
+      "label": "Máscara autônoma",
+      "sourceCell": "PET!C46"
+    },
+    {
+      "id": "pet-equipment-e46",
+      "label": "Máscara respiratória gás",
+      "sourceCell": "PET!E46"
+    },
+    {
+      "id": "pet-equipment-g46",
+      "label": "Linha de vida",
+      "sourceCell": "PET!G46"
+    },
+    {
+      "id": "pet-equipment-i46",
+      "label": "Maca",
+      "sourceCell": "PET!I46"
+    },
+    {
+      "id": "pet-equipment-a47",
+      "label": "Óculos de segurança",
+      "sourceCell": "PET!A47"
+    },
+    {
+      "id": "pet-equipment-c47",
+      "label": "Roupa de proteção",
+      "sourceCell": "PET!C47"
+    },
+    {
+      "id": "pet-equipment-e47",
+      "label": "Protetor facial",
+      "sourceCell": "PET!E47"
+    },
+    {
+      "id": "pet-equipment-g47",
+      "label": "Respirador com ar mandado",
+      "sourceCell": "PET!G47"
+    },
+    {
+      "id": "pet-equipment-i47",
+      "label": "Escada",
+      "sourceCell": "PET!I47"
+    },
+    {
+      "id": "pet-equipment-a48",
+      "label": "Protetor auricular",
+      "sourceCell": "PET!A48"
+    },
+    {
+      "id": "pet-equipment-c48",
+      "label": "Luvas",
+      "sourceCell": "PET!C48"
+    }
+  ],
+  "controls": [
+    {
+      "id": "pet-control-a50",
+      "label": "ART para a atividade está disponível",
+      "sourceCell": "PET!A50"
+    },
+    {
+      "id": "pet-control-e50",
+      "label": "Equipamentos de combate a incêndio posicionados",
+      "sourceCell": "PET!E50"
+    },
+    {
+      "id": "pet-control-h50",
+      "label": "Sinalização/ isolamento instalados",
+      "sourceCell": "PET!H50"
+    },
+    {
+      "id": "pet-control-a51",
+      "label": "Bloqueio e etiquetagem concluídos",
+      "sourceCell": "PET!A51"
+    },
+    {
+      "id": "pet-control-e51",
+      "label": "Procedimentos/ desenhos consultados",
+      "sourceCell": "PET!E51"
+    },
+    {
+      "id": "pet-control-h51",
+      "label": "Iluminação local adequada",
+      "sourceCell": "PET!H51"
+    },
+    {
+      "id": "pet-control-a52",
+      "label": "Ferramentas / equipamentos inspecionados",
+      "sourceCell": "PET!A52"
+    },
+    {
+      "id": "pet-control-e52",
+      "label": "Procedimento de trabalho a quente",
+      "sourceCell": "PET!E52"
+    },
+    {
+      "id": "pet-control-h52",
+      "label": "Trabalho no mínimo em duplas",
+      "sourceCell": "PET!H52"
+    },
+    {
+      "id": "pet-control-a53",
+      "label": "Limpeza / desobstrução / descontaminação",
+      "sourceCell": "PET!A53"
+    },
+    {
+      "id": "pet-control-e53",
+      "label": "Supervisão da área notificada",
+      "sourceCell": "PET!E53"
+    },
+    {
+      "id": "pet-control-h53",
+      "label": "Dispor de pessoa stand by (vigia)",
+      "sourceCell": "PET!H53"
+    },
+    {
+      "id": "pet-control-a54",
+      "label": "Condições meteorológicas favoráveis",
+      "sourceCell": "PET!A54"
+    },
+    {
+      "id": "pet-control-e54",
+      "label": "Tubulações isoladas com raquetes",
+      "sourceCell": "PET!E54"
+    },
+    {
+      "id": "pet-control-h54",
+      "label": "Procedimento de comunicação emergência",
+      "sourceCell": "PET!H54"
+    }
+  ],
+  "historicalAtmosphereLabels": [
+    {
+      "sourceCell": "PET!E35",
+      "label": "Oxigênio (O2) \n> 19,5% e < 23,0%"
+    },
+    {
+      "sourceCell": "PET!F35",
+      "label": "Monóxido Carbono (CO) < 39 ppm"
+    },
+    {
+      "sourceCell": "PET!G35",
+      "label": "Explosividade \n< 10,0% (LIE)"
+    },
+    {
+      "sourceCell": "PET!H35",
+      "label": "Cloro (Cl2) < 0,8 ppm"
+    },
+    {
+      "sourceCell": "PET!I35",
+      "label": "Gás Sulfídrico (H2S) < 8 ppm"
+    },
+    {
+      "sourceCell": "PET!J35",
+      "label": "← Limites"
+    }
+  ]
+}

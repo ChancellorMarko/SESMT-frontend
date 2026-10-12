@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+test-results-*/
+.vitest/
+__pycache__/
+~$*.docx
+
+# Referências e relatórios locais, fora dos arquivos usados pelo sistema.
+/docs/
+/Especificacao_Sistema_Gestao_SESMT(1).docx
+
+# Ferramentas locais de extração dos modelos recebidos.
+/src/features/authorizations/extract_ri_s_36002.py
+/src/features/confined-space/extract_pet_model.py
+/src/features/permits/templates/extract_pt_model.py
+/src/features/permits/templates/extract_sst_inventory.py
+
+# Versões antigas de assets sem referência na aplicação.
+/public/favicon.svg
+/public/brand/ampara/logo-dark.png
+/public/brand/ampara/logo-light.png
