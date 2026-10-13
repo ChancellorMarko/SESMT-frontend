@@ -13,7 +13,11 @@ vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessi
 vi.mock('../../shared/api/client', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
 const options: PermitOptionsDto = {
   teams: [{ id: 'team-a', companyId: 'company-a', unitId: 'unit-a', name: 'Equipe A', chiefId: 'worker-a', revision: 1, members: [{ workerId: 'worker-a', name: 'Ana Teste', serviceFunction: 'Inspeção' }] }],
-  services: [{ id: 'service-a', name: 'Inspeção', description: '', templateVersion: '1', requirementVersion: '1' }],
+  services: [
+    { id: 'service-a', name: 'Inspeção', description: '', templateVersion: '1', requirementVersion: '1' },
+    { id: 'service-hot', name: 'Trabalho a quente', description: 'Soldagem e corte.', templateVersion: '2', requirementVersion: '3' },
+    { id: 'service-confined', name: 'Espaço confinado', description: 'Entrada em espaço confinado.', templateVersion: '4', requirementVersion: '5' },
+  ],
   responsibles: [{ id: 'operator-a', name: 'Operador A' }],
 };
 function show(element = <AppointmentFormPage />) {
@@ -23,7 +27,7 @@ function show(element = <AppointmentFormPage />) {
 async function fill() {
   const user = userEvent.setup();
   await user.selectOptions(await screen.findByRole('combobox', { name: 'Equipe *' }), 'team-a');
-  await user.selectOptions(screen.getByRole('combobox', { name: 'Serviço *' }), 'service-a');
+  await user.click(screen.getByRole('checkbox', { name: 'Inspeção' }));
   await user.selectOptions(screen.getByRole('combobox', { name: 'Responsável pelo atendimento *' }), 'operator-a');
   await user.type(screen.getByRole('textbox', { name: 'Local do serviço *' }), 'Galpão A');
   fireEvent.change(screen.getByLabelText('Início previsto *'), { target: { value: '2099-10-11T09:00' } });
@@ -38,6 +42,40 @@ beforeEach(() => {
 });
 
 describe('novo agendamento', () => {
+  it('envia trabalho a quente e espaço confinado juntos, preservando o serviço principal legado', async () => {
+    vi.mocked(api.post).mockResolvedValue({ id: 'appointment-a', unitId: 'unit-a' });
+    show(); const user = await fill();
+    await user.click(screen.getByRole('checkbox', { name: 'Inspeção' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Trabalho a quente' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Espaço confinado' }));
+    expect(screen.getByText('Checklist v2 · Requisitos v3')).toBeVisible();
+    expect(screen.getByText('Checklist v4 · Requisitos v5')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
+    expect(await screen.findByText('Atendimento salvo')).toBeVisible();
+    expect(api.post).toHaveBeenCalledWith('/appointments', expect.objectContaining({ serviceTypeId: 'service-hot', serviceTypeIds: ['service-hot', 'service-confined'], participants: [options.teams[0].members[0]] }), expect.objectContaining({ idempotencyKey: expect.any(String) }));
+  });
+  it('exige um serviço selecionado e não envia o atendimento vazio', async () => {
+    show(); const user = await fill();
+    await user.click(screen.getByRole('checkbox', { name: 'Inspeção' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
+    expect(await screen.findByText('Selecione pelo menos um serviço.')).toBeVisible();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Local do serviço *' })).toHaveValue('Galpão A');
+  });
+  it('recusa um serviço removido das opções durante o preenchimento sem apagar os outros campos', async () => {
+    const { client } = show(); const user = await fill();
+    vi.mocked(api.get).mockResolvedValue({ ...options, services: options.services.filter(service => service.id !== 'service-a') });
+    await act(async () => { await client.refetchQueries({ queryKey: ['permit-options'] }); });
+    await user.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
+    expect(await screen.findByText('Selecione serviços disponíveis para esta unidade.')).toBeVisible();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Local do serviço *' })).toHaveValue('Galpão A');
+    await user.click(screen.getByRole('button', { name: 'Remover serviços indisponíveis' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Trabalho a quente' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
+    expect(await screen.findByText('Não foi possível confirmar o envio.')).toBeVisible();
+    expect(api.post).toHaveBeenCalledWith('/appointments', expect.objectContaining({ serviceTypeIds: ['service-hot'], serviceTypeId: 'service-hot' }), expect.anything());
+  });
   it('preserva o preenchimento quando falha a atualização das opções', async () => {
     const { client } = show();
     fireEvent.change(await screen.findByLabelText('Local do serviço *'), { target: { value: 'Local em preenchimento' } });
@@ -68,6 +106,7 @@ describe('novo agendamento', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('textbox', { name: 'Local do serviço *' })).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'Ana Teste' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Inspeção' })).toBeDisabled();
     const confirm = vi.spyOn(window, 'confirm');
     const changed = new Event('sesmt:before-context-change', { cancelable: true });
     act(() => { window.dispatchEvent(changed); });
@@ -80,6 +119,7 @@ describe('novo agendamento', () => {
     show(); const user = await fill();
     const send = () => user.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
     await send(); await screen.findByText('Não foi possível confirmar o envio.');
+    expect(screen.getByRole('checkbox', { name: 'Inspeção' })).toBeChecked();
     const original = vi.mocked(api.post).mock.calls[0][2]?.idempotencyKey;
     await send(); await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.post).mock.calls[1][2]?.idempotencyKey).toBe(original);

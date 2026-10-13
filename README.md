@@ -18,7 +18,8 @@ Abra http://127.0.0.1:5173 e escolha um perfil de demonstração no login. As co
 ## Funcionalidades
 
 - Painéis de agenda, indicadores documentais, vencimentos e pendências.
-- Agendamentos, equipes, participantes e funções no serviço.
+- Agendamentos com múltiplos serviços, equipes, participantes e funções no serviço.
+- Catálogo dos cinco serviços de PT, com perguntas editáveis, respostas bloqueadoras, rascunhos e publicação de templates por unidade.
 - Documentos com metadados, arquivos, versões, revisão, aprovação e publicação.
 - Trabalhadores, movimentações e estrutura organizacional.
 - Matriz documental por unidade, serviço, função e local, com publicação versionada.
@@ -45,6 +46,8 @@ Copie `.env.example` para `.env.local`, selecione `VITE_API_MODE=api` e configur
 O frontend usa token em memória, CSRF, permissões, contexto por unidade e controle de revisão nas alterações. Endpoints, cookies, autenticação, regras e persistência precisam de homologação com o backend real. A demonstração não emite JWT real nem realiza antivírus ou auditoria persistente.
 
 Os contratos consumidos estão em [`src/shared/contracts`](src/shared/contracts), incluindo os DTOs de [PT](src/shared/contracts/work-permits.ts), [AT](src/shared/contracts/work-authorizations.ts) e [PET](src/shared/contracts/confined-space-permits.ts).
+
+O catálogo de serviços está em `/app/configuracoes/servicos`. Os contratos propostos de templates usam `GET /service-templates`, `PATCH /service-templates/{serviceId}/draft` e `POST /service-templates/{serviceId}/publish`, sempre com `unitId`; alterações exigem `If-Match`. Agendamentos novos enviam `serviceTypeIds` e o primeiro ID em `serviceTypeId` para compatibilidade. Registros antigos usam o campo único quando o conjunto não existe. A elegibilidade reúne as regras de todos os serviços, enquanto cada PT preserva os templates publicados na sua abertura, inclusive em correções e impressão. As perguntas e evidências iniciais são sintéticas e não estabelecem critérios legais de SST.
 
 ## Testes e build
 

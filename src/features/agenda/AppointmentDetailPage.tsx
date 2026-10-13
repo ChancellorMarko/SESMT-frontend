@@ -112,6 +112,7 @@ export function AppointmentDetailPage() {
     <div className={styles.detailColumns}>
       <section className="panel stack"><div className={styles.sectionHead}><h2>Dados do atendimento</h2><Badge tone={data.status === 'CANCELED' ? 'neutral' : data.status === 'REQUESTED' ? 'warning' : 'success'}>{appointmentLabels[data.status]}</Badge></div>
         <dl className={styles.metadata}><div><dt>Início previsto · Brasília</dt><dd>{formatDate(data.startsAt)}</dd></div><div><dt>Término previsto · Brasília</dt><dd>{formatDate(data.endsAt)}</dd></div><div><dt>Equipe</dt><dd>{data.teamName}</dd></div><div><dt>Responsável pelo atendimento</dt><dd>{data.responsibleName}</dd></div><div><dt>Local do serviço</dt><dd>{data.location}</dd></div><div><dt>Participantes</dt><dd>{data.participants.length} pessoa(s)</dd></div></dl>
+        <dl className={styles.metadata}><div className={styles.wide}><dt>Serviços agendados</dt><dd>{data.serviceLabel}</dd></div></dl>
         {data.notes && <div><h3>Observações</h3><p className="muted">{data.notes}</p></div>}
         <div className="actions">
           {hasAction('CONFIRM') && <Button disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>}

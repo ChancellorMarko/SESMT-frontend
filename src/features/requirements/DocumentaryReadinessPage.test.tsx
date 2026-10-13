@@ -21,6 +21,16 @@ function show() {
 }
 beforeEach(() => { vi.clearAllMocks(); state.unitId = 'unit-a'; state.permissions = ['eligibility.read', 'eligibility.write', 'requirements.read', 'appointments.read']; vi.mocked(api.get).mockResolvedValue(data); });
 describe('painel de pendências documentais', () => {
+  it('oferece os serviços separadamente e encontra o atendimento pelo serviço secundário', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockResolvedValue({ ...data, rows: data.rows.map(row => ({ ...row, serviceTypeIds: ['service', 'confined'], services: [{ id: 'service', name: 'Manutenção demonstrativa' }, { id: 'confined', name: 'Espaço confinado' }], serviceLabel: 'Manutenção demonstrativa + Espaço confinado' })) });
+    show(); await screen.findByRole('heading', { name: 'Bruno Teste' });
+    const filter = screen.getByRole('combobox', { name: 'Serviço' });
+    expect(within(filter).getByRole('option', { name: 'Espaço confinado' })).toHaveValue('confined');
+    await user.selectOptions(filter, 'confined');
+    expect(screen.getByRole('heading', { name: 'Bruno Teste' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Manutenção demonstrativa + Espaço confinado' })).toBeVisible();
+  });
   it('consulta escopo, permite filtrar pessoas e vincula a conferência correta', async () => {
     const user = userEvent.setup(); show();
     expect(await screen.findByRole('heading', { name: 'Bruno Teste' })).toBeVisible();

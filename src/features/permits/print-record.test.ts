@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkPermitDto } from '../../shared/contracts/work-permits';
+import type { ServiceTemplateVersionDto } from '../../shared/contracts/service-templates';
 import { printablePermit } from './print-record';
 
 const permit = {
@@ -43,5 +44,16 @@ describe('registro imprimível versionado', () => {
     const historical = { ...current, requirementVersion: 'DEMO-MATRIZ-1', eligible: true };
     const versioned = { ...permit, eligibility: current, snapshots: [{ ...permit.snapshots[0], eligibility: historical }] };
     expect(printablePermit(versioned, '1')?.eligibility).toEqual(historical);
+  });
+  it('imprime o template e a regra de resposta preservados na submissão, sem buscar a publicação atual', () => {
+    const historical: ServiceTemplateVersionDto = { serviceTypeId: 'height', serviceName: 'Trabalho em altura original', version: '1', activityIds: ['height'], questions: [{ id: 'risk', label: 'Existe condição impeditiva?', required: true, blockingAnswers: ['YES'] }], publishedAt: '2026-10-10T10:00:00Z', publishedBy: 'Admin Demo', reason: 'Publicação inicial.' };
+    const current = { ...historical, version: '2', serviceName: 'Nome atual', questions: [{ ...historical.questions[0], label: 'Nova pergunta', blockingAnswers: [] }] };
+    const versioned = { ...permit, serviceTemplates: [current], snapshots: [{ ...permit.snapshots[0], serviceTemplates: [structuredClone(historical)], checklist: [{ id: 'original', label: historical.questions[0].label, required: true, answer: 'NO' as const, blockingAnswers: ['YES' as const], serviceName: historical.serviceName, templateVersion: '1' }] }] };
+    const old = printablePermit(versioned, '1')!;
+    expect(old.serviceTemplates?.[0].version).toBe('1');
+    expect(old.serviceTemplates?.[0].questions[0].label).toBe('Existe condição impeditiva?');
+    expect(old.checklist[0].blockingAnswers).toEqual(['YES']);
+    expect(printablePermit(versioned)?.serviceTemplates?.[0].version).toBe('2');
+    expect(printablePermit({ ...permit, serviceTemplates: [current] }, '1')?.serviceTemplates).toBeUndefined();
   });
 });

@@ -154,7 +154,7 @@ test('agendamento valida período e registra função do participante, auditor p
   await loginDemo(page, 'Engenheiro');
   await page.getByRole('link', { name: 'Agendar serviço', exact: true }).click();
   await page.getByLabel('Equipe *', { exact: true }).selectOption(id(200));
-  await page.getByLabel('Serviço *', { exact: true }).selectOption(id(210));
+  await page.getByRole('checkbox', { name: 'Manutenção programada', exact: true }).check();
   await page.getByLabel('Local do serviço *', { exact: true }).fill('Área fictícia de teste');
   await page.getByLabel('Responsável pelo atendimento *', { exact: true }).selectOption(id(25));
   await page.getByLabel('Início previsto *', { exact: true }).fill('2026-11-10T10:00');

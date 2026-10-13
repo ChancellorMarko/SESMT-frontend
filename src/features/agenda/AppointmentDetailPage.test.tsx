@@ -25,6 +25,13 @@ function show() {
 }
 
 describe('Concorrência ao reagendar', () => {
+  it('mostra todos os serviços retornados no atendimento', async () => {
+    appointment.serviceLabel = 'Trabalho a quente + Espaço confinado';
+    show();
+    expect(await screen.findByRole('heading', { name: 'Trabalho a quente + Espaço confinado' })).toBeVisible();
+    const label = screen.getByText('Serviços agendados');
+    expect(within(label.parentElement!).getByText('Trabalho a quente + Espaço confinado')).toBeVisible();
+  });
   it('bloqueia a revisão antiga e preserva período e motivo até a conferência explícita', async () => {
     const user = userEvent.setup();
     const client = show();

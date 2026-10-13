@@ -24,7 +24,8 @@ export function releaseBlockers(permit: WorkPermitDto): string[] {
   const blockers: string[] = [];
   if (permit.preparation) { const error = validatePreparation(permit.preparation, true); if (error) blockers.push(`Preparação do modelo pendente: ${error}`); }
   if (!permit.eligibility.eligible) blockers.push('Existem requisitos documentais pendentes para este serviço.');
-  if (permit.checklist.some(item => item.required && item.answer !== 'YES')) blockers.push('O checklist obrigatório ainda não foi conferido com todas as respostas “Sim”.');
+  if (permit.checklist.some(item => item.required && item.answer === null)) blockers.push('O checklist possui itens obrigatórios ainda não respondidos.');
+  if (permit.checklist.some(item => item.answer !== null && (item.blockingAnswers ?? (item.required ? ['NO'] : [])).includes(item.answer))) blockers.push('O checklist contém respostas impeditivas nas condições dos templates desta versão.');
   const missing = permit.appointment.participants.filter(participant => !permit.sciences.some(science => science.workerId === participant.workerId && science.version === permit.version));
   if (missing.length) blockers.push(`Falta a ciência de ${missing.map(participant => participant.name).join(', ')} nesta versão.`);
   return blockers;

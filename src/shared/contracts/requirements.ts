@@ -38,6 +38,8 @@ export interface DocumentaryReadinessRowDto {
   teamName: string;
   serviceTypeId: string;
   serviceLabel: string;
+  serviceTypeIds?: string[];
+  services?: { id: string; name: string }[];
   location: string;
   startsAt: string;
   endsAt: string;

@@ -54,7 +54,7 @@ describe('matriz administrativa publicada e prontidão documental integrada', ()
   it('consulta a publicação inicial, opções e versões por unidade sem expor referência mutável', async () => {
     const current = await matrix();
     expect(current.published.version).toBe('DEMO-MATRIZ-1');
-    expect(current.published.rules.map(rule => rule.id)).toEqual([id(240), id(241), id(242)]);
+    expect(current.published.rules.map(rule => rule.id)).toEqual([id(240), id(241), id(242), id(520), id(521), id(522), id(523), id(524)]);
     expect(current.published.rules[0]).toMatchObject({ validFromRequired: true, validUntilRequired: true });
     expect(current.availableActions).toEqual(['EDIT_DRAFT']);
     current.published.rules[0].label = 'Alteração somente na cópia retornada';

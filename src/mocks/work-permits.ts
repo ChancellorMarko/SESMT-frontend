@@ -9,6 +9,9 @@ import { makePermitLifecycleDemo } from './permit-lifecycle';
 import { makeRequirementMatrixDemo } from './requirement-matrix';
 import { makeWorkAuthorizationDemo } from './work-authorizations';
 import { COMPANY, id, UNIT_A, UNIT_B } from './fixtures';
+import { appointmentServiceIds, checklistItemBlocked } from '../shared/lib/appointment-services';
+import { PT_SERVICE_TYPES } from '../shared/lib/service-types';
+import { makeServiceTemplatesDemo } from './service-templates';
 
 export interface PermitDemoContext {
   user: UserDto;
@@ -44,6 +47,7 @@ export function makePermitDemo() {
   const services: ServiceTypeDto[] = [
     { id: id(210), name: 'Manutenção programada', description: 'Serviço ilustrativo. Checklist e requisitos didáticos; validar com o SESMT antes de uso operacional.', templateVersion: 'DEMO-PT-1', requirementVersion: 'DEMO-MATRIZ-1' },
     { id: id(211), name: 'Inspeção de área', description: 'Exemplo acadêmico de atendimento; não constitui procedimento de segurança.', templateVersion: 'DEMO-INSPECAO-1', requirementVersion: 'DEMO-MATRIZ-1' },
+    ...PT_SERVICE_TYPES,
   ];
   const teamManagement = createTeamManagement(teams);
   const attachmentsDemo = makePermitAttachmentsDemo();
@@ -52,8 +56,10 @@ export function makePermitDemo() {
     { id: id(240), label: 'Evidência de capacitação aplicável (demo)', description: 'Conferência didática do participante e do período planejado; a validade é um critério da matriz de exemplo, não um prazo legal de NR.', serviceTypeId: id(210), serviceFunction: '*', locationContains: '', restricted: false, validFromRequired: true, validUntilRequired: true },
     { id: id(241), label: 'Conferência ocupacional restrita (demo)', description: 'Exibe apenas a pendência administrativa mínima. Avaliação e documentos médicos ficam com profissional competente; o sistema não define aptidão clínica.', serviceTypeId: id(210), serviceFunction: '*', locationContains: '', restricted: true, validFromRequired: false, validUntilRequired: false },
     { id: id(242), label: 'Orientação do atendimento (demo)', description: 'Evidência ilustrativa vinculada à inspeção; não substitui capacitação regulamentar.', serviceTypeId: id(211), serviceFunction: '*', locationContains: '', restricted: false, validFromRequired: false, validUntilRequired: false },
+    ...PT_SERVICE_TYPES.map((service, index) => ({ id: id(520 + index), label: `${service.name} · evidência administrativa (demo)`, description: 'Regra sintética por serviço para demonstrar a união de requisitos. Não define capacitação, validade legal ou aptidão clínica.', serviceTypeId: service.id, serviceFunction: '*', locationContains: '', restricted: false, validFromRequired: true, validUntilRequired: true })),
   ];
   const requirementMatrix = makeRequirementMatrixDemo([{ id: UNIT_A, companyId: COMPANY }, { id: UNIT_B, companyId: COMPANY }], services, requirements);
+  const serviceTemplates = makeServiceTemplatesDemo([{ id: UNIT_A, companyId: COMPANY }, { id: UNIT_B, companyId: COMPANY }], services);
   const evidence = new Map<string, EvidenceDto>();
   const evidenceFiles = new Map<string, File>();
   const downloadUrls = new Set<string>();
@@ -65,6 +71,10 @@ export function makePermitDemo() {
   seedEvidence(252, id(40), id(241), 'APPROVED', true);
   seedEvidence(253, id(41), id(241), 'APPROVED', true);
   seedEvidence(254, id(42), id(242), 'APPROVED');
+  PT_SERVICE_TYPES.forEach((service, index) => {
+    seedEvidence(530 + index, id(40), id(520 + index), 'APPROVED');
+    seedEvidence(540 + index, id(41), id(520 + index), service.activityIds?.includes('hot-work') ? 'PENDING' : 'APPROVED');
+  });
   const appointments = new Map<string, AppointmentDto>();
   const permits = new Map<string, WorkPermitDto>();
   const correctionDrafts = new Set<string>();
@@ -88,7 +98,7 @@ export function makePermitDemo() {
     appointmentById(value.appointment.id, context);
     return value;
   };
-  const applicable = (appointment: AppointmentDto, participant: ParticipantDto) => requirementMatrix.published(appointment.unitId).rules.filter(requirement => requirement.serviceTypeId === appointment.serviceTypeId && (requirement.serviceFunction === '*' || normalized(requirement.serviceFunction) === normalized(participant.serviceFunction)) && (!requirement.locationContains || normalized(appointment.location).includes(normalized(requirement.locationContains))));
+  const applicable = (appointment: AppointmentDto, participant: ParticipantDto) => requirementMatrix.published(appointment.unitId).rules.filter(requirement => appointmentServiceIds(appointment).includes(requirement.serviceTypeId) && (requirement.serviceFunction === '*' || normalized(requirement.serviceFunction) === normalized(participant.serviceFunction)) && (!requirement.locationContains || normalized(appointment.location).includes(normalized(requirement.locationContains))));
   const eligibility = (appointment: AppointmentDto, context?: PermitDemoContext): EligibilityDto => {
     const participants = appointment.participants.map(participant => {
       const worker = context?.workers.find(value => value.id === participant.workerId);
@@ -116,12 +126,12 @@ export function makePermitDemo() {
     assert(permit.appointment.responsibleId === context.user.id && responsibles.some(value => value.id === context.user.id), 403, 'NOT_DESIGNATED', 'Somente o responsável operacional designado pode realizar esta ação.');
   };
   const allSciences = (permit: WorkPermitDto) => permit.appointment.participants.every(participant => permit.sciences.some(science => science.workerId === participant.workerId && science.version === permit.version && science.confirmed));
-  const checklistComplete = (permit: WorkPermitDto) => permit.checklist.filter(item => item.required).every(item => item.answer === 'YES');
+  const checklistComplete = (permit: WorkPermitDto) => permit.checklist.length > 0 && permit.checklist.every(item => !checklistItemBlocked(item));
   const preparationComplete = (permit: WorkPermitDto) => !permit.preparation || !validatePreparation(permit.preparation, true);
   const prepared = (permit: WorkPermitDto, context: PermitDemoContext) => preparationComplete(permit) && checklistComplete(permit) && allSciences(permit) && eligibility(permit.appointment, context).eligible;
   const ensurePrepared = (permit: WorkPermitDto, context: PermitDemoContext, documentary = true) => {
     assert(preparationComplete(permit), 409, 'PREPARATION_PENDING', 'Conclua a preparação e as respostas aplicáveis do modelo antes de continuar.');
-    assert(checklistComplete(permit), 409, 'CHECKLIST_PENDING', 'Conclua os itens obrigatórios do checklist com resposta Sim.');
+    assert(checklistComplete(permit), 409, 'CHECKLIST_PENDING', 'Responda os itens obrigatórios e regularize as respostas impeditivas de todos os serviços.');
     assert(allSciences(permit), 409, 'SCIENCES_PENDING', 'Registre a ciência de cada participante nesta versão.');
     if (documentary) assert(eligibility(permit.appointment, context).eligible, 409, 'DOCUMENTARY_BLOCK', 'Há requisito documental ausente, vencido, reprovado ou ainda não conferido. Regularize antes de liberar ou iniciar.');
   };
@@ -190,13 +200,14 @@ export function makePermitDemo() {
     },
     knownResponsible: responsibleId => responsibles.some(value => value.id === responsibleId),
   });
-  const handles = (path: string) => /^\/(permit-options|team-options|teams|appointments|evidence|work-permits|permit-dashboard|requirement-matrix|documentary-readiness|authorization-options|work-authorizations)(\/|$)/.test(path);
+  const handles = (path: string) => /^\/(permit-options|team-options|teams|appointments|evidence|work-permits|permit-dashboard|requirement-matrix|service-templates|documentary-readiness|authorization-options|work-authorizations)(\/|$)/.test(path);
   async function route(request: Request, url: URL, path: string, context: PermitDemoContext): Promise<unknown | undefined> {
     if (!handles(path)) return undefined;
     const parts = path.split('/').filter(Boolean);
     const method = request.method;
     const body = async <T,>() => await request.json() as T;
     if (requirementMatrix.handles(path)) return requirementMatrix.route(request, url, path, context);
+    if (serviceTemplates.handles(path)) return serviceTemplates.route(request, url, path, context);
     if (authorizationDemo.handles(path)) return authorizationDemo.route(request, url, path, context);
     const queryUnit = url.searchParams.get('unitId');
     if (path === '/documentary-readiness') {
@@ -209,7 +220,7 @@ export function makePermitDemo() {
         const permit = appointment.permitId ? permits.get(appointment.permitId) : undefined;
         return appointment.unitId === queryUnit && visible(appointment, context) && appointment.status !== 'CANCELED' && (!permit || !['COMPLETED', 'CANCELED'].includes(permit.operationStatus))
           && appointment.participants.every(participant => { const worker = context.workers.find(value => value.id === participant.workerId); return worker && worker.unitId === queryUnit && context.user.scope.companyIds.includes(worker.companyId) && (!context.user.scope.sectorIds.length || context.user.scope.sectorIds.includes(worker.sectorId)) && (!context.user.scope.ownOnly || participant.workerId === (context.user.id === id(24) ? id(40) : context.user.id)); });
-      }).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map(appointment => ({ appointmentId: appointment.id, appointmentCode: appointment.code, teamId: appointment.teamId, teamName: appointment.teamName, serviceTypeId: appointment.serviceTypeId, serviceLabel: appointment.serviceLabel, location: appointment.location, startsAt: appointment.startsAt, endsAt: appointment.endsAt, permitId: appointment.permitId, eligibility: eligibility(appointment, context) }));
+      }).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map(appointment => ({ appointmentId: appointment.id, appointmentCode: appointment.code, teamId: appointment.teamId, teamName: appointment.teamName, serviceTypeId: appointment.serviceTypeId, serviceTypeIds: appointmentServiceIds(appointment), services: appointmentServiceIds(appointment).map(serviceId => ({ id: serviceId, name: services.find(service => service.id === serviceId)!.name })), serviceLabel: appointment.serviceLabel, location: appointment.location, startsAt: appointment.startsAt, endsAt: appointment.endsAt, permitId: appointment.permitId, eligibility: eligibility(appointment, context) }));
       return { generatedAt: instant(), rows } satisfies DocumentaryReadinessDto;
     }
     if (queryUnit) context.checkUnit(queryUnit);
@@ -221,7 +232,7 @@ export function makePermitDemo() {
       const scopedTeams = teams.filter(team => context.user.scope.companyIds.includes(team.companyId) && context.user.scope.unitIds.includes(team.unitId) && (!queryUnit || team.unitId === queryUnit) && (!context.user.scope.teamIds.length || context.user.scope.teamIds.includes(team.id)));
       const safeTeams = context.user.scope.ownOnly ? [] : scopedTeams;
       if (path === '/teams') return clone(safeTeams);
-      const options: PermitOptionsDto = { teams: clone(safeTeams), services: services.map(service => ({ ...clone(service), requirementVersion: queryUnit ? requirementMatrix.published(queryUnit).version : service.requirementVersion })), responsibles: assignedOnly(context) ? responsibles.filter(value => value.id === context.user.id) : clone(responsibles) };
+      const options: PermitOptionsDto = { teams: clone(safeTeams), services: services.map(service => ({ ...clone(service), templateVersion: queryUnit && PT_SERVICE_TYPES.some(value => value.id === service.id) ? serviceTemplates.published(queryUnit, service.id).version : service.templateVersion, requirementVersion: queryUnit ? requirementMatrix.published(queryUnit).version : service.requirementVersion })), responsibles: assignedOnly(context) ? responsibles.filter(value => value.id === context.user.id) : clone(responsibles) };
       return options;
     }
     if (path === '/permit-dashboard' && method === 'GET') {
@@ -239,11 +250,15 @@ export function makePermitDemo() {
       if (parts.length === 1 && method === 'POST') {
         requirePermission(context, 'appointments.write');
         const input = await body<AppointmentWriteDto>();
+        assert(input && typeof input === 'object' && !Array.isArray(input), 422, 'VALIDATION_FAILED', 'Envie os dados do agendamento.');
         context.checkUnit(text(input.unitId, 'unitId'));
         const team = teams.find(value => value.id === input.teamId && value.unitId === input.unitId);
         assert(team && (!context.user.scope.teamIds.length || context.user.scope.teamIds.includes(team.id)), 422, 'INVALID_ASSIGNMENT', 'Selecione uma equipe da unidade autorizada.', 'teamId');
-        const service = services.find(value => value.id === input.serviceTypeId);
-        assert(service, 422, 'VALIDATION_FAILED', 'Selecione um serviço válido.', 'serviceTypeId');
+        const selectedIds = input.serviceTypeIds === undefined ? [input.serviceTypeId] : input.serviceTypeIds;
+        assert(Array.isArray(selectedIds) && selectedIds.length >= 1 && selectedIds.length <= services.length && new Set(selectedIds).size === selectedIds.length && selectedIds.every(value => typeof value === 'string' && services.some(service => service.id === value)), 422, 'VALIDATION_FAILED', 'Selecione serviços válidos, sem repetição.', 'serviceTypeIds');
+        assert(input.serviceTypeId === selectedIds[0], 422, 'VALIDATION_FAILED', 'O serviço principal deve corresponder ao primeiro serviço selecionado.', 'serviceTypeId');
+        const selectedServices = selectedIds.map(value => services.find(service => service.id === value)!);
+        const service = selectedServices[0];
         const responsible = responsibles.find(value => value.id === input.responsibleId);
         assert(responsible && (!assignedOnly(context) || responsible.id === context.user.id), 422, 'INVALID_ASSIGNMENT', 'Responsável operacional inválido.', 'responsibleId');
         const location = text(input.location, 'location', 200);
@@ -255,7 +270,7 @@ export function makePermitDemo() {
           return { workerId: worker.id, name: worker.fullName, serviceFunction: text(participant.serviceFunction, 'participants', 100) };
         });
         assert(input.notes === undefined || typeof input.notes === 'string' && input.notes.length <= 2000, 422, 'VALIDATION_FAILED', 'As observações devem ter até 2.000 caracteres.', 'notes');
-        const appointment: AppointmentDto = { companyId: team.companyId, unitId: input.unitId, teamId: team.id, serviceTypeId: service.id, startsAt: input.startsAt, endsAt: input.endsAt, responsibleId: responsible.id, notes: input.notes?.trim(), id: crypto.randomUUID(), code: `AG-DEMO-${225 + appointments.size - 5}`, location, participants, teamName: team.name, responsibleName: responsible.name, serviceLabel: service.name, status: 'REQUESTED', revision: 1, availableActions: [], history: [event(context, 'APPOINTMENT_REQUESTED')] };
+        const appointment: AppointmentDto = { companyId: team.companyId, unitId: input.unitId, teamId: team.id, serviceTypeId: service.id, serviceTypeIds: [...selectedIds], startsAt: input.startsAt, endsAt: input.endsAt, responsibleId: responsible.id, notes: input.notes?.trim(), id: crypto.randomUUID(), code: `AG-DEMO-${225 + appointments.size - 5}`, location, participants, teamName: team.name, responsibleName: responsible.name, serviceLabel: selectedServices.map(value => value.name).join(' + '), status: 'REQUESTED', revision: 1, availableActions: [], history: [event(context, 'APPOINTMENT_REQUESTED', `Serviços: ${selectedServices.map(value => value.name).join(' + ')}.`)] };
         appointments.set(appointment.id, appointment);
         return appointmentActions(appointment, context);
       }
@@ -300,7 +315,11 @@ export function makePermitDemo() {
         revision(request, appointment);
         assert(appointment.responsibleId === context.user.id && responsibles.some(value => value.id === context.user.id), 403, 'NOT_DESIGNATED', 'O atendimento deve ser aberto pelo responsável designado.');
         assert(appointment.status === 'CONFIRMED' && !appointment.permitId, 409, 'INVALID_TRANSITION', 'Confirme o agendamento antes de abrir o atendimento.');
-        const permit: WorkPermitDto = { id: crypto.randomUUID(), code: `PT-DEMO-${231 + permits.size - 1}`, appointment: clone(appointment), operationStatus: 'VERIFICATION', reviewStatus: 'NOT_SUBMITTED', version: 1, revision: 1, templateVersion: services.find(value => value.id === appointment.serviceTypeId)!.templateVersion, checklist: initialChecklist(), preparation: createPermitPreparation(appointment), sciences: [], eligibility: eligibility(appointment, context), availableActions: [], snapshots: [], history: [event(context, 'ATTENDANCE_OPENED', 'Verificações iniciadas; execução ainda não liberada.', 1)] };
+        const selected = appointmentServiceIds(appointment);
+        const templates = selected.length > 1 || selected.some(serviceId => PT_SERVICE_TYPES.some(service => service.id === serviceId)) ? selected.map(serviceId => serviceTemplates.published(appointment.unitId, serviceId)) : undefined;
+        const requiredActivities = templates ? [...new Set(templates.flatMap(template => template.activityIds))] : undefined;
+        const checklist: ChecklistItemDto[] = templates ? templates.flatMap(template => template.questions.map(question => ({ ...clone(question), id: `${template.serviceTypeId}:${question.id}`, serviceTypeId: template.serviceTypeId, serviceName: template.serviceName, templateVersion: template.version, answer: null }))) : initialChecklist();
+        const permit: WorkPermitDto = { id: crypto.randomUUID(), code: `PT-DEMO-${231 + permits.size - 1}`, appointment: clone(appointment), operationStatus: 'VERIFICATION', reviewStatus: 'NOT_SUBMITTED', version: 1, revision: 1, templateVersion: templates ? templates.map(template => template.version).join(' + ') : services.find(value => value.id === appointment.serviceTypeId)!.templateVersion, ...(templates ? { serviceTemplates: clone(templates) } : {}), checklist, preparation: createPermitPreparation(appointment, requiredActivities), sciences: [], eligibility: eligibility(appointment, context), availableActions: [], snapshots: [], history: [event(context, 'ATTENDANCE_OPENED', 'Verificações iniciadas; execução ainda não liberada.', 1)] };
         appointment.status = 'ATTENDANCE_OPENED';
         appointment.permitId = permit.id;
         appointment.revision++;
@@ -340,7 +359,7 @@ export function makePermitDemo() {
       const requirement = requirementMatrix.findPublishedRule(value.requirementId, value.unitId);
       assert(requirement, 404, 'NOT_FOUND', 'A origem administrativa da evidência não está disponível.');
       assert(!requirement.restricted, 403, 'RESTRICTED_EVIDENCE', 'Seu perfil não confere documentos de saúde.');
-      assert([...appointments.values()].some(appointment => visible(appointment, context) && (!value.unitId || value.unitId === appointment.unitId) && appointment.participants.some(participant => participant.workerId === value.workerId) && appointment.serviceTypeId === requirement.serviceTypeId), 404, 'NOT_FOUND', 'Evidência fora do seu alcance.');
+      assert([...appointments.values()].some(appointment => visible(appointment, context) && (!value.unitId || value.unitId === appointment.unitId) && appointment.participants.some(participant => participant.workerId === value.workerId) && appointmentServiceIds(appointment).includes(requirement.serviceTypeId)), 404, 'NOT_FOUND', 'Evidência fora do seu alcance.');
       if (parts[2] === 'download') {
         let file: Blob = evidenceFiles.get(value.id)!;
         if (!file) {
@@ -461,7 +480,7 @@ export function makePermitDemo() {
         permit.summary = summary;
         permit.eligibility = eligibility(appointments.get(permit.appointment.id)!, context);
         if (closingChecks) permit.preparation!.closingChecks = closingChecks;
-        permit.snapshots.push({ eligibility: clone(permit.eligibility), templateVersion: permit.templateVersion, appointment: clone(appointments.get(permit.appointment.id)!), version: permit.version, submittedAt: instant(), summary, checklist: clone(permit.checklist), sciences: clone(permit.sciences), ...(permit.preparation ? { preparation: clone(permit.preparation) } : {}) });
+        permit.snapshots.push({ eligibility: clone(permit.eligibility), templateVersion: permit.templateVersion, ...(permit.serviceTemplates ? { serviceTemplates: clone(permit.serviceTemplates) } : {}), appointment: clone(appointments.get(permit.appointment.id)!), version: permit.version, submittedAt: instant(), summary, checklist: clone(permit.checklist), sciences: clone(permit.sciences), ...(permit.preparation ? { preparation: clone(permit.preparation) } : {}) });
         permit.history.push(event(context, 'OPERATION_COMPLETED', summary, permit.version));
       } else if (action === 'review' && method === 'POST') {
         assert(permit.operationStatus === 'COMPLETED' && permit.reviewStatus === 'PENDING_REVIEW' && !correctionDrafts.has(permit.id), 409, 'INVALID_TRANSITION', 'Aguarde uma versão concluída e submetida à revisão.');
@@ -512,7 +531,7 @@ export function makePermitDemo() {
         if (closingChecks) permit.preparation!.closingChecks = closingChecks;
         permit.reviewStatus = 'PENDING_REVIEW';
         correctionDrafts.delete(permit.id);
-        permit.snapshots.push({ eligibility: clone(permit.eligibility), templateVersion: permit.templateVersion, appointment: clone(appointments.get(permit.appointment.id)!), version: permit.version, submittedAt: instant(), summary, checklist: clone(permit.checklist), sciences: clone(permit.sciences), ...(permit.preparation ? { preparation: clone(permit.preparation) } : {}) });
+        permit.snapshots.push({ eligibility: clone(permit.eligibility), templateVersion: permit.templateVersion, ...(permit.serviceTemplates ? { serviceTemplates: clone(permit.serviceTemplates) } : {}), appointment: clone(appointments.get(permit.appointment.id)!), version: permit.version, submittedAt: instant(), summary, checklist: clone(permit.checklist), sciences: clone(permit.sciences), ...(permit.preparation ? { preparation: clone(permit.preparation) } : {}) });
         permit.history.push(event(context, 'CORRECTION_SUBMITTED', summary, permit.version));
       } else throw new PermitDemoError(404, 'NOT_FOUND', 'Operação não prevista na demonstração.');
       permit.revision++;

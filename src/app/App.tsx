@@ -33,6 +33,7 @@ const PermitDetailPage=lazy(()=>import('../features/permits').then(m=>({default:
 const PermitPrintPage=lazy(()=>import('../features/permits/PermitPrintPage').then(m=>({default:m.PermitPrintPage})));
 const PermitTemplatesPage=lazy(()=>import('../features/permits/PermitTemplatesPage').then(m=>({default:m.PermitTemplatesPage})));
 const RequirementMatrixPage=lazy(()=>import('../features/requirements/RequirementMatrixPage').then(m=>({default:m.RequirementMatrixPage})));
+const ServiceTemplatesPage=lazy(()=>import('../features/service-templates/ServiceTemplatesPage').then(m=>({default:m.ServiceTemplatesPage})));
 const DocumentaryReadinessPage=lazy(()=>import('../features/requirements/DocumentaryReadinessPage').then(m=>({default:m.DocumentaryReadinessPage})));
 const WorkAuthorizationsPage=lazy(()=>import('../features/authorizations/WorkAuthorizationsPage').then(m=>({default:m.WorkAuthorizationsPage})));
 const AuthorizationFormPage=lazy(()=>import('../features/authorizations/AuthorizationFormPage').then(m=>({default:m.AuthorizationFormPage})));
@@ -97,6 +98,7 @@ export function App() {
       <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
       <Route path="configuracoes/parametros" element={<Guard permission="documentTypes.write"><ParametersPage/></Guard>}/>
       <Route path="configuracoes/requisitos" element={<Guard permission="requirements.read"><RequirementMatrixPage/></Guard>}/>
+      <Route path="configuracoes/servicos" element={<Guard permission="requirements.read"><ServiceTemplatesPage/></Guard>}/>
     </Route>
     <Route path="/" element={<Navigate to="/app" replace/>}/>
     <Route path="*" element={<div className="error-page"><h1>Página não encontrada.</h1><p>O endereço pode ter sido alterado.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>}/>

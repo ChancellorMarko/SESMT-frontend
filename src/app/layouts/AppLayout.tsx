@@ -26,6 +26,7 @@ const nav = [
   { to: 'auditoria', label: 'Auditoria', icon: History, permission: 'audit.read' },
 ];
 const config = [
+  { to: 'configuracoes/servicos', label: 'Serviços e templates', permission: 'requirements.read' },
   { to: 'configuracoes/requisitos', label: 'Matriz de requisitos', permission: 'requirements.read' },
   { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage' },
   { to: 'configuracoes/tipos-documentais', label: 'Tipos documentais', permission: 'documentTypes.write' },

@@ -32,13 +32,18 @@ export function appointmentLocal(instant: string): string {
 
 export const appointmentFormSchema = z.object({
   teamId: z.string().min(1, 'Selecione a equipe.'),
-  serviceTypeId: z.string().min(1, 'Selecione o serviço.'),
+  serviceTypeId: z.string().min(1, 'Selecione pelo menos um serviço.'),
+  serviceTypeIds: z.array(z.string().trim().min(1, 'Selecione serviços válidos.')).min(1, 'Selecione pelo menos um serviço.').max(7, 'Selecione até sete serviços.').optional(),
   responsibleId: z.string().min(1, 'Selecione o responsável pelo atendimento.'),
   location: z.string().trim().min(3, 'Informe o local do serviço.').max(200, 'Use até 200 caracteres.'),
   startsAt: z.string().refine(value => Boolean(appointmentInstant(value)), 'Informe uma data e hora de início válidas.'),
   endsAt: z.string().refine(value => Boolean(appointmentInstant(value)), 'Informe uma data e hora de término válidas.'),
   notes: z.string().trim().max(2000, 'Use até 2.000 caracteres.'),
 }).superRefine((value, context) => {
+  if (value.serviceTypeIds) {
+    if (new Set(value.serviceTypeIds).size !== value.serviceTypeIds.length) context.addIssue({ code: 'custom', path: ['serviceTypeIds'], message: 'Selecione cada serviço uma única vez.' });
+    if (value.serviceTypeIds.length && value.serviceTypeId !== value.serviceTypeIds[0]) context.addIssue({ code: 'custom', path: ['serviceTypeIds'], message: 'Confira os serviços selecionados.' });
+  }
   const start = appointmentInstant(value.startsAt);
   const end = appointmentInstant(value.endsAt);
   if (start && end && start >= end) context.addIssue({ code: 'custom', path: ['endsAt'], message: 'O término deve ocorrer depois do início.' });

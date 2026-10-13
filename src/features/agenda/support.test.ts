@@ -23,6 +23,15 @@ describe('Agendamento e participantes', () => {
     expect(appointmentFormSchema.safeParse({ ...values, endsAt: values.startsAt }).success).toBe(false);
     expect(appointmentFormSchema.safeParse({ ...values, endsAt: '2026-10-09T13:00' }).success).toBe(false);
   });
+  it('aceita seleção múltipla e compatibilidade legada, mas recusa seleção vazia, duplicada ou inválida', () => {
+    expect(appointmentFormSchema.safeParse(values).success).toBe(true);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: ['service-a', 'service-hot'] }).success).toBe(true);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: [] }).success).toBe(false);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: ['service-a', 'service-a'] }).success).toBe(false);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: ['service-a', ' '] }).success).toBe(false);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: ['service-hot'] }).success).toBe(false);
+    expect(appointmentFormSchema.safeParse({ ...values, serviceTypeIds: ['service-a', ...Array.from({ length: 7 }, (_value, index) => `service-${index}`)] }).success).toBe(false);
+  });
   it('exige equipe da unidade, participante único da equipe e função no serviço', () => {
     const person = options.teams[0].members[0];
     expect(participantError([person], 'team-a', 'unit-a', options)).toBeUndefined();

@@ -18,7 +18,7 @@ export function DocumentaryReadinessPage() {
   const groups = filterReadiness(rows, filters);
   const counts = readinessCounts(groups);
   const teams = [...new Map(rows.map(row => [row.teamId, row.teamName])).entries()];
-  const services = [...new Map(rows.map(row => [row.serviceTypeId, row.serviceLabel])).entries()];
+  const services = [...new Map(rows.flatMap(row => (row.services ?? [{ id: row.serviceTypeId, name: row.serviceLabel }]).map(service => [service.id, service.name] as const))).entries()];
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(search);
     if (value) next.set(key, value); else next.delete(key);

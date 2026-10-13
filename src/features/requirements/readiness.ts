@@ -7,7 +7,7 @@ export interface ReadinessGroup { row: DocumentaryReadinessRowDto; people: Parti
 export function filterReadiness(rows: DocumentaryReadinessRowDto[], filters: ReadinessFilters): ReadinessGroup[] {
   const terms = normalizeSearch(filters.query).split(/\s+/).filter(Boolean);
   return rows.flatMap(row => {
-    if (filters.teamId && row.teamId !== filters.teamId || filters.serviceTypeId && row.serviceTypeId !== filters.serviceTypeId) return [];
+    if (filters.teamId && row.teamId !== filters.teamId || filters.serviceTypeId && !(row.serviceTypeIds ?? [row.serviceTypeId]).includes(filters.serviceTypeId)) return [];
     const people = row.eligibility.participants.filter(person => {
       if (filters.status === 'pending' && person.eligible || filters.status === 'ready' && !person.eligible) return false;
       const haystack = normalizeSearch([row.appointmentCode, row.teamName, row.serviceLabel, row.location, person.name, person.serviceFunction, ...person.items.map(item => item.label)].join(' '));

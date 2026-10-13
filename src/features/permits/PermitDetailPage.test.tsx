@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkPermitDto } from '../../shared/contracts/work-permits';
+import type { ServiceTemplateVersionDto } from '../../shared/contracts/service-templates';
 import { api } from '../../shared/api/client';
 import { PermitDetailPage } from './PermitDetailPage';
 
@@ -129,5 +130,18 @@ describe('interações da PT em campo', () => {
     expect(await within(dialog).findByText(/O registro foi atualizado enquanto esta janela estava aberta/)).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Confirmar aprovação' })).toBeDisabled();
     expect(api.post).not.toHaveBeenCalled();
+  });
+  it('mostra as versões de cada serviço preservadas na PT e na revisão anterior sem consultar o catálogo atual', async () => {
+    const oldTemplate: ServiceTemplateVersionDto = { serviceTypeId: 'height', serviceName: 'Serviço preservado original', version: '1', activityIds: ['height'], questions: [{ id: 'risk', label: 'Pergunta original invertida', required: true, blockingAnswers: ['YES'] }], publishedAt: '2026-10-09T10:00:00Z', publishedBy: 'Admin Demo', reason: 'Publicação inicial' };
+    const currentTemplate = { ...oldTemplate, version: '2', serviceName: 'Serviço preservado na correção' };
+    state.permit = { ...example(), version: 2, operationStatus: 'COMPLETED', availableActions: [], serviceTemplates: [currentTemplate], snapshots: [{ version: 1, submittedAt: '2026-10-09T14:00:00Z', summary: 'Resumo preservado do serviço.', serviceTemplates: [oldTemplate], checklist: [{ id: 'old-question', label: 'Pergunta original invertida', required: true, answer: 'NO', serviceName: oldTemplate.serviceName, templateVersion: '1', blockingAnswers: ['YES'] }], sciences: [], decision: 'RETURN' }] };
+    show();
+    expect(await screen.findByText('Serviço preservado na correção')).toBeInTheDocument();
+    const historical = screen.getByText('Versão 1').closest('details')!;
+    const versions = within(within(historical).getByLabelText('Serviços e templates preservados'));
+    expect(versions.getByText('Serviço preservado original')).toBeInTheDocument();
+    expect(versions.getByText('Template v1')).toBeInTheDocument();
+    expect(within(historical).getByText('Serviço preservado original · template v1')).toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.every(([path]) => path.startsWith('/work-permits/permit'))).toBe(true);
   });
 });

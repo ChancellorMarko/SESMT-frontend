@@ -8,6 +8,12 @@ const example = (appointmentId = 'a'): DocumentaryReadinessRowDto => ({ appointm
 ] } });
 const base = { query: '', teamId: '', serviceTypeId: '', status: 'pending' };
 describe('consulta de pendências por atendimento', () => {
+  it('filtra também o segundo serviço agendado e preserva o fallback de registros antigos', () => {
+    const row = { ...example(), serviceTypeIds: ['maintenance', 'confined'], services: [{ id: 'maintenance', name: 'Manutenção' }, { id: 'confined', name: 'Espaço confinado' }], serviceLabel: 'Manutenção + Espaço confinado' };
+    expect(filterReadiness([row], { ...base, serviceTypeId: 'confined' })).toHaveLength(1);
+    expect(filterReadiness([example()], { ...base, serviceTypeId: 'maintenance' })).toHaveLength(1);
+    expect(filterReadiness([{ ...row, serviceTypeIds: [] }], { ...base, serviceTypeId: 'maintenance' })).toEqual([]);
+  });
   it('combina busca sem acentos, função e contexto sem incluir outras pessoas', () => {
     const groups = filterReadiness([example()], { ...base, query: 'BRUNO manutencao sul' });
     expect(groups).toHaveLength(1);

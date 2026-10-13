@@ -5,6 +5,8 @@ export const PT_SOURCE = source;
 export const PT_ACTIVITIES = source.activities;
 export const PT_EQUIPMENT = source.equipment;
 export const PT_CONTROLS = source.controls;
+/** These categories are determined by the services retained when the PT is opened. */
+export const PT_SERVICE_ACTIVITY_IDS = ['height', 'hot-work', 'confined-space', 'electrical'];
 const adaptedLabel = (label: string) => /pressão arterial|perfeitas condições físicas/i.test(label)
   ? 'A conferência ocupacional administrativa aplicável foi realizada por profissional competente, sem registro clínico neste formulário?'
   : label;
@@ -13,11 +15,13 @@ export const PT_CLOSING_CHECKS = source.closingChecks;
 export const answerLabel = (answer: PermitSourceCheckDto['answer']) => answer === 'YES' ? 'Sim' : answer === 'NO' ? 'Não' : answer === 'NA' ? 'Não aplicável' : 'Não respondido';
 const blankChecks = (items: typeof PT_CHECKS): PermitSourceCheckDto[] => items.map(item => ({ ...item, answer: null }));
 
-export function createPermitPreparation(appointment: AppointmentDto): PermitPreparationDto {
+export function createPermitPreparation(appointment: AppointmentDto, requiredActivities?: string[]): PermitPreparationDto {
+  const activities = [...new Set(requiredActivities || [])];
+  if (activities.some(id => !PT_ACTIVITIES.some(item => item.id === id))) throw new Error('Os serviços devem vincular categorias do catálogo desta versão.');
   return {
     sourceId: source.sourceId, sourceRevision: source.sourceRevision,
     identification: { serviceProvider: '', subcontractor: '', group: '', workFront: '', location: appointment.location, activityDescription: '', riskAnalysisReference: '', executorName: '', issuerName: appointment.responsibleName, atmosphereNotes: '', watchers: '', supervisors: '' },
-    activities: [], equipment: [], controls: [], additionalControls: '', checks: blankChecks(PT_CHECKS), closingChecks: blankChecks(PT_CLOSING_CHECKS), measurements: [],
+    activities: [...activities], ...(requiredActivities !== undefined ? { requiredActivities: [...activities] } : {}), equipment: [], controls: [], additionalControls: '', checks: blankChecks(PT_CHECKS), closingChecks: blankChecks(PT_CLOSING_CHECKS), measurements: [],
   };
 }
 
@@ -34,9 +38,10 @@ export function validatePreparation(preparation: PermitPreparationDto, complete 
   if (preparation.sourceId !== source.sourceId || preparation.sourceRevision !== source.sourceRevision) return 'A identificação do modelo não corresponde à versão desta PT.';
   if (Object.values(preparation.identification).some(value => typeof value !== 'string' || value.length > 2000) || preparation.additionalControls.length > 4000) return 'Confira o tamanho dos textos da preparação.';
   if (complete) {
+    if ((preparation.requiredActivities || []).some(id => !preparation.activities.includes(id)) || preparation.requiredActivities !== undefined && preparation.activities.some(id => PT_SERVICE_ACTIVITY_IDS.includes(id) && !preparation.requiredActivities!.includes(id))) return 'Mantenha as categorias vinculadas aos serviços agendados nesta PT, sem adicionar serviços ao registro.';
     if (preparation.identification.activityDescription.trim().length < 10) return 'Descreva a atividade com pelo menos 10 caracteres.';
     if (!preparation.identification.location.trim() || !preparation.identification.workFront.trim() || !preparation.identification.serviceProvider.trim() || !preparation.identification.riskAnalysisReference.trim()) return 'Informe fornecedor, frente, local e referência da análise de risco.';
-    if (!preparation.activities.length) return 'Selecione pelo menos uma categoria de atividade do modelo.';
+    if (!preparation.activities.length && preparation.requiredActivities === undefined) return 'Selecione pelo menos uma categoria de atividade do modelo.';
     if (preparation.activities.includes('pressurized') && preparation.additionalControls.trim().length < 10) return 'Sistemas pressurizados: descreva os controles complementares com pelo menos 10 caracteres.';
   }
   return validateSourceChecks(preparation.checks.filter(item => preparation.activities.includes(item.section)), complete);
@@ -56,9 +61,13 @@ export function canonicalPreparation(input: PermitPreparationDto, current: Permi
     return [...values];
   };
   const checks = canonicalChecks(input.checks, current.checks);
+  const requiredActivities = current.requiredActivities === undefined ? undefined : [...current.requiredActivities];
+  if (input.requiredActivities !== undefined && (requiredActivities === undefined || !Array.isArray(input.requiredActivities) || input.requiredActivities.length !== requiredActivities.length || new Set(input.requiredActivities).size !== input.requiredActivities.length || input.requiredActivities.some(id => !requiredActivities.includes(id)))) throw new Error('Não altere as categorias obrigatórias vinculadas aos serviços desta versão.');
+  const activities = options(input.activities, PT_ACTIVITIES);
+  if (requiredActivities !== undefined && (requiredActivities.some(id => !activities.includes(id)) || activities.some(id => PT_SERVICE_ACTIVITY_IDS.includes(id) && !requiredActivities.includes(id)))) throw new Error('Mantenha as categorias vinculadas aos serviços agendados nesta PT, sem adicionar serviços ao registro.');
   const measurements = input.measurements ?? [];
   if (!Array.isArray(measurements) || measurements.length > 50 || measurements.some(item => !item || ['id', 'oxygen', 'carbonMonoxide', 'explosivity', 'other', 'measuredAt', 'responsible', 'instrument'].some(key => typeof item[key as keyof typeof item] !== 'string' || item[key as keyof typeof item].length > 500)) || new Set(measurements.map(item => item.id)).size !== measurements.length) throw new Error('Confira as medições e use no máximo 50 registros de até 500 caracteres por campo.');
-  return { sourceId: current.sourceId, sourceRevision: current.sourceRevision, identification, activities: options(input.activities, PT_ACTIVITIES), equipment: options(input.equipment, PT_EQUIPMENT), controls: options(input.controls, PT_CONTROLS), additionalControls: input.additionalControls.trim(), checks, closingChecks: structuredClone(current.closingChecks), measurements: measurements.map(({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument }) => ({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument })) };
+  return { sourceId: current.sourceId, sourceRevision: current.sourceRevision, identification, activities, ...(requiredActivities !== undefined ? { requiredActivities } : {}), equipment: options(input.equipment, PT_EQUIPMENT), controls: options(input.controls, PT_CONTROLS), additionalControls: input.additionalControls.trim(), checks, closingChecks: structuredClone(current.closingChecks), measurements: measurements.map(({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument }) => ({ id, oxygen, carbonMonoxide, explosivity, other, measuredAt, responsible, instrument })) };
 }
 
 export function canonicalChecks(input: PermitSourceCheckDto[], current: PermitSourceCheckDto[]): PermitSourceCheckDto[] {

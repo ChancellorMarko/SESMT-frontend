@@ -48,4 +48,29 @@ describe('digitalização rastreável do modelo RI-S-36001', () => {
     expect(updated.checks[0].sourceCell).toBe(prep.checks[0].sourceCell);
     expect(updated.closingChecks[0].answer).toBeNull();
   });
+  it('vincula as categorias dos serviços sem permitir remoção ou mudança da identidade obrigatória', () => {
+    const required = ['height', 'electrical'];
+    const prep = createPermitPreparation({ location: 'Local Demo', responsibleName: 'Emitente Demo' } as AppointmentDto, required);
+    required.pop();
+    expect(prep.activities).toEqual(['height', 'electrical']);
+    expect(prep.requiredActivities).toEqual(['height', 'electrical']);
+    expect(() => canonicalPreparation({ ...prep, activities: ['height'] }, prep)).toThrow(/categorias vinculadas/);
+    expect(() => canonicalPreparation({ ...prep, activities: [], requiredActivities: [] }, prep)).toThrow(/Não altere/);
+    expect(() => canonicalPreparation({ ...prep, requiredActivities: ['height', 'height'] }, prep)).toThrow(/Não altere/);
+    expect(() => canonicalPreparation({ ...prep, activities: [...prep.activities, 'hot-work'] }, prep)).toThrow(/sem adicionar serviços/);
+    const result = canonicalPreparation({ ...prep, activities: [...prep.activities, 'pressurized'], requiredActivities: undefined }, prep);
+    expect(result.requiredActivities).toEqual(['height', 'electrical']);
+    expect(result.activities).toContain('pressurized');
+    expect(result.requiredActivities).not.toBe(prep.requiredActivities);
+    expect(validatePreparation({ ...prep, activities: ['height'] }, true)).toMatch(/categorias vinculadas/);
+  });
+  it('aceita serviço a frio sem inventar categoria e preserva a regra anterior para PT legada', () => {
+    const prep = createPermitPreparation({ location: 'Local Demo', responsibleName: 'Emitente Demo' } as AppointmentDto, []);
+    prep.identification = { ...prep.identification, serviceProvider: 'Fornecedor Demo', workFront: 'Frente Demo', activityDescription: 'Manutenção manual a frio de equipamento fictício.', riskAnalysisReference: 'AR-DEMO' };
+    expect(validatePreparation(prep, true)).toBeUndefined();
+    expect(() => canonicalPreparation({ ...prep, activities: ['height'] }, prep)).toThrow(/sem adicionar serviços/);
+    const legacy = { ...prep, requiredActivities: undefined };
+    expect(validatePreparation(legacy, true)).toMatch(/Selecione pelo menos/);
+    expect(() => canonicalPreparation({ ...legacy, requiredActivities: [] }, legacy)).toThrow(/Não altere/);
+  });
 });

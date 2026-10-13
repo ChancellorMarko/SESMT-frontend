@@ -20,6 +20,7 @@ export function printablePermit(permit: WorkPermitDto, requestedVersion?: string
     templateVersion: snapshot?.templateVersion || (snapshot ? snapshot.preparation ? `${snapshot.preparation.sourceId} / ${snapshot.preparation.sourceRevision}` : 'Não registrado nesta versão histórica' : permit.templateVersion),
     appointment: snapshot?.appointment || permit.appointment,
     preparation: snapshot ? snapshot.preparation : permit.preparation,
+    serviceTemplates: snapshot ? snapshot.serviceTemplates : permit.serviceTemplates,
     checklist: snapshot?.checklist || permit.checklist,
     sciences: snapshot?.sciences || permit.sciences.filter(item => item.version === version),
     summary: snapshot?.summary ?? permit.summary,

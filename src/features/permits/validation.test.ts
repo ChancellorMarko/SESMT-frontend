@@ -40,4 +40,19 @@ describe('regras apresentadas pela PT em campo', () => {
     expect(validateText('Concluído', 'Resumo', 10)).toMatch(/10 caracteres/);
     expect(validateText('Atendimento concluído, sem pendências do registro.', 'Resumo', 10)).toBeUndefined();
   });
+  it('interpreta respostas impeditivas pela versão do template, inclusive perguntas invertidas e observacionais', () => {
+    const permit = { version: 1, eligibility: { eligible: true }, checklist: [], appointment: { participants: [] }, sciences: [] } as unknown as WorkPermitDto;
+    permit.checklist = [{ id: 'risk', label: 'Existe condição impeditiva?', required: true, answer: 'YES', blockingAnswers: ['YES'] }];
+    expect(releaseBlockers(permit).join(' ')).toMatch(/respostas impeditivas/);
+    permit.checklist[0].answer = 'NO';
+    expect(releaseBlockers(permit)).toEqual([]);
+    permit.checklist[0].answer = null;
+    expect(releaseBlockers(permit).join(' ')).toMatch(/não respondidos/);
+    permit.checklist[0] = { ...permit.checklist[0], answer: 'NO', blockingAnswers: [] };
+    expect(releaseBlockers(permit)).toEqual([]);
+    permit.checklist[0] = { ...permit.checklist[0], required: false, answer: 'YES', blockingAnswers: ['YES'] };
+    expect(releaseBlockers(permit)).toHaveLength(1);
+    permit.checklist[0] = { ...permit.checklist[0], required: true, answer: 'NO', blockingAnswers: undefined };
+    expect(releaseBlockers(permit)).toHaveLength(1);
+  });
 });

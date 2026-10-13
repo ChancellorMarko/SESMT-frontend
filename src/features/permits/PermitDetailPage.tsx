@@ -5,6 +5,7 @@ import { Check, ClipboardCheck, Clock, FileCheck2, LockKeyhole, ShieldCheck, Use
 import { api, ApiError, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { ChecklistItemDto, PermitPreparationDto, PermitSnapshotDto, PermitSourceCheckDto, ScienceDto, WorkPermitDto } from '../../shared/contracts/work-permits';
+import type { ServiceTemplateVersionDto } from '../../shared/contracts/service-templates';
 import { formatDate } from '../../shared/lib/format';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, type Tone } from '../../shared/ui';
 import { PermitStatus } from './PermitStatus';
@@ -24,7 +25,7 @@ const evidenceLabels: Record<string, string> = { MISSING: 'Ausente', PENDING: 'E
 const evidenceTones: Record<string, Tone> = { MISSING: 'danger', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', EXPIRED: 'danger' };
 const staleFormMessage = 'Os dados da PT mudaram. Suas alterações foram preservadas. Carregue e confira a versão atual antes de salvar.';
 // Operational events can change the revision while leaving every editable document field untouched.
-const savedFormContent = (permit: WorkPermitDto) => JSON.stringify({ checklist: permit.checklist, preparation: permit.preparation, summary: permit.summary || '' });
+const savedFormContent = (permit: WorkPermitDto) => JSON.stringify({ checklist: permit.checklist, preparation: permit.preparation, serviceTemplates: permit.serviceTemplates, summary: permit.summary || '' });
 const baseFor = (permit: WorkPermitDto) => ({ id: permit.id, revision: permit.revision, content: savedFormContent(permit) });
 
 function ScienceEvidence({ science }: { science: ScienceDto }) {
@@ -35,11 +36,17 @@ function ScienceEvidence({ science }: { science: ScienceDto }) {
   </div>;
 }
 
+function ServiceTemplates({ templates }: { templates?: ServiceTemplateVersionDto[] }) {
+  if (!templates?.length) return null;
+  return <div className="stack" aria-label="Serviços e templates preservados"><h3>Serviços e templates desta PT</h3><p className="muted">Versões fixadas na abertura do atendimento. Alterações posteriores do catálogo não substituem estes registros.</p><div className={styles.serviceTemplates}>{templates.map(template => <article key={template.serviceTypeId} className={styles.serviceTemplate}><strong>{template.serviceName}</strong><Badge tone="neutral">Template v{template.version}</Badge><small className="muted">{template.questions.length} perguntas · publicado em {formatDate(template.publishedAt)}</small></article>)}</div></div>;
+}
+
 function Snapshot({ snapshot, current }: { snapshot: PermitSnapshotDto; current: boolean }) {
   return <details className={styles.snapshot}>
     <summary><span>Versão {snapshot.version}{current ? ' · versão atual' : ''}</span><Badge tone={snapshot.decision === 'APPROVE' ? 'success' : snapshot.decision === 'RETURN' ? 'danger' : 'warning'}>{snapshot.decision === 'APPROVE' ? 'Aprovada' : snapshot.decision === 'RETURN' ? 'Devolvida' : 'Enviada para revisão'}</Badge></summary>
     <div className="stack"><p className="muted">Registro preservado · enviado em {formatDate(snapshot.submittedAt)}</p><h3>Resumo do encerramento</h3><p className={styles.preserveText}>{snapshot.summary}</p>
-      <div><h3>Checklist desta versão</h3><ul className={styles.snapshotChecklist}>{snapshot.checklist.map(item => <li key={item.id}><strong>{item.label}</strong> — {item.answer === 'YES' ? 'Sim' : item.answer === 'NO' ? 'Não' : 'Não respondido'}{item.note && <p className="muted">{item.note}</p>}</li>)}</ul></div>
+      <ServiceTemplates templates={snapshot.serviceTemplates} />
+      <div><h3>Checklist desta versão</h3><ul className={styles.snapshotChecklist}>{snapshot.checklist.map(item => <li key={item.id}>{item.serviceName && <p className="muted">{item.serviceName} · template v{item.templateVersion || 'não registrada'}</p>}<strong>{item.label}</strong> — {item.answer === 'YES' ? 'Sim' : item.answer === 'NO' ? 'Não' : 'Não respondido'}{item.note && <p className="muted">{item.note}</p>}</li>)}</ul></div>
       {snapshot.preparation && <><PermitPreparation value={snapshot.preparation} editable={false} pending={false} dirty={false} onChange={() => {}} onSubmit={event => event.preventDefault()} /><h3>Checklist de encerramento preservado</h3><SourceChecks checks={snapshot.preparation.closingChecks} disabled prefix={`snapshot-${snapshot.version}`} onChange={() => {}} /></>}
       <div><h3>Ciências desta versão</h3>{snapshot.sciences.map(science => <ScienceEvidence key={science.id} science={science} />)}</div>
       {snapshot.decision && <div className={styles.reviewRecord}><h3>{snapshot.decision === 'APPROVE' ? 'Aprovação do encerramento' : 'Devolução do encerramento'}</h3><p>{snapshot.reviewedBy} · {formatDate(snapshot.reviewedAt)}</p>{snapshot.comment && <p className={styles.preserveText}>{snapshot.comment}</p>}{snapshot.signatureRepresentation && <><p className={styles.typedRepresentation}>{snapshot.signatureRepresentation}</p><p className="muted">Representação associada à decisão explícita nesta versão. Não representa assinatura criptográfica.</p></>}</div>}
@@ -227,6 +234,7 @@ export function PermitDetailPage() {
     <section className={`panel ${styles.context}`} aria-label="Contexto da permissão de trabalho">
       <div className={styles.contextHeader}><PermitStatus operationStatus={permit.operationStatus} reviewStatus={permit.reviewStatus} /><Badge tone={currentSciences.length === permit.appointment.participants.length ? 'success' : 'warning'}>Ciências {currentSciences.length}/{permit.appointment.participants.length}</Badge></div>
       <dl className={styles.contextGrid}><div><dt>Local</dt><dd>{permit.appointment.location}</dd></div><div><dt>Equipe</dt><dd>{permit.appointment.teamName}</dd></div><div><dt>Responsável operacional</dt><dd>{permit.appointment.responsibleName}</dd></div><div><dt>Período agendado</dt><dd>{formatDate(permit.appointment.startsAt)} até {formatDate(permit.appointment.endsAt)}</dd></div><div><dt>Modelo utilizado</dt><dd>{permit.templateVersion}</dd></div><div><dt>Agendamento de origem</dt><dd><Link to={`/app/agenda/${permit.appointment.id}`}>{permit.appointment.code}</Link></dd></div></dl>
+      <ServiceTemplates templates={permit.serviceTemplates} />
       <Feedback tone="warning">Modelo escolar ilustrativo. Os requisitos, o checklist e as designações desta demonstração precisam ser substituídos pelos procedimentos aprovados do SESMT antes do uso real.</Feedback>
     </section>
     <nav className={styles.steps} aria-label="Etapas da PT">{[['conferencia', 'Conferência'], ['operacao', 'Liberação'], ['operacao', 'Execução'], ['encerramento', 'Encerramento'], ['revisao', 'Revisão final']].map(([anchor, label], index) => <a key={label} href={`#${anchor}`} className={index === step ? styles.currentStep : index < step ? styles.finishedStep : ''} aria-current={index === step ? 'step' : undefined}><span>{index < step ? <Check size={14} aria-hidden="true" /> : index + 1}</span>{label}</a>)}</nav>
@@ -238,7 +246,7 @@ export function PermitDetailPage() {
     <section id="conferencia" className="panel stack" aria-labelledby="checklist-title">
       <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ClipboardCheck size={20} aria-hidden="true" /></span><h2 id="checklist-title">1. Conferência do atendimento</h2><p className="muted">Checklist ilustrativo · {permit.templateVersion}</p></div>{!canEdit && <Badge><LockKeyhole size={12} aria-hidden="true" /> Conteúdo preservado</Badge>}</div>
       <form onSubmit={saveChecklist} className="stack">
-        {checklist.map((item, index) => <fieldset key={item.id} className={styles.checklistItem} disabled={!canEdit || writePending}><legend>{index + 1}. {item.label}{item.required && <span> (obrigatório)</span>}</legend><div className={styles.answerOptions}>{(['YES', 'NO'] as const).map(answer => <label key={answer}><input type="radio" name={`checklist-${item.id}`} checked={item.answer === answer} onChange={() => editItem(item.id, { answer })} />{answer === 'YES' ? 'Sim' : 'Não'}</label>)}</div>{(canEdit || item.note) && <Field label={`Observação do item ${index + 1}`}><textarea aria-label={`Observação do item ${index + 1}`} value={item.note || ''} rows={2} maxLength={1000} placeholder={item.answer === 'NO' ? 'Explique a pendência desta resposta.' : 'Observação, quando necessária.'} onChange={event => editItem(item.id, { note: event.target.value })} /></Field>}</fieldset>)}
+        {checklist.map((item, index) => <fieldset key={item.id} className={styles.checklistItem} disabled={!canEdit || writePending}><legend>{index + 1}. {item.label}{item.required && <span> (obrigatório)</span>}</legend>{item.serviceName && <p className="muted">{item.serviceName} · template v{item.templateVersion || 'não registrada'}</p>}<div className={styles.answerOptions}>{(['YES', 'NO'] as const).map(answer => <label key={answer}><input type="radio" name={`checklist-${item.id}`} checked={item.answer === answer} onChange={() => editItem(item.id, { answer })} />{answer === 'YES' ? 'Sim' : 'Não'}</label>)}</div>{item.blockingAnswers && <small className="muted">{item.blockingAnswers.length ? `Respostas impeditivas deste template: ${item.blockingAnswers.map(answer => answer === 'YES' ? 'Sim' : 'Não').join(', ')}.` : 'Este item registra a condição, sem resposta impeditiva configurada.'}</small>}{(canEdit || item.note) && <Field label={`Observação do item ${index + 1}`}><textarea aria-label={`Observação do item ${index + 1}`} value={item.note || ''} rows={2} maxLength={1000} placeholder={item.answer === 'NO' ? 'Explique a situação desta resposta.' : 'Observação, quando necessária.'} onChange={event => editItem(item.id, { note: event.target.value })} /></Field>}</fieldset>)}
         {canEdit && <div className="actions"><Button type="submit" disabled={writePending || !checklistDirty || staleForm}>Salvar checklist</Button><span className="muted" role="status">{checklistDirty ? 'Há respostas ainda não salvas.' : 'Respostas sincronizadas com esta versão.'}</span></div>}
       </form>
     </section>
