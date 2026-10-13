@@ -1,7 +1,7 @@
 import { isDownloadUrlAllowed } from '../../shared/lib/downloads';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { DocumentDto, DocumentHistoryDto, DocumentTypeDto, DocumentVersionDto, DownloadUrlDto, OrganizationDto, PageDto, SignatureEvidenceDto } from '../../shared/contracts';
@@ -18,6 +18,14 @@ export { isDownloadUrlAllowed };
 
 export function DocumentDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const locationState = location.state as { fromConsulta?: boolean; fromSearch?: string } | null;
+  const backHref = locationState?.fromConsulta
+    ? `/app/consulta${locationState.fromSearch || ''}`
+    : locationState?.fromSearch
+    ? `/app/documentos${locationState.fromSearch}`
+    : '/app/documentos';
+  const backLabel = locationState?.fromConsulta ? 'Voltar à consulta' : 'Voltar à central';
   const { me, sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
   const [chosenVersionId, setChosenVersionId] = useState('');
@@ -108,7 +116,7 @@ export function DocumentDetailPage() {
   const currentIsClean = current?.file.scanStatus === 'CLEAN';
 
   return <div className="stack">
-    <PageHeader eyebrow={doc.code} title={doc.title} description="Metadados, vigência e histórico de um documento controlado." actions={<Link to="/app/documentos">Voltar à central</Link>} />
+    <PageHeader eyebrow={doc.code} title={doc.title} description="Metadados, vigência e histórico de um documento controlado." actions={<Link to={backHref}>{backLabel}</Link>} />
     {notice && <Feedback tone="success">{notice}</Feedback>}
     <section className="panel stack" aria-label="Metadados do documento">
       <div className="toolbar"><div className="actions"><DocumentStatus status={doc.status} /><span className="muted">{accessLabels[doc.accessClass]}</span></div><div className="actions">

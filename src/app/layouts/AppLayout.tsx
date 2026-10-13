@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ChevronRight, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound } from 'lucide-react';
+import { ShieldCheck, LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ChevronRight, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch } from 'lucide-react';
 import { api, API_MODE } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
@@ -11,10 +11,12 @@ import styles from './AppLayout.module.css';
 
 const nav = [
   { to: 'dashboard', label: 'Visão geral', icon: LayoutDashboard, permission: 'dashboard.read' },
+  { to: 'consulta', label: 'Consulta central', icon: FileSearch, permission: 'documents.read' },
   { to: 'agenda', label: 'Agenda', icon: CalendarDays, permission: 'appointments.read' },
   { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
   { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
   { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
+  { to: 'designacoes', label: 'Designações', icon: UserCheck, permission: 'appointments.read' },
   { to: 'pets', label: 'PETs de espaços confinados', icon: ClipboardCheck, permission: 'pet.read' },
   { to: 'modelos-pt', label: 'Modelo da PT', icon: ClipboardCheck, permission: 'permits.read' },
   { to: 'equipes', label: 'Equipes', icon: UsersRound, permission: 'teams.read' },

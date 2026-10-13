@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isDownloadUrlAllowed } from './downloads';
+import { isDownloadUrlAllowed, triggerDownload } from './downloads';
 
 afterEach(() => vi.unstubAllEnvs());
 describe('origens dos downloads', () => {
@@ -20,5 +20,24 @@ describe('origens dos downloads', () => {
     expect(isDownloadUrlAllowed('/files/temporary.pdf', origin)).toBe(true);
     expect(isDownloadUrlAllowed('blob:http://127.0.0.1:5173/demo', origin)).toBe(true);
     expect(isDownloadUrlAllowed('blob:https://outside.example.test/demo', origin)).toBe(false);
+  });
+  it('dispara o clique do elemento âncora para URL permitida e bloqueia URL não permitida', () => {
+    const clickSpy = vi.fn();
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const removeSpy = vi.spyOn(document.body, 'removeChild');
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = document.createElementNS('http://www.w3.org/1999/xhtml', tagName);
+      if (tagName === 'a') {
+        el.click = clickSpy;
+      }
+      return el;
+    });
+
+    triggerDownload('/files/test.pdf', 'teste.pdf');
+    expect(clickSpy).toHaveBeenCalled();
+    expect(appendSpy).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalled();
+
+    expect(() => triggerDownload('javascript:alert(1)')).toThrow('Origem de download não permitida.');
   });
 });

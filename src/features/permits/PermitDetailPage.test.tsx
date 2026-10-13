@@ -64,7 +64,7 @@ describe('interações da PT em campo', () => {
     expect(within(dialog).getByRole('alert')).toHaveTextContent(/Confirme sua decisão/);
     await user.click(within(dialog).getByRole('checkbox'));
     await user.click(within(dialog).getByRole('button', { name: 'Confirmar aprovação' }));
-    expect(api.post).toHaveBeenCalledWith('/work-permits/permit/review', { decision: 'APPROVE', comment: '', signatureRepresentation: 'Engenheira Demo' }, { etag: '"4"' });
+    expect(api.post).toHaveBeenCalledWith('/work-permits/permit/review', { decision: 'APPROVE', comment: '', signatureRepresentation: 'Engenheira Demo', signatureMethod: 'TYPED', signatureImage: undefined }, { etag: '"4"' });
   });
   it('exige nova confirmação quando o participante altera nome ou forma da manifestação', async () => {
     const user = userEvent.setup(); show();
@@ -143,5 +143,72 @@ describe('interações da PT em campo', () => {
     expect(versions.getByText('Template v1')).toBeInTheDocument();
     expect(within(historical).getByText('Serviço preservado original · template v1')).toBeInTheDocument();
     expect(vi.mocked(api.get).mock.calls.every(([path]) => path.startsWith('/work-permits/permit'))).toBe(true);
+  });
+  it('permite alterar os participantes da equipe com justificativa e confirmação explícita (#94/#116)', async () => {
+    state.permit = { ...example(), availableActions: ['EDIT_CHECKLIST', 'RELEASE', 'COLLECT_SCIENCE'] };
+    const user = userEvent.setup(); show();
+    const editBtn = await screen.findByRole('button', { name: /Alterar participantes da equipe/ });
+    await user.click(editBtn);
+    const dialog = screen.getByRole('dialog', { name: 'Alterar participantes da equipe' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/A alteração de participantes revoga ciências existentes/)).toBeInTheDocument();
+
+    const reasonInput = within(dialog).getByLabelText('Motivo da alteração de participantes');
+    await user.type(reasonInput, 'Ajuste de escalação de pessoal');
+
+    const confirmCheck = within(dialog).getByRole('checkbox', { name: /Confirmo a atualização da composição da equipe/ });
+    await user.click(confirmCheck);
+
+    const submitBtn = within(dialog).getByRole('button', { name: 'Confirmar alteração de participantes' });
+    await user.click(submitBtn);
+
+    expect(api.patch).toHaveBeenCalledWith(
+      '/work-permits/permit/participants',
+      {
+        participants: [{ workerId: 'worker', name: 'José Demo', serviceFunction: 'Operador Demo' }],
+        reason: 'Ajuste de escalação de pessoal',
+      },
+      { etag: '"4"' }
+    );
+  });
+  it('oferece opções de assinatura desenhada (DRAWN) e upload (IMAGE) na revisão do encerramento (#112)', async () => {
+    state.role = 'engineer';
+    state.permit = { ...example(), operationStatus: 'COMPLETED', reviewStatus: 'PENDING_REVIEW', availableActions: ['REVIEW'], summary: 'Atendimento concluído.' };
+    const user = userEvent.setup(); show();
+    await user.click(await screen.findByRole('button', { name: 'Revisar encerramento da versão 1' }));
+    const dialog = screen.getByRole('dialog', { name: 'Revisar encerramento' });
+
+    expect(within(dialog).getByRole('radio', { name: 'Nome digitado' })).toBeChecked();
+    expect(within(dialog).getByRole('radio', { name: 'Desenho' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: 'Upload de imagem' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('radio', { name: 'Desenho' }));
+    expect(within(dialog).getByLabelText('Área para desenhar a manifestação')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('radio', { name: 'Upload de imagem' }));
+    expect(within(dialog).getByLabelText('Upload de imagem da rubrica')).toBeInTheDocument();
+  });
+  it('aciona o download do PDF final controlado para PT concluída ou validada (#115)', async () => {
+    state.role = 'engineer';
+    state.permit = { ...example(), operationStatus: 'COMPLETED', reviewStatus: 'VALIDATED' };
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path.endsWith('/final-pdf')) {
+        return {
+          url: 'blob:http://localhost/final.pdf',
+          fileName: 'PT-TESTE-final-v1.pdf',
+          mimeType: 'application/pdf',
+          backendPersisted: false,
+          disclaimer: 'Demonstração de PDF',
+        };
+      }
+      return structuredClone(state.permit);
+    });
+
+    const user = userEvent.setup(); show();
+    const downloadBtns = await screen.findAllByRole('button', { name: /Baixar PDF final/ });
+    expect(downloadBtns.length).toBeGreaterThanOrEqual(1);
+
+    await user.click(downloadBtns[0]);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/work-permits/permit/final-pdf'));
   });
 });

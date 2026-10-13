@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppointmentDto, WorkPermitDto, EvidenceDto, EligibilityDto, PermitDashboardDto } from '../shared/contracts/work-permits';
+import type { AppointmentDto, WorkPermitDto, EvidenceDto, EligibilityDto, PermitDashboardDto, FinalPdfDto } from '../shared/contracts/work-permits';
 import { COMPANY, id, makeFixtures, UNIT_A, UNIT_B } from './fixtures';
 import { makePermitDemo, type PermitDemoContext } from './work-permits';
 
@@ -367,4 +367,155 @@ describe('simulação de PT e elegibilidade no navegador', () => {
     expect(dashboard.pendingReviews).toBe(1);
     expect(dashboard.nextAppointments.every(value => value.unitId === UNIT_A)).toBe(true);
   });
+  it('filtra atendimentos por equipe, responsável, serviço, local e período (#102)', async () => {
+    const byTeam = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&teamId=${id(201)}`, 'GET', undefined, engineer());
+    expect(byTeam.every(a => a.teamId === id(201))).toBe(true);
+
+    const byResponsible = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&responsibleId=${id(25)}`, 'GET', undefined, engineer());
+    expect(byResponsible.every(a => a.responsibleId === id(25))).toBe(true);
+
+    const byService = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&serviceTypeId=${id(210)}`, 'GET', undefined, engineer());
+    expect(byService.every(a => (a.serviceTypeIds || [a.serviceTypeId]).includes(id(210)))).toBe(true);
+
+    const byLocation = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&location=Área A`, 'GET', undefined, engineer());
+    expect(byLocation.length).toBeGreaterThan(0);
+    expect(byLocation.every(a => a.location.includes('Área A'))).toBe(true);
+
+    const fromDate = '2026-01-01';
+    const toDate = '2030-12-31';
+    const byPeriod = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&from=${fromDate}&to=${toDate}`, 'GET', undefined, engineer());
+    expect(byPeriod.length).toBeGreaterThan(0);
+  });
+  it('confirmação separa horário solicitado do confirmado e preserva no histórico (#102)', async () => {
+    const appointment = await call<AppointmentDto>(`/appointments/${id(222)}`, 'GET', undefined, engineer());
+    expect(appointment.status).toBe('REQUESTED');
+    expect(appointment.requestedStartsAt).toBeDefined();
+
+    const confirmedStartsAt = '2026-10-25T14:00:00-03:00';
+    const confirmedEndsAt = '2026-10-25T17:00:00-03:00';
+
+    const confirmed = await call<AppointmentDto>(
+      `/appointments/${appointment.id}/confirm`,
+      'POST',
+      { confirmedStartsAt, confirmedEndsAt, note: 'Janela ajustada pelo responsável operacional' },
+      engineer(),
+      appointment.revision
+    );
+
+    expect(confirmed.status).toBe('CONFIRMED');
+    expect(confirmed.startsAt).toBe(confirmedStartsAt);
+    expect(confirmed.endsAt).toBe(confirmedEndsAt);
+    expect(confirmed.confirmedStartsAt).toBe(confirmedStartsAt);
+    expect(confirmed.confirmedEndsAt).toBe(confirmedEndsAt);
+    expect(confirmed.requestedStartsAt).toBe(appointment.startsAt);
+    expect(confirmed.history.some(e => e.action === 'APPOINTMENT_CONFIRMED' && e.reason?.includes('Horário confirmado'))).toBe(true);
+  });
+
+  it('revisão com assinatura desenhada DRAWN persiste imagem e método no snapshot (#112)', async () => {
+    const permit = await call<WorkPermitDto>(`/work-permits/${id(230)}`, 'GET', undefined, engineer());
+    const signatureImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const reviewed = await call<WorkPermitDto>(
+      `/work-permits/${permit.id}/review`,
+      'POST',
+      {
+        decision: 'APPROVE',
+        comment: 'Aprovado com assinatura desenhada em campo.',
+        signatureMethod: 'DRAWN',
+        signatureImage,
+      },
+      engineer(),
+      permit.revision
+    );
+
+    expect(reviewed.reviewStatus).toBe('VALIDATED');
+    expect(reviewed.snapshots[0].decision).toBe('APPROVE');
+    expect(reviewed.snapshots[0].signatureMethod).toBe('DRAWN');
+    expect(reviewed.snapshots[0].signatureImage).toBe(signatureImage);
+    expect(reviewed.snapshots[0].signatureRepresentation).toBe('Marina Demo');
+  });
+
+  it('revisão com upload de rubrica IMAGE persiste imagem e método no snapshot (#112)', async () => {
+    const permit = await call<WorkPermitDto>(`/work-permits/${id(230)}`, 'GET', undefined, engineer());
+    const signatureImage = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+    const reviewed = await call<WorkPermitDto>(
+      `/work-permits/${permit.id}/review`,
+      'POST',
+      {
+        decision: 'APPROVE',
+        comment: 'Aprovado com rubrica digitalizada.',
+        signatureMethod: 'IMAGE',
+        signatureImage,
+      },
+      engineer(),
+      permit.revision
+    );
+
+    expect(reviewed.reviewStatus).toBe('VALIDATED');
+    expect(reviewed.snapshots[0].decision).toBe('APPROVE');
+    expect(reviewed.snapshots[0].signatureMethod).toBe('IMAGE');
+    expect(reviewed.snapshots[0].signatureImage).toBe(signatureImage);
+    expect(reviewed.snapshots[0].signatureRepresentation).toBe('Marina Demo');
+  });
+
+  it('disponibiliza download de PDF final controlado sintético e suporta alias /pts (#115)', async () => {
+    const pdfDirect = await call<FinalPdfDto>(`/work-permits/${id(230)}/final-pdf`, 'GET', undefined, engineer());
+    expect(pdfDirect.fileName).toBe(`PT-DEMO-230-final-v1.pdf`);
+    expect(pdfDirect.mimeType).toBe('application/pdf');
+    expect(pdfDirect.backendPersisted).toBe(false);
+    expect(pdfDirect.disclaimer).toContain('demonstrativo');
+    expect(pdfDirect.url).toContain('blob:');
+
+    const pdfAlias = await call<FinalPdfDto>(`/pts/${id(230)}/final-pdf`, 'GET', undefined, engineer());
+    expect(pdfAlias.fileName).toBe(pdfDirect.fileName);
+
+    const openPermit = await prepared(id(221), false);
+    await expect(call(`/work-permits/${openPermit.id}/final-pdf`, 'GET', undefined, engineer())).rejects.toMatchObject({
+      status: 409,
+      code: 'INVALID_TRANSITION',
+    });
+  });
+
+  it('atualização de participantes revoga ciências de membros removidos e recalcula elegibilidade (#94/#116)', async () => {
+    const permit = await prepared(id(220), true);
+    expect(permit.appointment.participants.length).toBe(2);
+    expect(permit.sciences.length).toBe(2);
+
+    const retainedWorkerId = permit.appointment.participants[0].workerId;
+    const removedWorkerId = permit.appointment.participants[1].workerId;
+
+    const updated = await call<WorkPermitDto>(
+      `/work-permits/${permit.id}/participants`,
+      'PATCH',
+      {
+        participants: [
+          { workerId: retainedWorkerId, name: permit.appointment.participants[0].name, serviceFunction: 'Líder de Frente' },
+        ],
+        reason: 'Redução de equipe por escopo ajustado',
+      },
+      technician(),
+      permit.revision
+    );
+
+    expect(updated.appointment.participants.length).toBe(1);
+    expect(updated.appointment.participants[0].workerId).toBe(retainedWorkerId);
+    expect(updated.appointment.participants[0].serviceFunction).toBe('Líder de Frente');
+    expect(updated.sciences.length).toBe(1);
+    expect(updated.sciences[0].workerId).toBe(retainedWorkerId);
+    expect(updated.sciences.some(s => s.workerId === removedWorkerId)).toBe(false);
+    expect(updated.history.some(e => e.action === 'PARTICIPANTS_UPDATED' && e.reason?.includes('Redução de equipe'))).toBe(true);
+
+    await expect(
+      call(
+        `/work-permits/${permit.id}/participants`,
+        'PATCH',
+        {
+          participants: [{ workerId: retainedWorkerId, name: permit.appointment.participants[0].name, serviceFunction: 'Líder' }],
+          reason: 'Conflito de concorrência',
+        },
+        technician(),
+        permit.revision
+      )
+    ).rejects.toMatchObject({ status: 412, code: 'REVISION_CONFLICT' });
+  });
 });
+

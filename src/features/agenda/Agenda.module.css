@@ -2,3 +2,56 @@
 @media(max-width:1000px){.detailColumns{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}@media(max-width:700px){.metadata{gap:16px}.requirement{flex-direction:column;gap:12px}.requirementActions{flex-direction:row;align-items:center;width:100%;justify-content:flex-start}.participantChoice{grid-template-columns:1fr;gap:10px}.participantHeader,.cardHeader{flex-wrap:wrap}.sectionHead{flex-direction:column}.teamMember{flex-direction:column;gap:5px}.teamMember small{text-align:left}.participant{padding:14px}.reviewConsent{font-size:12px}}
 .formFields{border:0;margin:0;padding:0;min-width:0}
 .serviceFields{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:12px}.serviceFields legend{font-size:14px;font-weight:600;margin-bottom:12px}.serviceFields>p{margin:0;font-size:13px}.serviceChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.serviceChoice{border:1px solid var(--border);border-radius:12px;padding:12px 16px;min-width:0}.serviceSelected{border-color:var(--primary);background:var(--surface)}.serviceDescription{padding-left:26px;color:var(--muted);font-size:12px;line-height:1.6}.serviceDescription p{margin:0 0 7px;overflow-wrap:anywhere}.serviceDescription small{font-size:11px}@media(max-width:700px){.serviceChoices{grid-template-columns:1fr}}
+.timeSection{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+.timeBox{display:flex;flex-direction:column;gap:6px}
+.timeLabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.timeValue{font-size:14px;color:var(--text)}
+.confirmedValueRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.toolbarGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:flex-end}
+.viewToggle{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px}
+.toggleBtn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;transition:all .15s ease}
+.toggleBtn:hover{color:var(--text)}
+.toggleBtnActive{background:var(--primary);color:#fff!important;font-weight:600}
+
+.calendarContainer{display:flex;flex-direction:column;gap:18px}
+.calendarNav{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.monthControls{display:flex;align-items:center;gap:12px}
+.monthTitle{font-size:18px;margin:0;font-weight:600}
+.calendarActions{display:flex;align-items:center;gap:8px}
+
+.calendarGrid{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.weekdaysHeader{display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface-muted,#f3f4f6);border-bottom:1px solid var(--border)}
+.weekdayCell{padding:10px 8px;text-align:center;font-size:12px;font-weight:600;color:var(--muted)}
+
+.monthDaysGrid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--border);gap:1px}
+.dayCell{min-height:105px;background:#fff;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:background .15s ease;outline:none}
+.dayCell:hover,.dayCell:focus-visible{background:var(--surface-hover,#f9fafb)}
+.otherMonthCell{background:var(--surface-dim,#fafafa);opacity:.6}
+.selectedDayCell{background:var(--surface,#f0f7ff)!important;outline:2px solid var(--primary);outline-offset:-2px}
+.dayCellHeader{display:flex;align-items:center;justify-content:space-between}
+.dayNumber{font-size:13px;font-weight:600}
+.dayCountBadge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:var(--primary);color:#fff}
+
+.cellAppointments{display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.eventPill{display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;font-size:11px;text-decoration:none;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s}
+.eventPill:hover{opacity:.85}
+.eventPillRequested{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.eventPillConfirmed{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+.eventPillCanceled{background:#f3f4f6;color:#6b7280;border-color:#e5e7eb}
+.pillTime{font-weight:700;font-size:10px}
+.pillTitle{overflow:hidden;text-overflow:ellipsis}
+.morePillsBtn{border:none;background:none;font-size:10px;color:var(--muted);padding:2px 4px;text-align:left;cursor:pointer;font-weight:600}
+
+.selectedDayPanel{border-top:2px solid var(--primary)}
+.selectedDayHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.selectedDayHeader h3{margin:0 0 4px}
+.selectedDayHeader p{margin:0}
+
+@media(max-width:800px){
+  .timeSection{grid-template-columns:1fr}
+  .dayCell{min-height:75px;padding:4px}
+  .pillTitle{display:none}
+  .pillTime{font-size:9px}
+  .eventPill{padding:2px 4px}
+}

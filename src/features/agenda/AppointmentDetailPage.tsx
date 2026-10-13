@@ -106,38 +106,89 @@ export function AppointmentDetailPage() {
   if (appointment.isError) return <div className="panel stack"><Feedback tone="danger">{errorMessage(appointment.error)}</Feedback><Button variant="secondary" onClick={() => void appointment.refetch()}>Tentar novamente</Button><Link to="/app/agenda">Voltar à agenda</Link></div>;
   if (!appointment.data || appointment.data.unitId !== unitId) return <EmptyState title="Atendimento indisponível nesta unidade" description="Consulte a agenda da unidade selecionada." />;
   const data = appointment.data;
+  const fromSearch = (location.state as { fromSearch?: string } | null)?.fromSearch;
+  const backTarget = fromSearch !== undefined
+    ? `/app/agenda${fromSearch}`
+    : typeof window !== 'undefined' && unitId && window.sessionStorage?.getItem(`agenda_filters_${unitId}`)
+      ? `/app/agenda?${window.sessionStorage.getItem(`agenda_filters_${unitId}`)}`
+      : '/app/agenda';
+
+  const requestedPeriod = data.requestedStartsAt && data.requestedEndsAt
+    ? `${formatDate(data.requestedStartsAt)} até ${formatDate(data.requestedEndsAt)}`
+    : `${formatDate(data.startsAt)} até ${formatDate(data.endsAt)}`;
+  const confirmedPeriod = data.confirmedStartsAt && data.confirmedEndsAt
+    ? `${formatDate(data.confirmedStartsAt)} até ${formatDate(data.confirmedEndsAt)}`
+    : data.status !== 'REQUESTED' && data.status !== 'CANCELED'
+      ? `${formatDate(data.startsAt)} até ${formatDate(data.endsAt)}`
+      : undefined;
+  const hasTimeAdjustment = Boolean(
+    confirmedPeriod &&
+    data.requestedStartsAt &&
+    data.confirmedStartsAt &&
+    (data.requestedStartsAt !== data.confirmedStartsAt || data.requestedEndsAt !== data.confirmedEndsAt)
+  );
+
   return <div className="stack">
-    <PageHeader eyebrow={data.code} title={data.serviceLabel} description={`${data.teamName} · ${data.location}`} actions={<Link className="button button--secondary" to="/app/agenda">Voltar à agenda</Link>} />
-    {success && <Feedback tone="success">{success}</Feedback>}
-    <div className={styles.detailColumns}>
-      <section className="panel stack"><div className={styles.sectionHead}><h2>Dados do atendimento</h2><Badge tone={data.status === 'CANCELED' ? 'neutral' : data.status === 'REQUESTED' ? 'warning' : 'success'}>{appointmentLabels[data.status]}</Badge></div>
-        <dl className={styles.metadata}><div><dt>Início previsto · Brasília</dt><dd>{formatDate(data.startsAt)}</dd></div><div><dt>Término previsto · Brasília</dt><dd>{formatDate(data.endsAt)}</dd></div><div><dt>Equipe</dt><dd>{data.teamName}</dd></div><div><dt>Responsável pelo atendimento</dt><dd>{data.responsibleName}</dd></div><div><dt>Local do serviço</dt><dd>{data.location}</dd></div><div><dt>Participantes</dt><dd>{data.participants.length} pessoa(s)</dd></div></dl>
-        <dl className={styles.metadata}><div className={styles.wide}><dt>Serviços agendados</dt><dd>{data.serviceLabel}</dd></div></dl>
-        {data.notes && <div><h3>Observações</h3><p className="muted">{data.notes}</p></div>}
-        <div className="actions">
-          {hasAction('CONFIRM') && <Button disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>}
-          {hasAction('RESCHEDULE') && <Button disabled={busy} variant="secondary" onClick={() => select('RESCHEDULE')}>Reagendar</Button>}
-          {hasAction('CANCEL') && <Button disabled={busy} variant="danger" onClick={() => select('CANCEL')}>Cancelar agendamento</Button>}
-          {hasAction('OPEN_PERMIT') && <Button disabled={busy} onClick={() => select('OPEN_PERMIT')}>Abrir atendimento em campo</Button>}
-          {data.permitId && can('permits.read') && <Link className="button button--primary" to={`/app/pts/${data.permitId}`}>Acompanhar PT →</Link>}
-          {can('at.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/ats/nova?appointmentId=${data.id}`}>Preparar AT</Link>}
-          {can('pet.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/pets/nova?appointmentId=${data.id}`}>Preparar PET</Link>}
-        </div>
-        {data.status !== 'CANCELED' && <Feedback tone="info">Abrir o atendimento inicia a verificação em campo. A execução exige liberação explícita na PT pelo responsável designado.</Feedback>}
-      </section>
-      <section className="panel stack"><h2>Histórico do agendamento</h2>{data.history.length ? <ol className={styles.history}>{data.history.map(event => <li key={event.id}><strong>{eventLabels[event.action] || event.action.replaceAll('_', ' ')}</strong><p className="muted">{event.actorName}</p><small>{formatDate(event.occurredAt)}</small>{event.reason && <p>{event.reason}</p>}</li>)}</ol> : <p className="muted">Nenhum evento registrado.</p>}</section>
-    </div>
-    <EligibilityPanel appointmentId={data.id} readOnly={data.status === 'CANCELED'} />
-    <Modal open={Boolean(action)} title={action ? actionTitles[action] : ''} onClose={close}>
-      {action && <form className="stack" onSubmit={event => { event.preventDefault(); void submit(); }}>
-        {action === 'OPEN_PERMIT' ? <Feedback tone="warning">O atendimento será aberto para verificação em campo. A atividade continuará bloqueada até que documentos, checklist e ciências estejam completos e o responsável faça a liberação.</Feedback> : action === 'CONFIRM' ? <p>Confirme o período de {formatDate(data.startsAt)} a {formatDate(data.endsAt)} para a equipe {data.teamName}. A confirmação reserva o atendimento; a liberação acontece na PT.</p> : action === 'CANCEL' ? <p>O agendamento será cancelado. O motivo ficará registrado no histórico.</p> : <><p>Informe o novo período no horário de Brasília. O período anterior e o motivo serão preservados no histórico.</p><div className="form-grid"><Field label="Novo início *"><input type="datetime-local" value={start} disabled={busy} onChange={event => setStart(event.target.value)} /></Field><Field label="Novo término *"><input type="datetime-local" value={end} disabled={busy} onChange={event => setEnd(event.target.value)} /></Field></div></>}
-        {(action === 'CANCEL' || action === 'RESCHEDULE') && <Field label="Motivo *"><textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></Field>}
-        {failure && <Feedback tone="danger">{failure}</Feedback>}
-        {conflict && <Feedback tone="warning">O registro mudou enquanto esta confirmação estava aberta. O preenchimento foi mantido.<div className="actions"><Button variant="secondary" disabled={busy} onClick={() => void refreshCurrent()}>Atualizar atendimento e preservar preenchimento</Button></div></Feedback>}
-        {actionNotice && <Feedback>{actionNotice}</Feedback>}
-        {!hasAction(action) && <Feedback tone="warning">Esta ação já não está disponível no estado atual do atendimento. Feche a janela e confira o registro.</Feedback>}
-        <div className="actions"><Button type="submit" variant={action === 'CANCEL' ? 'danger' : 'primary'} disabled={busy || conflict || !hasAction(action)}>{busy ? 'Registrando…' : actionTitles[action]}</Button><Button variant="secondary" disabled={busy} onClick={close}>Voltar</Button></div>
-      </form>}
-    </Modal>
-  </div>;
+    <PageHeader eyebrow={data.code} title={data.serviceLabel} description={`${data.teamName} · ${data.location}`} actions={<Link className="button button--secondary" to={backTarget}>Voltar à agenda</Link>} />
+      {success && <Feedback tone="success">{success}</Feedback>}
+      <div className={styles.detailColumns}>
+        <section className="panel stack"><div className={styles.sectionHead}><h2>Dados do atendimento</h2><Badge tone={data.status === 'CANCELED' ? 'neutral' : data.status === 'REQUESTED' ? 'warning' : 'success'}>{appointmentLabels[data.status]}</Badge></div>
+          <div className={styles.timeSection}>
+            <div className={styles.timeBox}>
+              <span className={styles.timeLabel}>Horário solicitado pela equipe</span>
+              <strong className={styles.timeValue}>{requestedPeriod}</strong>
+            </div>
+            <div className={styles.timeBox}>
+              <span className={styles.timeLabel}>Horário operacional confirmado</span>
+              {confirmedPeriod ? (
+                <div className={styles.confirmedValueRow}>
+                  <strong className={styles.timeValue}>{confirmedPeriod}</strong>
+                  {hasTimeAdjustment && <Badge tone="neutral">Ajustado na confirmação</Badge>}
+                </div>
+              ) : (
+                <span className="muted">{data.status === 'CANCELED' ? 'Agendamento cancelado' : 'Aguardando confirmação operacional'}</span>
+              )}
+            </div>
+          </div>
+          <dl className={styles.metadata}>
+            <div><dt>Equipe</dt><dd>{data.teamName}</dd></div>
+            <div><dt>Responsável pelo atendimento</dt><dd>{data.responsibleName}</dd></div>
+            <div><dt>Local do serviço</dt><dd>{data.location}</dd></div>
+            <div><dt>Participantes</dt><dd>{data.participants.length} pessoa(s)</dd></div>
+          </dl>
+          <dl className={styles.metadata}><div className={styles.wide}><dt>Serviços agendados</dt><dd>{data.serviceLabel}</dd></div></dl>
+          {data.notes && <div><h3>Observações</h3><p className="muted">{data.notes}</p></div>}
+          <div className="actions">
+            {hasAction('CONFIRM') && <Button disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>}
+            {hasAction('RESCHEDULE') && <Button disabled={busy} variant="secondary" onClick={() => select('RESCHEDULE')}>Reagendar</Button>}
+            {hasAction('CANCEL') && <Button disabled={busy} variant="danger" onClick={() => select('CANCEL')}>Cancelar agendamento</Button>}
+            {hasAction('OPEN_PERMIT') && <Button disabled={busy} onClick={() => select('OPEN_PERMIT')}>Abrir atendimento em campo</Button>}
+            {data.permitId && can('permits.read') && <Link className="button button--primary" to={`/app/pts/${data.permitId}`}>Acompanhar PT →</Link>}
+            {can('at.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/ats/nova?appointmentId=${data.id}`}>Preparar AT</Link>}
+            {can('pet.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/pets/nova?appointmentId=${data.id}`}>Preparar PET</Link>}
+          </div>
+          {data.status !== 'CANCELED' && <Feedback tone="info">Abrir o atendimento inicia a verificação em campo. A execução exige liberação explícita na PT pelo responsável designado.</Feedback>}
+        </section>
+        <section className="panel stack"><h2>Histórico do agendamento</h2>{data.history.length ? <ol className={styles.history}>{data.history.map(event => <li key={event.id}><strong>{eventLabels[event.action] || event.action.replaceAll('_', ' ')}</strong><p className="muted">{event.actorName}</p><small>{formatDate(event.occurredAt)}</small>{event.reason && <p>{event.reason}</p>}</li>)}</ol> : <p className="muted">Nenhum evento registrado.</p>}</section>
+      </div>
+      <EligibilityPanel appointmentId={data.id} readOnly={data.status === 'CANCELED'} />
+      <Modal open={Boolean(action)} title={action ? actionTitles[action] : ''} onClose={close}>
+        {action && <form className="stack" onSubmit={event => { event.preventDefault(); void submit(); }}>
+          {action === 'OPEN_PERMIT' ? <Feedback tone="warning">O atendimento será aberto para verificação em campo. A atividade continuará bloqueada até que documentos, checklist e ciências estejam completos e o responsável faça a liberação.</Feedback> : action === 'CONFIRM' ? <>
+            <p>Confirme o atendimento para a equipe <strong>{data.teamName}</strong>. Você pode confirmar o horário solicitado ou definir o horário operacional confirmado.</p>
+            <div className="form-grid">
+              <Field label="Início confirmado *"><input type="datetime-local" value={start} disabled={busy} onChange={event => setStart(event.target.value)} /></Field>
+              <Field label="Término confirmado *"><input type="datetime-local" value={end} disabled={busy} onChange={event => setEnd(event.target.value)} /></Field>
+            </div>
+            <Field label="Observação da confirmação (opcional)"><input maxLength={300} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} placeholder="Ex.: Janela confirmada conforme disponibilidade de acesso" /></Field>
+          </> : action === 'CANCEL' ? <p>O agendamento será cancelado. O motivo ficará registrado no histórico.</p> : <><p>Informe o novo período no horário de Brasília. O período anterior e o motivo serão preservados no histórico.</p><div className="form-grid"><Field label="Novo início *"><input type="datetime-local" value={start} disabled={busy} onChange={event => setStart(event.target.value)} /></Field><Field label="Novo término *"><input type="datetime-local" value={end} disabled={busy} onChange={event => setEnd(event.target.value)} /></Field></div></>}
+          {(action === 'CANCEL' || action === 'RESCHEDULE') && <Field label="Motivo *"><textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></Field>}
+          {failure && <Feedback tone="danger">{failure}</Feedback>}
+          {conflict && <Feedback tone="warning">O registro mudou enquanto esta confirmação estava aberta. O preenchimento foi mantido.<div className="actions"><Button variant="secondary" disabled={busy} onClick={() => void refreshCurrent()}>Atualizar atendimento e preservar preenchimento</Button></div></Feedback>}
+          {actionNotice && <Feedback>{actionNotice}</Feedback>}
+          {!hasAction(action) && <Feedback tone="warning">Esta ação já não está disponível no estado atual do atendimento. Feche a janela e confira o registro.</Feedback>}
+          <div className="actions"><Button type="submit" variant={action === 'CANCEL' ? 'danger' : 'primary'} disabled={busy || conflict || !hasAction(action)}>{busy ? 'Registrando…' : actionTitles[action]}</Button><Button variant="secondary" disabled={busy} onClick={close}>Voltar</Button></div>
+        </form>}
+      </Modal>
+    </div>;
 }

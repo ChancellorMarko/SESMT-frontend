@@ -14,6 +14,7 @@ function revision(request: Request, template: ServiceTemplateDto) {
 }
 
 export function makeServiceTemplatesDemo(units: { id: string; companyId: string }[], services: ServiceTypeDto[]) {
+  const seededAt = new Date().toISOString();
   const templates = new Map<string, Map<string, ServiceTemplateDto>>();
   for (const unit of units) {
     const catalog = new Map<string, ServiceTemplateDto>();
@@ -25,7 +26,7 @@ export function makeServiceTemplatesDemo(units: { id: string; companyId: string 
           { id: `${service.id}:context`, label: `Contexto de ${service.name.toLocaleLowerCase('pt-BR')} conferido (demonstração)`, required: true, blockingAnswers: ['NO'] },
           { id: `${service.id}:team`, label: `Orientações da equipe para ${service.name.toLocaleLowerCase('pt-BR')} registradas (demonstração)`, required: true, blockingAnswers: ['NO'] },
         ],
-        publishedAt: new Date().toISOString(), publishedBy: 'SEED_DEMO', reason: 'Configuração sintética inicial para demonstração da edição de templates.',
+        publishedAt: seededAt, publishedBy: 'SEED_DEMO', reason: 'Configuração sintética inicial para demonstração da edição de templates.',
       };
       catalog.set(service.id, { unitId: unit.id, service: clone(service), revision: 1, published, draft: null, versions: [clone(published)], availableActions: [], history: [] });
     }

@@ -114,4 +114,17 @@ describe('gestão de equipes no demo', () => {
     await expect(demo.route(request, url, '/teams', context())).rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
     expect(teams).toEqual(seeded());
   });
+  it('permite inativar com motivo e reativar equipe incrementando revisão', async () => {
+    const inactivated = await call<TeamDto>(`/teams/${id(200)}`, 'PATCH', { status: 'INACTIVE', inactiveReason: 'Desmobilização' }, context(), 1);
+    expect(inactivated.status).toBe('INACTIVE');
+    expect(inactivated.inactiveReason).toBe('Desmobilização');
+    expect(inactivated.revision).toBe(2);
+
+    const reactivated = await call<TeamDto>(`/teams/${id(200)}`, 'PATCH', { status: 'ACTIVE' }, context(), 2);
+    expect(reactivated.status).toBe('ACTIVE');
+    expect(reactivated.revision).toBe(3);
+  });
+  it('rejeita motivo de inativação acima de 300 caracteres', async () => {
+    await expect(call(`/teams/${id(200)}`, 'PATCH', { status: 'INACTIVE', inactiveReason: 'X'.repeat(301) }, context(), 1)).rejects.toMatchObject({ status: 422, field: 'inactiveReason' });
+  });
 });

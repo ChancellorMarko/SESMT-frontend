@@ -5,6 +5,18 @@ import { Feedback } from '../../shared/ui';
 export const workerStatusLabels: Record<string, string> = {
   ACTIVE: 'Ativo', ON_LEAVE: 'Afastado', TERMINATED: 'Desligado',
 };
+export const integrationStatusLabels: Record<string, string> = {
+  INTEGRATED: 'Integrado',
+  PENDING: 'Pendente',
+  EXPIRED: 'Vencida',
+  NOT_APPLICABLE: 'Não aplicável',
+};
+export const integrationStatusTone: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
+  INTEGRATED: 'success',
+  PENDING: 'warning',
+  EXPIRED: 'danger',
+  NOT_APPLICABLE: 'neutral',
+};
 export const movementLabels: Record<string, string> = {
   ADMISSION: 'Admissão', TRANSFER: 'Mudança de vínculo', LEAVE: 'Afastamento',
   RETURN: 'Retorno', TERMINATION: 'Desligamento',
@@ -36,6 +48,24 @@ export const workerFormSchema = z.object({
   jobId: z.string(), jobFunctionId: z.string(), workCenterId: z.string(), managerId: z.string(),
 });
 export type WorkerFormValues = z.infer<typeof workerFormSchema>;
+
+export const integrationFormSchema = z.object({
+  status: z.enum(['INTEGRATED', 'PENDING', 'EXPIRED', 'NOT_APPLICABLE']),
+  integratedAt: z.string().refine(validCivil, 'Informe uma data de integração válida.'),
+  validUntil: z.string().refine(v => !v || validCivil(v), 'Informe uma data de validade válida.').optional(),
+  responsibleName: z.string().trim().optional(),
+  evidenceFileName: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+}).refine(data => {
+  if (data.validUntil && data.integratedAt && data.validUntil < data.integratedAt) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'A validade não pode ser anterior à data de realização.',
+  path: ['validUntil'],
+});
+export type IntegrationFormValues = z.infer<typeof integrationFormSchema>;
 
 export function assignmentError(values: Pick<WorkerFormValues, 'companyId' | 'unitId' | 'sectorId' | 'jobId' | 'jobFunctionId' | 'workCenterId'>, organization: OrganizationDto) {
   const unit = organization.units.find(item => item.id === values.unitId && item.status === 'ACTIVE');

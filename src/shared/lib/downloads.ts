@@ -13,3 +13,18 @@ export function isDownloadUrlAllowed(value: string, origin = window.location.ori
     return url.origin === apiOrigin || additional.includes(url.origin);
   } catch { return false; }
 }
+
+export function triggerDownload(url: string, fileName?: string): void {
+  if (!isDownloadUrlAllowed(url)) {
+    throw new Error('Origem de download não permitida.');
+  }
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  if (fileName) anchor.download = fileName;
+  anchor.target = '_blank';
+  anchor.rel = 'noopener noreferrer';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}
+

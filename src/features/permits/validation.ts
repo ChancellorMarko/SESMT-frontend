@@ -12,6 +12,7 @@ export function validateScience(participantName: string, declarantName: string, 
 }
 
 export function isDrawingRepresentation(value: string) { return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value) && value.length < 1_000_000; }
+export function isImageRepresentation(value: string) { return /^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(value) && value.length < 2_000_000; }
 
 export function validateChecklist(items: ChecklistItemDto[]): string | undefined {
   if (items.some(item => item.required && item.answer === null)) return 'Responda todos os itens obrigatórios antes de salvar.';

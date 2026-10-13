@@ -28,7 +28,46 @@ export const makeFixtures=()=>{
   workCenters:[{id:id(12),name:'Linha de produção A',unitId:UNIT_A,sectorId:id(5),status:'ACTIVE',revision:1},{id:id(13),name:'Centro de distribuição',unitId:UNIT_B,sectorId:id(7),status:'ACTIVE',revision:1}],
  };
  const users:UserDto[]=[['gestor','Marina Demo','SESMT_MANAGER'],['rh','Rafael Demo','HR'],['auditor','Ana Demo','AUDITOR'],['admin','Lucas Demo','ADMIN'],['trabalhador','Camila Demo','WORKER'],['tecnico','Diego Demo','TECHNICIAN'],['bombeiro','Felipe Demo','FIREFIGHTER']].map(([login,displayName,role],i)=>({id:id(20+i),displayName,email:`${login}@demo.sesmt.local`,roles:[role],status:'ACTIVE',mfaRequired:role==='ADMIN',revision:1,scope:{companyIds:[COMPANY],unitIds:role==='WORKER'?[UNIT_A]:[UNIT_A,UNIT_B],sectorIds:[id(5),id(6),id(7)],teamIds:role==='TECHNICIAN'||role==='FIREFIGHTER'?[id(200),id(201)]:[],ownOnly:role==='WORKER'}}));
- const workers:WorkerDto[]=['Camila Demo','Bruno Demo','Julia Demo','Pedro Demo','Sofia Demo','Gabriel Demo','Luiza Demo','André Demo'].map((fullName,i)=>({id:id(40+i),registration:`DEMO-${String(i+1).padStart(3,'0')}`,fullName,companyId:COMPANY,unitId:i<6?UNIT_A:UNIT_B,sectorId:i<4?id(5):i<6?id(6):id(7),jobId:i<4?id(8):id(9),jobFunctionId:i<4?id(10):id(11),employmentType:'CLT',admissionDate:'2025-03-10',managerId:id(20),status:i===4?'ON_LEAVE':'ACTIVE',revision:1}));
+ const workers:WorkerDto[]=['Camila Demo','Bruno Demo','Julia Demo','Pedro Demo','Sofia Demo','Gabriel Demo','Luiza Demo','André Demo'].map((fullName,i)=>{
+  const intStatus = i === 2 ? 'PENDING' : i === 3 ? 'EXPIRED' : i === 4 ? 'NOT_APPLICABLE' : 'INTEGRATED';
+  const intDate = i === 3 ? '2024-01-15' : '2025-03-12';
+  const intValid = i === 3 ? '2025-01-15' : '2027-03-12';
+  return {
+    id:id(40+i),
+    registration:`DEMO-${String(i+1).padStart(3,'0')}`,
+    fullName,
+    companyId:COMPANY,
+    unitId:i<6?UNIT_A:UNIT_B,
+    sectorId:i<4?id(5):i<6?id(6):id(7),
+    jobId:i<4?id(8):id(9),
+    jobFunctionId:i<4?id(10):id(11),
+    employmentType:'CLT',
+    admissionDate:'2025-03-10',
+    managerId:id(20),
+    status:i===4?'ON_LEAVE':'ACTIVE',
+    revision:1,
+    integrationStatus: intStatus,
+    integratedAt: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : intDate,
+    integrationValidUntil: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : intValid,
+    integrationResponsibleId: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : id(20),
+    integrationResponsibleName: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : 'Marina Demo',
+    integrationEvidenceFileName: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : `integracao-${String(i+1).padStart(3,'0')}.pdf`,
+    integrationHistory: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? [] : [
+      {
+        id: crypto.randomUUID(),
+        workerId: id(40+i),
+        status: intStatus,
+        integratedAt: intDate,
+        validUntil: intValid,
+        responsibleId: id(20),
+        responsibleName: 'Marina Demo',
+        evidenceFileName: `integracao-${String(i+1).padStart(3,'0')}.pdf`,
+        notes: 'Integração de segurança e procedimentos da unidade.',
+        registeredAt: `${intDate}T09:00:00Z`
+      }
+    ]
+  };
+ });
  const documentTypes:DocumentTypeDto[]=[
   {id:id(60),code:'PGR',name:'Programa de Gerenciamento de Riscos',category:'Programas de SST',requiredFields:['title','issueDate','validUntil'],allowedAccessClasses:['INTERNAL','RESTRICTED'],defaultAccessClass:'INTERNAL',allowedMimeTypes:['application/pdf','image/png','image/jpeg'],maxFileSizeBytes:10*1024*1024,renewalPolicy:{enabled:true,noticeDays:30,periodMonths:12},retentionPolicyReference:{code:'DEMO-PGR',version:'1',source:'Política ilustrativa; validar com responsável técnico.'},workflow:{reviewRequired:true,signatureRequired:true,allowSelfApproval:false,allowMultipleActiveVersions:false},revision:1},
   {id:id(61),code:'PROCED',name:'Procedimento operacional',category:'Procedimentos',requiredFields:['title','issueDate'],allowedAccessClasses:['INTERNAL','RESTRICTED'],defaultAccessClass:'INTERNAL',allowedMimeTypes:['application/pdf','image/png','image/jpeg'],maxFileSizeBytes:10*1024*1024,renewalPolicy:{enabled:true,noticeDays:30},retentionPolicyReference:{code:'DEMO-PROC',version:'1',source:'Política fictícia de demonstração.'},workflow:{reviewRequired:true,signatureRequired:false,allowSelfApproval:true,allowMultipleActiveVersions:false},revision:1},

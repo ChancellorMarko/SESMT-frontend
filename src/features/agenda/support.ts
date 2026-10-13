@@ -30,6 +30,16 @@ export function appointmentLocal(instant: string): string {
   return `${value('year')}-${value('month')}-${value('day')}T${value('hour')}:${value('minute')}`;
 }
 
+export function appointmentDateOnly(instant: string): string {
+  const local = appointmentLocal(instant);
+  return local ? local.slice(0, 10) : '';
+}
+
+export function appointmentTimeOnly(instant: string): string {
+  const local = appointmentLocal(instant);
+  return local ? local.slice(11, 16) : '';
+}
+
 export const appointmentFormSchema = z.object({
   teamId: z.string().min(1, 'Selecione a equipe.'),
   serviceTypeId: z.string().min(1, 'Selecione pelo menos um serviço.'),

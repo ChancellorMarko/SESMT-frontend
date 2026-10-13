@@ -12,6 +12,8 @@ import { COMPANY, id, UNIT_A, UNIT_B } from './fixtures';
 import { appointmentServiceIds, checklistItemBlocked } from '../shared/lib/appointment-services';
 import { PT_SERVICE_TYPES } from '../shared/lib/service-types';
 import { makeServiceTemplatesDemo } from './service-templates';
+import { makeDesignationsDemo } from './designations';
+import { createTeamInvites } from './team-invites';
 
 export interface PermitDemoContext {
   user: UserDto;
@@ -33,6 +35,7 @@ const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const instant = () => new Date().toISOString();
 const normalized = (value: string) => value.trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 const localDate = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+const today = () => localDate(new Date());
 const futureDay = (offset: number) => localDate(new Date(Date.now() + offset * 86400000));
 function revision(request: Request, value: { revision: number }) {
   assert(request.headers.has('If-Match'), 428, 'PRECONDITION_REQUIRED', 'Recarregue o registro antes de alterar.');
@@ -50,6 +53,7 @@ export function makePermitDemo() {
     ...PT_SERVICE_TYPES,
   ];
   const teamManagement = createTeamManagement(teams);
+  const teamInvites = createTeamInvites(teams);
   const attachmentsDemo = makePermitAttachmentsDemo();
   const responsibles = [{ id: id(25), name: 'Diego Demo · técnico' }, { id: id(26), name: 'Felipe Demo · bombeiro' }];
   const requirements: MatrixRuleDto[] = [
@@ -60,6 +64,7 @@ export function makePermitDemo() {
   ];
   const requirementMatrix = makeRequirementMatrixDemo([{ id: UNIT_A, companyId: COMPANY }, { id: UNIT_B, companyId: COMPANY }], services, requirements);
   const serviceTemplates = makeServiceTemplatesDemo([{ id: UNIT_A, companyId: COMPANY }, { id: UNIT_B, companyId: COMPANY }], services);
+  const designationsDemo = makeDesignationsDemo({ services, responsibles });
   const evidence = new Map<string, EvidenceDto>();
   const evidenceFiles = new Map<string, File>();
   const downloadUrls = new Set<string>();
@@ -135,7 +140,21 @@ export function makePermitDemo() {
     assert(allSciences(permit), 409, 'SCIENCES_PENDING', 'Registre a ciência de cada participante nesta versão.');
     if (documentary) assert(eligibility(permit.appointment, context).eligible, 409, 'DOCUMENTARY_BLOCK', 'Há requisito documental ausente, vencido, reprovado ou ainda não conferido. Regularize antes de liberar ou iniciar.');
   };
-  const lifecycleDemo = makePermitLifecycleDemo(ensurePrepared);
+  const checkPermitCoverage = (permit: WorkPermitDto) => {
+    const selected = appointmentServiceIds(permit.appointment);
+    const coverage = designationsDemo.checkCoverage(
+      permit.appointment.unitId,
+      selected,
+      permit.appointment.location,
+      today(),
+      permit.appointment.responsibleId,
+    );
+    assert(coverage.fullyCovered, 409, 'DESIGNATION_REQUIRED', 'A operação da PT exige designação operacional vigente cobrindo todos os serviços.');
+    if (coverage.operationalWindowEnd) {
+      assert(today() <= coverage.operationalWindowEnd, 409, 'OPERATIONAL_WINDOW_EXPIRED', 'A janela operacional da designação encerrou.');
+    }
+  };
+  const lifecycleDemo = makePermitLifecycleDemo(ensurePrepared, checkPermitCoverage);
   const appointmentActions = (appointment: AppointmentDto, context: PermitDemoContext) => {
     const actions: string[] = [];
     if (can(context, 'appointments.write') && !appointment.permitId && appointment.status !== 'CANCELED') {
@@ -173,7 +192,47 @@ export function makePermitDemo() {
   ];
   const seedAppointment = (n: number, team: TeamDto, participants: ParticipantDto[], status: AppointmentDto['status'], serviceTypeId = id(210), responsibleId = id(25), offset = 1) => {
     const service = services.find(value => value.id === serviceTypeId)!;
-    const appointment: AppointmentDto = { companyId: team.companyId, id: id(n), code: `AG-DEMO-${n}`, unitId: team.unitId, teamId: team.id, teamName: team.name, participants: clone(participants), serviceTypeId, serviceLabel: service.name, location: team.unitId === UNIT_A ? 'Área A · local fictício' : 'Área operacional · local fictício', startsAt: `${futureDay(offset)}T09:00:00-03:00`, endsAt: `${futureDay(offset)}T10:00:00-03:00`, responsibleId, responsibleName: responsibles.find(value => value.id === responsibleId)!.name, status, revision: 1, availableActions: [], history: [], notes: 'Dados sintéticos para demonstração acadêmica.' };
+    const startsAt = `${futureDay(offset)}T09:00:00-03:00`;
+    const endsAt = `${futureDay(offset)}T10:00:00-03:00`;
+    const appointment: AppointmentDto = {
+      companyId: team.companyId,
+      id: id(n),
+      code: `AG-DEMO-${n}`,
+      unitId: team.unitId,
+      teamId: team.id,
+      teamName: team.name,
+      participants: clone(participants),
+      serviceTypeId,
+      serviceTypeIds: [serviceTypeId],
+      serviceLabel: service.name,
+      location: team.unitId === UNIT_A ? 'Área A · local fictício' : 'Área operacional · local fictício',
+      startsAt,
+      endsAt,
+      requestedStartsAt: startsAt,
+      requestedEndsAt: endsAt,
+      confirmedStartsAt: status !== 'REQUESTED' ? startsAt : undefined,
+      confirmedEndsAt: status !== 'REQUESTED' ? endsAt : undefined,
+      responsibleId,
+      responsibleName: responsibles.find(value => value.id === responsibleId)!.name,
+      status,
+      revision: 1,
+      availableActions: [],
+      history: [
+        event(
+          { user: { id: responsibleId, displayName: responsibles.find(value => value.id === responsibleId)!.name, email: '' } } as any,
+          'APPOINTMENT_REQUESTED',
+          `Serviços: ${service.name}. Horário solicitado: ${startsAt} a ${endsAt}.`
+        ),
+        ...(status !== 'REQUESTED' ? [
+          event(
+            { user: { id: responsibleId, displayName: responsibles.find(value => value.id === responsibleId)!.name, email: '' } } as any,
+            'APPOINTMENT_CONFIRMED',
+            `Horário confirmado: ${startsAt} a ${endsAt}.`
+          )
+        ] : [])
+      ],
+      notes: 'Dados sintéticos para demonstração acadêmica.'
+    };
     appointments.set(appointment.id, appointment);
     return appointment;
   };
@@ -200,15 +259,17 @@ export function makePermitDemo() {
     },
     knownResponsible: responsibleId => responsibles.some(value => value.id === responsibleId),
   });
-  const handles = (path: string) => /^\/(permit-options|team-options|teams|appointments|evidence|work-permits|permit-dashboard|requirement-matrix|service-templates|documentary-readiness|authorization-options|work-authorizations)(\/|$)/.test(path);
-  async function route(request: Request, url: URL, path: string, context: PermitDemoContext): Promise<unknown | undefined> {
-    if (!handles(path)) return undefined;
+  const handles = (path: string) => /^\/(permit-options|team-options|teams|team-invites|appointments|evidence|work-permits|pts|permit-dashboard|requirement-matrix|service-templates|documentary-readiness|authorization-options|work-authorizations|designations|designation-coverage)(\/|$)/.test(path);
+  async function route(request: Request, url: URL, rawPath: string, context: PermitDemoContext): Promise<unknown | undefined> {
+    if (!handles(rawPath)) return undefined;
+    const path = rawPath.startsWith('/pts') ? rawPath.replace(/^\/pts/, '/work-permits') : rawPath;
     const parts = path.split('/').filter(Boolean);
     const method = request.method;
     const body = async <T,>() => await request.json() as T;
     if (requirementMatrix.handles(path)) return requirementMatrix.route(request, url, path, context);
     if (serviceTemplates.handles(path)) return serviceTemplates.route(request, url, path, context);
     if (authorizationDemo.handles(path)) return authorizationDemo.route(request, url, path, context);
+    if (designationsDemo.handles(path)) return designationsDemo.route(request, url, path, context);
     const queryUnit = url.searchParams.get('unitId');
     if (path === '/documentary-readiness') {
       requirePermission(context, 'eligibility.read');
@@ -226,26 +287,94 @@ export function makePermitDemo() {
     if (queryUnit) context.checkUnit(queryUnit);
     const inQuery = (appointment: AppointmentDto) => visible(appointment, context) && (!queryUnit || appointment.unitId === queryUnit);
     const query = normalized(url.searchParams.get('q') || '');
+    if (teamInvites.handles(path)) return teamInvites.route(request, url, path, context);
     if (teamManagement.handles(path) && !(path === '/teams' && method === 'GET')) return teamManagement.route(request, url, path, context);
     if ((path === '/permit-options' || path === '/teams') && method === 'GET') {
       requirePermission(context, path === '/teams' ? 'teams.read' : 'appointments.read');
       const scopedTeams = teams.filter(team => context.user.scope.companyIds.includes(team.companyId) && context.user.scope.unitIds.includes(team.unitId) && (!queryUnit || team.unitId === queryUnit) && (!context.user.scope.teamIds.length || context.user.scope.teamIds.includes(team.id)));
       const safeTeams = context.user.scope.ownOnly ? [] : scopedTeams;
       if (path === '/teams') return clone(safeTeams);
-      const options: PermitOptionsDto = { teams: clone(safeTeams), services: services.map(service => ({ ...clone(service), templateVersion: queryUnit && PT_SERVICE_TYPES.some(value => value.id === service.id) ? serviceTemplates.published(queryUnit, service.id).version : service.templateVersion, requirementVersion: queryUnit ? requirementMatrix.published(queryUnit).version : service.requirementVersion })), responsibles: assignedOnly(context) ? responsibles.filter(value => value.id === context.user.id) : clone(responsibles) };
+      const activeTeamsForPermits = safeTeams.filter(team => team.status !== 'INACTIVE');
+      const options: PermitOptionsDto = { teams: clone(activeTeamsForPermits), services: services.map(service => ({ ...clone(service), templateVersion: queryUnit && PT_SERVICE_TYPES.some(value => value.id === service.id) ? serviceTemplates.published(queryUnit, service.id).version : service.templateVersion, requirementVersion: queryUnit ? requirementMatrix.published(queryUnit).version : service.requirementVersion })), responsibles: assignedOnly(context) ? responsibles.filter(value => value.id === context.user.id) : clone(responsibles) };
       return options;
     }
     if (path === '/permit-dashboard' && method === 'GET') {
       requirePermission(context, 'appointments.read');
-      const list = [...appointments.values()].filter(inQuery);
-      const scopedPermits = [...permits.values()].filter(permit => inQuery(appointments.get(permit.appointment.id)!));
-      return { generatedAt: instant(), appointments: list.filter(value => value.status !== 'CANCELED').length, activePermits: scopedPermits.filter(value => !['COMPLETED', 'CANCELED'].includes(value.operationStatus)).length, blockedAppointments: list.filter(value => ['REQUESTED', 'CONFIRMED'].includes(value.status) && !eligibility(value, context).eligible).length, pendingReviews: scopedPermits.filter(value => value.reviewStatus === 'PENDING_REVIEW').length, nextAppointments: list.filter(value => ['REQUESTED', 'CONFIRMED'].includes(value.status)).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 5).map(value => appointmentActions(value, context)), pendingPermits: scopedPermits.filter(value => ['PENDING_REVIEW', 'RETURNED'].includes(value.reviewStatus)).map(value => permitResponse(value, context)) };
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+      const teamId = url.searchParams.get('teamId');
+      const serviceId = url.searchParams.get('serviceId');
+      const locationFilter = normalized(url.searchParams.get('location') || '');
+
+      let list = [...appointments.values()].filter(inQuery);
+      let scopedPermits = [...permits.values()].filter(permit => inQuery(appointments.get(permit.appointment.id)!));
+
+      if (teamId) {
+        list = list.filter(a => a.teamId === teamId);
+        scopedPermits = scopedPermits.filter(p => p.appointment.teamId === teamId);
+      }
+      if (serviceId) {
+        list = list.filter(a => appointmentServiceIds(a).includes(serviceId));
+        scopedPermits = scopedPermits.filter(p => appointmentServiceIds(p.appointment).includes(serviceId));
+      }
+      if (locationFilter) {
+        list = list.filter(a => normalized(a.location).includes(locationFilter));
+        scopedPermits = scopedPermits.filter(p => normalized(p.appointment.location).includes(locationFilter));
+      }
+      if (from) {
+        list = list.filter(a => localDate(new Date(a.startsAt)) >= from || localDate(new Date(a.endsAt)) >= from);
+        scopedPermits = scopedPermits.filter(p => localDate(new Date(p.appointment.startsAt)) >= from || localDate(new Date(p.appointment.endsAt)) >= from);
+      }
+      if (to) {
+        list = list.filter(a => localDate(new Date(a.startsAt)) <= to);
+        scopedPermits = scopedPermits.filter(p => localDate(new Date(p.appointment.startsAt)) <= to);
+      }
+
+      return {
+        generatedAt: instant(),
+        appointments: list.filter(value => value.status !== 'CANCELED').length,
+        activePermits: scopedPermits.filter(value => !['COMPLETED', 'CANCELED'].includes(value.operationStatus)).length,
+        blockedAppointments: list.filter(value => ['REQUESTED', 'CONFIRMED'].includes(value.status) && !eligibility(value, context).eligible).length,
+        pendingReviews: scopedPermits.filter(value => value.reviewStatus === 'PENDING_REVIEW').length,
+        nextAppointments: list.filter(value => ['REQUESTED', 'CONFIRMED'].includes(value.status)).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 5).map(value => appointmentActions(value, context)),
+        pendingPermits: scopedPermits.filter(value => ['PENDING_REVIEW', 'RETURNED'].includes(value.reviewStatus)).map(value => permitResponse(value, context))
+      };
     }
     if (parts[0] === 'appointments') {
       if (parts.length === 1 && method === 'GET') {
         requirePermission(context, 'appointments.read');
         const status = url.searchParams.get('status');
-        return [...appointments.values()].filter(inQuery).filter(value => (!status || value.status === status) && (url.searchParams.get('eligibility') !== 'blocked' || ['REQUESTED', 'CONFIRMED'].includes(value.status) && !eligibility(value, context).eligible) && (!query || normalized(`${value.code} ${value.teamName} ${value.location} ${value.serviceLabel} ${value.responsibleName}`).includes(query))).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map(value => appointmentActions(value, context));
+        const teamId = url.searchParams.get('teamId');
+        const responsibleId = url.searchParams.get('responsibleId');
+        const serviceTypeId = url.searchParams.get('serviceTypeId');
+        const locationFilter = normalized(url.searchParams.get('location') || '');
+        const from = url.searchParams.get('from');
+        const to = url.searchParams.get('to');
+        return [...appointments.values()]
+          .filter(inQuery)
+          .filter(value => {
+            if (status && value.status !== status) return false;
+            if (url.searchParams.get('eligibility') === 'blocked') {
+              if (!['REQUESTED', 'CONFIRMED'].includes(value.status) || eligibility(value, context).eligible) return false;
+            }
+            if (teamId && value.teamId !== teamId) return false;
+            if (responsibleId && value.responsibleId !== responsibleId) return false;
+            if (serviceTypeId && !appointmentServiceIds(value).includes(serviceTypeId)) return false;
+            if (locationFilter && !normalized(value.location).includes(locationFilter)) return false;
+            if (from) {
+              const startDay = localDate(new Date(value.startsAt));
+              const endDay = localDate(new Date(value.endsAt));
+              if (endDay < from && startDay < from) return false;
+            }
+            if (to) {
+              const startDay = localDate(new Date(value.startsAt));
+              if (startDay > to) return false;
+            }
+            if (query && !normalized(`${value.code} ${value.teamName} ${value.location} ${value.serviceLabel} ${value.responsibleName}`).includes(query)) return false;
+            return true;
+          })
+          .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+          .map(value => appointmentActions(value, context));
       }
       if (parts.length === 1 && method === 'POST') {
         requirePermission(context, 'appointments.write');
@@ -270,7 +399,36 @@ export function makePermitDemo() {
           return { workerId: worker.id, name: worker.fullName, serviceFunction: text(participant.serviceFunction, 'participants', 100) };
         });
         assert(input.notes === undefined || typeof input.notes === 'string' && input.notes.length <= 2000, 422, 'VALIDATION_FAILED', 'As observações devem ter até 2.000 caracteres.', 'notes');
-        const appointment: AppointmentDto = { companyId: team.companyId, unitId: input.unitId, teamId: team.id, serviceTypeId: service.id, serviceTypeIds: [...selectedIds], startsAt: input.startsAt, endsAt: input.endsAt, responsibleId: responsible.id, notes: input.notes?.trim(), id: crypto.randomUUID(), code: `AG-DEMO-${225 + appointments.size - 5}`, location, participants, teamName: team.name, responsibleName: responsible.name, serviceLabel: selectedServices.map(value => value.name).join(' + '), status: 'REQUESTED', revision: 1, availableActions: [], history: [event(context, 'APPOINTMENT_REQUESTED', `Serviços: ${selectedServices.map(value => value.name).join(' + ')}.`)] };
+        const appointment: AppointmentDto = {
+          companyId: team.companyId,
+          unitId: input.unitId,
+          teamId: team.id,
+          serviceTypeId: service.id,
+          serviceTypeIds: [...selectedIds],
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          requestedStartsAt: input.startsAt,
+          requestedEndsAt: input.endsAt,
+          responsibleId: responsible.id,
+          notes: input.notes?.trim(),
+          id: crypto.randomUUID(),
+          code: `AG-DEMO-${225 + appointments.size - 5}`,
+          location,
+          participants,
+          teamName: team.name,
+          responsibleName: responsible.name,
+          serviceLabel: selectedServices.map(value => value.name).join(' + '),
+          status: 'REQUESTED',
+          revision: 1,
+          availableActions: [],
+          history: [
+            event(
+              context,
+              'APPOINTMENT_REQUESTED',
+              `Serviços: ${selectedServices.map(value => value.name).join(' + ')}. Horário solicitado: ${input.startsAt} a ${input.endsAt}.`
+            )
+          ]
+        };
         appointments.set(appointment.id, appointment);
         return appointmentActions(appointment, context);
       }
@@ -316,6 +474,18 @@ export function makePermitDemo() {
         assert(appointment.responsibleId === context.user.id && responsibles.some(value => value.id === context.user.id), 403, 'NOT_DESIGNATED', 'O atendimento deve ser aberto pelo responsável designado.');
         assert(appointment.status === 'CONFIRMED' && !appointment.permitId, 409, 'INVALID_TRANSITION', 'Confirme o agendamento antes de abrir o atendimento.');
         const selected = appointmentServiceIds(appointment);
+        const appDate = localDate(new Date(appointment.startsAt));
+        const coverage = designationsDemo.checkCoverage(
+          appointment.unitId,
+          selected,
+          appointment.location,
+          appDate,
+          appointment.responsibleId,
+        );
+        assert(coverage.fullyCovered, 409, 'DESIGNATION_REQUIRED', 'O responsável operacional não possui designação ativa cobrindo todos os serviços deste atendimento.');
+        if (coverage.operationalWindowEnd) {
+          assert(appDate <= coverage.operationalWindowEnd, 409, 'OPERATIONAL_WINDOW_EXPIRED', 'A janela operacional da designação encerrou antes da data do atendimento.');
+        }
         const templates = selected.length > 1 || selected.some(serviceId => PT_SERVICE_TYPES.some(service => service.id === serviceId)) ? selected.map(serviceId => serviceTemplates.published(appointment.unitId, serviceId)) : undefined;
         const requiredActivities = templates ? [...new Set(templates.flatMap(template => template.activityIds))] : undefined;
         const checklist: ChecklistItemDto[] = templates ? templates.flatMap(template => template.questions.map(question => ({ ...clone(question), id: `${template.serviceTypeId}:${question.id}`, serviceTypeId: template.serviceTypeId, serviceName: template.serviceName, templateVersion: template.version, answer: null }))) : initialChecklist();
@@ -332,16 +502,36 @@ export function makePermitDemo() {
       assert(!appointment.permitId && appointment.status !== 'CANCELED', 409, 'INVALID_TRANSITION', 'Agendamento com atendimento aberto ou cancelado não aceita esta alteração.');
       if (method === 'POST' && parts[2] === 'confirm') {
         assert(appointment.status === 'REQUESTED', 409, 'INVALID_TRANSITION', 'Somente uma solicitação pode ser confirmada.');
+        const input = await body<{ confirmedStartsAt?: string; confirmedEndsAt?: string; note?: string } | null>().catch(() => null);
+        const startsAt = input?.confirmedStartsAt || appointment.startsAt;
+        const endsAt = input?.confirmedEndsAt || appointment.endsAt;
+        assert(Number.isFinite(Date.parse(startsAt)) && Number.isFinite(Date.parse(endsAt)) && Date.parse(endsAt) > Date.parse(startsAt), 422, 'VALIDATION_FAILED', 'Confira o período de confirmação do atendimento.', 'endsAt');
         appointment.status = 'CONFIRMED';
-        appointment.history.push(event(context, 'APPOINTMENT_CONFIRMED'));
+        appointment.requestedStartsAt = appointment.requestedStartsAt || appointment.startsAt;
+        appointment.requestedEndsAt = appointment.requestedEndsAt || appointment.endsAt;
+        appointment.confirmedStartsAt = startsAt;
+        appointment.confirmedEndsAt = endsAt;
+        appointment.startsAt = startsAt;
+        appointment.endsAt = endsAt;
+        const noteDetail = input?.note?.trim() ? ` · Observação: ${input.note.trim()}` : '';
+        const adjustedText = (startsAt !== appointment.requestedStartsAt || endsAt !== appointment.requestedEndsAt)
+          ? ` (horário ajustado em relação à solicitação original: ${appointment.requestedStartsAt} a ${appointment.requestedEndsAt})`
+          : '';
+        appointment.history.push(event(context, 'APPOINTMENT_CONFIRMED', `Horário confirmado: ${startsAt} até ${endsAt}${adjustedText}${noteDetail}.`));
       } else if (method === 'POST' && parts[2] === 'reschedule') {
         const input = await body<{ startsAt: string; endsAt: string; reason: string }>();
         revision(request, appointment);
         const reason = text(input.reason, 'reason');
         assert(Number.isFinite(Date.parse(input.startsAt)) && Number.isFinite(Date.parse(input.endsAt)) && Date.parse(input.endsAt) > Date.parse(input.startsAt), 422, 'VALIDATION_FAILED', 'Confira o novo período do atendimento.', 'endsAt');
-        appointment.history.push(event(context, 'APPOINTMENT_RESCHEDULED', `${reason} · Período anterior: ${appointment.startsAt} até ${appointment.endsAt}.`));
+        const previousStartsAt = appointment.startsAt;
+        const previousEndsAt = appointment.endsAt;
+        appointment.requestedStartsAt = appointment.requestedStartsAt || previousStartsAt;
+        appointment.requestedEndsAt = appointment.requestedEndsAt || previousEndsAt;
         appointment.startsAt = input.startsAt;
         appointment.endsAt = input.endsAt;
+        appointment.confirmedStartsAt = input.startsAt;
+        appointment.confirmedEndsAt = input.endsAt;
+        appointment.history.push(event(context, 'APPOINTMENT_RESCHEDULED', `${reason} · Período anterior: ${previousStartsAt} até ${previousEndsAt}. Novo período: ${input.startsAt} até ${input.endsAt}.`));
       } else if (method === 'POST' && parts[2] === 'cancel') {
         const input = await body<{ reason: string }>();
         revision(request, appointment);
@@ -391,7 +581,18 @@ export function makePermitDemo() {
       if (parts.length === 1 && method === 'GET') {
         const operationStatus = url.searchParams.get('operationStatus');
         const reviewStatus = url.searchParams.get('reviewStatus');
-        return [...permits.values()].filter(permit => inQuery(appointments.get(permit.appointment.id)!)).filter(permit => (!operationStatus || permit.operationStatus === operationStatus) && (!reviewStatus || permit.reviewStatus === reviewStatus) && (!query || normalized(`${permit.code} ${permit.appointment.teamName} ${permit.appointment.location} ${permit.appointment.serviceLabel}`).includes(query))).map(permit => permitResponse(permit, context));
+        const list = [...permits.values()].filter(permit => inQuery(appointments.get(permit.appointment.id)!)).filter(permit => (!operationStatus || permit.operationStatus === operationStatus) && (!reviewStatus || permit.reviewStatus === reviewStatus) && (!query || normalized(`${permit.code} ${permit.appointment.teamName} ${permit.appointment.location} ${permit.appointment.serviceLabel}`).includes(query))).map(permit => permitResponse(permit, context));
+        if (url.searchParams.has('page') || url.searchParams.has('pageSize')) {
+          const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+          const pageSize = Math.max(1, Number(url.searchParams.get('pageSize')) || 10);
+          return {
+            items: list.slice((page - 1) * pageSize, page * pageSize),
+            total: list.length,
+            page,
+            pageSize,
+          };
+        }
+        return list;
       }
       const permit = permitById(parts[1], context);
       if (lifecycleDemo.handles(path)) {
@@ -404,6 +605,28 @@ export function makePermitDemo() {
         return attachmentsDemo.route(request, path, permit, context);
       }
       if (parts.length === 2 && method === 'GET') return permitResponse(permit, context);
+      if (parts[2] === 'final-pdf' && method === 'GET') {
+        requirePermission(context, 'permits.read');
+        assert(permit.reviewStatus === 'VALIDATED' || permit.operationStatus === 'COMPLETED', 409, 'INVALID_TRANSITION', 'O PDF final controlado só fica disponível após a conclusão ou validação da PT.');
+        const reviewer = permit.snapshots[permit.snapshots.length - 1]?.signatureRepresentation || context.user.displayName;
+        const content = `BT /F1 12 Tf 40 780 Td (AMPARA SESMT - DOCUMENTO FINAL CONTROLADO) Tj 0 -20 Td (PT: ${permit.code} - Versao: ${permit.version}) Tj 0 -20 Td (Status: ${permit.operationStatus} - Revisao: ${permit.reviewStatus}) Tj 0 -20 Td (Revisor: ${reviewer}) Tj 0 -30 Td (AVISO: Demonstracao escolar. Este PDF sintetico nao substitui) Tj 0 -15 Td (o documento imutavel assinado emitido pelo backend oficial.) Tj ET`;
+        const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', `<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
+        let pdf = '%PDF-1.4\n';
+        const offsets = objects.map((object, index) => { const offset = pdf.length; pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; return offset; });
+        const xref = pdf.length;
+        pdf += `xref\n0 6\n0000000000 65535 f \n${offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+        const file = new Blob([pdf], { type: 'application/pdf' });
+        const fileUrl = URL.createObjectURL(file);
+        downloadUrls.add(fileUrl);
+        return {
+          url: fileUrl,
+          expiresAt: new Date(Date.now() + 60000).toISOString(),
+          fileName: `${permit.code}-final-v${permit.version}.pdf`,
+          mimeType: 'application/pdf',
+          backendPersisted: false,
+          disclaimer: 'Documento demonstrativo. O PDF controlado e imutável exige assinatura e custódia pelo backend do SESMT.'
+        };
+      }
       revision(request, permit);
       const action = parts[2];
       if (action !== 'review') operationActor(permit, context);
@@ -435,6 +658,27 @@ export function makePermitDemo() {
           return { ...original, answer: answer.answer, note: answer.note?.trim() };
         });
         permit.history.push(event(context, 'CHECKLIST_UPDATED', undefined, permit.version));
+      } else if (action === 'participants' && (method === 'PATCH' || method === 'POST')) {
+        assert(editable, 409, 'IMMUTABLE_VERSION', 'A composição de participantes só pode ser alterada na versão em preenchimento.');
+        const input = await body<{ participants: ParticipantDto[]; reason: string }>();
+        revision(request, permit);
+        const reason = text(input.reason, 'reason', 1000);
+        assert(Array.isArray(input.participants) && input.participants.length > 0 && input.participants.length <= 100 && new Set(input.participants.map(value => value.workerId)).size === input.participants.length, 422, 'VALIDATION_FAILED', 'Selecione participantes válidos sem duplicação.', 'participants');
+        const appointment = appointments.get(permit.appointment.id)!;
+        const team = teams.find(value => value.id === appointment.teamId);
+        assert(team, 404, 'NOT_FOUND', 'Equipe da PT não encontrada.');
+        const updatedParticipants = input.participants.map(p => {
+          const worker = context.workers.find(w => w.id === p.workerId && w.unitId === appointment.unitId);
+          assert(worker && team.members.some(m => m.workerId === worker.id), 422, 'INVALID_ASSIGNMENT', 'Participante incompatível com a equipe ou sem vínculo na unidade.', 'participants');
+          return { workerId: worker.id, name: worker.fullName, serviceFunction: text(p.serviceFunction, 'serviceFunction', 100) };
+        });
+        const keepWorkerIds = new Set(updatedParticipants.map(p => p.workerId));
+        permit.sciences = permit.sciences.filter(s => keepWorkerIds.has(s.workerId));
+        permit.appointment.participants = clone(updatedParticipants);
+        appointment.participants = clone(updatedParticipants);
+        appointment.revision++;
+        permit.eligibility = eligibility(appointment, context);
+        permit.history.push(event(context, 'PARTICIPANTS_UPDATED', `Participantes atualizados: ${updatedParticipants.map(p => p.name).join(', ')}. Motivo: ${reason}`, permit.version));
       } else if (action === 'sciences' && method === 'POST') {
         assert(editable, 409, 'IMMUTABLE_VERSION', 'Ciência só pode ser coletada na versão em preenchimento.');
         assert(preparationComplete(permit), 409, 'PREPARATION_PENDING', 'Conclua a preparação do modelo antes de apresentar a declaração aos participantes.');
@@ -452,12 +696,14 @@ export function makePermitDemo() {
       } else if (action === 'release' && method === 'POST') {
         assert(permit.operationStatus === 'VERIFICATION' && !correctionDrafts.has(permit.id), 409, 'INVALID_TRANSITION', 'Liberação exige PT em verificação inicial.');
         ensurePrepared(permit, context);
+        checkPermitCoverage(permit);
         permit.operationStatus = 'RELEASED';
         permit.releasedAt = instant();
         permit.history.push(event(context, 'EXECUTION_RELEASED', 'Requisitos, checklist e ciências revalidados na liberação.', permit.version));
       } else if (action === 'start' && method === 'POST') {
         assert(permit.operationStatus === 'RELEASED', 409, 'RELEASE_REQUIRED', 'Registre a liberação antes de iniciar a execução.');
         ensurePrepared(permit, context);
+        checkPermitCoverage(permit);
         permit.operationStatus = 'EXECUTING';
         permit.startedAt = instant();
         permit.history.push(event(context, 'EXECUTION_STARTED', 'Requisitos revalidados no início.', permit.version));
@@ -484,7 +730,7 @@ export function makePermitDemo() {
         permit.history.push(event(context, 'OPERATION_COMPLETED', summary, permit.version));
       } else if (action === 'review' && method === 'POST') {
         assert(permit.operationStatus === 'COMPLETED' && permit.reviewStatus === 'PENDING_REVIEW' && !correctionDrafts.has(permit.id), 409, 'INVALID_TRANSITION', 'Aguarde uma versão concluída e submetida à revisão.');
-        const input = await body<{ decision: 'APPROVE' | 'RETURN'; comment: string; signatureRepresentation?: string }>();
+        const input = await body<{ decision: 'APPROVE' | 'RETURN'; comment: string; signatureRepresentation?: string; signatureMethod?: 'TYPED' | 'DRAWN' | 'IMAGE'; signatureImage?: string }>();
         revision(request, permit);
         assert(input.decision === 'APPROVE' || input.decision === 'RETURN', 422, 'VALIDATION_FAILED', 'Selecione uma decisão válida.', 'decision');
         const comment = input.decision === 'RETURN' ? text(input.comment, 'comment') : typeof input.comment === 'string' && input.comment.length <= 4000 ? input.comment.trim() : '';
@@ -492,9 +738,26 @@ export function makePermitDemo() {
         const snapshot = permit.snapshots.find(value => value.version === permit.version)!;
         assert(!snapshot.decision, 409, 'IMMUTABLE_VERSION', 'A versão já possui uma decisão registrada.');
         if (input.decision === 'APPROVE') {
-          const signature = text(input.signatureRepresentation, 'signatureRepresentation', 200);
-          assert(normalized(signature) === normalized(context.user.displayName), 422, 'SIGNATURE_MISMATCH', 'Confirme sua própria representação de assinatura com seu nome de usuário.', 'signatureRepresentation');
-          snapshot.signatureRepresentation = signature;
+          const method = input.signatureMethod || 'TYPED';
+          assert(['TYPED', 'DRAWN', 'IMAGE'].includes(method), 422, 'VALIDATION_FAILED', 'Forma de representação da assinatura inválida.', 'signatureMethod');
+          if (method === 'DRAWN') {
+            const drawing = text(input.signatureImage || input.signatureRepresentation, 'signatureImage', 1000000);
+            assert(/^data:image\/(?:png|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(drawing), 422, 'INVALID_REPRESENTATION', 'Confira o desenho da assinatura do engenheiro.', 'signatureImage');
+            snapshot.signatureMethod = 'DRAWN';
+            snapshot.signatureRepresentation = context.user.displayName;
+            snapshot.signatureImage = drawing;
+          } else if (method === 'IMAGE') {
+            const image = text(input.signatureImage || input.signatureRepresentation, 'signatureImage', 2000000);
+            assert(/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(image), 422, 'INVALID_REPRESENTATION', 'Envie uma imagem PNG ou JPEG válida para a assinatura.', 'signatureImage');
+            snapshot.signatureMethod = 'IMAGE';
+            snapshot.signatureRepresentation = context.user.displayName;
+            snapshot.signatureImage = image;
+          } else {
+            const signature = text(input.signatureRepresentation, 'signatureRepresentation', 200);
+            assert(normalized(signature) === normalized(context.user.displayName), 422, 'SIGNATURE_MISMATCH', 'Confirme sua própria representação de assinatura com seu nome de usuário.', 'signatureRepresentation');
+            snapshot.signatureMethod = 'TYPED';
+            snapshot.signatureRepresentation = signature;
+          }
           permit.reviewStatus = 'VALIDATED';
         } else permit.reviewStatus = 'RETURNED';
         snapshot.decision = input.decision;
@@ -515,6 +778,7 @@ export function makePermitDemo() {
         permit.history.push(event(context, 'CORRECTION_VERSION_CREATED', reason, permit.version));
       } else if (action === 'submit-correction' && method === 'POST') {
         assert(permit.operationStatus === 'COMPLETED' && correctionDrafts.has(permit.id), 409, 'INVALID_TRANSITION', 'Crie a versão de correção antes de reapresentar.');
+
         ensurePrepared(permit, context, false);
         const input = await body<{ summary: string; closingChecks?: PermitSourceCheckDto[] }>();
         revision(request, permit);
@@ -539,5 +803,12 @@ export function makePermitDemo() {
     }
     throw new PermitDemoError(404, 'NOT_FOUND', 'Rota não prevista na demonstração.');
   }
-  return { route, handles, dispose: () => { downloadUrls.forEach(value => URL.revokeObjectURL(value)); downloadUrls.clear(); attachmentsDemo.dispose(); } };
+  return {
+    route,
+    handles,
+    designations: designationsDemo,
+    teamsList: () => teams,
+    workerTeams: (workerId: string) => teams.filter(t => t.members.some(m => m.workerId === workerId)).map(t => ({ teamId: t.id, teamName: t.name, serviceFunction: t.members.find(m => m.workerId === workerId)!.serviceFunction, status: t.status || 'ACTIVE', isChief: t.chiefId === workerId })),
+    dispose: () => { downloadUrls.forEach(value => URL.revokeObjectURL(value)); downloadUrls.clear(); attachmentsDemo.dispose(); }
+  };
 }

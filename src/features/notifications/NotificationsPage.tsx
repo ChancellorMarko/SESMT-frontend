@@ -9,8 +9,15 @@ import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from 
 import styles from './notifications.module.css';
 
 function targetPath(item: NotificationDto) {
-  const routes: Record<string, string> = { DOCUMENT: '/app/documentos', WORKER: '/app/trabalhadores' };
-  const base = routes[item.resourceType.toUpperCase()];
+  const type = item.resourceType.toUpperCase();
+  const routes: Record<string, string> = {
+    DOCUMENT: '/app/documentos',
+    WORKER: '/app/trabalhadores',
+    WORK_PERMIT: '/app/pts',
+    PERMIT: '/app/pts',
+    APPOINTMENT: '/app/agenda',
+  };
+  const base = routes[type];
   return base && item.resourceId ? `${base}/${encodeURIComponent(item.resourceId)}` : undefined;
 }
 
@@ -62,7 +69,16 @@ export function NotificationsPage() {
     {notices.data && !notices.isError && page <= lastPage && <section className="panel stack" aria-label="Lista de notificações">
       {notices.data.items.length ? notices.data.items.map((item) => {
         const href = targetPath(item);
-        const permitted = item.resourceType.toUpperCase() === 'DOCUMENT' ? can('documents.read') : item.resourceType.toUpperCase() === 'WORKER' && can('workers.read');
+        const itemType = item.resourceType.toUpperCase();
+        const permitted = itemType === 'DOCUMENT'
+          ? can('documents.read')
+          : itemType === 'WORKER'
+          ? can('workers.read')
+          : ['WORK_PERMIT', 'PERMIT'].includes(itemType)
+          ? can('permits.read')
+          : itemType === 'APPOINTMENT'
+          ? can('appointments.read')
+          : false;
         const saving = markRead.isPending && markRead.variables === item.id;
         return <article key={item.id} className={styles.notice} aria-label={item.title}><div className="actions"><Badge tone={item.readAt ? 'neutral' : 'info'}>{item.readAt ? 'Lida' : 'Não lida'}</Badge><span className="muted">{formatDate(item.createdAt)}</span></div><h2>{item.title}</h2><p>{item.summary}</p>{item.dueDate && <p className="muted">Prazo: {formatDate(item.dueDate)}</p>}<div className="actions">{href && permitted && <Link to={href}>Abrir registro →</Link>}{!item.readAt && <Button variant="secondary" disabled={markRead.isPending} aria-label={`Marcar como lida: ${item.title}`} onClick={() => markRead.mutate(item.id)}>{saving ? 'Registrando leitura…' : 'Marcar como lida'}</Button>}</div></article>;
       }) : <EmptyState title="Nenhuma notificação" description="Não há avisos para este filtro e unidade." />}

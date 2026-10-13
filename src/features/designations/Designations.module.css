@@ -1,0 +1,30 @@
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.card{display:flex;flex-direction:column;gap:14px;cursor:pointer;transition:border-color .15s ease}
+.card:hover{border-color:var(--primary)}
+.cardHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.cardHeader h3{margin:0 0 5px;font-size:15px}
+.cardHeader p{margin:0}
+.serviceList{display:flex;flex-wrap:wrap;gap:6px}
+.metadata{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.metadata dt{font-size:11px;color:var(--muted);margin-bottom:4px}
+.metadata dd{margin:0;font-size:13px;overflow-wrap:anywhere}
+.coverageGrid{display:flex;flex-direction:column;gap:12px}
+.coverageItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:10px;font-size:13px}
+.coverageItem[data-covered="true"]{border-color:var(--success-bg);background:color-mix(in srgb,var(--success-bg) 8%,transparent)}
+.coverageItem[data-covered="false"]{border-color:var(--danger-bg);background:color-mix(in srgb,var(--danger-bg) 6%,transparent)}
+.coverageMeta{display:flex;flex-direction:column;gap:3px;text-align:right;min-width:140px}
+.coverageMeta small{font-size:11px;color:var(--muted)}
+.history{list-style:none;padding:0;margin:0}
+.history li{border-left:2px solid var(--border);padding:0 0 18px 16px;font-size:13px}
+.history li:last-child{padding-bottom:0}
+.history p{margin:4px 0;overflow-wrap:anywhere}
+.history small{color:var(--muted)}
+.formFields{border:0;margin:0;padding:0;min-width:0}
+.serviceChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
+.serviceChoice{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.serviceSelected{border-color:var(--primary);background:var(--surface)}
+.detailColumns{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(250px,.6fr);align-items:start;gap:20px}
+.legend{font-size:12px;line-height:1.7;color:var(--muted);margin:0}
+.wide{grid-column:1/-1}
+@media(max-width:1000px){.detailColumns{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}
+@media(max-width:700px){.metadata{gap:12px}.serviceChoices{grid-template-columns:1fr}.coverageItem{flex-direction:column;align-items:flex-start;gap:8px}.coverageMeta{text-align:left}}

@@ -18,9 +18,9 @@ beforeEach(() => {
   vi.mocked(api.get).mockImplementation(async () => structuredClone(appointment));
   vi.mocked(api.post).mockImplementation(async () => structuredClone(appointment));
 });
-function show() {
+function show(initialEntry: string | { pathname: string; search?: string; state?: any } = '/app/agenda/appointment-a') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/app/agenda/appointment-a']}><Routes><Route path="/app/agenda/:id" element={<AppointmentDetailPage />} /></Routes></MemoryRouter></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[initialEntry]}><Routes><Route path="/app/agenda/:id" element={<AppointmentDetailPage />} /><Route path="/app/agenda" element={<div>Lista da agenda</div>} /></Routes></MemoryRouter></QueryClientProvider>);
   return client;
 }
 
@@ -125,5 +125,22 @@ describe('Concorrência ao reagendar', () => {
     expect(within(section).getByText('Agendamento cancelado')).toBeInTheDocument();
     expect(within(section).getByText('Agendamento solicitado')).toBeInTheDocument();
     expect(within(section).getByText('Evidência enviada')).toBeInTheDocument();
+  });
+  it('separa horário solicitado pela equipe do horário operacional confirmado e sinaliza ajustes', async () => {
+    appointment.requestedStartsAt = '2026-10-09T17:00:00Z';
+    appointment.requestedEndsAt = '2026-10-09T19:00:00Z';
+    appointment.confirmedStartsAt = '2026-10-09T18:00:00Z';
+    appointment.confirmedEndsAt = '2026-10-09T20:00:00Z';
+    show();
+
+    expect(await screen.findByText('Horário solicitado pela equipe')).toBeInTheDocument();
+    expect(screen.getByText('Horário operacional confirmado')).toBeInTheDocument();
+    expect(screen.getByText('Ajustado na confirmação')).toBeInTheDocument();
+  });
+  it('conserva os filtros ao voltar à agenda usando location.state.fromSearch', async () => {
+    show({ pathname: '/app/agenda/appointment-a', state: { fromSearch: '?status=CONFIRMED&q=teste' } });
+
+    const backLink = await screen.findByRole('link', { name: 'Voltar à agenda' });
+    expect(backLink).toHaveAttribute('href', '/app/agenda?status=CONFIRMED&q=teste');
   });
 });

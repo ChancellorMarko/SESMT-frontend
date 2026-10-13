@@ -17,9 +17,10 @@ function authorized(permit: PermitLifecycleRecordDto, context: PermitDemoContext
   assert(permit.appointment.responsibleId === context.user.id, 403, 'NOT_DESIGNATED', 'Somente o responsável operacional designado pode realizar esta ação.');
 }
 type EnsurePrepared = (permit: WorkPermitDto, context: PermitDemoContext) => void | Promise<void>;
+type CheckCoverage = (permit: WorkPermitDto, context: PermitDemoContext) => void | Promise<void>;
 
-/** O domínio principal fornece sua conferência atual de checklist, ciências, preparo e elegibilidade. */
-export function makePermitLifecycleDemo(ensurePrepared: EnsurePrepared) {
+/** O domínio principal fornece sua conferência atual de checklist, ciências, preparo, elegibilidade e designações. */
+export function makePermitLifecycleDemo(ensurePrepared: EnsurePrepared, checkCoverage?: CheckCoverage) {
   const handles = (path: string) => /^\/work-permits\/[^/]+\/(suspend|resume|cancel)$/.test(path);
   async function route(request: Request, path: string, value: WorkPermitDto, context: PermitDemoContext): Promise<PermitLifecycleRecordDto | undefined> {
     if (!handles(path)) return undefined;
@@ -57,6 +58,7 @@ export function makePermitLifecycleDemo(ensurePrepared: EnsurePrepared) {
       assert(input.sameConditions === true, 409, 'CONDITIONS_CHANGED', 'Condições diferentes exigem nova análise e uma nova permissão; a retomada direta permanece bloqueada.', 'sameConditions');
       assert(permit.lifecycle?.suspendedFrom === 'RELEASED' || permit.lifecycle?.suspendedFrom === 'EXECUTING', 409, 'INVALID_TRANSITION', 'O estado anterior à suspensão não está disponível. Recarregue o registro.');
       await ensurePrepared(value, context);
+      if (checkCoverage) await checkCoverage(value, context);
     } else {
       assert(['VERIFICATION', 'RELEASED', 'SUSPENDED'].includes(permit.operationStatus), 409, 'INVALID_TRANSITION', 'Cancele apenas antes do início ou após suspensão. Suspenda primeiro uma execução em andamento.');
       assert(input.confirmed === true, 422, 'CONFIRMATION_REQUIRED', 'Confirme o cancelamento desta PT.', 'confirmed');

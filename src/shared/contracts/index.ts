@@ -10,7 +10,11 @@ export interface AssigneeDto { id: string; displayName: string }
 export interface OrganizationItemDto { id: string; name: string; code?: string; status: 'ACTIVE' | 'INACTIVE'; revision: number; taxId?: string; address?: string; companyId?: string; establishmentId?: string; unitId?: string; sectorId?: string; jobId?: string; description?: string; occupationCode?: string; responsibleIds?: string[] }
 export interface OrganizationDto { companies: OrganizationItemDto[]; establishments: OrganizationItemDto[]; units: OrganizationItemDto[]; sectors: OrganizationItemDto[]; jobs: OrganizationItemDto[]; jobFunctions: OrganizationItemDto[]; workCenters: OrganizationItemDto[] }
 export type WorkerStatus = 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED';
-export interface WorkerDto { id: string; registration: string; fullName: string; companyId: string; unitId: string; sectorId: string; jobId?: string; jobFunctionId?: string; workCenterId?: string; managerId?: string; employmentType: string; admissionDate: string; status: WorkerStatus; revision: number }
+export type IntegrationStatus = 'INTEGRATED' | 'PENDING' | 'EXPIRED' | 'NOT_APPLICABLE';
+export interface WorkerIntegrationHistoryDto { id: string; workerId: string; status: IntegrationStatus; integratedAt: string; validUntil?: string; responsibleId: string; responsibleName: string; evidenceFileName?: string; notes?: string; registeredAt: string }
+export interface WorkerIntegrationWriteDto { status: IntegrationStatus; integratedAt: string; validUntil?: string; responsibleId?: string; responsibleName?: string; evidenceFileName?: string; notes?: string }
+export interface WorkerTeamLinkDto { teamId: string; teamName: string; serviceFunction: string; status: 'ACTIVE' | 'INACTIVE'; isChief: boolean }
+export interface WorkerDto { id: string; registration: string; fullName: string; companyId: string; unitId: string; sectorId: string; jobId?: string; jobFunctionId?: string; workCenterId?: string; managerId?: string; employmentType: string; admissionDate: string; status: WorkerStatus; revision: number; integrationStatus?: IntegrationStatus; integratedAt?: string; integrationValidUntil?: string; integrationResponsibleId?: string; integrationResponsibleName?: string; integrationEvidenceFileName?: string; integrationHistory?: WorkerIntegrationHistoryDto[]; teams?: WorkerTeamLinkDto[] }
 export interface WorkerAssignment { companyId?: string; unitId: string; sectorId: string; jobId?: string; jobFunctionId?: string; workCenterId?: string; managerId?: string }
 export interface WorkerMovementDto { id: string; workerId: string; type: 'ADMISSION' | 'TRANSFER' | 'LEAVE' | 'RETURN' | 'TERMINATION'; effectiveDate: string; previousAssignment: WorkerAssignment | null; newAssignment?: WorkerAssignment; reason: string; createdAt: string; createdBy: string }
 export type DocumentStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'ACTIVE' | 'EXPIRED' | 'SUPERSEDED' | 'ARCHIVED';
@@ -27,3 +31,6 @@ export interface DownloadUrlDto { url: string; expiresAt: string; fileName: stri
 export interface NotificationDto { id: string; type: string; title: string; summary: string; resourceType: string; resourceId: string; dueDate?: string; readAt?: string; createdAt: string }
 export interface DashboardDto { generatedAt: string; filters: { unitId?: string; from?: string; to?: string }; indicators: { code: string; label: string; value: number; formula: string; period: string; source: string; updatedAt: string }[]; pendingItems: { id: string; title: string; resourceType: string; resourceId: string; status?: string; dueDate?: string }[] }
 export interface AuditLogDto { id: string; actorId: string; action: string; resourceType: string; resourceId: string; occurredAt: string; requestId: string; outcome: string }
+export type { TeamInviteDto, TeamInviteWriteDto, PublicTeamInviteDto, TeamInviteStatus } from './teams';
+export type { FinalPdfDto, PermitParticipantsWriteDto } from './work-permits';
+

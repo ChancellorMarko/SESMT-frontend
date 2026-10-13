@@ -43,6 +43,11 @@ const PetsPage=lazy(()=>import('../features/confined-space/PetsPage').then(m=>({
 const PetFormPage=lazy(()=>import('../features/confined-space/PetFormPage').then(m=>({default:m.PetFormPage})));
 const PetDetailPage=lazy(()=>import('../features/confined-space/PetDetailPage').then(m=>({default:m.PetDetailPage})));
 const PetPrintPage=lazy(()=>import('../features/confined-space/PetPrintPage').then(m=>({default:m.PetPrintPage})));
+const DesignationsPage=lazy(()=>import('../features/designations').then(m=>({default:m.DesignationsPage})));
+const DesignationFormPage=lazy(()=>import('../features/designations').then(m=>({default:m.DesignationFormPage})));
+const DesignationDetailPage=lazy(()=>import('../features/designations').then(m=>({default:m.DesignationDetailPage})));
+const ConsultationPage=lazy(()=>import('../features/search/ConsultationPage').then(m=>({default:m.ConsultationPage})));
+const TeamInvitePage=lazy(()=>import('../features/teams/TeamInvitePage').then(m=>({default:m.TeamInvitePage})));
 export function Guard({ permission,children }: { permission?: string; children:ReactNode }) {
   const s=useSession(); if(s.status==='restoring') return <Spinner/>;
   if(!s.me) return <Navigate to="/login" replace/>;
@@ -55,8 +60,10 @@ export function App() {
   return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><Routes>
     <Route path="/login" element={<LoginPage/>}/><Route path="/mfa" element={<Navigate to="/login" replace/>}/>
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
+    <Route path="/convite/:token" element={<TeamInvitePage/>}/>
     <Route path="/app" element={<Guard><AppLayout/></Guard>}>
       <Route index element={<Home/>}/>
+      <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
       <Route path="dashboard" element={<Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
@@ -68,6 +75,9 @@ export function App() {
       <Route path="pts" element={<Guard permission="permits.read"><PermitsPage/></Guard>}/>
       <Route path="pts/:id" element={<Guard permission="permits.read"><PermitDetailPage/></Guard>}/>
       <Route path="pts/:id/imprimir" element={<Guard permission="permits.read"><PermitPrintPage/></Guard>}/>
+      <Route path="designacoes" element={<Guard permission="appointments.read"><DesignationsPage/></Guard>}/>
+      <Route path="designacoes/nova" element={<Guard permission="appointments.write"><DesignationFormPage/></Guard>}/>
+      <Route path="designacoes/:id" element={<Guard permission="appointments.read"><DesignationDetailPage/></Guard>}/>
       <Route path="modelos-pt" element={<Guard permission="permits.read"><PermitTemplatesPage/></Guard>}/>
       <Route path="pendencias" element={<Guard permission="eligibility.read"><DocumentaryReadinessPage/></Guard>}/>
       <Route path="ats" element={<Guard permission="at.read"><WorkAuthorizationsPage/></Guard>}/>
