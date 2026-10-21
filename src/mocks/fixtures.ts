@@ -19,7 +19,7 @@ export const roles:RoleDto[]=[
 ];
 export const makeFixtures=()=>{
  const organization:OrganizationDto={
-  companies:[{id:COMPANY,name:'Organização Exemplo',taxId:'00.000.000/0000-00',code:'DEMO',status:'ACTIVE',revision:1}],
+  companies:[{id:COMPANY,name:'Organização Exemplo',taxId:'00.000.000/0000-00',classification:'INTERNAL',code:'DEMO',status:'ACTIVE',revision:1}],
   establishments:[{id:id(4),name:'Estabelecimento Sul',companyId:COMPANY,status:'ACTIVE',revision:1}],
   units:[{id:UNIT_A,name:'Unidade Matriz',code:'MATRIZ',companyId:COMPANY,establishmentId:id(4),status:'ACTIVE',responsibleIds:[id(20)],revision:1},{id:UNIT_B,name:'Unidade Operacional',code:'OPER',companyId:COMPANY,establishmentId:id(4),status:'ACTIVE',responsibleIds:[id(20)],revision:1}],
   sectors:[{id:id(5),name:'Produção',unitId:UNIT_A,status:'ACTIVE',revision:1},{id:id(6),name:'Administrativo',unitId:UNIT_A,status:'ACTIVE',revision:1},{id:id(7),name:'Logística',unitId:UNIT_B,status:'ACTIVE',revision:1}],
@@ -47,6 +47,8 @@ export const makeFixtures=()=>{
     status:i===4?'ON_LEAVE':'ACTIVE',
     revision:1,
     integrationStatus: intStatus,
+    // Explicit synthetic policy exceptions keep the pre-existing completed demo scenarios.
+    integrationEvidenceRequired: intStatus !== 'INTEGRATED' && intStatus !== 'NOT_APPLICABLE',
     integratedAt: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : intDate,
     integrationValidUntil: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : intValid,
     integrationResponsibleId: intStatus === 'PENDING' || intStatus === 'NOT_APPLICABLE' ? undefined : id(20),

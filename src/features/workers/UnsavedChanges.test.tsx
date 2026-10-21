@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Link, MemoryRouter, Route, Routes } from 'react-router';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { UnsavedChanges } from './UnsavedChanges';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -49,5 +49,23 @@ describe('saída de formulário com alterações', () => {
     render(<MemoryRouter><UnsavedChanges protectContext dirty={false} busy={false} /></MemoryRouter>);
     expect(window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))).toBe(true);
     expect(confirm).not.toHaveBeenCalled();
+  });
+  it.each([
+    { fromConsulta: true, fromSearch: '?tab=documents&q=relatorio', fromUnitId: 'unit-a' },
+    { integrationReturnTo: { pathname: '/app/pts/pt-a', search: '?page=2', hash: '#equipe', unitId: 'unit-a' }, success: 'Cadastro atualizado.' },
+  ])('preserva o contexto atual de retorno depois de confirmar descarte: %j', state => {
+    function Destination() {
+      const location = useLocation();
+      return <output aria-label="Navegação confirmada">{JSON.stringify({ pathname: location.pathname, search: location.search, hash: location.hash, state: location.state })}</output>;
+    }
+    render(<MemoryRouter initialEntries={[{ pathname: '/form', state }]}><Routes><Route path="/form" element={<><UnsavedChanges dirty busy={false} /><Link to="/workers?page=3#cadastro" state={state}>Sair</Link></>} /><Route path="/workers" element={<Destination />} /></Routes></MemoryRouter>);
+    fireEvent.click(screen.getByRole('link', { name: 'Sair' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar e sair' }));
+    expect(screen.getByLabelText('Navegação confirmada')).toHaveTextContent(JSON.stringify({ pathname: '/workers', search: '?page=3', hash: '#cadastro', state }));
+  });
+  it('não transforma um endereço externo em destino da confirmação', () => {
+    render(<MemoryRouter><UnsavedChanges dirty busy={false} /><a href="https://outside.example.test/path" onClick={event => event.preventDefault()}>Site externo</a></MemoryRouter>);
+    fireEvent.click(screen.getByRole('link', { name: 'Site externo' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

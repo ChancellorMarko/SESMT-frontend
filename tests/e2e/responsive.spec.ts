@@ -7,11 +7,26 @@ test('painel desktop e agenda móvel mantêm navegação e conteúdo dentro da t
   await page.setViewportSize({ width: 1440, height: 1000 });
   await loginDemo(page, 'Engenheiro');
   await expect(page.getByRole('link').filter({ hasText: 'Serviços na agenda' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Acesso rápido' })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Menu principal' })).toBeVisible();
+  await page.keyboard.press('Escape');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   if (process.env.FRONTEND_CAPTURE_QA) await page.screenshot({ path: 'docs/frontend/qa/painel-desktop.png', fullPage: true });
-  await page.locator('a[href="/app/pendencias?status=pending"]').click();
-  await expect(page.getByLabel('Situação documental')).toHaveValue('pending');
+  // Intermediate widths must leave room for the full brand, scope picker and logout.
+  for (const width of [521, 600, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    const header = page.getByRole('banner');
+    const logo = await header.getByRole('img', { name: 'Ampara SESMT', exact: true }).boundingBox();
+    const unit = await page.getByRole('combobox', { name: 'Unidade de trabalho', exact: true }).boundingBox();
+    expect(logo).not.toBeNull(); expect(unit).not.toBeNull();
+    expect(logo!.x + logo!.width <= unit!.x || unit!.x + unit!.width <= logo!.x || logo!.y + logo!.height <= unit!.y || unit!.y + unit!.height <= logo!.y).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Sair da plataforma', exact: true })).toBeInViewport();
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('link', { name: 'Conferir requisitos por participante', exact: true }).click();
+  await expect(page.getByLabel('Situação documental', { exact: true })).toHaveValue('pending');
   await expect(page.getByText('AG-DEMO-220', { exact: true })).toBeVisible();
   await expect(page.getByText('AG-DEMO-221', { exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });

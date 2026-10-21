@@ -1,7 +1,7 @@
 /** Gestão sintética de equipes no navegador. A API real deve aplicar as mesmas fronteiras. */
 import type { TeamDto } from '../shared/contracts/work-permits';
 import type { TeamOptionsDto, TeamWriteDto } from '../shared/contracts/teams';
-import { normalizedTeamText, teamFormSchema } from '../features/teams/validation';
+import { normalizedTeamText, teamFormSchema, teamStatusSchema } from '../features/teams/validation';
 import { PermitDemoError, type PermitDemoContext } from './work-permits';
 
 function require(condition: unknown, status: number, code: string, message: string, field?: string): asserts condition {
@@ -15,7 +15,8 @@ export function createTeamManagement(teams: TeamDto[]) {
   const visible = (team: TeamDto, context: PermitDemoContext) => !context.user.scope.ownOnly
     && context.user.scope.companyIds.includes(team.companyId)
     && context.user.scope.unitIds.includes(team.unitId)
-    && (!context.user.scope.teamIds.length || context.user.scope.teamIds.includes(team.id));
+    && (!context.user.scope.teamIds.length || context.user.scope.teamIds.includes(team.id))
+    && (!context.user.scope.expiresAt || Date.parse(context.user.scope.expiresAt) > Date.now());
   const byId = (teamId: string, context: PermitDemoContext) => {
     const team = teams.find(value => value.id === teamId);
     require(team && visible(team, context), 404, 'NOT_FOUND', 'Equipe indisponível no seu escopo.');
@@ -33,8 +34,12 @@ export function createTeamManagement(teams: TeamDto[]) {
     if (!handles(path)) return undefined;
     if (path === '/teams' && request.method === 'GET') return undefined;
     const reading = request.method === 'GET';
-    require(context.permissions.includes(reading ? 'teams.read' : 'teams.write'), 403, 'FORBIDDEN', 'Seu perfil não permite esta ação.');
-    require(!context.user.scope.ownOnly, 403, 'FORBIDDEN', 'O cadastro de equipes exige acesso ao conjunto de participantes.');
+    const checkAccess = () => {
+      require(context.permissions.includes(reading ? 'teams.read' : 'teams.write'), 403, 'FORBIDDEN', 'Seu perfil não permite esta ação.');
+      require(!context.user.scope.ownOnly, 403, 'FORBIDDEN', 'O cadastro de equipes exige acesso ao conjunto de participantes.');
+      require(!context.user.scope.expiresAt || Date.parse(context.user.scope.expiresAt) > Date.now(), 403, 'FORBIDDEN', 'A concessão de acesso à equipe expirou.');
+    };
+    checkAccess();
     if (path === '/team-options' && reading) {
       const unitId = url.searchParams.get('unitId');
       require(unitId, 422, 'VALIDATION_FAILED', 'Informe a unidade para consultar os participantes.', 'unitId');
@@ -53,18 +58,15 @@ export function createTeamManagement(teams: TeamDto[]) {
     } else require(!context.user.scope.teamIds.length, 403, 'FORBIDDEN', 'A concessão restrita a equipes existentes não permite cadastrar outra equipe.');
     let raw: unknown;
     try { raw = await request.json(); } catch { throw new PermitDemoError(422, 'VALIDATION_FAILED', 'Envie os dados da equipe em JSON válido.'); }
+    checkAccess();
     if (existing) require(request.headers.get('If-Match') === `"${byId(existing.id, context).revision}"`, 412, 'REVISION_CONFLICT', 'Esta equipe mudou durante o envio. Seus dados foram preservados.');
+    else require(!context.user.scope.teamIds.length, 403, 'FORBIDDEN', 'A concessão restrita a equipes existentes não permite cadastrar outra equipe.');
     if (existing && typeof raw === 'object' && raw !== null && 'status' in raw && !('name' in raw)) {
-      const statusInput = (raw as { status?: string; inactiveReason?: string }).status;
-      require(statusInput === 'ACTIVE' || statusInput === 'INACTIVE', 422, 'VALIDATION_FAILED', 'Situação da equipe inválida.', 'status');
-      const reason = (raw as { inactiveReason?: string }).inactiveReason?.trim();
-      if (statusInput === 'INACTIVE' && reason) {
-        require(reason.length <= 300, 422, 'VALIDATION_FAILED', 'O motivo da inativação deve ter até 300 caracteres.', 'inactiveReason');
-      }
-      existing.status = statusInput;
-      existing.inactiveReason = reason;
-      existing.revision++;
-      return clone(existing);
+      const parsedStatus = teamStatusSchema.safeParse(raw);
+      require(parsedStatus.success, 422, 'VALIDATION_FAILED', parsedStatus.success ? '' : parsedStatus.error.issues[0].message, parsedStatus.success ? undefined : parsedStatus.error.issues[0].path.join('.'));
+      const saved = { ...existing, status: parsedStatus.data.status, inactiveReason: parsedStatus.data.status === 'INACTIVE' ? parsedStatus.data.inactiveReason : undefined, revision: existing.revision + 1 };
+      teams[teams.indexOf(existing)] = saved;
+      return clone(saved);
     }
     const parsed = teamFormSchema.safeParse(raw);
     require(parsed.success, 422, 'VALIDATION_FAILED', parsed.success ? '' : parsed.error.issues[0].message, parsed.success ? undefined : parsed.error.issues[0].path.join('.'));

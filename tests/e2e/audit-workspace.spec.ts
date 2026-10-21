@@ -1,0 +1,76 @@
+import { expect, test } from '@playwright/test';
+import { loginDemo, navigateWithinApp } from './helpers';
+
+const unitA = '00000000-0000-4000-8000-000000000002';
+const unitB = '00000000-0000-4000-8000-000000000003';
+
+for (const width of [320, 390, 768, 1440]) {
+  test(`auditoria em ${width}px preserva rascunho ao paginar e remove critérios individualmente`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const errors: string[] = [], writes: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await loginDemo(page, 'Gestor SESMT');
+    await page.evaluate(async unitId => {
+      const moduleUrl = '/src/shared/api/client.ts'; const { api } = await import(moduleUrl);
+      for (let start = 0; start < 25; start += 10) await Promise.all(Array.from({ length: Math.min(10, 25 - start) }, (_, index) => api.post('/sectors', { unitId, name: `Setor de teste da auditoria ${start + index + 1}` })));
+    }, unitA);
+    page.on('request', request => { if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method())) writes.push(request.url()); });
+    await navigateWithinApp(page, `/app/auditoria?unitId=${unitA}&action=ORGANIZATION_CREATED&from=2024-02-29&to=2099-12-31`);
+    const filters = page.getByRole('form', { name: 'Filtros da auditoria', exact: true });
+    const action = filters.getByRole('combobox', { name: 'Ação', exact: true });
+    const from = filters.getByLabel('De', { exact: true });
+    const to = filters.getByLabel('Até', { exact: true });
+    const table = page.getByRole('table', { name: 'Trilha de eventos de auditoria', exact: true });
+    await expect(table.locator('tbody tr')).toHaveCount(20);
+    await expect(table.getByRole('columnheader')).toHaveCount(6);
+    await action.selectOption('DOCUMENT_VIEWED');
+    await from.fill('2024-03-01');
+    await expect(page.getByText('Alterações ainda não aplicadas à consulta.', { exact: true })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('action')).toBe('ORGANIZATION_CREATED');
+    await page.getByRole('button', { name: 'Próxima', exact: true }).click();
+    await expect(table.locator('tbody tr')).toHaveCount(5);
+    await expect(action).toHaveValue('DOCUMENT_VIEWED');
+    await expect(from).toHaveValue('2024-03-01');
+    expect(new URL(page.url()).searchParams.get('from')).toBe('2024-02-29');
+    await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Atualizar', exact: true })).toBeEnabled();
+    await expect(action).toHaveValue('DOCUMENT_VIEWED');
+    await expect(from).toHaveValue('2024-03-01');
+    const dimensions = await table.evaluate(element => ({ width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: testInfo.outputPath(`auditoria-${width}.png`), fullPage: true });
+    await filters.getByRole('button', { name: 'Remover filtro: De', exact: true }).click();
+    await expect(table.locator('tbody tr')).toHaveCount(20);
+    await expect(action).toHaveValue('ORGANIZATION_CREATED');
+    await expect(action).toBeFocused();
+    await expect(from).toHaveValue('');
+    await expect(to).toHaveValue('2099-12-31');
+    let criteria = new URL(page.url()).searchParams;
+    expect(criteria.has('page')).toBe(false); expect(criteria.has('from')).toBe(false);
+    expect(criteria.get('action')).toBe('ORGANIZATION_CREATED'); expect(criteria.get('unitId')).toBe(unitA);
+    await expect(page.getByText('Alterações ainda não aplicadas à consulta.', { exact: true })).toHaveCount(0);
+    await filters.getByRole('button', { name: 'Remover filtro: Até', exact: true }).click();
+    await expect(to).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Filtrar eventos', exact: true })).toBeEnabled();
+    await filters.getByRole('button', { name: 'Remover filtro: Ação', exact: true }).click();
+    await expect(action).toHaveValue('');
+    expect([...new URL(page.url()).searchParams]).toEqual([['unitId', unitA]]);
+    await action.selectOption('ORGANIZATION_CREATED');
+    await from.fill('2024-02-29'); await to.fill('2099-12-31');
+    await filters.getByRole('button', { name: 'Filtrar eventos', exact: true }).click();
+    await expect(table.locator('tbody tr')).toHaveCount(20);
+    await page.getByRole('button', { name: 'Próxima', exact: true }).click();
+    await expect(table.locator('tbody tr')).toHaveCount(5);
+    await action.selectOption('DOCUMENT_VIEWED');
+    await page.getByRole('combobox', { name: 'Unidade de trabalho', exact: true }).selectOption(unitB);
+    await expect(page.getByRole('heading', { name: 'Nenhum evento encontrado', exact: true })).toBeVisible();
+    await expect(action).toHaveValue('ORGANIZATION_CREATED');
+    await expect(table.locator('tbody tr')).toHaveCount(0);
+    criteria = new URL(page.url()).searchParams;
+    expect(criteria.get('unitId')).toBe(unitB); expect(criteria.has('page')).toBe(false);
+    expect(criteria.get('action')).toBe('ORGANIZATION_CREATED');
+    expect(writes).toEqual([]); expect(errors).toEqual([]);
+  });
+}

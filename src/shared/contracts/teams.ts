@@ -23,6 +23,7 @@ export interface TeamInviteDto {
   companyId: string;
   companyName: string;
   status: TeamInviteStatus;
+  unavailableReason?: 'TEAM_INACTIVE';
   expiresAt: string;
   createdAt: string;
   createdByName: string;
@@ -44,7 +45,40 @@ export interface PublicTeamInviteDto {
   companyName: string;
   chiefName: string;
   status: TeamInviteStatus;
+  /** Temporary unavailability does not revoke a still-valid invitation. */
+  unavailableReason?: 'TEAM_INACTIVE';
   expiresAt: string;
-  members: { name: string; serviceFunction: string; isChief: boolean }[];
+  members: { memberId?: string; name: string; serviceFunction: string; isChief: boolean }[];
   operationalInstructions: string;
+  /** Proposed public request capability; the real API must explicitly enable it. */
+  appointmentRequestsEnabled?: boolean;
+  services?: { id: string; name: string; description?: string }[];
+}
+
+/** The server derives team, company, unit and worker identity from this invitation. */
+export interface PublicInviteAppointmentWriteDto {
+  serviceTypeIds: string[];
+  location: string;
+  startsAt: string;
+  endsAt: string;
+  participants: { memberId: string; serviceFunction: string }[];
+  notes?: string;
+  declarantName: string;
+  acknowledged: true;
+}
+
+/** Deliberately excludes internal audit, documentary eligibility and PT data. */
+export interface PublicInviteAppointmentDto {
+  id: string;
+  code: string;
+  status: 'REQUESTED' | 'CONFIRMED' | 'ATTENDANCE_OPENED' | 'CANCELED';
+  services: { id: string; name: string }[];
+  location: string;
+  requestedStartsAt: string;
+  requestedEndsAt: string;
+  confirmedStartsAt?: string;
+  confirmedEndsAt?: string;
+  participants: { name: string; serviceFunction: string }[];
+  declarantName: string;
+  requestedAt: string;
 }

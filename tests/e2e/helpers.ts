@@ -16,6 +16,13 @@ export async function logout(page: Page) {
   await expect(page).toHaveURL(/\/login$/);
 }
 
+export async function openModule(page: Page, name: string) {
+  const menu = page.getByRole('dialog', { name: 'Navegação', exact: true });
+  if (!await menu.isVisible()) await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
+  await menu.getByRole('link', { name, exact: true }).click();
+  await expect(menu).toHaveCount(0);
+}
+
 export async function navigateWithinApp(page: Page, pathname: string) {
   // A full reload intentionally resets the MSW demonstration. Simulate opening
   // a route while retaining the current browser session for authorization QA.
@@ -50,7 +57,7 @@ export function simplePdf(text = 'Documento sintetico para teste') {
 }
 
 export async function createDocument(page: Page, { type = 'Procedimento operacional', title = 'Procedimento de teste E2E', code = 'E2E-PROC-01' } = {}) {
-  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await openModule(page, 'Documentos');
   await page.getByRole('link', { name: 'Novo documento', exact: true }).click();
   await page.getByLabel('Código *', { exact: true }).fill(code);
   await page.getByLabel('Título *', { exact: true }).fill(title);

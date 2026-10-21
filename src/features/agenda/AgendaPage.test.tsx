@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -136,6 +136,25 @@ describe('AgendaPage — Visão de lista e calendário, múltiplos serviços e f
     expect(screen.getByText('(Solicitado)')).toBeInTheDocument();
   });
 
+  it('reordena os resultados localmente sem repetir a consulta ou alterar situações', async () => {
+    const user = userEvent.setup(); renderPage();
+    const table = await screen.findByRole('table', { name: 'Atendimentos da agenda' });
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('AG-DEMO-220');
+    const calls = vi.mocked(api.get).mock.calls.filter(([path]) => path === '/appointments').length;
+    await user.selectOptions(screen.getByLabelText('Ordenar atendimentos'), 'START_DESC');
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('AG-DEMO-221');
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/appointments')).toHaveLength(calls);
+    expect(screen.getByText('(Confirmado)')).toBeInTheDocument();
+    expect(screen.getByText('(Solicitado)')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+  it('mantém os filtros avançados recolhidos ao usar um período rápido', async () => {
+    const user = userEvent.setup(); renderPage(); await screen.findByRole('table');
+    await user.click(screen.getByRole('button', { name: 'Filtrar agenda para hoje' }));
+    expect(screen.getByRole('button', { name: /Filtros avançados/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Filtrar agenda para hoje' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('alterna para a visão de calendário e exibe a grade do mês e navegação', async () => {
     const user = userEvent.setup();
     renderPage();
@@ -210,5 +229,37 @@ describe('AgendaPage — Visão de lista e calendário, múltiplos serviços e f
     await user.click(clearBtn);
 
     expect(sessionStorage.getItem('agenda_filters_unit-demo')).toBeNull();
+  });
+  it('restaura os filtros avançados salvos ao abrir a agenda sem query', async () => {
+    sessionStorage.setItem('agenda_filters_unit-demo', 'responsibleId=resp-1&location=Galp%C3%A3o&view=calendar&calendarDate=2026-12-01&day=2026-12-04');
+    renderPage();
+    expect(await screen.findByRole('grid', { name: 'Calendário de Dezembro de 2026' })).toBeVisible();
+    expect(screen.getByLabelText('Responsável operacional')).toHaveValue('resp-1');
+    expect(screen.getByLabelText('Local do serviço')).toHaveValue('Galpão');
+    expect(screen.getByRole('heading', { name: 'Atendimentos em 04/12/2026' })).toBeVisible();
+  });
+  it('limpa critérios de busca sem perder semana e dia do calendário', async () => {
+    const user = userEvent.setup();
+    renderPage('/app/agenda?view=calendar&calendarMode=week&calendarDate=2026-10-15&day=2026-10-15&status=CONFIRMED');
+    expect(await screen.findByRole('grid', { name: 'Calendário semanal de 11/10 a 17/10/2026' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.getByRole('grid', { name: 'Calendário semanal de 11/10 a 17/10/2026' })).toBeVisible();
+    expect(screen.getByLabelText('Situação do agendamento')).toHaveValue('');
+    expect(sessionStorage.getItem('agenda_filters_unit-demo')).toContain('day=2026-10-15');
+    expect(sessionStorage.getItem('agenda_filters_unit-demo')).not.toContain('status=');
+  });
+  it('preserva calendário navegável quando os filtros não encontram atendimentos', async () => {
+    renderPage('/app/agenda?view=calendar&q=NAO_EXISTE&calendarDate=2026-10-01');
+    expect(await screen.findByRole('grid', { name: 'Calendário de Outubro de 2026' })).toBeVisible();
+    expect(screen.getByText('Nenhum atendimento agendado para esta data.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Próximo mês' })).toBeEnabled();
+  });
+  it('permite consulta com armazenamento do navegador indisponível', async () => {
+    const storage = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Storage blocked', 'SecurityError'); });
+    try {
+      renderPage();
+      expect(await screen.findByText('AG-DEMO-220')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Pesquisar' })).toBeEnabled();
+    } finally { storage.mockRestore(); }
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { OrganizationDto } from '../../shared/contracts';
-import { Feedback } from '../../shared/ui';
+import type { OrganizationDto, WorkerDto, WorkerStatus } from '../../shared/contracts';
+import { Button, Feedback } from '../../shared/ui';
 
 export const workerStatusLabels: Record<string, string> = {
   ACTIVE: 'Ativo', ON_LEAVE: 'Afastado', TERMINATED: 'Desligado',
@@ -49,6 +49,31 @@ export const workerFormSchema = z.object({
 });
 export type WorkerFormValues = z.infer<typeof workerFormSchema>;
 
+export function allowedMovementTypes(status: WorkerStatus) {
+  return ({ ACTIVE: ['TRANSFER', 'LEAVE', 'TERMINATION'], ON_LEAVE: ['RETURN', 'TERMINATION'], TERMINATED: ['ADMISSION'] } as const)[status];
+}
+
+export function workerMovementSchema(worker: Pick<WorkerDto, 'status' | 'admissionDate'>) {
+  return z.object({
+    type: z.enum(['ADMISSION', 'TRANSFER', 'LEAVE', 'RETURN', 'TERMINATION']),
+    effectiveDate: z.string().refine(validCivil, 'Informe uma data válida.'),
+    reason: z.string().trim().min(2, 'Descreva o motivo da movimentação.'),
+    companyId: z.string(), unitId: z.string(), sectorId: z.string(), jobId: z.string(),
+    jobFunctionId: z.string(), workCenterId: z.string(), managerId: z.string(),
+  }).superRefine((values, context) => {
+    if (!(allowedMovementTypes(worker.status) as readonly string[]).includes(values.type)) context.addIssue({ code: 'custom', path: ['type'], message: 'Esta movimentação não é compatível com a situação atual.' });
+    if (validCivil(values.effectiveDate) && (values.effectiveDate < worker.admissionDate || values.effectiveDate > todayCivil())) context.addIssue({ code: 'custom', path: ['effectiveDate'], message: 'A data efetiva deve estar entre a admissão e hoje.' });
+    if (values.type === 'TRANSFER' || values.type === 'ADMISSION') {
+      for (const field of ['companyId', 'unitId', 'sectorId'] as const) if (!values[field]) context.addIssue({ code: 'custom', path: [field], message: 'Selecione o vínculo de destino.' });
+    }
+  });
+}
+export type WorkerMovementValues = z.infer<ReturnType<typeof workerMovementSchema>>;
+
+export function unavailableWorkerQuery(error: unknown) {
+  return [401, 403, 404].includes((error as { status?: number } | undefined)?.status || 0);
+}
+
 export const integrationFormSchema = z.object({
   status: z.enum(['INTEGRATED', 'PENDING', 'EXPIRED', 'NOT_APPLICABLE']),
   integratedAt: z.string().refine(validCivil, 'Informe uma data de integração válida.'),
@@ -68,6 +93,7 @@ export const integrationFormSchema = z.object({
 export type IntegrationFormValues = z.infer<typeof integrationFormSchema>;
 
 export function assignmentError(values: Pick<WorkerFormValues, 'companyId' | 'unitId' | 'sectorId' | 'jobId' | 'jobFunctionId' | 'workCenterId'>, organization: OrganizationDto) {
+  if (!organization.companies.some(item => item.id === values.companyId && item.status === 'ACTIVE')) return 'Selecione uma empresa ativa disponível no seu acesso.';
   const unit = organization.units.find(item => item.id === values.unitId && item.status === 'ACTIVE');
   const sector = organization.sectors.find(item => item.id === values.sectorId && item.status === 'ACTIVE');
   if (!unit || unit.companyId !== values.companyId) return 'Selecione uma unidade ativa pertencente à empresa.';
@@ -86,7 +112,7 @@ export function errorMessage(error: unknown) {
   return candidate?.message || 'Não foi possível concluir a operação. Tente novamente.';
 }
 export function QueryError({ error, retry }: { error: unknown; retry?: () => void }) {
-  return <Feedback tone="danger"><span>{errorMessage(error)}</span>{retry && <button type="button" onClick={retry}>Tentar novamente</button>}</Feedback>;
+  return <Feedback tone="danger"><span>{errorMessage(error)}</span>{retry && <Button variant="secondary" onClick={retry}>Tentar novamente</Button>}</Feedback>;
 }
 export function fieldErrorsOf(error: unknown): { field: string; message: string }[] {
   const value = error as { fieldErrors?: { field: string; message: string }[]; body?: { fieldErrors?: { field: string; message: string }[] } };

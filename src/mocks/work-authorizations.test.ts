@@ -70,6 +70,25 @@ describe('domínio demonstrativo da AT independente da PT', () => {
     Object.defineProperty(request, 'json', { value: () => pendingBody });
     return { resume, result: demo.route(request, url, url.pathname.replace('/api/v1', ''), context()) };
   }
+  it('pagina o conjunto autorizado depois de filtrar e preserva consumidores legados da demonstração', async () => {
+    for (let index = 0; index < 26; index++) {
+      const value = await create();
+      await call(`/work-authorizations/${value.id}/cancel?unitId=${UNIT_A}`, 'POST', { reason: 'Cancelamento sintético para conferir paginação.', confirmed: true }, context(), value.revision);
+    }
+    const page = await call<{items: WorkAuthorizationDto[]; total: number; page: number; pageSize: number}>(`/work-authorizations?unitId=${UNIT_A}&page=3&pageSize=10&status=CANCELED`);
+    expect(page).toMatchObject({ total: 26, page: 3, pageSize: 10 });
+    expect(page.items).toHaveLength(6); expect(page.items.map(item => item.code)).toEqual(['AT-DEMO-021', 'AT-DEMO-022', 'AT-DEMO-023', 'AT-DEMO-024', 'AT-DEMO-025', 'AT-DEMO-026']);
+    const searched = await call<{items: WorkAuthorizationDto[]; total: number}>(`/work-authorizations?unitId=${UNIT_A}&page=1&pageSize=10&q=AT-DEMO-026&status=CANCELED`);
+    expect(searched.total).toBe(1); expect(searched.items[0].code).toBe('AT-DEMO-026');
+    const other = await call<{items: WorkAuthorizationDto[]; total: number}>(`/work-authorizations?unitId=${UNIT_B}&page=1&pageSize=10`);
+    expect(other.total).toBe(0); expect(other.items).toEqual([]);
+    expect(await call<WorkAuthorizationDto[]>(`/work-authorizations?unitId=${UNIT_A}`)).toHaveLength(26);
+  });
+
+  it.each(['page=0', 'page=1.5', 'pageSize=101', 'status=UNKNOWN', 'page=1&page=2', 'q=' + 'a'.repeat(201)])('recusa parâmetro inválido de paginação/filtro: %s', async query => {
+    await expect(call(`/work-authorizations?unitId=${UNIT_A}&${query}`)).rejects.toMatchObject({ status: 422 });
+  });
+
   it('exige permissão antes de ler o corpo e nunca permite operação por gestor/admin', async () => {
     let read = false;
     const url = new URL(`http://localhost/api/v1/work-authorizations?unitId=${UNIT_A}`);

@@ -7,7 +7,7 @@ async function openAppointment(page: Page, n: number) {
   await page.getByRole('button', { name: 'Abrir atendimento em campo', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Abrir atendimento em campo', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/pts\//);
-  await expect(page.getByRole('heading', { name: '1. Conferência do atendimento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Conferência do atendimento' })).toBeVisible();
   return new URL(page.url()).pathname;
 }
 async function checklist(page: Page) {

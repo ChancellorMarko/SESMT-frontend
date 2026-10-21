@@ -16,7 +16,7 @@ const fixture: DocumentDto = { id: unitId, code: 'DOC-001', title: 'Documento fi
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'url-test', can: () => false, status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() }));
+  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'url-test', can: permission => permission === 'documents.read', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() }));
   vi.mocked(api.get).mockImplementation(async <T,>(path: string): Promise<T> => (path === '/documents' ? { items: [fixture], page: 3, pageSize: 10, total: 50 } : { items: [{ id: typeId, name: 'Procedimento' }], page: 1, pageSize: 100, total: 1 }) as T);
 });
 
@@ -54,12 +54,43 @@ describe('filtros documentais no endereço', () => {
   });
   it('não consulta a API com um intervalo inválido recebido no endereço', async () => {
     show('?validUntilFrom=2026-12-31&validUntilTo=2026-01-01');
-    expect(await screen.findByRole('heading', { name: 'Corrija o intervalo da consulta' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Corrija os filtros da consulta' })).toBeVisible();
     expect(vi.mocked(api.get).mock.calls.some(([path]) => path === '/documents')).toBe(false);
+  });
+  it('abre critérios avançados recebidos por URL e remove apenas um filtro sem perder o escopo', async () => {
+    show(`?q=DOC-001&status=ACTIVE&validUntilFrom=2026-10-01&page=3&unitId=${unitId}&companyId=empresa-a`);
+    await screen.findByRole('link', { name: 'Documento filtrado' });
+    expect(screen.getByRole('button', { name: /Mais filtros/ })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro: Vencimento a partir de' }));
+    await waitFor(() => {
+      const address = screen.getByLabelText('Endereço atual').textContent!;
+      expect(address).toContain(`unitId=${unitId}`);
+      expect(address).toContain('companyId=empresa-a');
+      expect(address).toContain('status=ACTIVE');
+      expect(address).toContain('q=DOC-001');
+      expect(address).not.toContain('validUntilFrom');
+      expect(address).not.toContain('page=3');
+    });
+    expect(screen.getByLabelText('Buscar por título ou código')).toHaveFocus();
+    expect(screen.getByLabelText('Vencimento a partir de')).toHaveValue('');
+  });
+  it('limpa alterações ainda não aplicadas mesmo quando a URL já está sem filtros', async () => {
+    show('');
+    await screen.findByRole('link', { name: 'Documento filtrado' });
+    expect(screen.getByRole('button', { name: /Mais filtros/ })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.change(screen.getByLabelText('Buscar por título ou código'), { target: { value: 'Busca não aplicada' } });
+    fireEvent.click(screen.getByRole('button', { name: /Mais filtros/ }));
+    fireEvent.change(screen.getByLabelText('Vencimento a partir de'), { target: { value: '2026-11-01' } });
+    expect(screen.getByText('Alterações ainda não aplicadas à lista.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.getByLabelText('Buscar por título ou código')).toHaveValue('');
+    expect(screen.getByLabelText('Vencimento a partir de')).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Mais filtros/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Alterações ainda não aplicadas à lista.')).not.toBeInTheDocument();
   });
   it.each(['2026-02-30','texto','2026-13-01'])('bloqueia data civil inválida %s recebida no endereço', async value => {
     show(`?validUntilTo=${value}`);
-    expect(await screen.findByRole('heading',{name:'Corrija o intervalo da consulta'})).toBeVisible();
+    expect(await screen.findByRole('heading',{name:'Corrija os filtros da consulta'})).toBeVisible();
     expect(vi.mocked(api.get).mock.calls.some(([path])=>path==='/documents')).toBe(false);
   });
   it('normaliza uma página acima do limite de inteiros seguros', async () => {

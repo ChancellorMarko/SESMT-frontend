@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { loginDemo, navigateWithinApp } from './helpers';
+import { openModule, loginDemo, navigateWithinApp } from './helpers';
 
 test('gestor cadastra, pesquisa e altera equipe com participantes ativos e chefe', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Equipes', exact: true }).click();
+  await openModule(page, 'Equipes');
   await page.getByRole('link', { name: 'Nova equipe', exact: true }).click();
   await page.getByLabel('Nome da equipe *', { exact: true }).fill('Equipe sintética E2E');
   await expect(page.getByLabel('Trabalhador 1 *', { exact: true }).getByRole('option', { name: 'Sofia Demo', exact: true })).toHaveCount(0);
@@ -32,7 +32,7 @@ test('gestor cadastra, pesquisa e altera equipe com participantes ativos e chefe
 
 test('duplicidade e conflito de revisão preservam preenchimento e exigem conferência', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Equipes', exact: true }).click();
+  await openModule(page, 'Equipes');
   await page.getByRole('link', { name: 'Nova equipe', exact: true }).click();
   await page.getByLabel('Nome da equipe *', { exact: true }).fill('Equipe de manutenção · demonstração');
   await page.getByLabel('Trabalhador 1 *', { exact: true }).selectOption({ label: 'Camila Demo' });
@@ -64,7 +64,7 @@ test('duplicidade e conflito de revisão preservam preenchimento e exigem confer
 
 test('perfil operacional consulta e pesquisa equipes sem cadastro ou edição', async ({ page }) => {
   await loginDemo(page, 'Técnico de segurança');
-  await page.getByRole('link', { name: 'Equipes', exact: true }).click();
+  await openModule(page, 'Equipes');
   await expect(page.getByRole('link', { name: 'Nova equipe', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /^Editar equipe/ })).toHaveCount(0);
   await page.getByLabel('Buscar equipes', { exact: true }).fill('julia');

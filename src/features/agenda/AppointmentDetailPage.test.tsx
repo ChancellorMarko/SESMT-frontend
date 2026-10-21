@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -25,6 +25,52 @@ function show(initialEntry: string | { pathname: string; search?: string; state?
 }
 
 describe('Concorrência ao reagendar', () => {
+  it('exige atribuição interna para confirmar solicitação recebida por convite', async () => {
+    appointment.status = 'REQUESTED'; appointment.availableActions = ['CONFIRM']; appointment.responsibleId = ''; appointment.responsibleName = 'A designar';
+    vi.mocked(api.get).mockImplementation(async path => path === '/permit-options' ? { responsibles: [{ id: 'operator-a', name: 'Operador A' }], teams: [], services: [] } as any : structuredClone(appointment));
+    const user = userEvent.setup(); show();
+    await user.click(await screen.findByRole('button', { name: 'Confirmar agendamento' }));
+    const dialog = within(screen.getByRole('dialog'));
+    await screen.findByRole('option', { name: 'Operador A' });
+    await user.click(dialog.getByRole('button', { name: 'Confirmar agendamento' }));
+    expect(api.post).not.toHaveBeenCalled(); expect(dialog.getByRole('alert')).toHaveTextContent('Selecione um responsável disponível');
+    await user.selectOptions(dialog.getByLabelText('Responsável pelo atendimento *'), 'operator-a');
+    await user.click(dialog.getByRole('button', { name: 'Confirmar agendamento' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/appointment-a/confirm', expect.objectContaining({ responsibleId: 'operator-a' }), { etag: '"4"' }));
+    expect(vi.mocked(api.post).mock.calls.map(call => call[0])).toEqual(['/appointments/appointment-a/confirm']);
+  });
+  it('recusa responsável preservado quando a lista atual não pode ser conferida', async () => {
+    appointment.status = 'REQUESTED'; appointment.availableActions = ['CONFIRM']; appointment.responsibleId = '';
+    vi.mocked(api.get).mockImplementation(async path => { if (path === '/permit-options') throw new Error('Sem conexão'); return structuredClone(appointment); });
+    const user = userEvent.setup(); show();
+    await user.click(await screen.findByRole('button', { name: 'Confirmar agendamento' }));
+    await screen.findByText(/Não foi possível carregar os responsáveis/);
+    expect(screen.getByLabelText('Responsável pelo atendimento *')).toBeDisabled();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar agendamento' }));
+    expect(api.post).not.toHaveBeenCalled();
+  });
+  it('envia o horário operacional ajustado e a observação na confirmação, com a revisão atual', async () => {
+    appointment.status = 'REQUESTED';
+    appointment.availableActions = ['CONFIRM'];
+    const user = userEvent.setup();
+    show();
+    await user.click(await screen.findByRole('button', { name: 'Confirmar agendamento' }));
+    fireEvent.change(screen.getByLabelText('Início confirmado *'), { target: { value: '2026-10-10T08:30' } });
+    fireEvent.change(screen.getByLabelText('Término confirmado *'), { target: { value: '2026-10-10T10:30' } });
+    await user.type(screen.getByLabelText('Observação da confirmação (opcional)'), 'Janela ajustada com a equipe');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar agendamento' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/appointment-a/confirm', { confirmedStartsAt: '2026-10-10T11:30:00.000Z', confirmedEndsAt: '2026-10-10T13:30:00.000Z', note: 'Janela ajustada com a equipe' }, { etag: '"4"' }));
+  });
+  it('recusa confirmação com término anterior ao início antes de enviar à API', async () => {
+    appointment.status = 'REQUESTED';
+    appointment.availableActions = ['CONFIRM'];
+    const user = userEvent.setup(); show();
+    await user.click(await screen.findByRole('button', { name: 'Confirmar agendamento' }));
+    fireEvent.change(screen.getByLabelText('Término confirmado *'), { target: { value: '2026-10-09T13:00' } });
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar agendamento' }));
+    expect(await screen.findByText('Informe um período válido, com término após o início.')).toBeVisible();
+    expect(api.post).not.toHaveBeenCalled();
+  });
   it('mostra todos os serviços retornados no atendimento', async () => {
     appointment.serviceLabel = 'Trabalho a quente + Espaço confinado';
     show();

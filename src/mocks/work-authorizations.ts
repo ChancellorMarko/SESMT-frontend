@@ -180,10 +180,24 @@ export function makeWorkAuthorizationDemo(hooks: AuthorizationDemoHooks) {
       return { appointments };
     }
     if (collection && method === 'GET') {
+      for (const parameter of ['unitId', 'page', 'pageSize', 'q', 'status']) assert(url.searchParams.getAll(parameter).length <= 1, 422, 'VALIDATION_FAILED', 'Envie cada filtro uma única vez.', parameter);
       const status = url.searchParams.get('status');
-      const query = normalized(url.searchParams.get('q') || '');
-      return [...authorizations.values()].filter(value => value.unitId === unitId && visible(value.appointment, context, true) && (!status || value.status === status) && (!query || normalized(`${value.code} ${value.appointment.teamName} ${value.appointment.location} ${value.preparation.identification.activityDescription}`).includes(query)))
-        .filter(value => { try { appointmentById(value.appointment.id, context, true); return true; } catch (error) { if (error instanceof PermitDemoError && error.status === 404) return false; throw error; } }).map(value => response(value, context));
+      assert(!status || ['DRAFT', 'AUTHORIZED', 'SUSPENDED', 'CLOSED', 'CANCELED'].includes(status), 422, 'VALIDATION_FAILED', 'Selecione um estado válido de AT.', 'status');
+      const rawQuery = url.searchParams.get('q') || '';
+      assert(rawQuery.length <= 200, 422, 'VALIDATION_FAILED', 'Use até 200 caracteres na pesquisa de AT.', 'q');
+      const query = normalized(rawQuery);
+      const paginated = url.searchParams.has('page') || url.searchParams.has('pageSize');
+      const rawPage = url.searchParams.get('page') ?? '1', rawSize = url.searchParams.get('pageSize') ?? '10';
+      const page = Number(rawPage), pageSize = Number(rawSize);
+      assert(/^[1-9]\d*$/.test(rawPage) && Number.isSafeInteger(page) && page <= Math.floor(Number.MAX_SAFE_INTEGER / pageSize), 422, 'VALIDATION_FAILED', 'Informe uma página inteira positiva.', 'page');
+      assert(/^[1-9]\d*$/.test(rawSize) && Number.isSafeInteger(pageSize) && pageSize >= 1 && pageSize <= 100, 422, 'VALIDATION_FAILED', 'Informe de 1 a 100 registros por página.', 'pageSize');
+      const items = [...authorizations.values()].filter(value => value.unitId === unitId && visible(value.appointment, context, true))
+        .filter(value => { try { appointmentById(value.appointment.id, context, true); return true; } catch (error) { if (error instanceof PermitDemoError && error.status === 404) return false; throw error; } })
+        .filter(value => (!status || value.status === status) && (!query || normalized(`${value.code} ${value.appointment.code} ${value.appointment.teamName} ${value.appointment.serviceLabel} ${value.appointment.location} ${value.preparation.identification.activityDescription}`).includes(query)))
+        .sort((left, right) => left.code.localeCompare(right.code, 'pt-BR', { numeric: true }) || left.id.localeCompare(right.id));
+      // Compatibility for existing demo consumers; production pagination remains a proposed contract.
+      if (!paginated) return items.map(value => response(value, context));
+      return { items: items.slice((page - 1) * pageSize, page * pageSize).map(value => response(value, context)), page, pageSize, total: items.length };
     }
     if (collection && method === 'POST') {
       const data = await inputBody(request) as unknown as AuthorizationCreateDto;

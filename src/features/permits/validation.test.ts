@@ -14,6 +14,10 @@ describe('regras apresentadas pela PT em campo', () => {
     expect(validateScience('José da Silva', 'José da Silva', true, 'DRAWN', '')).toMatch(/Desenhe/);
     expect(isDrawingRepresentation('data:image/png;base64,aGVsbG8=')).toBe(true);
   });
+  it('admite desenho pessoal dentro do limite de 2 MiB e bloqueia representação acima do limite', () => {
+    expect(isDrawingRepresentation('data:image/png;base64,' + 'A'.repeat(1_100_000))).toBe(true);
+    expect(isDrawingRepresentation('data:image/png;base64,' + 'A'.repeat(2_800_000))).toBe(false);
+  });
   it('permite salvar a pendência justificada e exige resposta nos itens obrigatórios', () => {
     const item = { id: 'item', label: 'Conferência ilustrativa', required: true, answer: null } as const;
     expect(validateChecklist([item])).toMatch(/obrigatórios/);

@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
 
 export type EditorState = { dirty: boolean; busy: boolean };
 
 /** Keeps an open administrative editor intact until a save completes or changes are discarded. */
 export function useEditorProtection({ dirty, busy }: EditorState, onClose: () => void) {
+  useNavigationGuard({ dirty, busy });
   const allowLeave = () => !busy && (!dirty || window.confirm('Descartar as alterações não salvas deste cadastro?'));
   useEffect(() => {
     if (!dirty && !busy) return;

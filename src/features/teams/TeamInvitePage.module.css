@@ -1,0 +1,21 @@
+.page { max-width: 680px; width: 100%; margin: 2rem auto; padding: 1.5rem; overflow-wrap: anywhere; }
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 1rem; }
+.header .logo { width: 190px; }
+.page dl { margin: 0; }
+.page dd { margin: 5px 0 0; }
+.loading { text-align: center; }
+.requestFields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.requestFields > legend { font-weight: 600; padding: 0 0 12px; }
+.choices { display: grid; gap: 16px; margin: 0; padding: 16px; border: 1px solid var(--border); border-radius:6px; min-width: 0; }
+.choices legend { font-weight: 600; padding: 0 6px; }
+.checkChoice { display: flex; align-items: flex-start; gap: 10px; min-width: 0; line-height: 1.5; cursor: pointer; }
+.checkChoice input[type='checkbox'] { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 3px; }
+.checkChoice small { display: block; font-size: 0.8rem; margin-top: 4px; }
+.requestCard { border: 1px solid var(--border); border-radius:6px; padding: 16px; }
+.requestCard h3, .requestCard p { margin: 0; }
+.requestCard h3 { font-size: 15px; font-weight: 600; }
+@media (max-width: 520px) {
+  .page { padding: 16px; margin: 1rem auto; }
+  .page :global(.feedback) > div { flex-wrap: wrap; }
+  .page :global(.feedback) svg { flex-shrink: 0; }
+}

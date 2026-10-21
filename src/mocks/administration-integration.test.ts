@@ -23,6 +23,38 @@ afterEach(() => { vi.restoreAllMocks(); server.resetHandlers(); resetDemo(); });
 beforeEach(async () => { resetDemo(); await login(); });
 
 describe('gestão de usuários e organização na demonstração', () => {
+  it('recusa campos controlados e vínculos inválidos sem alterar o cadastro', async () => {
+    const before = await (await send('GET', '/organization')).json() as OrganizationDto;
+    for (const body of [{ id: id(999) }, { revision: 80 }, { status: 'UNKNOWN' }, { name: 'Não aplicar', companyId: id(999) }, null, []]) {
+      expect((await send('PATCH', `/jobs/${id(8)}`, body, { revision: 1 })).status).toBe(422);
+    }
+    expect(await (await send('GET', '/organization')).json()).toEqual(before);
+  });
+
+  it('protege os filhos organizacionais ao inativar ou mudar o vínculo de um pai', async () => {
+    const before = await (await send('GET', '/organization')).json() as OrganizationDto;
+    expect((await send('PATCH', `/establishments/${id(4)}`, { status: 'INACTIVE' }, { revision: 1 })).status).toBe(409);
+    expect((await send('PATCH', `/sectors/${id(5)}`, { unitId: UNIT_B }, { revision: 1 })).status).toBe(409);
+    expect(await (await send('GET', '/organization')).json()).toEqual(before);
+  });
+
+  it('reconfirma a revisão em alterações organizacionais simultâneas', async () => {
+    const responses = await Promise.all([
+      send('PATCH', `/jobs/${id(8)}`, { name: 'Primeiro nome' }, { revision: 1 }),
+      send('PATCH', `/jobs/${id(8)}`, { name: 'Segundo nome' }, { revision: 1 }),
+    ]);
+    expect(responses.map(response => response.status).sort()).toEqual([200, 412]);
+    const organization = await (await send('GET', '/organization')).json() as OrganizationDto;
+    expect(organization.jobs.find(item => item.id === id(8))?.revision).toBe(2);
+  });
+
+  it('remove código opcional com null e mantém os campos históricos restantes', async () => {
+    expect((await send('PATCH', `/units/${UNIT_A}`, { code: null }, { revision: 1 })).status).toBe(200);
+    const organization = await (await send('GET', '/organization')).json() as OrganizationDto;
+    const unit = organization.units.find(item => item.id === UNIT_A)!;
+    expect(unit).not.toHaveProperty('code');
+    expect(unit).toMatchObject({ name: 'Unidade Matriz', companyId: COMPANY, establishmentId: id(4), revision: 2 });
+  });
   it('combina unidade e busca de nome/e-mail antes de paginar usuários', async () => {
     const matching = await (await send('GET', `/users?unitId=${UNIT_A}&q=CAMILA`)).json() as PageDto<UserDto>;
     expect(matching.items.map(user => user.id)).toEqual([id(24)]); expect(matching.total).toBe(1);
@@ -86,7 +118,7 @@ describe('gestão de usuários e organização na demonstração', () => {
   });
 
   it('um e-mail existente não recebe segundo convite por variação de maiúsculas', async () => {
-    const result = await send('POST', '/users', { displayName: 'Duplicado', email: 'ADMIN@demo.sesmt.local', roles: ['HR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_A], sectorIds: [], teamIds: [], ownOnly: false } });
+    const result = await send('POST', '/users', { displayName: 'Duplicado', email: 'ADMIN@demo.sesmt.local', roles: ['HR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_A], sectorIds: [id(5)], teamIds: [], ownOnly: false } });
     expect(result.status).toBe(409); expect(await result.json()).toMatchObject({ code: 'EMAIL_IN_USE' });
   });
 });

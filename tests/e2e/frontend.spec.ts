@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { createDocument, loginDemo, logout, navigateWithinApp, publish, reviewAndApprove, uploadVersion } from './helpers';
+import { openModule, createDocument, loginDemo, logout, navigateWithinApp, publish, reviewAndApprove, uploadVersion } from './helpers';
 
 test('gestor acessa painel e combina busca com filtros documentais', async ({ page }) => {
   await loginDemo(page);
   await expect(page.getByRole('heading', { name: 'Visão geral', exact: true })).toBeVisible();
   await expect(page.getByText('Dados fictícios em memória.', { exact: false })).toBeVisible();
-  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await openModule(page, 'Documentos');
   await expect(page.getByRole('heading', { name: 'Documentos', exact: true })).toBeVisible();
   await page.getByLabel('Buscar por título ou código', { exact: true }).fill('PROC-2026-001');
   await page.getByRole('combobox', { name: 'Situação', exact: true }).selectOption('IN_REVIEW');
@@ -15,6 +15,7 @@ test('gestor acessa painel e combina busca com filtros documentais', async ({ pa
   await page.getByRole('combobox', { name: 'Situação', exact: true }).selectOption('ACTIVE');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Nenhum documento encontrado' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mais filtros', exact: true }).click();
   await page.getByLabel('Vencimento a partir de', { exact: true }).fill('2030-12-31');
   await page.getByLabel('Vencimento até', { exact: true }).fill('2030-01-01');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
@@ -31,11 +32,11 @@ test('procedimento percorre revisão, aprovação e duas publicações sem perde
   await publish(page);
   await uploadVersion(page, 'Atualização de procedimento com preservação da anterior.');
   await expect(page.getByText('A versão em trabalho ainda não substituiu a versão vigente.')).toBeVisible();
-  await expect(page.getByRole('row').filter({ hasText: 'v1 · vigente' })).toBeVisible();
+  await expect(page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Consultar v1', exact: true }) })).toContainText('Versão vigente');
   await reviewAndApprove(page);
   await publish(page);
   await expect(page.getByRole('row').filter({ hasText: 'v1' }).getByText('Substituído', { exact: true })).toBeVisible();
-  await expect(page.getByRole('row').filter({ hasText: 'v2 · vigente' })).toBeVisible();
+  await expect(page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Consultar v2', exact: true }) })).toContainText('Versão vigente');
   const history = page.getByRole('region', { name: 'Histórico do documento' });
   await expect(history.getByRole('listitem')).not.toHaveCount(0);
   await expect(page.getByText('Atualização de procedimento com preservação da anterior.', { exact: true }).first()).toBeVisible();
@@ -66,7 +67,7 @@ test('PGR não permite autoaprovação quando a política exige separação de r
 
 test('RH consulta sem aprovação, administrador confirma MFA e auditor não abre formulário de escrita', async ({ page }) => {
   await loginDemo(page, 'RH');
-  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await openModule(page, 'Documentos');
   await expect(page.getByRole('link', { name: 'Novo documento', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Procedimento de trabalho seguro (demo)', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Versão 1', exact: true })).toBeVisible();
@@ -81,7 +82,9 @@ test('RH consulta sem aprovação, administrador confirma MFA e auditor não abr
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel('Código de verificação', { exact: true }).fill('123456');
   await page.getByRole('button', { name: 'Verificar e entrar', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Usuários e acessos', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('link', { name: 'Usuários e acessos', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   await logout(page);
   await page.getByRole('button', { name: 'Auditor', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/dashboard$/);
@@ -89,7 +92,7 @@ test('RH consulta sem aprovação, administrador confirma MFA e auditor não abr
   await expect(page.getByRole('heading', { name: 'Esta área precisa de autorização.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Criar documento', exact: true })).toHaveCount(0);
   await logout(page);
-  await expect(page.getByRole('heading', { name: 'Sua rotina, organizada.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entrar na sua conta' })).toBeVisible();
 });
 
 test('mobile mantém conteúdo sem overflow e navegação/modal restauram foco pelo teclado', async ({ page }) => {

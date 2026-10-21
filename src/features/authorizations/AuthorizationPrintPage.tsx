@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { Printer } from 'lucide-react';
 import { api, API_MODE } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -8,6 +8,7 @@ import { BrandLogo } from '../../shared/brand/BrandLogo';
 import type { WorkAuthorizationDto, AuthorizationRepresentationsDto } from '../../shared/contracts/work-authorizations';
 import type { EligibilityDto, PermitSourceCheckDto } from '../../shared/contracts/work-permits';
 import { formatDate } from '../../shared/lib/format';
+import { preparationOrigin } from '../../shared/lib/preparation-navigation';
 import { Button, EmptyState, Feedback, PageHeader, Spinner } from '../../shared/ui';
 import { isDrawingRepresentation } from '../permits/validation';
 import { AT_CONTROLS, AT_REVALIDATION_CAPACITY, authorizationAnswerLabel } from './model';
@@ -29,24 +30,27 @@ export function AuthorizationPrintPage() {
   const { id } = useParams();
   const { sessionKey, unitId, can } = useSession();
   const now = useAuthorizationClock();
+  const location = useLocation();
+  const listNavigation = preparationOrigin(location.state, unitId, 'ats');
   const query = useQuery({ queryKey: authorizationKey(sessionKey, unitId, id), queryFn: ({ signal }) => api.get<WorkAuthorizationDto>(`/work-authorizations/${id}`, { signal, query: { unitId } }), enabled: can('at.read') && Boolean(unitId && id) });
   const record = query.data;
+  const titleAllowed = can('at.read') && !query.isError && record?.id === id && record?.unitId === unitId && record?.appointment.unitId === unitId;
   useEffect(() => {
-    if (!record) return;
+    if (!record || !titleAllowed) return;
     const previous = document.title; document.title = `${record.code} — revisão ${record.revision} — Ampara SESMT`;
     return () => { document.title = previous; };
-  }, [record?.code, record?.revision]);
+  }, [record?.code, record?.revision, titleAllowed]);
   if (!can('at.read')) return <EmptyState title="Acesso restrito" description="Seu perfil não pode consultar esta AT." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" />;
   if (query.isPending) return <Spinner />;
   if (query.isError || !record) return <div className="panel stack"><Feedback tone="danger">{authorizationError(query.error)}</Feedback><Button onClick={() => void query.refetch()}>Tentar novamente</Button></div>;
-  if (record.unitId !== unitId) return <EmptyState title="AT de outra unidade" description="Selecione a unidade do atendimento para visualizar este registro." />;
+  if (record.id !== id || record.unitId !== unitId || record.appointment.unitId !== unitId) return <EmptyState title="AT de outra unidade" description="Selecione a unidade do atendimento para visualizar este registro." />;
   const foreman = record.appointment.participants.find(person => person.workerId === record.preparation.foremanId);
   const windowNotice = authorizationWindowNotice(record, now);
   const label = `${record.code} · revisão ${record.revision} · ${authorizationLabels[record.status]}${API_MODE === 'demo' ? ' · DEMONSTRAÇÃO · SEM VALIDADE OPERACIONAL' : ''}`;
   return <div className={`stack ${styles.page}`}>
     <style media="print">{`@page { @bottom-center { content: ${JSON.stringify(label)} " · Página " counter(page) " de " counter(pages); font: 7pt Arial, sans-serif; color: #596c63; } }`}</style>
-    <div className={styles.toolbar}><PageHeader eyebrow="Registro da autorização" title="Visualização e impressão da AT" description="Confira as janelas e o estado do registro antes de imprimir ou salvar em PDF." actions={<><Link className="button button--secondary" to={`/app/ats/${id}`}>Voltar à AT</Link><Button onClick={() => window.print()}><Printer size={16} aria-hidden="true" /> Imprimir / salvar PDF</Button></>} /></div>
+    <div className={styles.toolbar}><PageHeader eyebrow="Registro da autorização" title="Visualização e impressão da AT" description="Confira as janelas e o estado do registro antes de imprimir ou salvar em PDF." actions={<><Link className="button button--secondary" to={`/app/ats/${id}`} state={listNavigation}>Voltar à AT</Link><Button onClick={() => window.print()}><Printer size={16} aria-hidden="true" /> Imprimir / salvar PDF</Button></>} /></div>
     <article className={styles.paper} aria-label="Registro imprimível da AT" data-print-record>
       <header className={styles.documentHeader}><div><BrandLogo className={styles.documentBrand} /><p className={styles.kicker}>AMPARA SESMT · AUTORIZAÇÃO DE TRABALHO</p><h1>{record.code}</h1><p>Revisão do registro {record.revision} · {record.sourceId} · revisão de origem {record.sourceRevision}</p></div><strong className={styles.status}>{authorizationLabels[record.status]}</strong></header>
       {API_MODE === 'demo' && <p className={styles.demo}>DEMONSTRAÇÃO · DADOS FICTÍCIOS · SEM VALIDADE OPERACIONAL</p>}

@@ -10,22 +10,42 @@ export function PageHeader({ eyebrow = 'GESTÃO DOCUMENTAL', title, description,
 }
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) { return <span className={`badge badge--${tone}`}>{children}</span>; }
-export function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
-  const generatedId=useId(); let controlId:string|undefined;
-  type ControlProps={id?:string;children?:ReactNode;'aria-invalid'?:boolean|'true'|'false'|'grammar'|'spelling';'aria-describedby'?:string};
-  function connect(node:ReactNode):ReactNode {
-    if(controlId || !isValidElement(node) || typeof node.type!=='string') return node;
-    const element=node as ReactElement<ControlProps>;
-    if(['input','select','textarea'].includes(node.type)) {
-      controlId=element.props.id || generatedId;
-      const description=[element.props['aria-describedby'],error?`${generatedId}-error`:undefined].filter(Boolean).join(' ') || undefined;
-      return cloneElement(element,{id:controlId,'aria-invalid':error?true:element.props['aria-invalid'],'aria-describedby':description});
+export function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: ReactNode }) {
+  const generatedId = useId();
+  const markedRequired = label.trimEnd().endsWith('*');
+  let controlId: string | undefined;
+  let isRequired = required ?? markedRequired;
+  let needsRequiredDescription = false;
+  type ControlProps = { id?: string; children?: ReactNode; type?: string; required?: boolean; 'aria-required'?: boolean | 'true' | 'false'; 'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling'; 'aria-describedby'?: string };
+  function connect(node: ReactNode): ReactNode {
+    if (controlId || !isValidElement(node) || typeof node.type !== 'string') return node;
+    const element = node as ReactElement<ControlProps>;
+    if (['input', 'select', 'textarea'].includes(node.type)) {
+      const type = (element.props.type || 'text').toLowerCase();
+      if (node.type === 'input' && ['hidden', 'button', 'submit', 'reset', 'image'].includes(type)) return node;
+      controlId = element.props.id || generatedId;
+      const explicitRequired = element.props['aria-required'];
+      isRequired = explicitRequired !== undefined ? explicitRequired === true || explicitRequired === 'true' : Boolean(element.props.required || isRequired);
+      const supportsRequired = node.type !== 'input' || !['file', 'range', 'color', 'radio'].includes(type);
+      needsRequiredDescription = isRequired && !supportsRequired;
+      const descriptions = [element.props['aria-describedby'], needsRequiredDescription ? `${generatedId}-required` : undefined, error ? `${generatedId}-error` : undefined]
+        .filter(Boolean).join(' ').split(/\s+/).filter(Boolean);
+      // Describe existing requirements without adding native constraints to draft forms.
+      return cloneElement(element, {
+        id: controlId,
+        'aria-required': explicitRequired ?? (isRequired && supportsRequired ? true : undefined),
+        'aria-invalid': error ? true : element.props['aria-invalid'],
+        'aria-describedby': [...new Set(descriptions)].join(' ') || undefined,
+      });
     }
-    return element.props.children ? cloneElement(element,{children:Children.map(element.props.children,connect)}) : element;
+    return element.props.children ? cloneElement(element, { children: Children.map(element.props.children, connect) }) : element;
   }
-  const content=Children.map(children,connect);
-  const message=error && <span className="field-error" id={`${generatedId}-error`} role="alert">{error}</span>;
-  return controlId ? <div className="field"><label htmlFor={controlId}>{label}</label>{content}{message}</div> : <label className="field"><span>{label}</span>{content}{message}</label>;
+  const content = Children.map(children, connect);
+  const indicator = isRequired && !markedRequired && <span aria-hidden="true"> *</span>;
+  const caption = <label htmlFor={controlId}>{label}</label>;
+  const requirement = needsRequiredDescription && <small className="muted small" id={`${generatedId}-required`}>Campo obrigatório.</small>;
+  const message = error && <span className="field-error" id={`${generatedId}-error`} role="alert">{error}</span>;
+  return controlId ? <div className="field">{indicator ? <span>{caption}{indicator}</span> : caption}{content}{requirement}{message}</div> : <label className="field"><span>{label}</span>{content}{message}</label>;
 }
 export function Feedback({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) { return <div className={`feedback feedback--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>{children}</div>; }
 export function EmptyState({ title, description }: { title: string; description?: string }) { return <div className="empty-state"><Inbox size={32} aria-hidden="true" /><h3>{title}</h3>{description && <p className="muted">{description}</p>}</div>; }
@@ -72,8 +92,8 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
       if(!modalLayers.length) document.body.style.overflow=unlockedOverflow;
       if(wasTop) {
         const top=modalLayers.at(-1);
-        if(layer.previous?.isConnected && (!top || top.dialog.current?.contains(layer.previous))) layer.previous.focus();
-        else top?.dialog.current?.focus();
+        if(layer.previous?.isConnected && (!top || top.dialog.current?.contains(layer.previous))) layer.previous.focus({ preventScroll: true });
+        else top?.dialog.current?.focus({ preventScroll: true });
       }
     };
   }, [open]);

@@ -1,0 +1,12 @@
+.root{min-width:0;display:grid;align-content:start;gap:8px}
+.root p{margin:0}
+.tools{display:grid;gap:6px;min-width:0}
+.search{display:flex;gap:6px;min-width:0;flex-wrap:wrap}
+.search input{flex:1 1 130px;min-width:0}
+.pagination{display:grid;gap:4px}
+.buttons{display:flex;flex-wrap:wrap;gap:4px}
+.selected{display:grid;gap:6px;min-width:0}
+.selection{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;overflow-wrap:anywhere;min-width:0}
+.selection span{min-width:0}
+.selection button{flex-shrink:0}
+@media(max-width:520px){.search{flex-direction:column}.search input{flex:auto}}

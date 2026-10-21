@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { AlertTriangle, ShieldCheck, UserCheck } from 'lucide-react';
@@ -15,6 +16,7 @@ export interface DesignationCoveragePanelProps {
   atDate?: string;
   responsibleId?: string;
   title?: string;
+  sectionId?: string;
 }
 
 export function DesignationCoveragePanel({
@@ -24,11 +26,14 @@ export function DesignationCoveragePanel({
   atDate,
   responsibleId,
   title = 'Cobertura por designações operacionais',
+  sectionId,
 }: DesignationCoveragePanelProps) {
   const { sessionKey, can } = useSession();
+  const titleId = useId();
+  const canRead = can('permits.read') || can('appointments.read');
 
   const query = useQuery({
-    queryKey: ['designation-coverage', sessionKey, unitId, serviceTypeIds.sort().join(','), location, atDate, responsibleId],
+    queryKey: ['designation-coverage', sessionKey, unitId, [...serviceTypeIds].sort().join(','), location, atDate, responsibleId],
     queryFn: ({ signal }) => api.get<DesignationCoverageDto>('/designation-coverage', {
       signal,
       query: {
@@ -39,26 +44,28 @@ export function DesignationCoveragePanel({
         ...(responsibleId ? { responsibleId } : {}),
       },
     }),
-    enabled: Boolean(unitId) && serviceTypeIds.length > 0 && can('permits.read'),
+    enabled: Boolean(unitId) && serviceTypeIds.length > 0 && canRead,
   });
 
-  if (!serviceTypeIds.length) return null;
-  if (query.isPending) return <div className="panel stack" aria-label="Carregando cobertura"><Spinner /></div>;
+  if (!serviceTypeIds.length || !unitId || !canRead) return sectionId ? <section id={sectionId} className="panel stack" aria-labelledby={titleId}><h2 id={titleId}>{title}</h2><p className="muted">A cobertura não está disponível para consulta neste contexto.</p></section> : null;
+  if (query.isPending) return <section id={sectionId} className="panel stack" aria-label="Carregando cobertura"><h2 id={titleId}>{title}</h2><Spinner /></section>;
   if (query.isError) {
     return (
-      <div className="panel stack" aria-label="Erro de cobertura">
+      <section id={sectionId} className="panel stack" aria-label="Erro de cobertura">
+        <h2 id={titleId}>{title}</h2>
         <Feedback tone="warning">
           Não foi possível verificar a cobertura de designações operacionais para este atendimento.
         </Feedback>
-      </div>
+      </section>
     );
   }
 
   const coverage = query.data;
-  if (!coverage || !Array.isArray(coverage.items)) return null;
+  if (!coverage || !Array.isArray(coverage.items)) return sectionId ? <section id={sectionId} className="panel stack" aria-labelledby={titleId}><h2 id={titleId}>{title}</h2><Feedback tone="warning">Não foi possível conferir a resposta de cobertura. Atualize a consulta antes de continuar.</Feedback></section> : null;
+  if (coverage.unitId !== unitId) return <section id={sectionId} className="panel stack" aria-labelledby={titleId}><h2 id={titleId}>{title}</h2><Feedback tone="warning">A cobertura retornada pertence a outra unidade. Atualize a consulta antes de continuar.</Feedback></section>;
 
   return (
-    <section className="panel stack" aria-labelledby="coverage-panel-title">
+    <section id={sectionId} className="panel stack" aria-labelledby={titleId}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {coverage.fullyCovered ? (
@@ -66,7 +73,7 @@ export function DesignationCoveragePanel({
           ) : (
             <AlertTriangle size={20} style={{ color: 'var(--color-danger, #dc2626)' }} aria-hidden="true" />
           )}
-          <h2 id="coverage-panel-title" style={{ margin: 0, fontSize: 16 }}>{title}</h2>
+          <h2 id={titleId} style={{ margin: 0, fontSize: 16 }}>{title}</h2>
         </div>
         <Badge tone={coverage.fullyCovered ? 'success' : 'danger'}>
           {coverage.fullyCovered ? 'Cobertura completa' : 'Bloqueio de designação'}
@@ -111,11 +118,11 @@ export function DesignationCoveragePanel({
         ))}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-        <Link to="/app/designacoes" className="button button--ghost" style={{ fontSize: 12 }}>
+      {can('appointments.read') && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+        <Link to="/app/designacoes" className="button button--ghost">
           Consultar todas as designações →
         </Link>
-      </div>
+      </div>}
     </section>
   );
 }

@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { AppointmentDto, WorkPermitDto } from '../../shared/contracts/work-permits';
-import { formatDate } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
-import { appointmentInstant, appointmentLabels, appointmentLocal, errorMessage } from './support';
+import type { AppointmentDto, PermitOptionsDto, WorkPermitDto } from '../../shared/contracts/work-permits';
+import { Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { appointmentInstant, appointmentLocal, errorMessage } from './support';
 import { EligibilityPanel } from './EligibilityPanel';
-import styles from './Agenda.module.css';
+import { AppointmentHistory, AppointmentSummary } from './AppointmentOverview';
+import { readinessReturnPath } from '../requirements/readiness-navigation';
+import { agendaReturnSearch, permitAgendaNavigation } from './permit-agenda-navigation';
 
 type Action = 'CONFIRM' | 'RESCHEDULE' | 'CANCEL' | 'OPEN_PERMIT';
 const actionTitles: Record<Action, string> = { CONFIRM: 'Confirmar agendamento', RESCHEDULE: 'Reagendar serviço', CANCEL: 'Cancelar agendamento', OPEN_PERMIT: 'Abrir atendimento em campo' };
-const eventLabels: Record<string, string> = { CREATED: 'Agendamento solicitado', APPOINTMENT_CREATED: 'Agendamento solicitado', APPOINTMENT_REQUESTED: 'Agendamento solicitado', CONFIRMED: 'Agendamento confirmado', CONFIRM: 'Agendamento confirmado', APPOINTMENT_CONFIRMED: 'Agendamento confirmado', RESCHEDULED: 'Serviço reagendado', RESCHEDULE: 'Serviço reagendado', APPOINTMENT_RESCHEDULED: 'Serviço reagendado', CANCELED: 'Agendamento cancelado', CANCEL: 'Agendamento cancelado', APPOINTMENT_CANCELED: 'Agendamento cancelado', ATTENDANCE_OPENED: 'Atendimento aberto em campo', OPEN_PERMIT: 'Atendimento aberto em campo', EVIDENCE_UPLOADED: 'Evidência enviada', EVIDENCE_SUBMITTED: 'Evidência enviada', EVIDENCE_REVIEWED: 'Conferência documental registrada' };
 
 export function AppointmentDetailPage() {
   const { id } = useParams();
@@ -25,6 +26,8 @@ export function AppointmentDetailPage() {
   const [reason, setReason] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [responsibleId, setResponsibleId] = useState('');
+  const initialDraft = useRef<{ start: string; end: string; responsibleId: string } | undefined>(undefined);
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [writeConflict, setWriteConflict] = useState(false);
@@ -33,10 +36,14 @@ export function AppointmentDetailPage() {
   const [success, setSuccess] = useState((location.state as { success?: string } | null)?.success || '');
   const queryKey = ['appointment', sessionKey, unitId, id];
   const appointment = useQuery({ queryKey, queryFn: ({ signal }) => api.get<AppointmentDto>(`/appointments/${id}`, { signal }), enabled: can('appointments.read') && Boolean(id && unitId) });
+  const needsResponsible = action === 'CONFIRM' && Boolean(appointment.data && !appointment.data.responsibleId);
+  const options = useQuery({ queryKey: ['permit-options', sessionKey, unitId], queryFn: ({ signal }) => api.get<PermitOptionsDto>('/permit-options', { query: { unitId }, signal }), enabled: needsResponsible && can('appointments.write') && Boolean(unitId) });
   const busy = sending || refreshing;
+  useNavigationGuard({ dirty: Boolean(action), busy });
   const conflict = writeConflict || Boolean(action && actionRevision !== appointment.data?.revision);
   const hasAction = (value: Action) => Boolean(appointment.data && appointment.data.unitId === unitId && appointment.data.availableActions.includes(value) && can(value === 'OPEN_PERMIT' ? 'permits.operate' : 'appointments.write'));
   useEffect(() => {
+    initialDraft.current = undefined;
     setAction(undefined); setActionRevision(undefined); setReason(''); setFailure(''); setActionNotice(''); setWriteConflict(false);
   }, [id, sessionKey, unitId]);
   useEffect(() => { setSuccess((location.state as { success?: string } | null)?.success || ''); }, [location.key]);
@@ -62,9 +69,18 @@ export function AppointmentDetailPage() {
   function select(value: Action) {
     if (busy || !hasAction(value) || !appointment.data) return;
     setAction(value); setActionRevision(appointment.data.revision); setReason(''); setFailure(''); setActionNotice(''); setWriteConflict(false);
-    setStart(appointmentLocal(appointment.data.startsAt)); setEnd(appointmentLocal(appointment.data.endsAt));
+    const start = appointmentLocal(appointment.data.startsAt), end = appointmentLocal(appointment.data.endsAt);
+    initialDraft.current = { start, end, responsibleId: appointment.data.responsibleId };
+    setStart(start); setEnd(end);
+    setResponsibleId(appointment.data.responsibleId);
   }
-  function close() { if (!busy) { setAction(undefined); setActionRevision(undefined); } }
+  function close() {
+    if (busy) return;
+    const initial = initialDraft.current;
+    const changed = initial && (reason !== '' || start !== initial.start || end !== initial.end || responsibleId !== initial.responsibleId);
+    if (changed && !window.confirm('Há alterações nesta ação ainda não enviadas. Deseja descartar o preenchimento e fechar?')) return;
+    initialDraft.current = undefined; setAction(undefined); setActionRevision(undefined);
+  }
   async function refreshCurrent() {
     if (busy) return;
     setRefreshing(true); setFailure('');
@@ -82,16 +98,17 @@ export function AppointmentDetailPage() {
     setFailure(''); setSuccess('');
     if ((action === 'CANCEL' || action === 'RESCHEDULE') && !reason.trim()) { setFailure('Informe o motivo para preservar o histórico do atendimento.'); return; }
     const startsAt = appointmentInstant(start), endsAt = appointmentInstant(end);
-    if (action === 'RESCHEDULE' && (!startsAt || !endsAt || startsAt >= endsAt)) { setFailure('Informe um período válido, com término após o início.'); return; }
+    if ((action === 'RESCHEDULE' || action === 'CONFIRM') && (!startsAt || !endsAt || startsAt >= endsAt)) { setFailure('Informe um período válido, com término após o início.'); return; }
+    if (needsResponsible && (options.isFetching || options.isError || !options.data?.responsibles.some(person => person.id === responsibleId))) { setFailure('Selecione um responsável disponível para confirmar o atendimento.'); return; }
     setSending(true);
     try {
       const path: Record<Action, string> = { CONFIRM: 'confirm', RESCHEDULE: 'reschedule', CANCEL: 'cancel', OPEN_PERMIT: 'open-permit' };
-      const body = action === 'CANCEL' ? { reason: reason.trim() } : action === 'RESCHEDULE' ? { startsAt, endsAt, reason: reason.trim() } : {};
+      const body = action === 'CANCEL' ? { reason: reason.trim() } : action === 'RESCHEDULE' ? { startsAt, endsAt, reason: reason.trim() } : action === 'CONFIRM' ? { confirmedStartsAt: startsAt, confirmedEndsAt: endsAt, note: reason.trim(), ...(needsResponsible ? { responsibleId } : {}) } : {};
       const result = await api.post<AppointmentDto | WorkPermitDto>(`/appointments/${current.id}/${path[action]}`, body, { etag: revisionEtag(actionRevision) });
       await Promise.all(['appointment', 'appointments', 'eligibility', 'work-permits', 'permit-dashboard', 'documentary-readiness', 'work-authorizations', 'work-authorization', 'authorization-options'].map(key => client.invalidateQueries({ queryKey: [key] })));
       setAction(undefined);
       setActionRevision(undefined);
-      if (action === 'OPEN_PERMIT') navigate(`/app/pts/${result.id}`);
+      if (action === 'OPEN_PERMIT') navigate(`/app/pts/${encodeURIComponent(result.id)}`, { state: permitOrigin(result.id, current.id) });
       else setSuccess(action === 'CONFIRM' ? 'Agendamento confirmado.' : action === 'RESCHEDULE' ? 'Novo período registrado no histórico.' : 'Agendamento cancelado.');
     } catch (error) {
       const status = (error as { status?: number })?.status;
@@ -100,82 +117,53 @@ export function AppointmentDetailPage() {
     }
     finally { setSending(false); }
   }
+  const fromSearch = (location.state as { fromSearch?: string } | null)?.fromSearch;
+  let storedSearch = '';
+  try { if (unitId) storedSearch = window.sessionStorage.getItem(`agenda_filters_${unitId}`) || ''; } catch { /* The direct return link still works with storage disabled. */ }
+  const readinessTarget = can('eligibility.read') ? readinessReturnPath(location.state, unitId) : undefined;
+  const returnSearch = agendaReturnSearch(fromSearch, unitId) ?? agendaReturnSearch(storedSearch ? `?${storedSearch}` : '', unitId) ?? '';
+  const backTarget = readinessTarget ?? `/app/agenda${returnSearch}`;
+  const backLabel = readinessTarget ? 'Voltar às pendências' : 'Voltar à agenda';
+  function permitOrigin(permitId: string, appointmentId: string) {
+    return permitAgendaNavigation({ permitAgendaReturnTo: {
+      permitId, appointmentId, unitId, sessionKey, source: 'appointment', search: returnSearch,
+      ...(readinessTarget ? { readinessReturnTo: { unitId, search: readinessTarget.slice('/app/pendencias'.length) } } : {}),
+    } }, sessionKey, unitId, permitId, can('appointments.read'), can('eligibility.read'), appointmentId);
+  }
+
   if (!can('appointments.read')) return <EmptyState title="Acesso restrito" description="Seu perfil não possui acesso a este atendimento." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade para consultar este atendimento." />;
   if (appointment.isPending) return <Spinner />;
-  if (appointment.isError) return <div className="panel stack"><Feedback tone="danger">{errorMessage(appointment.error)}</Feedback><Button variant="secondary" onClick={() => void appointment.refetch()}>Tentar novamente</Button><Link to="/app/agenda">Voltar à agenda</Link></div>;
-  if (!appointment.data || appointment.data.unitId !== unitId) return <EmptyState title="Atendimento indisponível nesta unidade" description="Consulte a agenda da unidade selecionada." />;
+  if (appointment.isError) return <div className="panel stack"><Feedback tone="danger">{errorMessage(appointment.error)}</Feedback><Button variant="secondary" onClick={() => void appointment.refetch()}>Tentar novamente</Button><Link to={backTarget}>{backLabel}</Link></div>;
+  if (!appointment.data || appointment.data.unitId !== unitId) return <div className="panel stack"><EmptyState title="Atendimento indisponível nesta unidade" description="Consulte a agenda da unidade selecionada." /><Link to={backTarget}>{backLabel}</Link></div>;
   const data = appointment.data;
-  const fromSearch = (location.state as { fromSearch?: string } | null)?.fromSearch;
-  const backTarget = fromSearch !== undefined
-    ? `/app/agenda${fromSearch}`
-    : typeof window !== 'undefined' && unitId && window.sessionStorage?.getItem(`agenda_filters_${unitId}`)
-      ? `/app/agenda?${window.sessionStorage.getItem(`agenda_filters_${unitId}`)}`
-      : '/app/agenda';
-
-  const requestedPeriod = data.requestedStartsAt && data.requestedEndsAt
-    ? `${formatDate(data.requestedStartsAt)} até ${formatDate(data.requestedEndsAt)}`
-    : `${formatDate(data.startsAt)} até ${formatDate(data.endsAt)}`;
-  const confirmedPeriod = data.confirmedStartsAt && data.confirmedEndsAt
-    ? `${formatDate(data.confirmedStartsAt)} até ${formatDate(data.confirmedEndsAt)}`
-    : data.status !== 'REQUESTED' && data.status !== 'CANCELED'
-      ? `${formatDate(data.startsAt)} até ${formatDate(data.endsAt)}`
-      : undefined;
-  const hasTimeAdjustment = Boolean(
-    confirmedPeriod &&
-    data.requestedStartsAt &&
-    data.confirmedStartsAt &&
-    (data.requestedStartsAt !== data.confirmedStartsAt || data.requestedEndsAt !== data.confirmedEndsAt)
-  );
-
-  return <div className="stack">
-    <PageHeader eyebrow={data.code} title={data.serviceLabel} description={`${data.teamName} · ${data.location}`} actions={<Link className="button button--secondary" to={backTarget}>Voltar à agenda</Link>} />
+  return <div className="stack [&_.page-header_h1]:[overflow-wrap:anywhere] [&_.page-description]:[overflow-wrap:anywhere]">
+    <PageHeader eyebrow={data.code} title={data.serviceLabel} description={`${data.teamName} · ${data.location}`} actions={<Link className="button button--secondary" to={backTarget}>{backLabel}</Link>} />
       {success && <Feedback tone="success">{success}</Feedback>}
-      <div className={styles.detailColumns}>
-        <section className="panel stack"><div className={styles.sectionHead}><h2>Dados do atendimento</h2><Badge tone={data.status === 'CANCELED' ? 'neutral' : data.status === 'REQUESTED' ? 'warning' : 'success'}>{appointmentLabels[data.status]}</Badge></div>
-          <div className={styles.timeSection}>
-            <div className={styles.timeBox}>
-              <span className={styles.timeLabel}>Horário solicitado pela equipe</span>
-              <strong className={styles.timeValue}>{requestedPeriod}</strong>
-            </div>
-            <div className={styles.timeBox}>
-              <span className={styles.timeLabel}>Horário operacional confirmado</span>
-              {confirmedPeriod ? (
-                <div className={styles.confirmedValueRow}>
-                  <strong className={styles.timeValue}>{confirmedPeriod}</strong>
-                  {hasTimeAdjustment && <Badge tone="neutral">Ajustado na confirmação</Badge>}
-                </div>
-              ) : (
-                <span className="muted">{data.status === 'CANCELED' ? 'Agendamento cancelado' : 'Aguardando confirmação operacional'}</span>
-              )}
-            </div>
-          </div>
-          <dl className={styles.metadata}>
-            <div><dt>Equipe</dt><dd>{data.teamName}</dd></div>
-            <div><dt>Responsável pelo atendimento</dt><dd>{data.responsibleName}</dd></div>
-            <div><dt>Local do serviço</dt><dd>{data.location}</dd></div>
-            <div><dt>Participantes</dt><dd>{data.participants.length} pessoa(s)</dd></div>
-          </dl>
-          <dl className={styles.metadata}><div className={styles.wide}><dt>Serviços agendados</dt><dd>{data.serviceLabel}</dd></div></dl>
-          {data.notes && <div><h3>Observações</h3><p className="muted">{data.notes}</p></div>}
-          <div className="actions">
-            {hasAction('CONFIRM') && <Button disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>}
-            {hasAction('RESCHEDULE') && <Button disabled={busy} variant="secondary" onClick={() => select('RESCHEDULE')}>Reagendar</Button>}
-            {hasAction('CANCEL') && <Button disabled={busy} variant="danger" onClick={() => select('CANCEL')}>Cancelar agendamento</Button>}
-            {hasAction('OPEN_PERMIT') && <Button disabled={busy} onClick={() => select('OPEN_PERMIT')}>Abrir atendimento em campo</Button>}
-            {data.permitId && can('permits.read') && <Link className="button button--primary" to={`/app/pts/${data.permitId}`}>Acompanhar PT →</Link>}
-            {can('at.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/ats/nova?appointmentId=${data.id}`}>Preparar AT</Link>}
-            {can('pet.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link className="button button--secondary" to={`/app/pets/nova?appointmentId=${data.id}`}>Preparar PET</Link>}
-          </div>
-          {data.status !== 'CANCELED' && <Feedback tone="info">Abrir o atendimento inicia a verificação em campo. A execução exige liberação explícita na PT pelo responsável designado.</Feedback>}
-        </section>
-        <section className="panel stack"><h2>Histórico do agendamento</h2>{data.history.length ? <ol className={styles.history}>{data.history.map(event => <li key={event.id}><strong>{eventLabels[event.action] || event.action.replaceAll('_', ' ')}</strong><p className="muted">{event.actorName}</p><small>{formatDate(event.occurredAt)}</small>{event.reason && <p>{event.reason}</p>}</li>)}</ol> : <p className="muted">Nenhum evento registrado.</p>}</section>
+      <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <AppointmentSummary appointment={data} actions={[
+            hasAction('CONFIRM') && <Button key="confirm" disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>,
+            hasAction('RESCHEDULE') && <Button key="reschedule" disabled={busy} variant="secondary" onClick={() => select('RESCHEDULE')}>Reagendar</Button>,
+            hasAction('CANCEL') && <Button key="cancel" disabled={busy} variant="danger" onClick={() => select('CANCEL')}>Cancelar agendamento</Button>,
+            hasAction('OPEN_PERMIT') && <Button key="open" disabled={busy} onClick={() => select('OPEN_PERMIT')}>Abrir atendimento em campo</Button>,
+            data.permitId && can('permits.read') && <Link key="permit" className="button button--primary" to={`/app/pts/${encodeURIComponent(data.permitId)}`} state={permitOrigin(data.permitId, data.id)}>Acompanhar PT →</Link>,
+            can('at.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link key="at" className="button button--secondary" to={`/app/ats/nova?appointmentId=${encodeURIComponent(data.id)}`}>Preparar AT</Link>,
+            can('pet.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link key="pet" className="button button--secondary" to={`/app/pets/nova?appointmentId=${encodeURIComponent(data.id)}`}>Preparar PET</Link>,
+          ]} />
+          <EligibilityPanel appointmentId={data.id} readOnly={data.status === 'CANCELED'} />
+        </div>
+        <AppointmentHistory history={data.history} />
       </div>
-      <EligibilityPanel appointmentId={data.id} readOnly={data.status === 'CANCELED'} />
       <Modal open={Boolean(action)} title={action ? actionTitles[action] : ''} onClose={close}>
         {action && <form className="stack" onSubmit={event => { event.preventDefault(); void submit(); }}>
           {action === 'OPEN_PERMIT' ? <Feedback tone="warning">O atendimento será aberto para verificação em campo. A atividade continuará bloqueada até que documentos, checklist e ciências estejam completos e o responsável faça a liberação.</Feedback> : action === 'CONFIRM' ? <>
             <p>Confirme o atendimento para a equipe <strong>{data.teamName}</strong>. Você pode confirmar o horário solicitado ou definir o horário operacional confirmado.</p>
+            {needsResponsible && <>
+              <Field label="Responsável pelo atendimento *"><select value={responsibleId} disabled={busy || options.isFetching || options.isError} onChange={event => setResponsibleId(event.target.value)}><option value="">Selecione o responsável</option>{options.data?.responsibles.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></Field>
+              {options.isError && <Feedback tone="danger">Não foi possível carregar os responsáveis. <Button variant="secondary" disabled={busy || options.isFetching} onClick={() => void options.refetch()}>Tentar carregar responsáveis</Button></Feedback>}
+              <p className="muted">A solicitação pelo convite aguarda a atribuição de um responsável interno. Confirmar o agendamento mantém a execução sujeita à liberação na PT.</p>
+            </>}
             <div className="form-grid">
               <Field label="Início confirmado *"><input type="datetime-local" value={start} disabled={busy} onChange={event => setStart(event.target.value)} /></Field>
               <Field label="Término confirmado *"><input type="datetime-local" value={end} disabled={busy} onChange={event => setEnd(event.target.value)} /></Field>

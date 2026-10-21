@@ -127,4 +127,49 @@ describe('gestão de equipes no demo', () => {
   it('rejeita motivo de inativação acima de 300 caracteres', async () => {
     await expect(call(`/teams/${id(200)}`, 'PATCH', { status: 'INACTIVE', inactiveReason: 'X'.repeat(301) }, context(), 1)).rejects.toMatchObject({ status: 422, field: 'inactiveReason' });
   });
+  it('valida alteração de situação estritamente sem TypeError nem campos adulterados', async () => {
+    for (const value of [
+      { status: 'INACTIVE', inactiveReason: 123 }, { status: 'INACTIVE', inactiveReason: null },
+      { status: 'INACTIVE', revision: 500 }, { status: 'ACTIVE', unitId: UNIT_B },
+      { status: 'INACTIVE', members: [] }, { status: 'INVALID' },
+    ]) {
+      await expect(call(`/teams/${id(200)}`, 'PATCH', value, context(), 1)).rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
+      expect(teams).toEqual(seeded());
+    }
+  });
+  it('preserva referência histórica ao inativar e limpa motivo quando reativa', async () => {
+    const historical = teams[0];
+    await call(`/teams/${historical.id}`, 'PATCH', { status: 'INACTIVE', inactiveReason: '  Desmobilização  ' }, context(), 1);
+    expect(historical).toEqual(seeded()[0]); expect(teams[0].inactiveReason).toBe('Desmobilização');
+    const saved = await call<TeamDto>(`/teams/${historical.id}`, 'PATCH', { status: 'ACTIVE', inactiveReason: 'Motivo antigo' }, context(), 2);
+    expect(saved.inactiveReason).toBeUndefined(); expect(saved.status).toBe('ACTIVE');
+  });
+  it('bloqueia leitura, opções e criação com concessão expirada ou data inválida', async () => {
+    for (const expiresAt of [new Date(Date.now() - 1000).toISOString(), 'data inválida']) {
+      const actor = context(); actor.user.scope.expiresAt = expiresAt;
+      await expect(call(`/teams/${id(200)}`, 'GET', undefined, actor)).rejects.toMatchObject({ status: 403 });
+      await expect(call(`/team-options?unitId=${UNIT_A}`, 'GET', undefined, actor)).rejects.toMatchObject({ status: 403 });
+      await expect(call('/teams', 'POST', input(), actor)).rejects.toMatchObject({ status: 403 });
+    }
+    expect(teams).toEqual(seeded());
+  });
+  it('reconfirma permissão e concessão após leitura assíncrona antes de escrever', async () => {
+    for (const change of [(actor: PermitDemoContext) => { actor.permissions = ['teams.read']; }, (actor: PermitDemoContext) => { actor.user.scope.expiresAt = new Date(Date.now() - 1000).toISOString(); }, (actor: PermitDemoContext) => { actor.user.scope.teamIds = [id(200)]; }]) {
+      const actor = context(); let resolve!: (value: TeamWriteDto) => void;
+      const url = new URL('http://localhost/api/v1/teams'); const request = new Request(url, { method: 'POST' });
+      Object.defineProperty(request, 'json', { value: () => new Promise<TeamWriteDto>(complete => { resolve = complete; }) });
+      const pending = demo.route(request, url, '/teams', actor); change(actor); resolve(input());
+      await expect(pending).rejects.toMatchObject({ status: 403 }); expect(teams).toEqual(seeded());
+    }
+  });
+  it('não reativa equipe ao editar composição e impede pessoa inativada durante o envio', async () => {
+    teams[0].status = 'INACTIVE';
+    const edited = await call<TeamDto>(`/teams/${id(200)}`, 'PATCH', input(), context(), 1);
+    expect(edited.status).toBe('INACTIVE'); expect(edited.revision).toBe(2);
+    const actor = context(); let resolve!: (value: TeamWriteDto) => void;
+    const url = new URL(`http://localhost/api/v1/teams/${id(200)}`); const request = new Request(url, { method: 'PATCH', headers: { 'If-Match': '"2"' } });
+    Object.defineProperty(request, 'json', { value: () => new Promise<TeamWriteDto>(complete => { resolve = complete; }) });
+    const pending = demo.route(request, url, `/teams/${id(200)}`, actor); actor.workers[0].status = 'ON_LEAVE'; resolve(input());
+    await expect(pending).rejects.toMatchObject({ status: 422, code: 'INVALID_ASSIGNMENT' }); expect(teams[0]).toEqual(edited);
+  });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { DocumentTypeDto, MeDto, ScopeDto } from '../../shared/contracts';
+import type { DocumentTypeDto, MeDto, OrganizationDto, ScopeDto } from '../../shared/contracts';
+import type { TeamDto } from '../../shared/contracts/work-permits';
 
 export const knownDocumentFields = ['title', 'code', 'typeId', 'companyId', 'unitId', 'sectorId', 'ownerId', 'accessClass', 'issueDate', 'validFrom', 'validUntil', 'workerIds', 'responsibleIds', 'keywords'] as const;
 export const documentTypeSchema = z.object({
@@ -44,7 +45,9 @@ export const userAccessSchema = z.object({
   displayName: z.string().trim().min(3, 'Informe o nome completo.').max(120),
   email: z.string().trim().email('Informe um e-mail válido.'),
   roles: z.array(z.string()).min(1, 'Selecione ao menos um perfil.'),
+  companyIds: z.array(z.string()).min(1, 'Selecione ao menos uma empresa autorizada.'),
   unitIds: z.array(z.string()).min(1, 'Selecione ao menos uma unidade autorizada.'),
+  teamIds: z.array(z.string()),
   ownOnly: z.boolean(),
   status: z.enum(['ACTIVE', 'DISABLED', 'INVITED']),
   expiresAt: z.string(),
@@ -58,18 +61,31 @@ export const userAccessSchema = z.object({
 });
 export type UserAccessForm = z.infer<typeof userAccessSchema>;
 
-/** The access editor explicitly uses the browser's local civil date and time. */
+/** Access deadlines use São Paulo civil time, independent of the browser's timezone. */
 export function localAccessInstant(value: string): string | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value);
   if (!match) return undefined;
   const [, year, month, day, hour, minute, second = '0'] = match;
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime()) || date.getFullYear() !== Number(year) || date.getMonth() + 1 !== Number(month) || date.getDate() !== Number(day) || date.getHours() !== Number(hour) || date.getMinutes() !== Number(minute) || date.getSeconds() !== Number(second)) return undefined;
-  return date.toISOString();
+  const calendar = new Date(`${value}${match[6] ? '' : ':00'}Z`);
+  if (!Number.isFinite(calendar.getTime()) || calendar.getUTCFullYear() !== Number(year) || calendar.getUTCMonth() + 1 !== Number(month) || calendar.getUTCDate() !== Number(day) || calendar.getUTCHours() !== Number(hour) || calendar.getUTCMinutes() !== Number(minute) || calendar.getUTCSeconds() !== Number(second)) return undefined;
+  return new Date(`${value}${match[6] ? '' : ':00'}-03:00`).toISOString();
 }
 
-export function delegatedScope(value: UserAccessForm, me: MeDto, original?: ScopeDto): ScopeDto {
-  const units = value.unitIds.filter((id) => me.scope.unitIds.includes(id));
-  if (units.length !== value.unitIds.length) throw new Error('A concessão contém uma unidade fora do seu escopo.');
-  return { companyIds: original ? original.companyIds.filter((id) => me.scope.companyIds.includes(id)) : [...me.scope.companyIds], unitIds: units, sectorIds: original ? original.sectorIds.filter((id) => me.scope.sectorIds.includes(id)) : [], teamIds: original ? original.teamIds.filter((id) => me.scope.teamIds.includes(id)) : [], ownOnly: value.ownOnly, ...(value.expiresAt ? { expiresAt: new Date(value.expiresAt).toISOString() } : {}) };
+export function delegatedScope(value: UserAccessForm, me: MeDto, original?: ScopeDto, organization?: OrganizationDto, teams?: TeamDto[]): ScopeDto {
+  const companies = [...new Set(value.companyIds)];
+  const units = [...new Set(value.unitIds)];
+  const selectedTeams = [...new Set(value.teamIds)];
+  if (!companies.length || companies.some(id => !me.scope.companyIds.includes(id))) throw new Error('A concessão contém uma empresa fora do seu escopo.');
+  if (!units.length || units.some(id => !me.scope.unitIds.includes(id))) throw new Error('A concessão contém uma unidade fora do seu escopo.');
+  if (organization && units.some(id => !organization.units.some(unit => unit.id === id && companies.includes(unit.companyId ?? '')))) throw new Error('As unidades devem pertencer às empresas selecionadas.');
+  if (me.scope.teamIds.length && (!selectedTeams.length || selectedTeams.some(id => !me.scope.teamIds.includes(id)))) throw new Error('A concessão de equipes deve permanecer dentro do seu escopo.');
+  if (teams && selectedTeams.some(id => !teams.some(team => team.id === id && units.includes(team.unitId) && companies.includes(team.companyId)))) throw new Error('As equipes devem pertencer às empresas e unidades selecionadas.');
+  if (me.scope.ownOnly && !value.ownOnly) throw new Error('Seu acesso permite conceder apenas dados próprios.');
+  const sectorIds = [...new Set(original?.sectorIds ?? me.scope.sectorIds)].filter(id => !organization || organization.sectors.some(sector => sector.id === id && units.includes(sector.unitId ?? '')));
+  if (original?.sectorIds.some(id => !me.scope.sectorIds.includes(id)) && me.scope.sectorIds.length) throw new Error('O acesso existente contém setores fora do seu escopo.');
+  if ((original?.sectorIds.length || me.scope.sectorIds.length) && !sectorIds.length) throw new Error('As unidades selecionadas não preservam a restrição de setores.');
+  const expiresAt = value.expiresAt ? localAccessInstant(value.expiresAt) : undefined;
+  if (value.expiresAt && !expiresAt) throw new Error('Informe uma data e hora válidas para a concessão.');
+  if (me.scope.expiresAt && (!expiresAt || Date.parse(expiresAt) > Date.parse(me.scope.expiresAt))) throw new Error('A concessão deve terminar até o vencimento do seu próprio acesso.');
+  return { companyIds: companies, unitIds: units, sectorIds, teamIds: selectedTeams, ownOnly: value.ownOnly, ...(expiresAt ? { expiresAt } : {}) };
 }

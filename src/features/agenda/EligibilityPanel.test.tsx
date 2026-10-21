@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppointmentDto, EligibilityDto } from '../../shared/contracts/work-permits';
@@ -7,18 +8,21 @@ import { EligibilityPanel } from './EligibilityPanel';
 import { api } from '../../shared/api/client';
 
 vi.mock('../../shared/api/client', () => ({ api: { get: vi.fn(), post: vi.fn() }, revisionEtag: (revision: number) => `"${revision}"` }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'session-a', unitId: 'unit-a', can: () => true }) }));
+const access = vi.hoisted(() => ({ denied: [] as string[] }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'session-a', unitId: 'unit-a', can: (permission: string) => !access.denied.includes(permission) }) }));
 
 const appointment: AppointmentDto = { id: 'appointment-a', unitId: 'unit-a', code: 'AG-001', teamId: 'team-a', teamName: 'Equipe A', serviceTypeId: 'service-a', serviceLabel: 'Serviço ilustrativo', location: 'Galpão A', startsAt: '2026-10-09T17:00:00Z', endsAt: '2026-10-09T19:00:00Z', responsibleId: 'operator-a', responsibleName: 'Operador A', participants: [], status: 'CONFIRMED', revision: 4, availableActions: [], history: [] };
 let eligibility: EligibilityDto;
 let appointmentData: AppointmentDto;
 function renderPanel(readOnly = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return { ...render(<QueryClientProvider client={client}><EligibilityPanel appointmentId="appointment-a" readOnly={readOnly} /></QueryClientProvider>), client };
+  return { ...render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/app/agenda/appointment-a?from=agenda#conferencia']}><EligibilityPanel appointmentId="appointment-a" readOnly={readOnly} /><NavigationState /></MemoryRouter></QueryClientProvider>), client };
 }
+function NavigationState() { const location = useLocation(); return <output aria-label="Destino da navegação">{JSON.stringify(location.state)}</output>; }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  access.denied = [];
   appointmentData = { ...appointment };
   eligibility = {
     appointmentId: 'appointment-a', checkedAt: '2026-10-09T15:00:00Z', requirementVersion: 'MATRIZ-DEMO-1', eligible: false,
@@ -31,6 +35,33 @@ beforeEach(() => {
 });
 
 describe('Conferência documental no frontend', () => {
+  it.each(['WORKER_INTEGRATION', undefined] as const)('encaminha integração com origem %s para a ficha sem usar comandos da matriz', async source => {
+    const user = userEvent.setup();
+    eligibility.participants[0].items = [{ source, requirementId: source ? 'administrative-proof' : 'integration:person-a', label: 'Integração administrativa', description: 'Comprovação do vínculo.', status: 'PENDING', restricted: false, evidenceId: 'integration-proof', evidenceRevision: 1 }];
+    renderPanel();
+    const link = await screen.findByRole('link', { name: 'Consultar integração de Pessoa A' });
+    expect(link).toHaveAttribute('href', '/app/trabalhadores/person-a#integracao');
+    expect(screen.queryByRole('button', { name: /Enviar evidência|Substituir evidência|Conferir evidência/ })).not.toBeInTheDocument();
+    await user.click(link);
+    expect(JSON.parse(screen.getByLabelText('Destino da navegação').textContent!)).toEqual({ integrationReturnTo: { pathname: '/app/agenda/appointment-a', search: '?from=agenda', hash: '#conferencia', unitId: 'unit-a' } });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+  it('orienta regularização sem expor um atalho para quem não pode consultar pessoas', async () => {
+    access.denied = ['workers.read'];
+    eligibility.participants[0].items = [{ source: 'WORKER_INTEGRATION', requirementId: 'integration:person-a', label: 'Integração administrativa', description: 'Registro administrativo.', status: 'MISSING', restricted: false, fileName: 'comprovante-pessoal.pdf', validUntil: '2030-12-31' }];
+    renderPanel();
+    expect(await screen.findByText('Solicite a regularização da integração ao responsável pelo cadastro.')).toBeVisible();
+    expect(screen.queryByRole('link', { name: /Consultar integração/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Enviar evidência|Conferir evidência/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/comprovante-pessoal.pdf|31\/12\/2030/)).not.toBeInTheDocument();
+  });
+  it('não oferece comandos da matriz para uma origem desconhecida nem atalho para item restrito', async () => {
+    eligibility.participants[0].items = [{ source: 'UNSUPPORTED' as 'REQUIREMENT_MATRIX', requirementId: 'unknown', label: 'Origem não reconhecida', description: 'Metadado recebido.', status: 'PENDING', restricted: false }, { source: 'WORKER_INTEGRATION', requirementId: 'integration:person-a', label: 'Item restrito', description: 'Não revelar informação restrita', status: 'PENDING', restricted: true }];
+    renderPanel(); await screen.findByText('Origem não reconhecida');
+    expect(screen.queryByRole('button', { name: /Enviar evidência|Conferir evidência/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Consultar integração/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Não revelar informação restrita')).not.toBeInTheDocument();
+  });
   it('não apresenta evidências devolvidas para outro atendimento ou unidade', async () => {
     eligibility = { ...eligibility, appointmentId: 'appointment-b', unitId: 'unit-b' };
     renderPanel();

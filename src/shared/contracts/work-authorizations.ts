@@ -88,3 +88,13 @@ export interface AuthorizationOptionDto {
   permits: { id: string; code: string }[];
 }
 export interface AuthorizationOptionsDto { appointments: AuthorizationOptionDto[] }
+
+/** Proposed GET /work-authorizations contract. Explicit page/pageSize requests return PageDto<WorkAuthorizationDto>.
+ * q searches code, appointment, team, service, location and preparation; status is exact.
+ * Authorization is applied before filtering, stable code/ID ordering, total and pagination.
+ * The demo alone preserves legacy array responses when both pagination parameters are absent.
+ * Parameters and response shape still require agreement with the separate API repository.
+ */
+export interface AuthorizationListQuery {
+  unitId: string; page: number; pageSize: number; q?: string; status?: WorkAuthorizationStatus;
+}

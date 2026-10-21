@@ -41,7 +41,7 @@ async function openPermit(page: Page, appointmentPath: string) {
   await page.getByRole('button', { name: 'Abrir atendimento em campo', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Abrir atendimento em campo', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/pts\/[a-z0-9-]+$/);
-  await expect(page.getByRole('heading', { name: '1. Conferência do atendimento', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Conferência do atendimento', exact: true })).toBeVisible();
   return new URL(page.url()).pathname;
 }
 
@@ -55,8 +55,8 @@ test('atendimento com dois serviços reúne requisitos, fixa categorias e preser
   await expect(checklist.getByRole('group')).toHaveCount(4);
   await expect(checklist.getByRole('group', { name: new RegExp(originalHotQuestion.replace(/[()]/g, '\\$&')) })).toBeVisible();
   await expect(checklist.getByRole('group', { name: /Contexto de espaço confinado conferido/ })).toBeVisible();
-  await expect(page.getByRole('region', { name: '2. Requisitos por participante', exact: true }).getByText('Trabalho a quente · evidência administrativa (demo)', { exact: true })).toBeVisible();
-  await expect(page.getByRole('region', { name: '2. Requisitos por participante', exact: true }).getByText('Espaço confinado · evidência administrativa (demo)', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Requisitos por participante', exact: true }).getByText('Trabalho a quente · evidência administrativa (demo)', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Requisitos por participante', exact: true }).getByText('Espaço confinado · evidência administrativa (demo)', { exact: true })).toBeVisible();
   const preparation = page.getByRole('region', { name: 'Preparação do modelo PT', exact: true });
   const categories = preparation.getByRole('group', { name: 'Categorias aplicáveis ao serviço', exact: true });
   for (const name of [/Trabalho a quente/, /Espaço confinado/]) {

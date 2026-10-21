@@ -4,6 +4,7 @@ import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { WorkAuthorizationDto } from '../../shared/contracts/work-authorizations';
 import { formatDate } from '../../shared/lib/format';
+import { preparationListPath, preparationOrigin } from '../../shared/lib/preparation-navigation';
 import { Badge, Button, EmptyState, Feedback, PageHeader, Spinner } from '../../shared/ui';
 import { isDrawingRepresentation } from '../permits/validation';
 import { AT_CONTROLS, AT_REVALIDATION_CAPACITY } from './model';
@@ -17,22 +18,23 @@ const evidenceLabels: Record<string, string> = { MISSING: 'Ausente', PENDING: 'E
 export function AuthorizationDetailPage() {
   const { id } = useParams(); const { can, sessionKey, unitId } = useSession(); const location = useLocation();
   const now = useAuthorizationClock();
+  const listNavigation = preparationOrigin(location.state, unitId, 'ats');
   const query = useQuery({ queryKey: authorizationKey(sessionKey, unitId, id), queryFn: ({ signal }) => api.get<WorkAuthorizationDto>(`/work-authorizations/${id}`, { query: { unitId }, signal }), enabled: can('at.read') && Boolean(unitId && id) });
   if (!can('at.read')) return <EmptyState title="Acesso restrito" description="Seu perfil não pode consultar esta AT." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" />;
   if (query.isPending) return <Spinner />;
   if (query.isError) return <div className="panel stack"><Feedback tone="danger">{authorizationError(query.error)}</Feedback><Button variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button></div>;
   const record = query.data;
-  if (!record || record.unitId !== unitId) return <EmptyState title="AT fora da unidade atual" />;
+  if (!record || record.id !== id || record.unitId !== unitId || record.appointment.unitId !== unitId) return <EmptyState title="AT fora da unidade atual" />;
   const success = (location.state as { success?: string } | null)?.success;
   const windowNotice = authorizationWindowNotice(record, now);
-  return <div className="stack"><PageHeader eyebrow="AUTORIZAÇÃO DE TRABALHO" title={record.code} description="Registro do modelo RI-S-36002, separado da Permissão de Trabalho." actions={<div className="actions"><Link className="button button--secondary" to="/app/ats">Voltar às ATs</Link><Link className="button button--secondary" to={`/app/ats/${record.id}/imprimir`}>Imprimir AT</Link>{can('at.write') && record.availableActions.includes('EDIT') && <Link className="button button--primary" to={`/app/ats/${record.id}/editar`}>Editar rascunho</Link>}</div>} />
+  return <div className="stack"><PageHeader eyebrow="AUTORIZAÇÃO DE TRABALHO" title={record.code} description="Registro do modelo RI-S-36002, separado da Permissão de Trabalho." actions={<div className="actions"><Link className="button button--secondary" to={preparationListPath(listNavigation, 'ats')} state={listNavigation}>{listNavigation && 'fromConsulta' in listNavigation ? 'Voltar à consulta' : 'Voltar às ATs'}</Link><Link className="button button--secondary" to={`/app/ats/${record.id}/imprimir`} state={listNavigation}>Imprimir AT</Link>{can('at.write') && record.availableActions.includes('EDIT') && <Link className="button button--primary" to={`/app/ats/${record.id}/editar`} state={listNavigation}>Editar rascunho</Link>}</div>} />
     <Feedback tone="info">Demonstração em memória, sem validade operacional. A autorização desta AT não libera, inicia ou retoma uma PT.</Feedback>
     {success && <Feedback tone="success">{success}</Feedback>}
     {windowNotice && <Feedback tone="info">{windowNotice}</Feedback>}
     <div className="panel stack"><div className={styles.top}><Badge tone={authorizationTones[record.status]}>{authorizationLabels[record.status]}</Badge><span className="muted">Revisão {record.revision} · criada por {record.createdByName} em {formatDate(record.createdAt)}</span></div>{record.suspensionReason && <p className={styles.preserve}>Suspensão: {record.suspensionReason}</p>}{record.cancellationReason && <p className={styles.preserve}>Cancelamento: {record.cancellationReason}</p>}<p>{record.permitId ? <Link to={`/app/pts/${record.permitId}`}>PT vinculada: {record.permitCode || record.permitId}</Link> : 'Sem PT vinculada. A AT pode existir independentemente de uma PT.'}</p><Link to={`/app/agenda/${record.appointment.id}`}>Consultar atendimento {record.appointment.code}</Link></div>
     <AuthorizationAppointment appointment={record.appointment} />
-    <AuthorizationActions record={record} />
+    <AuthorizationActions key={`${sessionKey}:${unitId}:${record.id}`} record={record} />
     <section className="panel stack" aria-label="Preparação registrada da AT"><h2>Preparação registrada</h2><dl className={styles.meta}>{(Object.keys(identificationLabels) as (keyof typeof identificationLabels)[]).map(key => <div key={key}><dt>{identificationLabels[key]}</dt><dd className={styles.preserve}>{record.preparation.identification[key] || 'Ainda não preenchido'}</dd></div>)}<div><dt>Encarregado</dt><dd>{record.appointment.participants.find(person => person.workerId === record.preparation.foremanId)?.name || 'Não selecionado'}</dd></div></dl><h3>Controles selecionados</h3>{record.preparation.controls.length ? <ul>{record.preparation.controls.map(id => <li key={id}>{AT_CONTROLS.find(item => item.id === id)?.label || 'Controle vinculado ao catálogo'}</li>)}</ul> : <p className="muted">Nenhum controle selecionado.</p>}{record.preparation.additionalControls && <p className={styles.preserve}>{record.preparation.additionalControls}</p>}<details><summary className={styles.summary}>Consultar as 11 verificações</summary><div className="stack"><AuthorizationSourceChecks checks={record.preparation.checks} prefix="at-record" readOnly /></div></details></section>
     <section className="panel stack" aria-label="Ciências dos participantes da AT"><h2>Ciências dos participantes</h2><p className="muted">A representação acompanha a confirmação explícita. O participante que declara e o coletor autenticado são identificados separadamente.</p>{record.appointment.participants.map(person => {
       const science = record.sciences.find(item => item.workerId === person.workerId && item.version === 1);

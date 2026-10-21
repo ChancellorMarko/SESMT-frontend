@@ -1,19 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Search, ShieldCheck, UsersRound } from 'lucide-react';
 import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { AppointmentDto, EligibilityDto, EligibilityItemDto, EvidenceDto, ParticipantEligibilityDto } from '../../shared/contracts/work-permits';
 import { formatDate } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, Spinner } from '../../shared/ui';
-import { evidenceDatesError, evidenceDownloadAllowed, evidenceFileError, evidenceLabels, errorMessage } from './support';
+import { Button, EmptyState, Feedback, Field, Modal, Spinner } from '../../shared/ui';
+import { evidenceDatesError, evidenceDownloadAllowed, evidenceFileError, errorMessage } from './support';
 import styles from './Agenda.module.css';
+import { isMatrixEligibilityItem, isWorkerIntegrationItem } from '../../shared/lib/eligibility-source';
+import { WorkerIntegrationLink } from '../workers/WorkerIntegrationLink';
+import { ParticipantRequirements } from './ParticipantRequirements';
 
 type Selection = { person: ParticipantEligibilityDto; item: EligibilityItemDto; action: 'UPLOAD' | 'REVIEW'; appointmentRevision?: number };
 
 export function EligibilityPanel({ appointmentId, readOnly = false }: { appointmentId: string; readOnly?: boolean }) {
   const { sessionKey, unitId, can } = useSession();
+  const context = [sessionKey, unitId, appointmentId, readOnly, ...['eligibility.read', 'eligibility.write', 'eligibility.review', 'workers.read'].map(permission => can(permission))];
+  return <EligibilityPanelContent key={JSON.stringify(context)} appointmentId={appointmentId} readOnly={readOnly} />;
+}
+
+function EligibilityPanelContent({ appointmentId, readOnly }: { appointmentId: string; readOnly: boolean }) {
+  const { sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
+  const active = useRef(true);
+  const operation = useRef<AbortController | undefined>(undefined);
+  const participantSearch = useRef<HTMLInputElement>(null);
+  const [participantQuery, setParticipantQuery] = useState('');
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [selected, setSelected] = useState<Selection>();
   const [file, setFile] = useState<File>();
   const [validFrom, setValidFrom] = useState('');
@@ -34,9 +49,12 @@ export function EligibilityPanel({ appointmentId, readOnly = false }: { appointm
   });
   const outsideContext = Boolean(eligibility.data && (eligibility.data.appointmentId !== appointmentId || eligibility.data.unitId && eligibility.data.unitId !== unitId));
   const pending = busy || loadingDownload;
+  useNavigationGuard({ dirty: Boolean(selected), busy: pending });
   useEffect(() => {
-    setSelected(undefined); setFile(undefined); setDownload(undefined); setFailure(''); setSuccess('');
-  }, [appointmentId, sessionKey, unitId]);
+    active.current = true;
+    return () => { active.current = false; operation.current?.abort(); operation.current = undefined; };
+  }, []);
+  const currentOperation = (controller: AbortController) => active.current && operation.current === controller && !controller.signal.aborted;
   useEffect(() => {
     if (!selected && !pending) return;
     const allowLeave = () => {
@@ -57,27 +75,36 @@ export function EligibilityPanel({ appointmentId, readOnly = false }: { appointm
     return () => { window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('sesmt:before-context-change', contextChange); document.removeEventListener('click', navigate, true); };
   }, [selected, pending]);
   function select(value: Selection) {
-    if (readOnly || pending || outsideContext || !can(value.action === 'UPLOAD' ? 'eligibility.write' : 'eligibility.review')) return;
+    if (!isMatrixEligibilityItem(value.item)) return;
+    if (readOnly || pending || operation.current || outsideContext || !can(value.action === 'UPLOAD' ? 'eligibility.write' : 'eligibility.review')) return;
     if (value.action === 'UPLOAD' && (!appointment.data || appointment.data.unitId !== unitId || appointment.isError)) return;
     setSelected({ ...value, appointmentRevision: value.action === 'UPLOAD' ? appointment.data!.revision : undefined });
     setFile(undefined); setValidFrom(''); setValidUntil(''); setReason(''); setDecision('APPROVE'); setConfirmed(false); setFailure(''); setDownload(undefined);
   }
-  function close() { if (!busy && !loadingDownload) setSelected(undefined); }
+  function close() {
+    if (pending || operation.current) return;
+    const changed = Boolean(file || validFrom || validUntil || reason || decision !== 'APPROVE' || confirmed);
+    if (changed && !window.confirm('Há alterações nesta conferência ainda não enviadas. Deseja descartar o preenchimento e fechar?')) return;
+    setSelected(undefined); setFile(undefined); setValidFrom(''); setValidUntil(''); setReason(''); setDecision('APPROVE'); setConfirmed(false); setDownload(undefined); setFailure('');
+  }
   async function prepareDownload() {
-    if (!selected?.item.evidenceId || selected.item.restricted || loadingDownload) return;
+    if (!selected?.item.evidenceId || !isMatrixEligibilityItem(selected.item) || selected.item.restricted || pending || operation.current) return;
+    const controller = new AbortController(); operation.current = controller;
     setLoadingDownload(true); setFailure('');
     try {
-      const result = await api.get<{ url: string; fileName: string; expiresAt: string }>(`/evidence/${selected.item.evidenceId}/download`);
+      const result = await api.get<{ url: string; fileName: string; expiresAt: string }>(`/evidence/${encodeURIComponent(selected.item.evidenceId)}/download`, { signal: controller.signal });
+      if (!currentOperation(controller)) return;
       if (!evidenceDownloadAllowed(result.url) || !Number.isFinite(Date.parse(result.expiresAt)) || Date.parse(result.expiresAt) <= Date.now()) throw new Error('A API retornou um link inválido ou vencido para esta evidência.');
       setDownload(result);
-    } catch (error) { setFailure(errorMessage(error)); }
-    finally { setLoadingDownload(false); }
+    } catch (error) { if (currentOperation(controller)) setFailure(errorMessage(error)); }
+    finally { if (currentOperation(controller)) { operation.current = undefined; setLoadingDownload(false); } }
   }
   async function refresh() {
     await Promise.all(['eligibility', 'appointment', 'appointments', 'work-permit', 'work-permits', 'permit-dashboard', 'documentary-readiness', 'work-authorizations', 'work-authorization', 'authorization-options'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
   async function submit() {
-    if (!selected || pending || readOnly || outsideContext || !can(selected.action === 'UPLOAD' ? 'eligibility.write' : 'eligibility.review')) return;
+    if (!selected || pending || operation.current || readOnly || outsideContext || !can(selected.action === 'UPLOAD' ? 'eligibility.write' : 'eligibility.review')) return;
+    if (!isMatrixEligibilityItem(selected.item)) return;
     setFailure(''); setSuccess('');
     if (selected.item.restricted) { setFailure('Esta evidência exige conferência restrita por profissional autorizado.'); return; }
     if (selected.action === 'UPLOAD') {
@@ -91,47 +118,63 @@ export function EligibilityPanel({ appointmentId, readOnly = false }: { appointm
       if (decision === 'REJECT' && !reason.trim()) { setFailure('Informe o motivo da rejeição.'); return; }
       if (!selected.item.evidenceId || selected.item.evidenceRevision === undefined) { setFailure('A revisão da evidência não está disponível. Recarregue os dados antes de conferir.'); return; }
     }
+    const controller = new AbortController(); operation.current = controller;
     setBusy(true);
     try {
       if (selected.action === 'UPLOAD') {
         const data = new FormData(); data.set('workerId', selected.person.workerId); data.set('requirementId', selected.item.requirementId); data.set('file', file!);
         if (validFrom) data.set('validFrom', validFrom);
         if (validUntil) data.set('validUntil', validUntil);
-        await api.post<EvidenceDto>(`/appointments/${appointmentId}/evidence`, data, { etag: revisionEtag(selected.appointmentRevision!) });
+        await api.post<EvidenceDto>(`/appointments/${encodeURIComponent(appointmentId)}/evidence`, data, { etag: revisionEtag(selected.appointmentRevision!), signal: controller.signal });
+        if (!currentOperation(controller)) return;
         setSuccess('Evidência enviada para conferência. O envio sozinho não libera a pessoa para executar.');
       } else {
-        await api.post<EvidenceDto>(`/evidence/${selected.item.evidenceId}/review`, { decision, ...(reason.trim() ? { reason: reason.trim() } : {}) }, { etag: revisionEtag(selected.item.evidenceRevision!) });
+        await api.post<EvidenceDto>(`/evidence/${encodeURIComponent(selected.item.evidenceId!)}/review`, { decision, ...(reason.trim() ? { reason: reason.trim() } : {}) }, { etag: revisionEtag(selected.item.evidenceRevision!), signal: controller.signal });
+        if (!currentOperation(controller)) return;
         setSuccess(decision === 'APPROVE' ? 'Conferência registrada. A elegibilidade foi atualizada para este atendimento.' : 'Evidência rejeitada. O participante continua bloqueado até a regularização.');
       }
       setSelected(undefined);
       await refresh();
     } catch (error) {
+      if (!currentOperation(controller)) return;
       const status = (error as { status?: number })?.status;
       setFailure(status === 412 ? 'Os dados mudaram enquanto você preenchia. Feche esta janela, atualize a conferência e abra a ação novamente para revisar.' : errorMessage(error));
     }
-    finally { setBusy(false); }
+    finally { if (currentOperation(controller)) { operation.current = undefined; setBusy(false); } }
   }
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+  const people = eligibility.data?.participants ?? [];
+  const term = normalize(participantQuery);
+  const visiblePeople = people.filter(person => (!pendingOnly || !person.eligible) && (!term || normalize(`${person.name} ${person.serviceFunction}`).includes(term)));
+  const pendingCount = people.filter(person => !person.eligible).length;
+  function clearParticipantFilters() { setParticipantQuery(''); setPendingOnly(false); participantSearch.current?.focus(); }
+
   if (!can('eligibility.read')) return <EmptyState title="Conferência documental restrita" description="Seu perfil não possui acesso aos requisitos deste atendimento." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade para consultar os requisitos do atendimento." />;
   if (outsideContext) return <EmptyState title="Conferência de outro contexto" description="A resposta não corresponde ao atendimento e à unidade selecionados. Atualize o atendimento antes de continuar." />;
   return <section className="panel stack" aria-label="Elegibilidade documental dos participantes">
-    <div className={styles.sectionHead}><div><p className="eyebrow">Documentos por pessoa e atividade</p><h2>Conferência dos participantes</h2><p className="muted">Requisitos definidos pela matriz do serviço e pela função de cada pessoa.</p></div><Button variant="secondary" onClick={() => void eligibility.refetch()} disabled={eligibility.isFetching || busy}>{eligibility.isFetching ? 'Atualizando…' : 'Atualizar conferência'}</Button></div>
+    <div className="flex min-w-0 flex-wrap items-start justify-between gap-4"><div className="min-w-0"><p className="eyebrow">Documentos por pessoa e atividade</p><h2 className="!mb-2 !text-base text-[#315884]">Conferência dos participantes</h2><p className="!m-0 text-[12px] leading-6 text-slate-500">Requisitos definidos pela matriz do serviço e pela função de cada pessoa.</p></div><Button variant="secondary" onClick={() => void eligibility.refetch()} disabled={eligibility.isFetching || pending}>{eligibility.isFetching ? 'Atualizando…' : 'Atualizar conferência'}</Button></div>
     {success && <Feedback tone="success">{success}</Feedback>}
     {eligibility.isPending ? <Spinner /> : eligibility.isError ? <Feedback tone="danger">{errorMessage(eligibility.error)} <Button variant="ghost" onClick={() => void eligibility.refetch()}>Tentar novamente</Button></Feedback> : eligibility.data && <>
       <Feedback tone={eligibility.data.eligible ? 'success' : 'warning'}>{eligibility.data.eligible ? <><ShieldCheck size={16} aria-hidden="true" /> Todos os requisitos aplicáveis estão conferidos neste momento.</> : 'Há requisitos pendentes. A abertura do atendimento pode continuar; liberar e iniciar a execução ficam bloqueados.'}</Feedback>
-      <p className={styles.legend}>Matriz {eligibility.data.requirementVersion} · Consulta em {formatDate(eligibility.data.checkedAt)}. A conferência é reavaliada ao liberar e ao iniciar a PT. A validade depende do requisito configurado.</p>
-      <div className={styles.participants}>{eligibility.data.participants.map(person => <article className={styles.participant} key={person.workerId}>
-        <div className={styles.participantHeader}><div><h3>{person.name}</h3><p className="muted">Função neste serviço: {person.serviceFunction}</p></div><Badge tone={person.eligible ? 'success' : 'warning'}>{person.eligible ? 'Documentação conferida' : 'Pendência documental'}</Badge></div>
-        {person.items.length ? person.items.map(item => <div className={styles.requirement} key={item.requirementId}>
-          <div className={styles.requirementText}><h4>{item.label}</h4>
-            {item.restricted ? <p className={`muted ${styles.restricted}`}><LockKeyhole size={14} aria-hidden="true" />Conferência restrita por profissional autorizado. Apenas a situação operacional é exibida.</p> : <><p className="muted">{item.description}</p>{item.fileName && <p>Arquivo: {item.fileName}</p>}{(item.validFrom || item.validUntil) && <p className="muted">Período da evidência: {item.validFrom ? formatDate(item.validFrom) : 'Início não informado'} → {item.validUntil ? formatDate(item.validUntil) : 'Sem término informado'}</p>}{item.reason && <p className="muted">Conferência: {item.reason}</p>}</>}
-          </div>
-          <div className={styles.requirementActions}><Badge tone={item.status === 'APPROVED' ? 'success' : item.status === 'REJECTED' || item.status === 'EXPIRED' ? 'danger' : 'warning'}>{evidenceLabels[item.status]}</Badge>
-            {!readOnly && !item.restricted && can('eligibility.write') && <Button variant="secondary" disabled={appointment.isPending || appointment.isError || !appointment.data || appointment.data.unitId !== unitId || busy} onClick={() => select({ person, item, action: 'UPLOAD' })}>{item.evidenceId ? 'Substituir evidência' : 'Enviar evidência'}</Button>}
-            {!readOnly && !item.restricted && can('eligibility.review') && item.status === 'PENDING' && <Button variant="secondary" onClick={() => select({ person, item, action: 'REVIEW' })}>Conferir evidência</Button>}
-          </div>
-        </div>) : <p className="muted">Nenhum requisito documental aplicável nesta matriz.</p>}
-      </article>)}</div>
+      <p className={`${styles.legend} [overflow-wrap:anywhere]`}>Matriz {eligibility.data.requirementVersion} · Consulta em {formatDate(eligibility.data.checkedAt)}. A conferência é reavaliada ao liberar e ao iniciar a PT. A validade depende do requisito configurado.</p>
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+        <Field label="Buscar participante"><div className="relative"><Search size={16} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" aria-hidden="true" /><input ref={participantSearch} type="search" className="!pl-10" placeholder="Nome ou função no serviço" maxLength={200} value={participantQuery} onChange={event => setParticipantQuery(event.target.value)} /></div></Field>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar participantes">
+          <Button variant={!pendingOnly ? 'primary' : 'secondary'} aria-label="Todos os participantes" aria-pressed={!pendingOnly} onClick={() => setPendingOnly(false)}><UsersRound size={13} aria-hidden="true" />Todos os participantes <span className="opacity-70">{people.length}</span></Button>
+          <Button variant={pendingOnly ? 'primary' : 'secondary'} aria-label="Com pendências" aria-pressed={pendingOnly} onClick={() => setPendingOnly(true)}>Com pendências <span className="opacity-70">{pendingCount}</span></Button>
+          {(participantQuery || pendingOnly) && <Button variant="ghost" onClick={clearParticipantFilters}>Limpar busca</Button>}
+        </div>
+        <p role="status" className="!m-0 text-[11px] leading-5 text-slate-500">Exibindo {visiblePeople.length} de {people.length} participantes</p>
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">{visiblePeople.map(person => <ParticipantRequirements key={person.workerId} person={person} canReadWorkers={can('workers.read')} renderActions={(person, item) => <>
+            {!item.restricted && isWorkerIntegrationItem(item) && <WorkerIntegrationLink workerId={person.workerId} workerName={person.name} />}
+            {!item.restricted && isWorkerIntegrationItem(item) && !can('workers.read') && <p className="muted">Solicite a regularização da integração ao responsável pelo cadastro.</p>}
+            {!readOnly && !item.restricted && isMatrixEligibilityItem(item) && can('eligibility.write') && <Button variant="secondary" disabled={appointment.isPending || appointment.isError || !appointment.data || appointment.data.unitId !== unitId || pending} onClick={() => select({ person, item, action: 'UPLOAD' })}>{item.evidenceId ? 'Substituir evidência' : 'Enviar evidência'}</Button>}
+            {!readOnly && !item.restricted && isMatrixEligibilityItem(item) && can('eligibility.review') && item.status === 'PENDING' && <Button variant="secondary" disabled={pending} onClick={() => select({ person, item, action: 'REVIEW' })}>Conferir evidência</Button>}
+          </>} />)}
+        {!visiblePeople.length && <EmptyState title={people.length ? 'Nenhum participante neste filtro' : 'Nenhum participante retornado'} description={people.length ? 'Ajuste o nome ou a função, ou limpe a busca para consultar os demais participantes.' : 'O serviço não retornou participantes para este atendimento.'} />}
+      </div>
     </>}
     <Modal open={Boolean(selected)} title={selected?.action === 'UPLOAD' ? 'Enviar evidência do participante' : 'Conferir evidência do participante'} onClose={close}>
       {selected && <form className="stack" onSubmit={event => { event.preventDefault(); void submit(); }} noValidate>

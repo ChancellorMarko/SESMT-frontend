@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PageDto } from '../shared/contracts';
 import type { AppointmentDto, WorkPermitDto, EvidenceDto, EligibilityDto, PermitDashboardDto, FinalPdfDto } from '../shared/contracts/work-permits';
 import { COMPANY, id, makeFixtures, UNIT_A, UNIT_B } from './fixtures';
 import { makePermitDemo, type PermitDemoContext } from './work-permits';
+import * as pdfExport from './permit-demo-pdf';
 
 const operational = ['appointments.read', 'teams.read', 'permits.read', 'permits.operate', 'eligibility.read', 'eligibility.write'];
 const managerPermissions = ['appointments.read', 'appointments.write', 'teams.read', 'permits.read', 'permits.review', 'eligibility.read', 'eligibility.write', 'eligibility.review'];
@@ -16,6 +18,36 @@ const engineer = () => context(20, 'Marina Demo', managerPermissions);
 describe('simulação de PT e elegibilidade no navegador', () => {
   let demo: ReturnType<typeof makePermitDemo>;
   beforeEach(() => { demo = makePermitDemo(); });
+  it('conserva a pendência de integração sem expor metadados do comprovante a quem não consulta pessoas', async () => {
+    demo = makePermitDemo(undefined, undefined, () => ({ status: 'PENDING', evidenceId: 'integration-proof', evidenceRevision: 3, fileName: 'integracao-pessoal.pdf', validFrom: '2026-01-01', validUntil: '2027-01-01', reason: 'Integração ainda pendente.' }));
+    const limited = await call<EligibilityDto>(`/appointments/${id(221)}/eligibility`);
+    expect(limited.eligible).toBe(false);
+    const item = limited.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')!;
+    expect(item).toMatchObject({ status: 'PENDING', reason: 'Integração ainda pendente.' });
+    expect(item.evidenceId).toBeUndefined(); expect(item.evidenceRevision).toBeUndefined(); expect(item.fileName).toBeUndefined(); expect(item.validFrom).toBeUndefined(); expect(item.validUntil).toBeUndefined();
+    const permitted = await call<EligibilityDto>(`/appointments/${id(221)}/eligibility`, 'GET', undefined, { ...technician(), permissions: [...operational, 'workers.read'] });
+    expect(permitted.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')).toMatchObject({ status: 'PENDING', evidenceId: 'integration-proof', fileName: 'integracao-pessoal.pdf', validFrom: '2026-01-01' });
+    expect(permitted.eligible).toBe(false);
+  });
+  it('oculta dados de integração na resposta sem apagar a prova preservada na liberação e no encerramento', async () => {
+    demo = makePermitDemo(undefined, undefined, () => ({ status: 'APPROVED', evidenceId: 'integration-original', evidenceRevision: 2, fileName: 'integracao-original.pdf', validFrom: '2025-03-12', validUntil: '2099-01-01' }));
+    let permit = await prepared();
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/release`, 'POST', {}, technician(), permit.revision);
+    expect(permit.release!.eligibility.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')?.evidenceId).toBeUndefined();
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/start`, 'POST', {}, technician(), permit.revision);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/complete`, 'POST', { summary: 'Registro completo preservado para os leitores autorizados.', closingChecks: permit.preparation!.closingChecks.map(item => ({ ...item, answer: 'YES' })) }, technician(), permit.revision);
+    expect(permit.snapshots[0].eligibility!.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')?.fileName).toBeUndefined();
+    const authorized = await call<WorkPermitDto>(`/work-permits/${permit.id}`, 'GET', undefined, { ...engineer(), permissions: [...managerPermissions, 'workers.read'] });
+    for (const record of [authorized.release!.eligibility, authorized.snapshots[0].eligibility!, authorized.snapshots[0].release!.eligibility]) expect(record.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')).toMatchObject({ evidenceId: 'integration-original', evidenceRevision: 2, fileName: 'integracao-original.pdf' });
+    const reviewed = await call<WorkPermitDto>(`/work-permits/${permit.id}/review`, 'POST', { decision: 'APPROVE', signatureRepresentation: 'Marina Demo' }, engineer(), permit.revision);
+    const exportPdf = vi.spyOn(pdfExport, 'makePermitDemoPdf').mockResolvedValue('%PDF-1.4\nPDF sintético para conferir a projeção autorizada.');
+    await call<FinalPdfDto>(`/work-permits/${reviewed.id}/final-pdf?version=1`, 'GET', undefined, engineer());
+    const exportedSnapshot = exportPdf.mock.calls[0][1];
+    for (const record of [exportedSnapshot.eligibility!, exportedSnapshot.release!.eligibility]) {
+      const proof = record.participants[0].items.find(value => value.source === 'WORKER_INTEGRATION')!;
+      expect(proof.status).toBe('APPROVED'); expect(proof.evidenceId).toBeUndefined(); expect(proof.fileName).toBeUndefined();
+    }
+  });
   async function call<T>(path: string, method = 'GET', input?: unknown, actor = technician(), rev?: number) {
     const url = new URL(`http://localhost/api/v1${path}`);
     const request = new Request(url, { method, headers: { ...(input ? { 'Content-Type': 'application/json' } : {}), ...(rev !== undefined ? { 'If-Match': `"${rev}"` } : {}) }, body: input ? JSON.stringify(input) : undefined });
@@ -239,6 +271,85 @@ describe('simulação de PT e elegibilidade no navegador', () => {
     expect(corrected.snapshots[0].preparation).toEqual(original);
     expect(corrected.operationStatus).toBe('COMPLETED');
   });
+  it('liberação preservada fixa identidade, requisitos e conteúdo antes de evidências posteriores e não compartilha referências do retorno', async () => {
+    let permit = await prepared();
+    expect(permit.release).toBeUndefined();
+    const originalPreparation = structuredClone(permit.preparation);
+    const originalChecklist = structuredClone(permit.checklist);
+    const originalSciences = structuredClone(permit.sciences);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/release`, 'POST', {}, technician(), permit.revision);
+    const originalRelease = structuredClone(permit.release!);
+    expect(originalRelease).toMatchObject({ releasedAt: permit.releasedAt, releasedBy: id(25), releasedByName: 'Diego Demo', templateVersion: permit.templateVersion, preparation: originalPreparation, checklist: originalChecklist, sciences: originalSciences, eligibility: { eligible: true }, appointment: { id: permit.appointment.id, location: permit.appointment.location, responsibleId: id(25) } });
+    expect(originalRelease.serviceTemplates).toEqual(permit.serviceTemplates);
+    expect(originalRelease.eligibility.participants[0].items.find(item => item.requirementId === id(240))?.status).toBe('APPROVED');
+    // Consumers receive detached DTOs, including all nested archival content.
+    permit.release!.appointment.location = 'Local adulterado no retorno';
+    permit.release!.checklist[0].label = 'Pergunta adulterada no retorno';
+    permit.release!.preparation!.identification.activityDescription = 'Preparação adulterada no retorno';
+    permit.release!.sciences[0].representation = 'Representação adulterada no retorno';
+    permit.release!.eligibility.participants[0].items[0].status = 'REJECTED';
+    if (permit.release!.serviceTemplates?.length) permit.release!.serviceTemplates[0].questions[0].label = 'Template adulterado no retorno';
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}`);
+    expect(permit.release).toEqual(originalRelease);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/start`, 'POST', {}, technician(), permit.revision);
+    await upload(permit.appointment.id, id(40), id(240), '2099-01-01');
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}`);
+    expect(permit.eligibility.eligible).toBe(false);
+    expect(permit.eligibility.participants[0].items.find(item => item.requirementId === id(240))?.status).toBe('PENDING');
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/complete`, 'POST', { summary: 'Atividade concluída; nova evidência segue em conferência.', closingChecks: permit.preparation!.closingChecks.map(item => ({ ...item, answer: 'YES' })) }, technician(), permit.revision);
+    expect(permit.release).toEqual(originalRelease);
+    expect(permit.snapshots[0].release).toEqual(originalRelease);
+    expect(permit.snapshots[0].eligibility?.eligible).toBe(false);
+    expect(permit.snapshots[0].release?.eligibility.eligible).toBe(true);
+    expect(permit.snapshots[0].startedAt).toBe(permit.startedAt);
+    expect(permit.snapshots[0].completedAt).toBe(permit.completedAt);
+  });
+  it('liberação preservada atravessa conclusão e correção sem adotar novas respostas, preparação ou ciências documentais', async () => {
+    let permit = await prepared();
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/release`, 'POST', {}, technician(), permit.revision);
+    const originalRelease = structuredClone(permit.release!);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/start`, 'POST', {}, technician(), permit.revision);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/complete`, 'POST', { summary: 'Conclusão original preservada da atividade executada.', closingChecks: permit.preparation!.closingChecks.map(item => ({ ...item, answer: 'YES' })) }, technician(), permit.revision);
+    const startedAt = permit.startedAt, completedAt = permit.completedAt;
+    expect(permit.snapshots[0].release).toEqual(originalRelease);
+    expect(permit.snapshots[0].preparation?.closingChecks).not.toEqual(originalRelease.preparation?.closingChecks);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/review`, 'POST', { decision: 'RETURN', comment: 'Complementar a descrição e a observação do checklist.' }, engineer(), permit.revision);
+    const returnedSnapshot = structuredClone(permit.snapshots[0]);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/new-version`, 'POST', { reason: 'Correção exclusivamente documental do registro.' }, technician(), permit.revision);
+    permit.preparation!.identification.activityDescription = 'Descrição documental corrigida após o encerramento.';
+    permit.preparation!.additionalControls = 'Esclarecimento documental posterior à execução.';
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/preparation`, 'PATCH', permit.preparation, technician(), permit.revision);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/checklist`, 'PATCH', { items: permit.checklist.map(item => ({ ...item, note: 'Observação documental acrescentada na correção.' })) }, technician(), permit.revision);
+    for (const participant of permit.appointment.participants) permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/sciences`, 'POST', { workerId: participant.workerId, declarantName: participant.name, method: 'TYPED', representation: participant.name, confirmed: true }, technician(), permit.revision);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/submit-correction`, 'POST', { summary: 'Conclusão corrigida sem reabrir nem autorizar nova execução.', closingChecks: permit.preparation!.closingChecks }, technician(), permit.revision);
+    expect(permit.operationStatus).toBe('COMPLETED'); expect(permit.snapshots).toHaveLength(2);
+    expect(permit.release).toEqual(originalRelease); expect(permit.snapshots[0]).toEqual(returnedSnapshot);
+    expect(permit.snapshots[1]).toMatchObject({ version: 2, release: originalRelease, startedAt, completedAt, preparation: { identification: { activityDescription: 'Descrição documental corrigida após o encerramento.' }, additionalControls: 'Esclarecimento documental posterior à execução.' } });
+    expect(permit.snapshots[1].sciences.every(science => science.version === 2)).toBe(true);
+    expect(permit.snapshots[1].release!.sciences.every(science => science.version === 1)).toBe(true);
+    expect(permit.snapshots[1].checklist[0].note).toBe('Observação documental acrescentada na correção.');
+    expect(permit.snapshots[1].release!.checklist).toEqual(originalRelease.checklist);
+    expect(permit.history.filter(event => event.action === 'EXECUTION_RELEASED')).toHaveLength(1);
+    expect(permit.history.filter(event => event.action === 'EXECUTION_STARTED')).toHaveLength(1);
+    // Altering a nested release inside the returned correction cannot rewrite either archive.
+    permit.snapshots[1].release!.appointment.location = 'Local adulterado na correção retornada';
+    const reread = await call<WorkPermitDto>(`/work-permits/${permit.id}`);
+    expect(reread.release).toEqual(originalRelease); expect(reread.snapshots[0].release).toEqual(originalRelease); expect(reread.snapshots[1].release).toEqual(originalRelease);
+  });
+  it('liberação preservada ausente no legado continua ausente após revisão e correção, sem reconstrução a partir dos dados vivos', async () => {
+    let permit = await call<WorkPermitDto>(`/work-permits/${id(230)}`, 'GET', undefined, engineer());
+    expect(permit.releasedAt).toBeTruthy(); expect(permit.startedAt).toBeTruthy(); expect(permit.completedAt).toBeTruthy();
+    expect(permit.release).toBeUndefined(); expect(permit.snapshots[0].release).toBeUndefined();
+    expect(permit.snapshots[0].startedAt).toBeUndefined(); expect(permit.snapshots[0].completedAt).toBeUndefined(); expect(permit.snapshots[0].appointment).toBeUndefined();
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/review`, 'POST', { decision: 'RETURN', comment: 'Complementar o resumo da versão histórica sem inventar dados.' }, engineer(), permit.revision);
+    const historical = structuredClone(permit.snapshots[0]);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/new-version`, 'POST', { reason: 'Complemento documental de uma versão legada.' }, technician(), permit.revision);
+    for (const participant of permit.appointment.participants) permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/sciences`, 'POST', { workerId: participant.workerId, declarantName: participant.name, method: 'TYPED', representation: participant.name, confirmed: true }, technician(), permit.revision);
+    permit = await call<WorkPermitDto>(`/work-permits/${permit.id}/submit-correction`, 'POST', { summary: 'Resumo complementado preservando ausências do histórico original.' }, technician(), permit.revision);
+    expect(permit.snapshots[0]).toEqual(historical); expect(permit.release).toBeUndefined();
+    expect(permit.snapshots.every(snapshot => snapshot.release === undefined)).toBe(true);
+    expect(permit.snapshots[0].appointment).toBeUndefined(); expect(permit.snapshots[0].startedAt).toBeUndefined(); expect(permit.snapshots[0].completedAt).toBeUndefined();
+  });
   it('requisitos pendentes impedem liberação, mesmo com checklist e ciências completos', async () => {
     const permit = await prepared(id(220));
     expect(permit.eligibility.eligible).toBe(false);
@@ -367,6 +478,35 @@ describe('simulação de PT e elegibilidade no navegador', () => {
     expect(dashboard.pendingReviews).toBe(1);
     expect(dashboard.nextAppointments.every(value => value.unitId === UNIT_A)).toBe(true);
   });
+  it('combina equipe com texto e situação na consulta de PTs', async () => {
+    const query = '/work-permits?q=PT-DEMO-230&operationStatus=COMPLETED&reviewStatus=PENDING_REVIEW';
+    const wrongTeam = await call<WorkPermitDto[]>(`${query}&teamId=${id(201)}`, 'GET', undefined, engineer());
+    expect(wrongTeam).toEqual([]);
+    const correctTeam = await call<WorkPermitDto[]>(`${query}&teamId=${id(200)}`, 'GET', undefined, engineer());
+    expect(correctTeam.map(permit => permit.id)).toEqual([id(230)]);
+    expect(correctTeam[0].appointment.teamId).toBe(id(200));
+  });
+  it('filtra a equipe antes de contar e paginar sem ampliar a unidade ou o alcance', async () => {
+    const firstAppointment = await call<AppointmentDto>(`/appointments/${id(221)}`);
+    const openedA = await call<WorkPermitDto>(`/appointments/${id(221)}/open-permit`, 'POST', {}, technician(), firstAppointment.revision);
+    const firefighter = context(26, 'Felipe Demo', operational);
+    const secondAppointment = await call<AppointmentDto>(`/appointments/${id(223)}`, 'GET', undefined, firefighter);
+    const openedB = await call<WorkPermitDto>(`/appointments/${id(223)}/open-permit`, 'POST', {}, firefighter, secondAppointment.revision);
+    const first = await call<PageDto<WorkPermitDto>>(`/work-permits?teamId=${id(200)}&page=1&pageSize=1`, 'GET', undefined, engineer());
+    const second = await call<PageDto<WorkPermitDto>>(`/work-permits?teamId=${id(200)}&page=2&pageSize=1`, 'GET', undefined, engineer());
+    expect(first).toMatchObject({ total: 2, page: 1, pageSize: 1 });
+    expect(second).toMatchObject({ total: 2, page: 2, pageSize: 1 });
+    expect([...first.items, ...second.items].map(permit => permit.id)).toEqual([id(230), openedA.id]);
+    const otherTeam = await call<PageDto<WorkPermitDto>>(`/work-permits?teamId=${id(201)}&page=1&pageSize=1`, 'GET', undefined, engineer());
+    expect(otherTeam).toMatchObject({ total: 1, page: 1, pageSize: 1 });
+    expect(otherTeam.items.map(permit => permit.id)).toEqual([openedB.id]);
+    const outsideUnit = await call<PageDto<WorkPermitDto>>(`/work-permits?unitId=${UNIT_A}&teamId=${id(201)}&page=1&pageSize=1`, 'GET', undefined, engineer());
+    expect(outsideUnit).toMatchObject({ total: 0, items: [] });
+    const scopedActor = engineer();
+    scopedActor.user.scope.teamIds = [id(201)];
+    const outsideScope = await call<PageDto<WorkPermitDto>>(`/work-permits?teamId=${id(200)}&page=1&pageSize=1`, 'GET', undefined, scopedActor);
+    expect(outsideScope).toMatchObject({ total: 0, items: [] });
+  });
   it('filtra atendimentos por equipe, responsável, serviço, local e período (#102)', async () => {
     const byTeam = await call<AppointmentDto[]>(`/appointments?unitId=${UNIT_A}&teamId=${id(201)}`, 'GET', undefined, engineer());
     expect(byTeam.every(a => a.teamId === id(201))).toBe(true);
@@ -458,15 +598,24 @@ describe('simulação de PT e elegibilidade no navegador', () => {
   });
 
   it('disponibiliza download de PDF final controlado sintético e suporta alias /pts (#115)', async () => {
+    await expect(call(`/work-permits/${id(230)}/final-pdf`, 'GET', undefined, engineer())).rejects.toMatchObject({ status: 409, code: 'INVALID_TRANSITION' });
+    const pending = await call<WorkPermitDto>(`/work-permits/${id(230)}`, 'GET', undefined, engineer());
+    await call(`/work-permits/${pending.id}/review`, 'POST', { decision: 'APPROVE', comment: '', signatureRepresentation: 'Marina Demo' }, engineer(), pending.revision);
     const pdfDirect = await call<FinalPdfDto>(`/work-permits/${id(230)}/final-pdf`, 'GET', undefined, engineer());
     expect(pdfDirect.fileName).toBe(`PT-DEMO-230-final-v1.pdf`);
     expect(pdfDirect.mimeType).toBe('application/pdf');
     expect(pdfDirect.backendPersisted).toBe(false);
     expect(pdfDirect.disclaimer).toContain('demonstrativo');
     expect(pdfDirect.url).toContain('blob:');
+    expect(pdfDirect.version).toBe(1);
+    expect(pdfDirect.permitId).toBe(id(230));
 
     const pdfAlias = await call<FinalPdfDto>(`/pts/${id(230)}/final-pdf`, 'GET', undefined, engineer());
     expect(pdfAlias.fileName).toBe(pdfDirect.fileName);
+    await expect(call(`/work-permits/${id(230)}/final-pdf?version=2`, 'GET', undefined, engineer())).rejects.toMatchObject({ status: 409, code: 'INVALID_TRANSITION' });
+    await expect(call(`/work-permits/${id(230)}/final-pdf?version=1.5`, 'GET', undefined, engineer())).rejects.toMatchObject({ status: 422, field: 'version' });
+    const otherScope = engineer(); otherScope.user.scope.companyIds = [];
+    await expect(call(`/work-permits/${id(230)}/final-pdf?version=1`, 'GET', undefined, otherScope)).rejects.toMatchObject({ status: 404 });
 
     const openPermit = await prepared(id(221), false);
     await expect(call(`/work-permits/${openPermit.id}/final-pdf`, 'GET', undefined, engineer())).rejects.toMatchObject({

@@ -1,0 +1,12 @@
+.formFields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.formFields legend { font-weight: 600; padding: 0 0 12px; }
+.history { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.record { border: 1px solid var(--border); border-radius:6px; padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+.record h3, .record p { margin: 0; }
+.record h3 { font-size: 14px; font-weight: 600; }
+.metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.metadata dt { font-size: 12px; font-weight: 500; color: var(--muted); }
+.metadata dd { margin: 4px 0 0; font-size: 13px; line-height: 1.6; }
+.fileName { overflow-wrap: anywhere; }
+.readWarning { font-size: 0.85rem; }
+@media (max-width: 520px) { .metadata { grid-template-columns: minmax(0, 1fr); } }

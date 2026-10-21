@@ -12,6 +12,7 @@ import { validateScience, validateText } from '../permits/validation';
 import { AuthorizationSourceChecks } from './AuthorizationCommon';
 import { createAuthorizationClosingChecks, validateAuthorizationChecks, validateAuthorizationPreparation } from './model';
 import { authorizationError, authorizationKey, authorizationWindowError, useAuthorizationContextGuard } from './support';
+import { assertAuthorizationResponse, invalidateAuthorizationContext } from './request-safety';
 import styles from './authorizations.module.css';
 
 type Command = 'science' | 'authorize' | 'revalidate' | 'suspend' | 'close' | 'cancel';
@@ -38,22 +39,25 @@ export function AuthorizationActions({ record }: { record: WorkAuthorizationDto 
   const [method, setMethod] = useState<'TYPED' | 'DRAWN'>('TYPED'); const [drawing, setDrawing] = useState('');
   const [closingChecks, setClosingChecks] = useState<PermitSourceCheckDto[]>([]);
   const [failure, setFailure] = useState<unknown>(); const [notice, setNotice] = useState('');
+  const [reviewRequired, setReviewRequired] = useState(false);
   const [sending, setSending] = useState(false); const [checking, setChecking] = useState(false);
   const errorFocus = useRef<HTMLDivElement>(null);
+  const active = useRef(true); const pendingRequest = useRef<AbortController | undefined>(undefined);
+  useEffect(() => { active.current = true; return () => { active.current = false; pendingRequest.current?.abort(); }; }, []);
   const busy = sending || checking;
   const readable = can('at.read') && record.unitId === unitId;
   const operator = readable && can('at.operate') && record.appointment.responsibleId === me?.user.id;
   const administrative = readable && can('at.write') && Boolean(me?.roles.some(role => ['ADMIN', 'SESMT_MANAGER'].includes(role)));
   const has = (action: Command) => readable && (action === 'cancel' ? operator || administrative : operator) && record.availableActions.includes(actions[action]);
   const stale = Boolean(intent && (intent.revision !== record.revision || intent.status !== record.status));
-  const conflict = stale || failure instanceof ApiError && [412, 428].includes(failure.status);
+  const conflict = reviewRequired || stale || failure instanceof ApiError && [412, 428].includes(failure.status);
   const foreman = record.appointment.participants.find(person => person.workerId === record.preparation.foremanId);
   const blockers = authorizationBlockers(record);
   useAuthorizationContextGuard(Boolean(command), busy, setFailure);
   useEffect(() => { if (failure !== undefined) errorFocus.current?.focus(); }, [failure]);
 
   function open(action: Command) {
-    if (busy || !has(action)) return;
+    if (busy || pendingRequest.current || !has(action)) return;
     setCommand(action); setIntent({ revision: record.revision, status: record.status });
     setReason(''); setSummary(''); setIssuerName(''); setValidUntil(appointmentLocal(record.appointment.endsAt));
     setConfirmed(false); setSameTeam(false); setSameConditions(false); setFailure(undefined); setNotice('');
@@ -61,19 +65,25 @@ export function AuthorizationActions({ record }: { record: WorkAuthorizationDto 
     setClosingChecks(structuredClone(record.closingChecks.length ? record.closingChecks : createAuthorizationClosingChecks()));
   }
   async function refreshCurrent() {
-    if (busy) return;
-    setChecking(true);
+    if (busy || pendingRequest.current) return;
+    const controller = new AbortController(); pendingRequest.current = controller;
+    setChecking(true); setFailure(undefined); setNotice(''); setConfirmed(false); setSameTeam(false); setSameConditions(false);
     try {
-      const current = await client.fetchQuery({ queryKey: authorizationKey(sessionKey, unitId, record.id), queryFn: ({ signal }) => api.get<WorkAuthorizationDto>(`/work-authorizations/${record.id}`, { signal, query: { unitId } }), staleTime: 0 });
-      if (current.unitId !== unitId) throw new Error('A resposta pertence a outra unidade. Seu preenchimento foi preservado.');
+      const current = await api.get<WorkAuthorizationDto>(`/work-authorizations/${record.id}`, { signal: controller.signal, query: { unitId } });
+      if (!active.current || controller.signal.aborted) return;
+      const cached = client.getQueryData<WorkAuthorizationDto>(authorizationKey(sessionKey, unitId, record.id));
+      assertAuthorizationResponse(current, { id: record.id, unitId, companyId: record.companyId, appointmentId: record.appointment.id, minimumRevision: Math.max(record.revision, cached?.revision || 0) });
+      client.setQueryData(authorizationKey(sessionKey, unitId, record.id), current);
       setIntent({ revision: current.revision, status: current.status });
+      setReviewRequired(false);
       setConfirmed(false); setSameTeam(false); setSameConditions(false);
       setFailure(undefined); setNotice('AT atual carregada. O preenchimento foi preservado; confira o registro e confirme novamente.');
-    } catch (error) { setFailure(error); } finally { setChecking(false); }
+    } catch (error) { if (active.current && !controller.signal.aborted) setFailure(error); }
+    finally { if (pendingRequest.current === controller) { pendingRequest.current = undefined; if (active.current) setChecking(false); } }
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!command || !intent || conflict || busy || !has(command)) return;
+    if (!command || !intent || conflict || busy || pendingRequest.current || !has(command)) return;
     let body: unknown; let invalid: string | undefined;
     if (command === 'science') {
       const person = record.appointment.participants.find(value => value.workerId === workerId);
@@ -102,15 +112,21 @@ export function AuthorizationActions({ record }: { record: WorkAuthorizationDto 
     }
     if (!invalid && !confirmed) invalid = 'Confirme explicitamente esta ação antes de continuar.';
     if (invalid) { setFailure(new Error(invalid)); return; }
+    const controller = new AbortController(); pendingRequest.current = controller;
     setSending(true); setFailure(undefined); setNotice('');
+    let responseReceived = false;
     try {
-      const updated = await api.post<WorkAuthorizationDto>(`/work-authorizations/${record.id}/${command === 'science' ? 'sciences' : command}`, body, { etag: revisionEtag(intent.revision), query: { unitId } });
-      if (updated.unitId !== unitId) throw new Error('A resposta pertence a outra unidade. Seu preenchimento foi preservado.');
+      const updated = await api.post<WorkAuthorizationDto>(`/work-authorizations/${record.id}/${command === 'science' ? 'sciences' : command}`, body, { signal: controller.signal, etag: revisionEtag(intent.revision), query: { unitId } });
+      if (!active.current || controller.signal.aborted) return;
+      responseReceived = true;
+      const cached = client.getQueryData<WorkAuthorizationDto>(authorizationKey(sessionKey, unitId, record.id));
+      assertAuthorizationResponse(updated, { id: record.id, unitId, companyId: record.companyId, appointmentId: record.appointment.id, minimumRevision: Math.max(record.revision, cached?.revision || 0), advancedFrom: intent.revision });
       client.setQueryData(authorizationKey(sessionKey, unitId, record.id), updated);
       setNotice(`${labels[command]}: registro confirmado na demonstração. A situação da PT permanece sob seu próprio fluxo.`);
       setCommand(undefined); setIntent(undefined);
-      void Promise.all(['work-authorizations', 'authorization-options', 'appointments', 'appointment', 'eligibility', 'documentary-readiness', 'permit-dashboard'].map(key => client.invalidateQueries({ queryKey: [key] })));
-    } catch (error) { setFailure(error); } finally { setSending(false); }
+      void invalidateAuthorizationContext(client, sessionKey, unitId, ['work-authorizations', 'authorization-options', 'appointments', 'appointment', 'eligibility', 'documentary-readiness', 'permit-dashboard']);
+    } catch (error) { if (active.current && !controller.signal.aborted) { setFailure(error); if (responseReceived || error instanceof ApiError && [412, 428].includes(error.status)) setReviewRequired(true); } }
+    finally { if (pendingRequest.current === controller) { pendingRequest.current = undefined; if (active.current) setSending(false); } }
   }
   if (!readable) return null;
   const release = command === 'authorize' || command === 'revalidate';

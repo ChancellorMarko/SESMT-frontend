@@ -1,16 +1,18 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkPermitDto } from '../../shared/contracts/work-permits';
+import type { FinalPdfDto, WorkPermitDto } from '../../shared/contracts/work-permits';
 import { api } from '../../shared/api/client';
 import { PermitPrintPage } from './PermitPrintPage';
+import { triggerDownload } from '../../shared/lib/downloads';
 
 const state = vi.hoisted(() => ({
   permit: null as WorkPermitDto | null,
   unitId: 'unit',
 }));
+vi.mock('../../shared/lib/downloads', () => ({ triggerDownload: vi.fn() }));
 
 vi.mock('../../shared/auth/SessionProvider', () => ({
   useSession: () => ({
@@ -31,6 +33,7 @@ vi.mock('../../shared/api/client', async original => {
         if (path.endsWith('/final-pdf')) {
           return {
             url: 'blob:http://localhost/final.pdf',
+            permitId: 'permit', version: 1, expiresAt: new Date(Date.now() + 60000).toISOString(),
             fileName: 'PT-TESTE-final-v1.pdf',
             mimeType: 'application/pdf',
             backendPersisted: false,
@@ -86,11 +89,11 @@ function example(): WorkPermitDto {
   };
 }
 
-function show() {
+function show(search = '') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/app/pts/permit/imprimir']}>
+      <MemoryRouter initialEntries={['/app/pts/permit/imprimir' + search]}>
         <Routes>
           <Route path="/app/pts/:id/imprimir" element={<PermitPrintPage />} />
         </Routes>
@@ -98,6 +101,9 @@ function show() {
     </QueryClientProvider>
   );
   return client;
+}
+function pdfReceipt(change: Partial<FinalPdfDto> = {}): FinalPdfDto {
+  return { permitId: 'permit', version: 1, url: 'blob:http://localhost/final.pdf', fileName: 'PT-TESTE-final-v1.pdf', expiresAt: new Date(Date.now() + 60000).toISOString(), mimeType: 'application/pdf', backendPersisted: false, disclaimer: 'Documento demonstrativo de PDF.', ...change };
 }
 
 beforeEach(() => {
@@ -149,6 +155,7 @@ describe('visualização e impressão da permissão de trabalho', () => {
       ...example(),
       operationStatus: 'COMPLETED',
       reviewStatus: 'VALIDATED',
+      snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro aprovado.', checklist: [], sciences: [], decision: 'APPROVE' }],
     };
 
     const user = userEvent.setup();
@@ -158,8 +165,64 @@ describe('visualização e impressão da permissão de trabalho', () => {
     expect(downloadBtn).toBeInTheDocument();
 
     await user.click(downloadBtn);
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/work-permits/permit/final-pdf'));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/work-permits/permit/final-pdf', { query: { version: 1 }, signal: expect.any(AbortSignal) }));
     expect(await screen.findByText('Documento demonstrativo de PDF.')).toBeInTheDocument();
+  });
+
+  it('não oferece PDF final para snapshot pendente ou devolvido, mesmo com operação concluída', async () => {
+    state.permit = { ...example(), operationStatus: 'COMPLETED', reviewStatus: 'PENDING_REVIEW', snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro pendente.', checklist: [], sciences: [] }] };
+    const client = show(); await screen.findByRole('heading', { name: 'PT-TESTE' });
+    expect(screen.queryByRole('button', { name: /Baixar PDF final/ })).not.toBeInTheDocument();
+    await act(async () => { client.setQueryData(['work-permit', 'session', 'unit', 'permit'], { ...state.permit, reviewStatus: 'RETURNED', snapshots: [{ ...state.permit!.snapshots[0], decision: 'RETURN' }] }); });
+    expect(screen.queryByRole('button', { name: /Baixar PDF final/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Imprimir \/ salvar PDF/ })).toBeInTheDocument();
+  });
+  it('recusa um link expirado da versão histórica e permite obter outro', async () => {
+    state.permit = { ...example(), version: 2, operationStatus: 'COMPLETED', snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro histórico aprovado.', checklist: [], sciences: [], decision: 'APPROVE' }] };
+    let attempts = 0;
+    vi.mocked(api.get).mockImplementation(async path => path.endsWith('/final-pdf') ? pdfReceipt(attempts++ === 0 ? { expiresAt: '2000-01-01T00:00:00Z' } : {}) : path.endsWith('/attachments') ? [] : structuredClone(state.permit));
+    const user = userEvent.setup(); show('?version=1');
+    const button = await screen.findByRole('button', { name: /Baixar PDF final/ });
+    expect(screen.getByText('O PDF desta versão aprovada é demonstrativo, sem persistência ou validade operacional.')).toBeInTheDocument();
+    await user.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/vencido ou sem prazo válido/);
+    expect(triggerDownload).not.toHaveBeenCalled();
+    await user.click(button);
+    await waitFor(() => expect(triggerDownload).toHaveBeenCalledOnce());
+    expect(attempts).toBe(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('solicita a versão histórica aprovada selecionada e não a versão atual em correção', async () => {
+    state.permit = { ...example(), version: 2, operationStatus: 'COMPLETED', snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro histórico aprovado.', checklist: [], sciences: [], decision: 'APPROVE' }] };
+    const user = userEvent.setup(); show('?version=1');
+    await user.click(await screen.findByRole('button', { name: /Baixar PDF final/ }));
+    expect(api.get).toHaveBeenCalledWith('/work-permits/permit/final-pdf', { query: { version: 1 }, signal: expect.any(AbortSignal) });
+    expect(triggerDownload).toHaveBeenCalledOnce();
+    await user.selectOptions(screen.getByLabelText('Versão do registro'), '2');
+    expect(screen.queryByRole('button', { name: /Baixar PDF final/ })).not.toBeInTheDocument();
+  });
+
+  it('não baixa um arquivo retornado para outra versão', async () => {
+    state.permit = { ...example(), operationStatus: 'COMPLETED', reviewStatus: 'VALIDATED', snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro aprovado.', checklist: [], sciences: [], decision: 'APPROVE' }] };
+    vi.mocked(api.get).mockImplementation(async (path) => path.endsWith('/final-pdf') ? { url: 'blob:http://localhost/wrong.pdf', fileName: 'v2.pdf', version: 2 } : path.endsWith('/attachments') ? [] : structuredClone(state.permit));
+    const user = userEvent.setup(); show(); await user.click(await screen.findByRole('button', { name: /Baixar PDF final/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/não corresponde à versão solicitada/);
+    expect(triggerDownload).not.toHaveBeenCalled();
+  });
+
+  it('aborta e ignora o download pendente se a seleção de versão muda', async () => {
+    state.permit = { ...example(), version: 2, operationStatus: 'COMPLETED', snapshots: [{ version: 1, submittedAt: '2026-10-09T15:00:00Z', summary: 'Registro aprovado.', checklist: [], sciences: [], decision: 'APPROVE' }] };
+    let resolvePdf!: (value: unknown) => void; let signal!: AbortSignal;
+    vi.mocked(api.get).mockImplementation(async (path, options) => {
+      if (path.endsWith('/final-pdf')) { signal = options!.signal!; return new Promise(resolve => { resolvePdf = resolve; }); }
+      return path.endsWith('/attachments') ? [] : structuredClone(state.permit);
+    });
+    const user = userEvent.setup(); show('?version=1'); await user.click(await screen.findByRole('button', { name: /Baixar PDF final/ }));
+    await user.selectOptions(screen.getByLabelText('Versão do registro'), '2');
+    expect(signal.aborted).toBe(true);
+    await act(async () => { resolvePdf({ url: 'blob:http://localhost/v1.pdf', fileName: 'v1.pdf', disclaimer: 'Resposta antiga.' }); });
+    expect(triggerDownload).not.toHaveBeenCalled(); expect(screen.queryByText('Resposta antiga.')).not.toBeInTheDocument();
   });
 
   it('exibe estado vazio quando a unidade do atendimento difere da unidade ativa', async () => {

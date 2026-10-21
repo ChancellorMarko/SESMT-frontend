@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OrganizationDto } from '../../shared/contracts';
-import { assignmentError, dateLabel, validCivil, workerFormSchema, type WorkerFormValues } from './support';
+import { assignmentError, dateLabel, todayCivil, validCivil, workerFormSchema, workerMovementSchema, type WorkerFormValues } from './support';
 
 const organization: OrganizationDto = {
   companies: [{ id: 'company-a', name: 'Empresa A', status: 'ACTIVE', revision: 1 }],
@@ -34,5 +34,18 @@ describe('dados civis e vínculo de trabalhador', () => {
   it('recusa referência inativa ainda existente no catálogo', () => {
     const inactive = { ...organization, sectors: [{ ...organization.sectors[0], status: 'INACTIVE' as const }] };
     expect(assignmentError(valid, inactive)).toContain('setor ativo');
+  });
+  it('recusa empresa inativa mesmo com unidade e setor ativos', () => {
+    expect(assignmentError(valid, { ...organization, companies: [{ ...organization.companies[0], status: 'INACTIVE' }] })).toContain('empresa ativa');
+  });
+  it('valida tipo e período efetivo conforme o vínculo atual', () => {
+    const schema = workerMovementSchema({ status: 'ACTIVE', admissionDate: '2024-01-01' });
+    const value = { ...valid, type: 'TRANSFER', effectiveDate: todayCivil(), reason: 'Mudança registrada.' };
+    expect(schema.safeParse(value).success).toBe(true);
+    expect(schema.safeParse({ ...value, type: 'RETURN' }).success).toBe(false);
+    expect(schema.safeParse({ ...value, effectiveDate: '2023-12-31' }).success).toBe(false);
+    expect(schema.safeParse({ ...value, effectiveDate: '2099-01-01' }).success).toBe(false);
+    expect(schema.safeParse({ ...value, effectiveDate: '2026-02-31' }).success).toBe(false);
+    expect(workerMovementSchema({ status: 'TERMINATED', admissionDate: '2024-01-01' }).safeParse({ ...value, type: 'ADMISSION' }).success).toBe(true);
   });
 });

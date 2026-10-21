@@ -19,6 +19,10 @@ export const teamFormSchema = z.object({
 });
 
 export type TeamFormValues = z.infer<typeof teamFormSchema>;
+export const teamStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE'], { message: 'Situação da equipe inválida.' }),
+  inactiveReason: z.string().trim().max(300, 'O motivo da inativação deve ter até 300 caracteres.').optional(),
+}).strict('O envio contém campos que não pertencem à alteração de situação.');
 export const normalizedTeamText = (value: string) => value.trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 
 export function teamErrorMessage(error: unknown) {

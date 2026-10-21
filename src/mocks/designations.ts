@@ -11,6 +11,7 @@ import { PermitDemoError, type PermitDemoContext } from './work-permits';
 import { id, UNIT_A, UNIT_B, COMPANY } from './fixtures';
 import { PT_SERVICE_TYPES } from '../shared/lib/service-types';
 import { appointmentServiceIds } from '../shared/lib/appointment-services';
+import { isCivilDate } from '../features/documents/validation';
 
 function assert(condition: unknown, status: number, code: string, message: string, field?: string): asserts condition {
   if (!condition) throw new PermitDemoError(status, code, message, field);
@@ -172,6 +173,34 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
 
   const handles = (path: string) => /^\/(designations|designation-coverage)(\/|$)/.test(path);
 
+  function accessUnit(context: PermitDemoContext, unitId: string) {
+    assert(!context.user.scope.expiresAt || Date.parse(context.user.scope.expiresAt) > Date.now(), 403, 'FORBIDDEN', 'A concessão de acesso expirou.');
+    assert([UNIT_A, UNIT_B].includes(unitId) && context.user.scope.companyIds.includes(COMPANY) && context.user.scope.unitIds.includes(unitId), 403, 'FORBIDDEN', 'Empresa ou unidade fora do alcance.');
+    context.checkUnit(unitId);
+  }
+  function writeAccess(context: PermitDemoContext, unitId?: string) {
+    assert(context.permissions.includes('appointments.write'), 403, 'FORBIDDEN', 'Sem permissão para alterar designações.');
+    assert(!context.user.scope.ownOnly && !context.user.scope.teamIds.length, 403, 'FORBIDDEN', 'A configuração exige acesso ao conjunto da unidade.');
+    if (unitId) accessUnit(context, unitId);
+  }
+  function checkRevision(request: Request, designation: DesignationDto) {
+    assert(request.headers.has('If-Match'), 428, 'PRECONDITION_REQUIRED', 'Recarregue a designação antes de alterar.');
+    assert(request.headers.get('If-Match') === `"${designation.revision}"`, 412, 'REVISION_CONFLICT', 'A designação mudou. Seu preenchimento deve ser conferido antes de continuar.');
+  }
+  function serviceIds(values: unknown): string[] {
+    assert(Array.isArray(values) && values.length > 0 && values.length <= input.services.length && new Set(values).size === values.length && values.every(value => typeof value === 'string' && input.services.some(service => service.id === value)), 422, 'VALIDATION_FAILED', 'Selecione serviços válidos sem repetição.', 'serviceTypeIds');
+    return [...values];
+  }
+  function date(value: unknown, field: string) {
+    const result = text(value, field, 10);
+    assert(isCivilDate(result), 422, 'VALIDATION_FAILED', 'Informe uma data de vigência válida.', field);
+    return result;
+  }
+  function optionalText(value: unknown, field: string, maximum: number) {
+    assert(typeof value === 'string' && value.length <= maximum, 422, 'VALIDATION_FAILED', `Use um texto de até ${maximum} caracteres.`, field);
+    return value.trim();
+  }
+
   async function route(request: Request, url: URL, path: string, context: PermitDemoContext): Promise<unknown | undefined> {
     if (!handles(path)) return undefined;
     const parts = path.split('/').filter(Boolean);
@@ -183,14 +212,13 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
       assert(context.permissions.includes('permits.read') || context.permissions.includes('appointments.read'),
         403, 'FORBIDDEN', 'Sem permissão para consultar cobertura.');
       const unitId = text(queryUnit, 'unitId');
-      assert(context.user.scope.unitIds.includes(unitId), 403, 'FORBIDDEN', 'Unidade fora do alcance.');
-      context.checkUnit(unitId);
+      accessUnit(context, unitId);
       const serviceTypeIdsParam = url.searchParams.get('serviceTypeIds');
       assert(serviceTypeIdsParam, 422, 'VALIDATION_FAILED', 'Informe os serviços para verificar a cobertura.', 'serviceTypeIds');
-      const serviceTypeIds = serviceTypeIdsParam.split(',').filter(Boolean);
-      assert(serviceTypeIds.length > 0, 422, 'VALIDATION_FAILED', 'Informe ao menos um serviço.', 'serviceTypeIds');
+      const serviceTypeIds = serviceIds(serviceTypeIdsParam.split(','));
       const location = url.searchParams.get('location') || '';
       const atDate = url.searchParams.get('atDate') || today();
+      assert(isCivilDate(atDate), 422, 'VALIDATION_FAILED', 'Informe uma data de consulta válida.', 'atDate');
       const responsibleId = url.searchParams.get('responsibleId') || undefined;
       return checkCoverage(unitId, serviceTypeIds, location, atDate, responsibleId);
     }
@@ -200,8 +228,7 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
         assert(context.permissions.includes('appointments.read') || context.permissions.includes('designations.read'),
           403, 'FORBIDDEN', 'Sem permissão para consultar designações.');
         if (queryUnit) {
-          assert(context.user.scope.unitIds.includes(queryUnit), 403, 'FORBIDDEN', 'Unidade fora do alcance.');
-          context.checkUnit(queryUnit);
+          accessUnit(context, queryUnit);
         }
         const statusFilter = url.searchParams.get('status');
         const responsibleFilter = url.searchParams.get('responsibleId');
@@ -209,7 +236,8 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
         return [...designations.values()]
           .map(statusResponse)
           .filter(d =>
-            context.user.scope.unitIds.includes(d.unitId) &&
+            context.user.scope.companyIds.includes(COMPANY) && context.user.scope.unitIds.includes(d.unitId) &&
+            (!context.user.scope.ownOnly || d.responsibleId === context.user.id) &&
             (!queryUnit || d.unitId === queryUnit) &&
             (!statusFilter || d.status === statusFilter) &&
             (!responsibleFilter || d.responsibleId === responsibleFilter) &&
@@ -219,32 +247,26 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
       }
 
       if (parts.length === 1 && method === 'POST') {
-        assert(context.permissions.includes('appointments.write'), 403, 'FORBIDDEN', 'Sem permissão para criar designações.');
+        writeAccess(context, queryUnit || undefined);
         const data = await body<DesignationWriteDto>();
-        assert(data && typeof data === 'object', 422, 'VALIDATION_FAILED', 'Envie os dados da designação.');
+        assert(data && typeof data === 'object' && !Array.isArray(data), 422, 'VALIDATION_FAILED', 'Envie os dados da designação.');
         const unitId = text(queryUnit || (data as unknown as { unitId?: string }).unitId, 'unitId');
-        assert(context.user.scope.unitIds.includes(unitId), 403, 'FORBIDDEN', 'Unidade fora do alcance.');
-        context.checkUnit(unitId);
+        writeAccess(context, unitId);
         const responsibleId = text(data.responsibleId, 'responsibleId');
         const responsible = input.responsibles.find(r => r.id === responsibleId);
         assert(responsible, 422, 'INVALID_ASSIGNMENT', 'Responsável não encontrado.', 'responsibleId');
-        assert(Array.isArray(data.serviceTypeIds) && data.serviceTypeIds.length > 0 &&
-          data.serviceTypeIds.every(sid => input.services.some(s => s.id === sid)) &&
-          new Set(data.serviceTypeIds).size === data.serviceTypeIds.length,
-          422, 'VALIDATION_FAILED', 'Selecione serviços válidos sem repetição.', 'serviceTypeIds');
-        const validFrom = text(data.validFrom, 'validFrom');
-        const validUntil = text(data.validUntil, 'validUntil');
-        assert(/^\d{4}-\d{2}-\d{2}$/.test(validFrom) && /^\d{4}-\d{2}-\d{2}$/.test(validUntil),
-          422, 'VALIDATION_FAILED', 'Informe datas de vigência válidas.', 'validFrom');
+        const selectedServices = serviceIds(data.serviceTypeIds);
+        const validFrom = date(data.validFrom, 'validFrom');
+        const validUntil = date(data.validUntil, 'validUntil');
         assert(validFrom <= validUntil, 422, 'VALIDATION_FAILED', 'O fim da vigência deve ser posterior ou igual ao início.', 'validUntil');
-        const serviceNames = data.serviceTypeIds.map(sid => input.services.find(s => s.id === sid)!.name);
+        const serviceNames = selectedServices.map(sid => input.services.find(s => s.id === sid)!.name);
         const designation: DesignationDto = {
           id: crypto.randomUUID(), unitId,
           responsibleId, responsibleName: responsible.name,
-          serviceTypeIds: [...data.serviceTypeIds], serviceNames,
-          locationPattern: typeof data.locationPattern === 'string' ? data.locationPattern.trim() : '',
+          serviceTypeIds: selectedServices, serviceNames,
+          locationPattern: optionalText(data.locationPattern, 'locationPattern', 200),
           validFrom, validUntil,
-          notes: typeof data.notes === 'string' ? data.notes.trim().slice(0, 2000) : undefined,
+          notes: data.notes === undefined ? undefined : optionalText(data.notes, 'notes', 2000),
           status: 'ACTIVE',
           createdAt: instant(), createdBy: context.user.id, createdByName: context.user.displayName,
           revision: 1,
@@ -261,19 +283,22 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
       // Single designation routes
       assert(parts.length >= 2, 404, 'NOT_FOUND', 'Rota não encontrada.');
       const designation = designations.get(parts[1]);
-      assert(designation && context.user.scope.unitIds.includes(designation.unitId),
+      assert(designation && context.user.scope.companyIds.includes(COMPANY) && context.user.scope.unitIds.includes(designation.unitId) && (!context.user.scope.ownOnly || designation.responsibleId === context.user.id) && (!queryUnit || queryUnit === designation.unitId),
         404, 'NOT_FOUND', 'Designação não encontrada ou fora do alcance.');
 
       if (parts.length === 2 && method === 'GET') {
+        assert(context.permissions.includes('appointments.read') || context.permissions.includes('designations.read'), 403, 'FORBIDDEN', 'Sem permissão para consultar designações.');
+        accessUnit(context, designation.unitId);
         return statusResponse(designation);
       }
 
       if (parts[2] === 'revoke' && method === 'POST') {
-        assert(context.permissions.includes('appointments.write'), 403, 'FORBIDDEN', 'Sem permissão para revogar designações.');
+        writeAccess(context, designation.unitId);
         assert(designation.status !== 'REVOKED', 409, 'ALREADY_REVOKED', 'Esta designação já foi revogada.');
-        assert(request.headers.has('If-Match'), 428, 'PRECONDITION_REQUIRED', 'Recarregue o registro antes de revogar.');
-        assert(request.headers.get('If-Match') === `"${designation.revision}"`, 412, 'REVISION_CONFLICT', 'O registro mudou. Recarregue.');
+        checkRevision(request, designation);
         const data = await body<{ reason: string }>();
+        writeAccess(context, designation.unitId); checkRevision(request, designation);
+        assert(data && typeof data === 'object' && !Array.isArray(data), 422, 'VALIDATION_FAILED', 'Informe o motivo da revogação.');
         const reason = text(data.reason, 'reason');
         designation.status = 'REVOKED';
         designation.revokedAt = instant();
@@ -289,29 +314,29 @@ export function makeDesignationsDemo(input: DesignationsDemoInput) {
       }
 
       if (parts.length === 2 && method === 'PATCH') {
-        assert(context.permissions.includes('appointments.write'), 403, 'FORBIDDEN', 'Sem permissão para editar designações.');
+        writeAccess(context, designation.unitId);
         assert(resolveStatus(designation) === 'ACTIVE', 409, 'NOT_ACTIVE', 'Somente designações ativas podem ser editadas.');
-        assert(request.headers.has('If-Match'), 428, 'PRECONDITION_REQUIRED', 'Recarregue o registro antes de alterar.');
-        assert(request.headers.get('If-Match') === `"${designation.revision}"`, 412, 'REVISION_CONFLICT', 'O registro mudou. Recarregue.');
+        checkRevision(request, designation);
         const data = await body<Partial<DesignationWriteDto>>();
-        if (data.serviceTypeIds) {
-          assert(Array.isArray(data.serviceTypeIds) && data.serviceTypeIds.length > 0 &&
-            data.serviceTypeIds.every(sid => input.services.some(s => s.id === sid)),
-            422, 'VALIDATION_FAILED', 'Serviços inválidos.', 'serviceTypeIds');
-          designation.serviceTypeIds = [...data.serviceTypeIds];
-          designation.serviceNames = data.serviceTypeIds.map(sid => input.services.find(s => s.id === sid)!.name);
+        writeAccess(context, designation.unitId); checkRevision(request, designation);
+        assert(data && typeof data === 'object' && !Array.isArray(data), 422, 'VALIDATION_FAILED', 'Envie as alterações em um objeto.');
+        assert(resolveStatus(designation) === 'ACTIVE', 409, 'NOT_ACTIVE', 'Somente designações ativas podem ser editadas.');
+        const next = clone(designation);
+        if (data.serviceTypeIds !== undefined) {
+          next.serviceTypeIds = serviceIds(data.serviceTypeIds);
+          next.serviceNames = next.serviceTypeIds.map(sid => input.services.find(s => s.id === sid)!.name);
         }
-        if (data.validFrom) {
-          assert(/^\d{4}-\d{2}-\d{2}$/.test(data.validFrom), 422, 'VALIDATION_FAILED', 'Data inválida.', 'validFrom');
-          designation.validFrom = data.validFrom;
+        if (data.responsibleId !== undefined) {
+          const responsible = input.responsibles.find(value => value.id === data.responsibleId);
+          assert(responsible, 422, 'INVALID_ASSIGNMENT', 'Responsável não encontrado.', 'responsibleId');
+          next.responsibleId = responsible.id; next.responsibleName = responsible.name;
         }
-        if (data.validUntil) {
-          assert(/^\d{4}-\d{2}-\d{2}$/.test(data.validUntil), 422, 'VALIDATION_FAILED', 'Data inválida.', 'validUntil');
-          designation.validUntil = data.validUntil;
-        }
-        assert(designation.validFrom <= designation.validUntil, 422, 'VALIDATION_FAILED', 'Vigência inválida.', 'validUntil');
-        if (data.locationPattern !== undefined) designation.locationPattern = data.locationPattern.trim();
-        if (data.notes !== undefined) designation.notes = data.notes?.trim().slice(0, 2000);
+        if (data.validFrom !== undefined) next.validFrom = date(data.validFrom, 'validFrom');
+        if (data.validUntil !== undefined) next.validUntil = date(data.validUntil, 'validUntil');
+        assert(next.validFrom <= next.validUntil, 422, 'VALIDATION_FAILED', 'Vigência inválida.', 'validUntil');
+        if (data.locationPattern !== undefined) next.locationPattern = optionalText(data.locationPattern, 'locationPattern', 200);
+        if (data.notes !== undefined) next.notes = optionalText(data.notes, 'notes', 2000);
+        Object.assign(designation, next);
         designation.revision++;
         designation.history.push({
           id: crypto.randomUUID(), action: 'DESIGNATION_UPDATED',

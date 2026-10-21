@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router';
 import { api, revisionEtag } from '../../shared/api/client';
@@ -7,6 +7,7 @@ import type { DesignationDto } from '../../shared/contracts/designations';
 import { formatDate } from '../../shared/lib/format';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, type Tone } from '../../shared/ui';
 import styles from './Designations.module.css';
+import { UnsavedChanges } from '../workers/UnsavedChanges';
 
 const statusLabels: Record<string, string> = { ACTIVE: 'Vigente', REVOKED: 'Revogada', EXPIRED: 'Expirada' };
 const statusTones: Record<string, Tone> = { ACTIVE: 'success', REVOKED: 'danger', EXPIRED: 'warning' };
@@ -24,41 +25,59 @@ export function DesignationDetailPage() {
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
   const [revokeError, setRevokeError] = useState('');
+  const [intentRevision, setIntentRevision] = useState<number>();
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setRevokeOpen(false); setRevokeReason(''); setRevokeError(''); setIntentRevision(undefined);
+    return () => { request.current?.abort(); request.current = null; };
+  }, [id, sessionKey, unitId]);
   const success = (location.state as { success?: string } | null)?.success;
 
   const query = useQuery({
     queryKey: ['designation', sessionKey, unitId, id],
     queryFn: ({ signal }) => api.get<DesignationDto>(`/designations/${id}`, { signal }),
-    enabled: Boolean(id) && can('appointments.read'),
+    enabled: Boolean(id && unitId) && can('appointments.read'),
   });
 
   const revokeMutation = useMutation({
     mutationFn: async () => {
-      if (!query.data) throw new Error('Recarregue a designação.');
-      return api.post<DesignationDto>(`/designations/${id}/revoke`, { reason: revokeReason.trim() }, { etag: revisionEtag(query.data.revision) });
+      if (!query.data || query.data.unitId !== unitId || !can('appointments.write')) throw new Error('Recarregue a designação na unidade autorizada.');
+      if (intentRevision !== query.data.revision || query.data.status !== 'ACTIVE') throw new Error('A designação foi atualizada. Feche a janela e confira a versão atual.');
+      const controller = new AbortController(); request.current = controller;
+      try {
+        const updated = await api.post<DesignationDto>(`/designations/${id}/revoke`, { reason: revokeReason.trim() }, { etag: revisionEtag(intentRevision), signal: controller.signal });
+        if (controller.signal.aborted) throw new DOMException('Contexto alterado.', 'AbortError');
+        if (updated.id !== id || updated.unitId !== unitId) throw new Error('A resposta não corresponde à designação desta unidade. Confira o registro antes de tentar novamente.');
+        return updated;
+      } finally { if (request.current === controller) request.current = null; }
     },
     onSuccess: async (updated) => {
       client.setQueryData(['designation', sessionKey, unitId, id], updated);
-      await client.invalidateQueries({ queryKey: ['designations'] });
+      void Promise.all(['designations', 'designation-coverage', 'work-permit', 'appointments'].map(key => client.invalidateQueries({ queryKey: [key] })));
       setRevokeOpen(false); setRevokeReason(''); setRevokeError('');
     },
-    onError: (error) => setRevokeError(errorMessage(error)),
+    onError: (error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setRevokeError(errorMessage(error)); },
   });
 
   if (!can('appointments.read')) return <EmptyState title="Acesso restrito" />;
+  if (!unitId) return <EmptyState title="Selecione uma unidade" />;
   if (query.isPending) return <Spinner />;
   if (query.isError) return <div className="panel stack"><Feedback tone="danger">Designação não encontrada ou indisponível.</Feedback><Link className="button button--secondary" to="/app/designacoes">Voltar</Link></div>;
 
   const d = query.data!;
+  if (!d || d.unitId !== unitId) return <EmptyState title="Designação de outra unidade" description="Selecione a unidade correspondente para consultar este registro." />;
   const canRevoke = can('appointments.write') && d.status === 'ACTIVE';
+  const staleIntent = revokeOpen && (intentRevision !== d.revision || d.status !== 'ACTIVE');
+  const close = () => { if (!revokeMutation.isPending) { setRevokeOpen(false); setIntentRevision(undefined); } };
 
   return <div className="stack">
+    <UnsavedChanges dirty={revokeOpen} busy={revokeMutation.isPending} protectContext />
     <PageHeader
       eyebrow="OPERAÇÃO"
       title={d.responsibleName}
       description={`Designação operacional · ${d.locationPattern || 'Qualquer local'}`}
       actions={<div className="actions">
-        {canRevoke && <Button variant="danger" onClick={() => { setRevokeOpen(true); setRevokeError(''); setRevokeReason(''); }}>Revogar designação</Button>}
+        {canRevoke && <Button variant="danger" disabled={revokeMutation.isPending} onClick={() => { setRevokeOpen(true); setIntentRevision(d.revision); setRevokeError(''); setRevokeReason(''); revokeMutation.reset(); }}>Revogar designação</Button>}
         <Link className="button button--secondary" to="/app/designacoes">Voltar</Link>
       </div>}
     />
@@ -109,18 +128,19 @@ export function DesignationDetailPage() {
       </div>
     </div>
 
-    <Modal open={revokeOpen} title="Revogar designação" onClose={() => setRevokeOpen(false)}>
-      <form className="stack" onSubmit={e => { e.preventDefault(); if (revokeReason.trim().length >= 5) revokeMutation.mutate(); else setRevokeError('Informe um motivo com ao menos 5 caracteres.'); }}>
+    <Modal open={revokeOpen} title="Revogar designação" onClose={close}>
+      <form className="stack" onSubmit={e => { e.preventDefault(); if (revokeMutation.isPending || request.current || staleIntent) return; if (revokeReason.trim().length >= 5 && revokeReason.trim().length <= 2000) revokeMutation.mutate(); else setRevokeError('Informe um motivo entre 5 e 2.000 caracteres.'); }}>
         {revokeError && <Feedback tone="danger">{revokeError}</Feedback>}
+        {staleIntent && <Feedback tone="warning">A designação foi atualizada enquanto esta janela estava aberta. Feche a janela, confira o registro atual e abra a revogação novamente.</Feedback>}
         <p>A revogação bloqueia imediatamente operações que exigem a cobertura deste responsável para os serviços designados.</p>
         <Field label="Motivo da revogação *" error={revokeError && revokeReason.trim().length < 5 ? 'Mínimo de 5 caracteres.' : ''}>
-          <textarea rows={3} value={revokeReason} onChange={e => setRevokeReason(e.target.value)} placeholder="Explique o motivo da revogação." />
+          <textarea rows={3} maxLength={2000} disabled={revokeMutation.isPending || staleIntent} value={revokeReason} onChange={e => setRevokeReason(e.target.value)} placeholder="Explique o motivo da revogação." />
         </Field>
         <div className="actions">
-          <Button variant="danger" type="submit" disabled={revokeMutation.isPending}>
+          <Button variant="danger" type="submit" disabled={revokeMutation.isPending || staleIntent || !canRevoke}>
             {revokeMutation.isPending ? 'Revogando…' : 'Confirmar revogação'}
           </Button>
-          <Button variant="secondary" onClick={() => setRevokeOpen(false)} disabled={revokeMutation.isPending}>Cancelar</Button>
+          <Button variant="secondary" onClick={close} disabled={revokeMutation.isPending}>Cancelar</Button>
         </div>
       </form>
     </Modal>

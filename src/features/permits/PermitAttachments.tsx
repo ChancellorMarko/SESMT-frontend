@@ -1,3 +1,4 @@
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Paperclip } from 'lucide-react';
@@ -16,8 +17,8 @@ import { errorMessage } from './validation';
 import styles from './PermitAttachments.module.css';
 
 type DraftBase = { revision: number; version: number };
-export function PermitAttachments({ permit, disabled = false, onBusyChange }: {
-  permit: WorkPermitDto; disabled?: boolean; onBusyChange?: (busy: boolean) => void;
+export function PermitAttachments({ permit, disabled = false, onBusyChange, sectionId }: {
+  permit: WorkPermitDto; disabled?: boolean; onBusyChange?: (busy: boolean) => void; sectionId?: string;
 }) {
   const { me, sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
@@ -60,6 +61,7 @@ export function PermitAttachments({ permit, disabled = false, onBusyChange }: {
     return { ...result, attachmentId: attachment.id };
   }, onSuccess: result => setDownload(result) });
   const busy = upload.isPending || refreshing;
+  useNavigationGuard({ dirty, busy });
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   useEffect(() => {
@@ -106,7 +108,7 @@ export function PermitAttachments({ permit, disabled = false, onBusyChange }: {
   if (!readable) return null;
   const conflict = stale || upload.error instanceof ApiError && upload.error.status === 412;
 
-  return <section className="panel stack" aria-label="Anexos de acompanhamento da PT" aria-busy={busy}>
+  return <section id={sectionId} className="panel stack" aria-label="Anexos de acompanhamento da PT" aria-busy={busy}>
     <div className={styles.heading}><div><p className="eyebrow">Acompanhamento em campo</p><h2><Paperclip size={20} aria-hidden="true" /> Anexos da PT</h2><p className="muted">Fotos e arquivos preservados com a versão, a descrição e quem registrou.</p></div><Badge>{currentCount}/{PERMIT_ATTACHMENT_MAX_PER_VERSION} nesta versão</Badge></div>
     <p className="muted">Estes anexos registram o acompanhamento da atividade. A documentação e a elegibilidade dos participantes são conferidas na seção própria.</p>
     {notice && <Feedback tone="success">{notice}</Feedback>}

@@ -29,7 +29,7 @@ export function DesignationsPage() {
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade para ver as designações." />;
 
   const designations = (query.data || []).filter(d =>
-    !search || `${d.responsibleName} ${d.serviceNames.join(' ')} ${d.locationPattern}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')),
+    d.unitId === unitId && (!statusFilter || d.status === statusFilter) && (!search || `${d.responsibleName} ${d.serviceNames.join(' ')} ${d.locationPattern}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))),
   );
 
   return <div className="stack">

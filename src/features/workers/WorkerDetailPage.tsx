@@ -1,8 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { WorkerIntegrationPanel } from './WorkerIntegrationPanel';
 import { Link, useLocation, useParams } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, revisionEtag } from '../../shared/api/client';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Building2, FileText, History, UsersRound, UserRound, ClipboardCheck } from 'lucide-react';
+import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
+import { integrationReturnDestination } from './worker-integration-navigation';
+import { restoredWorkerDocumentPage, workerDocumentNavigation } from './worker-document-navigation';
 import type {
   WorkerDto,
   WorkerMovementDto,
@@ -10,18 +14,15 @@ import type {
   PageDto,
   DocumentDto,
   WorkerAssignment,
-  IntegrationStatus,
 } from '../../shared/contracts';
-import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, PageHeader, Spinner } from '../../shared/ui';
+import { workerNavigation } from './worker-navigation';
+import styles from './WorkerDetail.module.css';
 import {
   dateLabel,
   movementLabels,
   QueryError,
   workerStatusLabels,
-  integrationStatusLabels,
-  integrationStatusTone,
-  errorMessage,
-  todayCivil,
 } from './support';
 
 const documentLabels: Record<string, string> = {
@@ -36,28 +37,24 @@ const documentLabels: Record<string, string> = {
 
 export function WorkerDetailPage() {
   const { id } = useParams();
+  const { unitId, sessionKey } = useSession();
+  return <WorkerDetailContent key={JSON.stringify([id, unitId, sessionKey])} />;
+}
+
+function WorkerDetailContent() {
+  const { id } = useParams();
   const { can, unitId, sessionKey } = useSession();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const [movementPage, setMovementPage] = useState(1);
-  const [documentPage, setDocumentPage] = useState(1);
-
-  // Integration form state
-  const [integrationOpen, setIntegrationOpen] = useState(false);
-  const [formStatus, setFormStatus] = useState<IntegrationStatus>('INTEGRATED');
-  const [formIntegratedAt, setFormIntegratedAt] = useState(todayCivil());
-  const [formValidUntil, setFormValidUntil] = useState('');
-  const [formResponsibleName, setFormResponsibleName] = useState('');
-  const [formEvidenceFileName, setFormEvidenceFileName] = useState('');
-  const [formNotes, setFormNotes] = useState('');
-  const [submittingIntegration, setSubmittingIntegration] = useState(false);
-  const [integrationError, setIntegrationError] = useState<string | null>(null);
-  const [integrationNotice, setIntegrationNotice] = useState<string | null>(null);
+  const [documentPage, setDocumentPage] = useState(() => restoredWorkerDocumentPage(location.state, sessionKey, unitId, id));
+  const integrationPanel = useRef<HTMLDivElement>(null);
+  const canReadWorker = can('workers.read');
+  const listOrigin = workerNavigation(location.state, sessionKey, unitId);
 
   const worker = useQuery({
     queryKey: ['worker', sessionKey, unitId, id],
     queryFn: ({ signal }) => api.get<WorkerDto>(`/workers/${id}`, { signal }),
-    enabled: can('workers.read') && Boolean(id),
+    enabled: canReadWorker && Boolean(id),
   });
 
   const organization = useQuery({
@@ -86,7 +83,20 @@ export function WorkerDetailPage() {
     enabled: Boolean(worker.data) && can('documents.read'),
   });
 
-  if (!can('workers.read')) return <EmptyState title="Acesso restrito" description="Seu perfil não pode consultar este cadastro." />;
+  useEffect(() => {
+    if (location.hash !== '#integracao' || !canReadWorker || worker.isError || worker.data?.id !== id) return;
+    integrationPanel.current?.focus({ preventScroll: true });
+    integrationPanel.current?.scrollIntoView?.({ block: 'start' });
+  }, [id, location.hash, location.key, unitId, sessionKey, canReadWorker, worker.data?.id, worker.isError]);
+
+  useEffect(() => {
+    if (!canReadWorker || worker.isError || worker.data?.id !== id || !['#vinculo', '#equipes', '#documentos', '#historico'].includes(location.hash)) return;
+    const section = document.getElementById(location.hash.slice(1));
+    section?.focus({ preventScroll: true });
+    section?.scrollIntoView?.({ block: 'start' });
+  }, [id, location.hash, location.key, canReadWorker, worker.data?.id, worker.isError]);
+
+  if (!canReadWorker) return <EmptyState title="Acesso restrito" description="Seu perfil não pode consultar este cadastro." />;
   if (worker.isPending) return <Spinner />;
   if (worker.isError) return <QueryError error={worker.error} retry={() => void worker.refetch()} />;
   if (!worker.data) return null;
@@ -106,55 +116,40 @@ export function WorkerDetailPage() {
   }
 
   const success = (location.state as { success?: string } | null)?.success;
-
-  async function handleSaveIntegration(event: FormEvent) {
-    event.preventDefault();
-    if (formValidUntil && formIntegratedAt && formValidUntil < formIntegratedAt) {
-      setIntegrationError('A validade da integração não pode ser anterior à data realizada.');
-      return;
-    }
-    setSubmittingIntegration(true);
-    setIntegrationError(null);
-    try {
-      const updated = await api.post<WorkerDto>(
-        `/workers/${id}/integration`,
-        {
-          status: formStatus,
-          integratedAt: formIntegratedAt,
-          validUntil: formValidUntil || undefined,
-          responsibleName: formResponsibleName.trim() || undefined,
-          evidenceFileName: formEvidenceFileName.trim() || undefined,
-          notes: formNotes.trim() || undefined,
-        },
-        { etag: revisionEtag(data.revision) }
-      );
-      queryClient.setQueryData(['worker', sessionKey, unitId, id], updated);
-      setIntegrationOpen(false);
-      setIntegrationNotice('Integração administrativa registrada com sucesso.');
-    } catch (err) {
-      setIntegrationError(errorMessage(err));
-    } finally {
-      setSubmittingIntegration(false);
-    }
-  }
+  const integrationReturn = integrationReturnDestination(location.state, unitId, data.unitId, can('eligibility.read'));
+  const origin = data.unitId === unitId ? listOrigin : undefined;
+  const backHref = origin ? `/app/trabalhadores${origin.workerListReturnTo.search}` : '/app/trabalhadores';
+  const documentOrigin = data.unitId === unitId ? workerDocumentNavigation({ workerDocumentReturnTo: { workerId: data.id, unitId, sessionKey, documentPage, ...origin, integrationReturnTo: (location.state as { integrationReturnTo?: unknown } | null)?.integrationReturnTo } }, sessionKey, unitId, canReadWorker, can('eligibility.read')) : undefined;
+  const sections = [
+    { hash: '#vinculo', label: 'Vínculo', icon: Building2 },
+    { hash: '#integracao', label: 'Integração', icon: ClipboardCheck },
+    { hash: '#equipes', label: 'Equipes', icon: UsersRound },
+    { hash: '#documentos', label: 'Documentos', icon: FileText },
+    { hash: '#historico', label: 'Histórico', icon: History },
+  ];
 
   return (
-    <>
+    <div className={styles.workspace}>
       <PageHeader
         eyebrow={`Trabalhador 360° · Matrícula ${data.registration}`}
         title={data.fullName}
         description="Vínculo, documentos permitidos, integração administrativa e histórico."
         actions={
           <div className="actions">
-            <Link className="button button--secondary" to="/app/trabalhadores">
-              Voltar à lista
+            {integrationReturn && (
+              <Link className="button button--secondary" to={integrationReturn.to} state={integrationReturn.state}>
+                {integrationReturn.label}
+              </Link>
+            )}
+            <Link className="button button--secondary" to={backHref} state={origin}>
+              <ArrowLeft size={15} aria-hidden="true" />Voltar à lista
             </Link>
             {can('workers.write') && (
               <>
-                <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`}>
+                <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`} state={origin}>
                   Editar cadastro
                 </Link>
-                <Link className="button button--primary" to={`/app/trabalhadores/${id}/movimentacoes/nova`}>
+                <Link className="button button--primary" to={`/app/trabalhadores/${id}/movimentacoes/nova`} state={origin}>
                   Registrar movimentação
                 </Link>
               </>
@@ -164,15 +159,19 @@ export function WorkerDetailPage() {
       />
       {success && <Feedback tone="success">{success}</Feedback>}
 
+      <nav className={styles.sections} aria-label="Seções da ficha do trabalhador">
+        {sections.map(section => <Link key={section.hash} to={{ pathname: location.pathname, search: location.search, hash: section.hash }} state={location.state} replace aria-current={location.hash === section.hash ? 'location' : undefined}><section.icon size={15} aria-hidden="true" />{section.label}</Link>)}
+      </nav>
+
       {/* Vínculo atual */}
-      <section className="panel stack" aria-labelledby="worker-details-heading">
-        <div className="toolbar">
-          <h2 id="worker-details-heading">Vínculo atual</h2>
+      <section id="vinculo" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-details-heading">
+        <div className={styles.sectionHeader}>
+          <h2 id="worker-details-heading"><UserRound size={18} aria-hidden="true" />Vínculo atual</h2>
           <Badge tone={data.status === 'ACTIVE' ? 'success' : data.status === 'ON_LEAVE' ? 'warning' : 'neutral'}>
             {workerStatusLabels[data.status]}
           </Badge>
         </div>
-        <dl className="form-grid">
+        <dl className={styles.assignment}>
           <div>
             <dt className="muted">Empresa</dt>
             <dd>{name('companies', data.companyId)}</dd>
@@ -205,211 +204,51 @@ export function WorkerDetailPage() {
         {organization.isError && <QueryError error={organization.error} retry={() => void organization.refetch()} />}
       </section>
 
-      {/* Situação administrativa de integração */}
-      <section className="panel stack" aria-labelledby="worker-integration-heading">
-        <div className="toolbar">
-          <div>
-            <h2 id="worker-integration-heading">Integração administrativa</h2>
-            <p className="muted">Situação de integração para acesso operacional e emissão de permissões de trabalho.</p>
-          </div>
-          <div className="actions">
-            <Badge tone={integrationStatusTone[data.integrationStatus || 'PENDING']}>
-              {integrationStatusLabels[data.integrationStatus || 'PENDING']}
-            </Badge>
-            {can('workers.write') && !integrationOpen && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setIntegrationOpen(true);
-                  setIntegrationError(null);
-                  setIntegrationNotice(null);
-                  setFormStatus('INTEGRATED');
-                  setFormIntegratedAt(todayCivil());
-                }}
-              >
-                Registrar nova integração
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {integrationNotice && <Feedback tone="success">{integrationNotice}</Feedback>}
-
-        {integrationOpen && (
-          <form className="panel stack" onSubmit={handleSaveIntegration}>
-            <h3>Registrar nova integração</h3>
-            {integrationError && <Feedback tone="danger">{integrationError}</Feedback>}
-            <div className="form-grid">
-              <Field label="Situação da integração *">
-                <select
-                  value={formStatus}
-                  onChange={e => setFormStatus(e.target.value as IntegrationStatus)}
-                  required
-                >
-                  <option value="INTEGRATED">Integrado</option>
-                  <option value="PENDING">Pendente</option>
-                  <option value="EXPIRED">Vencida</option>
-                  <option value="NOT_APPLICABLE">Não aplicável</option>
-                </select>
-              </Field>
-              <Field label="Data de realização *">
-                <input
-                  type="date"
-                  value={formIntegratedAt}
-                  onChange={e => setFormIntegratedAt(e.target.value)}
-                  required
-                />
-              </Field>
-              <Field label="Validade da integração">
-                <input
-                  type="date"
-                  value={formValidUntil}
-                  onChange={e => setFormValidUntil(e.target.value)}
-                  placeholder="AAAA-MM-DD"
-                />
-              </Field>
-              <Field label="Responsável pelo registro">
-                <input
-                  type="text"
-                  value={formResponsibleName}
-                  onChange={e => setFormResponsibleName(e.target.value)}
-                  placeholder="Ex.: SESMT / Engenharia"
-                />
-              </Field>
-              <Field label="Arquivo / comprovante">
-                <input
-                  type="text"
-                  value={formEvidenceFileName}
-                  onChange={e => setFormEvidenceFileName(e.target.value)}
-                  placeholder="Ex.: ficha-integracao-assinada.pdf"
-                />
-              </Field>
-              <Field label="Observações operacionais">
-                <input
-                  type="text"
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                  placeholder="Ex.: Realizada no auditório central da unidade"
-                />
-              </Field>
-            </div>
-            <div className="actions">
-              <Button type="submit" variant="primary" disabled={submittingIntegration}>
-                {submittingIntegration ? 'Salvando...' : 'Salvar integração'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={submittingIntegration}
-                onClick={() => setIntegrationOpen(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        )}
-
-        <dl className="form-grid">
-          <div>
-            <dt className="muted">Situação atual</dt>
-            <dd><strong>{integrationStatusLabels[data.integrationStatus || 'PENDING']}</strong></dd>
-          </div>
-          <div>
-            <dt className="muted">Data realizada</dt>
-            <dd>{data.integratedAt ? dateLabel(data.integratedAt) : 'Não realizada'}</dd>
-          </div>
-          <div>
-            <dt className="muted">Validade</dt>
-            <dd>{data.integrationValidUntil ? dateLabel(data.integrationValidUntil) : 'Sem expiração definida'}</dd>
-          </div>
-          <div>
-            <dt className="muted">Responsável</dt>
-            <dd>{data.integrationResponsibleName || 'Não registrado'}</dd>
-          </div>
-          <div>
-            <dt className="muted">Evidência registrada</dt>
-            <dd>{data.integrationEvidenceFileName || 'Nenhum anexo registrado'}</dd>
-          </div>
-        </dl>
-
-        {data.integrationHistory && data.integrationHistory.length > 0 && (
-          <div className="stack" style={{ marginTop: '0.75rem' }}>
-            <h3>Histórico de integrações</h3>
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data realizada</th>
-                    <th>Situação</th>
-                    <th>Validade</th>
-                    <th>Responsável</th>
-                    <th>Evidência</th>
-                    <th>Observações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.integrationHistory.map(entry => (
-                    <tr key={entry.id}>
-                      <td>{dateLabel(entry.integratedAt)}</td>
-                      <td>
-                        <Badge tone={integrationStatusTone[entry.status]}>
-                          {integrationStatusLabels[entry.status]}
-                        </Badge>
-                      </td>
-                      <td>{entry.validUntil ? dateLabel(entry.validUntil) : '—'}</td>
-                      <td>{entry.responsibleName}</td>
-                      <td>{entry.evidenceFileName || '—'}</td>
-                      <td>{entry.notes || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
+      <div id="integracao" className={styles.section} ref={integrationPanel} tabIndex={-1} role="region" aria-label="Integração administrativa do trabalhador">
+        <WorkerIntegrationPanel worker={data} />
+      </div>
 
       {/* Equipes de trabalho vinculadas */}
-      <section className="panel stack" aria-labelledby="worker-teams-heading">
-        <div className="toolbar">
+      <section id="equipes" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-teams-heading">
+        <div className={styles.sectionHeader}>
           <div>
-            <h2 id="worker-teams-heading">Equipes de trabalho vinculadas</h2>
+            <h2 id="worker-teams-heading"><UsersRound size={18} aria-hidden="true" />Equipes de trabalho vinculadas</h2>
             <p className="muted">Participação em equipes operacionais desta unidade.</p>
           </div>
         </div>
         {data.teams && data.teams.length > 0 ? (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Equipe</th>
-                  <th>Função no serviço</th>
-                  <th>Papel na equipe</th>
-                  <th>Situação</th>
-                  <th><span className="sr-only">Ações</span></th>
+          <div className={styles.tableWrap}>
+            <table role="table" aria-label="Equipes vinculadas" className={`data-table ${styles.relatedTable}`}>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col">Equipe</th>
+                  <th scope="col">Função no serviço</th>
+                  <th scope="col">Papel na equipe</th>
+                  <th scope="col">Situação</th>
+                  <th scope="col"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {data.teams.map(team => (
-                  <tr key={team.teamId}>
-                    <td><strong>{team.teamName}</strong></td>
-                    <td>{team.serviceFunction}</td>
-                    <td>
+                  <tr role="row" key={team.teamId}>
+                    <td role="cell" className={styles.fullCell}><strong>{team.teamName}</strong></td>
+                    <td role="cell"><span className={styles.mobileLabel} aria-hidden="true">Função no serviço</span>{team.serviceFunction}</td>
+                    <td role="cell"><span className={styles.mobileLabel} aria-hidden="true">Papel na equipe</span>
                       {team.isChief ? (
                         <Badge tone="info">Chefe da equipe</Badge>
                       ) : (
                         <span className="muted">Membro</span>
                       )}
                     </td>
-                    <td>
+                    <td role="cell"><span className={styles.mobileLabel} aria-hidden="true">Situação</span>
                       <Badge tone={team.status === 'ACTIVE' ? 'success' : 'neutral'}>
                         {team.status === 'ACTIVE' ? 'Ativa' : 'Inativa'}
                       </Badge>
                     </td>
-                    <td>
-                      <Link to={`/app/equipes?q=${encodeURIComponent(team.teamName)}`}>
+                    <td role="cell" className={styles.fullCell}>
+                      {can('teams.read') ? <Link className={styles.relatedAction} to={`/app/equipes?q=${encodeURIComponent(team.teamName)}`}>
                         Ver equipe →
-                      </Link>
+                      </Link> : <span className="muted">Consulta da equipe não habilitada</span>}
                     </td>
                   </tr>
                 ))}
@@ -425,8 +264,8 @@ export function WorkerDetailPage() {
       </section>
 
       {/* Documentos vinculados */}
-      <section className="panel stack" aria-labelledby="worker-documents-heading">
-        <h2 id="worker-documents-heading">Documentos vinculados</h2>
+      <section id="documentos" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-documents-heading">
+        <div className={styles.sectionHeader}><h2 id="worker-documents-heading"><FileText size={18} aria-hidden="true" />Documentos vinculados</h2></div>
         {!can('documents.read') ? (
           <EmptyState
             title="Consulta documental não habilitada"
@@ -438,30 +277,30 @@ export function WorkerDetailPage() {
             {documents.isError && <QueryError error={documents.error} retry={() => void documents.refetch()} />}
             {documents.data && !documents.isError && (documents.data.items.length ? (
               <>
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Documento</th>
-                        <th>Situação</th>
-                        <th>Validade</th>
+                <div className={styles.tableWrap}>
+                  <table role="table" aria-label="Documentos vinculados" className={`data-table ${styles.relatedTable}`}>
+                    <thead role="rowgroup">
+                      <tr role="row">
+                        <th scope="col">Documento</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col">Validade</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                       {documents.data.items.map(document => (
-                        <tr key={document.id}>
-                          <td>
-                            <Link to={`/app/documentos/${document.id}`}>{document.title}</Link>
+                        <tr role="row" key={document.id}>
+                          <td role="cell" className={styles.fullCell}>
+                            <Link to={`/app/documentos/${document.id}`} state={documentOrigin}>{document.title}</Link>
                             <span className="muted" style={{ display: 'block' }}>
                               {document.code}
                             </span>
                           </td>
-                          <td>
+                          <td role="cell"><span className={styles.mobileLabel} aria-hidden="true">Situação</span>
                             <Badge tone={document.status === 'ACTIVE' ? 'success' : document.status === 'EXPIRED' ? 'danger' : 'neutral'}>
                               {documentLabels[document.status]}
                             </Badge>
                           </td>
-                          <td>{document.validUntil ? dateLabel(document.validUntil) : 'Não se aplica'}</td>
+                          <td role="cell"><span className={styles.mobileLabel} aria-hidden="true">Validade</span>{document.validUntil ? dateLabel(document.validUntil) : 'Não informada'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -472,12 +311,12 @@ export function WorkerDetailPage() {
                     {documents.data.total} documento(s) · Página {documentPage}
                   </p>
                   <div className="actions">
-                    <Button variant="secondary" disabled={documentPage <= 1} onClick={() => setDocumentPage(page => page - 1)}>
+                    <Button variant="secondary" disabled={documentPage <= 1 || documents.isFetching} onClick={() => setDocumentPage(page => page - 1)}>
                       Documentos anteriores
                     </Button>
                     <Button
                       variant="secondary"
-                      disabled={documentPage * documents.data.pageSize >= documents.data.total}
+                      disabled={documentPage * documents.data.pageSize >= documents.data.total || documents.isFetching}
                       onClick={() => setDocumentPage(page => page + 1)}
                     >
                       Próximos documentos
@@ -496,16 +335,16 @@ export function WorkerDetailPage() {
       </section>
 
       {/* Histórico de movimentações */}
-      <section className="panel stack" aria-labelledby="worker-movements-heading">
-        <h2 id="worker-movements-heading">Histórico de movimentações</h2>
+      <section id="historico" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-movements-heading">
+        <div className={styles.sectionHeader}><h2 id="worker-movements-heading"><History size={18} aria-hidden="true" />Histórico de movimentações</h2></div>
         {movements.isPending && <Spinner />}
         {movements.isError && <QueryError error={movements.error} retry={() => void movements.refetch()} />}
         {movements.data && !movements.isError && (movements.data.items.length ? (
           <>
-            <ol className="stack" style={{ paddingLeft: '1.25rem' }}>
+            <ol className={styles.timeline}>
               {movements.data.items.map(movement => (
                 <li key={movement.id}>
-                  <div className="toolbar">
+                  <div>
                     <strong>{movementLabels[movement.type]}</strong>
                     <time dateTime={movement.effectiveDate}>{dateLabel(movement.effectiveDate)}</time>
                   </div>
@@ -524,12 +363,12 @@ export function WorkerDetailPage() {
                 {movements.data.total} movimentação(ões) · Página {movementPage}
               </p>
               <div className="actions">
-                <Button variant="secondary" disabled={movementPage <= 1} onClick={() => setMovementPage(page => page - 1)}>
+                <Button variant="secondary" disabled={movementPage <= 1 || movements.isFetching} onClick={() => setMovementPage(page => page - 1)}>
                   Histórico anterior
                 </Button>
                 <Button
                   variant="secondary"
-                  disabled={movementPage * movements.data.pageSize >= movements.data.total}
+                  disabled={movementPage * movements.data.pageSize >= movements.data.total || movements.isFetching}
                   onClick={() => setMovementPage(page => page + 1)}
                 >
                   Próxima página do histórico
@@ -552,6 +391,6 @@ export function WorkerDetailPage() {
           Exposições, ASOs, EPIs, treinamentos e ocorrências serão disponibilizados nas próximas etapas do projeto, conforme as permissões de acesso. Esta versão apresenta o cadastro e os documentos autorizados.
         </p>
       </section>
-    </>
+    </div>
   );
 }

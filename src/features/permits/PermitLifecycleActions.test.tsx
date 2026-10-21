@@ -1,26 +1,49 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import type { WorkPermitDto } from '../../shared/contracts/work-permits';
+import type { PermitLifecycleCommand } from '../../shared/contracts/permit-lifecycle';
 import { PermitLifecycleActions } from './PermitLifecycleActions';
 
 const state = vi.hoisted(() => ({ permit: null as WorkPermitDto | null, permissions: ['permits.read', 'permits.operate'], userId: 'technician' }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'session', unitId: 'unit', me: { user: { id: state.userId } }, can: (permission: string) => state.permissions.includes(permission) }) }));
-vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(), api: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({
+  sessionKey: 'session', unitId: 'unit', me: { user: { id: state.userId, displayName: 'Técnico Demo' } },
+  can: (permission: string) => state.permissions.includes(permission),
+}) }));
+vi.mock('../../shared/api/client', async original => ({
+  ...await original<typeof import('../../shared/api/client')>(),
+  api: { get: vi.fn(), post: vi.fn() },
+}));
+
 function example(): WorkPermitDto {
-  return { id: 'permit', code: 'PT-TESTE', version: 1, revision: 4, templateVersion: 'Modelo escolar v1',
-    appointment: { id: 'appointment', code: 'AG-TESTE', unitId: 'unit', teamId: 'team', teamName: 'Equipe Demo', serviceTypeId: 'service', serviceLabel: 'Serviço ilustrativo', location: 'Local de demonstração', startsAt: '2026-10-10T12:00:00Z', endsAt: '2026-10-10T14:00:00Z', responsibleId: 'technician', responsibleName: 'Técnico Demo', participants: [], status: 'ATTENDANCE_OPENED', revision: 1, availableActions: [], history: [] },
-    operationStatus: 'EXECUTING', reviewStatus: 'NOT_SUBMITTED', checklist: [], sciences: [], eligibility: { appointmentId: 'appointment', eligible: true, checkedAt: '2026-10-10T12:00:00Z', requirementVersion: 'Matriz escolar v1', participants: [] }, availableActions: ['SUSPEND'], snapshots: [], history: [] };
+  return {
+    id: 'permit', code: 'PT-TESTE', version: 1, revision: 4, templateVersion: 'Modelo escolar v1',
+    appointment: { id: 'appointment', code: 'AG-TESTE', unitId: 'unit', teamId: 'team', teamName: 'Equipe Demo', serviceTypeId: 'service', serviceLabel: 'Serviço ilustrativo', location: 'Local de demonstração', startsAt: '2026-10-09T12:00:00Z', endsAt: '2026-10-09T14:00:00Z', responsibleId: 'technician', responsibleName: 'Técnico Demo', participants: [], status: 'ATTENDANCE_OPENED', revision: 1, availableActions: [], history: [] },
+    operationStatus: 'EXECUTING', reviewStatus: 'NOT_SUBMITTED', checklist: [{ id: 'check', label: 'Conferência preservada', required: true, answer: 'YES' }], sciences: [],
+    eligibility: { appointmentId: 'appointment', eligible: true, checkedAt: '2026-10-09T12:00:00Z', requirementVersion: 'Matriz escolar v1', participants: [] },
+    availableActions: ['SUSPEND'], snapshots: [], history: [],
+  };
 }
-function Connected() {
-  const query = useQuery({ queryKey: ['work-permit', 'session', 'unit', 'permit'], queryFn: () => api.get<WorkPermitDto>('/work-permits/permit') });
-  return query.data ? <PermitLifecycleActions permit={query.data} /> : null;
+const keys = [
+  ['consulta-permits', 'session', 'unit', 1, '', 'EXECUTING', '', ''],
+  ['consulta-permits', 'session', 'unit', 3, 'PT', '', 'NOT_SUBMITTED', 'team'],
+  ['consulta-permits', 'other-session', 'unit', 1, '', '', '', ''],
+  ['consulta-permits', 'session', 'other-unit', 1, '', '', '', ''],
+];
+function Probe({ index }: { index: number }) {
+  const query = useQuery({ queryKey: keys[index], staleTime: Infinity, queryFn: async () => structuredClone(state.permit!) });
+  return <output data-testid={`consultation-${index}`}>{query.data && `${query.data.version}:${query.data.operationStatus}:${query.data.reviewStatus}`}</output>;
+}
+function Harness() {
+  const query = useQuery({ queryKey: ['work-permit', 'session', 'unit', 'permit'], queryFn: async () => structuredClone(state.permit!), staleTime: Infinity });
+  return <>{query.data && <PermitLifecycleActions permit={query.data} />}{keys.map((_, index) => <Probe key={index} index={index} />)}</>;
 }
 function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  render(<QueryClientProvider client={client}><Connected /></QueryClientProvider>);
+  keys.forEach(key => client.setQueryData(key, structuredClone(state.permit!)));
+  render(<QueryClientProvider client={client}><Harness /></QueryClientProvider>);
   return client;
 }
 beforeEach(() => {
@@ -33,6 +56,63 @@ beforeEach(() => {
     return structuredClone(state.permit);
   });
 });
+
+describe('consulta da PT após interrupção, retomada e cancelamento', () => {
+  it.each([
+    { command: 'suspend', label: 'Suspender operação', initial: 'EXECUTING', result: 'SUSPENDED', action: 'SUSPEND' },
+    { command: 'resume', label: 'Retomar operação', initial: 'SUSPENDED', result: 'EXECUTING', action: 'RESUME' },
+    { command: 'cancel', label: 'Cancelar PT', initial: 'VERIFICATION', result: 'CANCELED', action: 'CANCEL' },
+  ] as const)('atualiza a consulta após $command confirmado e preserva o escopo de outros caches', async ({ command, label, initial, result, action }) => {
+    state.permit = { ...example(), operationStatus: initial, availableActions: [action] };
+    const initialSummary = `1:${initial}:NOT_SUBMITTED`;
+    const preservedChecklist = structuredClone(state.permit.checklist);
+    let complete!: () => void;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise<WorkPermitDto>(resolve => {
+      complete = () => {
+        state.permit = { ...state.permit!, revision: 5, operationStatus: result, availableActions: [] };
+        resolve(structuredClone(state.permit));
+      };
+    }));
+    const user = userEvent.setup(); show();
+    await user.click(await screen.findByRole('button', { name: label }));
+    const dialog = screen.getByRole('dialog', { name: label });
+    await user.type(within(dialog).getByRole('textbox'), 'Condições de campo conferidas e registradas.');
+    for (const checkbox of within(dialog).getAllByRole('checkbox')) await user.click(checkbox);
+    await user.click(within(dialog).getByRole('button', { name: `Confirmar: ${label.toLocaleLowerCase('pt-BR')}` }));
+    expect(api.post).toHaveBeenCalledWith(`/work-permits/permit/${command satisfies PermitLifecycleCommand}`, {
+      reason: 'Condições de campo conferidas e registradas.', confirmed: true,
+      ...(command === 'resume' ? { sameTeam: true, sameConditions: true } : {}),
+    }, { etag: '"4"' });
+    expect(screen.getByTestId('consultation-0')).toHaveTextContent(initialSummary);
+    expect(screen.getByTestId('consultation-1')).toHaveTextContent(initialSummary);
+    await act(async () => { complete(); });
+    await waitFor(() => expect(screen.getByTestId('consultation-0')).toHaveTextContent(`1:${result}:NOT_SUBMITTED`));
+    expect(screen.getByTestId('consultation-1')).toHaveTextContent(`1:${result}:NOT_SUBMITTED`);
+    expect(screen.getByTestId('consultation-2')).toHaveTextContent(initialSummary);
+    expect(screen.getByTestId('consultation-3')).toHaveTextContent(initialSummary);
+    expect(state.permit!.version).toBe(1);
+    expect(state.permit!.checklist).toEqual(preservedChecklist);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('mantém o estado consultado e o motivo local quando a suspensão não é confirmada pela API', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('A operação continua em execução. Tente novamente.'));
+    const user = userEvent.setup(); const client = show();
+    await user.click(await screen.findByRole('button', { name: 'Suspender operação' }));
+    const dialog = screen.getByRole('dialog', { name: 'Suspender operação' });
+    await user.type(within(dialog).getByRole('textbox'), 'Interromper por alteração do ambiente.');
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar: suspender operação' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A operação continua em execução. Tente novamente.');
+    expect(within(dialog).getByRole('textbox')).toHaveValue('Interromper por alteração do ambiente.');
+    expect(within(dialog).getByRole('checkbox')).toBeChecked();
+    for (let index = 0; index < keys.length; index++) {
+      expect(screen.getByTestId(`consultation-${index}`)).toHaveTextContent('1:EXECUTING:NOT_SUBMITTED');
+      expect(client.getQueryState(keys[index])?.isInvalidated).toBe(false);
+    }
+  });
+});
+
 describe('confirmações de suspensão e retomada', () => {
   it('exige motivo e confirmação explícita antes de suspender com a revisão capturada', async () => {
     const user = userEvent.setup(); show();

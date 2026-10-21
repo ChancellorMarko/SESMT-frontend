@@ -1,5 +1,6 @@
 import type { AppointmentDto, PermitPreparationDto, PermitSourceCheckDto } from '../../../shared/contracts/work-permits';
 import source from './ri-s-36001.source.json';
+import type { PermitValidationIssue } from '../validation-issues';
 
 export const PT_SOURCE = source;
 export const PT_ACTIVITIES = source.activities;
@@ -25,26 +26,50 @@ export function createPermitPreparation(appointment: AppointmentDto, requiredAct
   };
 }
 
+function appendSourceCheckIssues(issues: PermitValidationIssue[], checks: PermitSourceCheckDto[], complete: boolean, basePath: string) {
+  if (complete) for (const item of checks) if (item.answer === null) issues.push({ path: `${basePath}.${item.id}.answer`, message: 'Responda todos os itens aplicáveis do modelo.' });
+  for (const item of checks) if (item.answer !== null && !['YES', 'NO', 'NA'].includes(item.answer)) issues.push({ path: `${basePath}.${item.id}.answer`, message: 'Selecione Sim, Não ou Não aplicável.' });
+  for (const item of checks) {
+    if (item.answer !== 'NO' && item.answer !== 'NA') continue;
+    // Preserve the original early-return protection without coercing invalid data.
+    if (issues.length && item.note != null && typeof item.note !== 'string') continue;
+    if (!item.note?.trim()) issues.push({ path: `${basePath}.${item.id}.note`, message: 'Justifique as respostas Não e Não aplicável em cada item.' });
+  }
+  for (const item of checks) if ((item.note?.length ?? 0) > 1000) issues.push({ path: `${basePath}.${item.id}.note`, message: 'Cada justificativa deve ter até 1.000 caracteres.' });
+}
+
 /** Checks only completeness and justification, never interprets YES as universally safe. */
+export function sourceCheckIssues(checks: PermitSourceCheckDto[], complete = false, basePath = 'checks'): PermitValidationIssue[] {
+  const issues: PermitValidationIssue[] = [];
+  appendSourceCheckIssues(issues, checks, complete, basePath);
+  return issues;
+}
+
 export function validateSourceChecks(checks: PermitSourceCheckDto[], complete = false): string | undefined {
-  if (complete && checks.some(item => item.answer === null)) return 'Responda todos os itens aplicáveis do modelo.';
-  if (checks.some(item => item.answer !== null && !['YES', 'NO', 'NA'].includes(item.answer))) return 'Selecione Sim, Não ou Não aplicável.';
-  if (checks.some(item => (item.answer === 'NO' || item.answer === 'NA') && !item.note?.trim())) return 'Justifique as respostas Não e Não aplicável em cada item.';
-  if (checks.some(item => (item.note?.length ?? 0) > 1000)) return 'Cada justificativa deve ter até 1.000 caracteres.';
-  return undefined;
+  return sourceCheckIssues(checks, complete)[0]?.message;
+}
+
+export function preparationIssues(preparation: PermitPreparationDto, complete = false): PermitValidationIssue[] {
+  const issues: PermitValidationIssue[] = [];
+  if (preparation.sourceId !== source.sourceId || preparation.sourceRevision !== source.sourceRevision) return [{ path: 'preparation.model', message: 'A identificação do modelo não corresponde à versão desta PT.' }];
+  for (const [key, value] of Object.entries(preparation.identification)) if (typeof value !== 'string' || value.length > 2000) issues.push({ path: `preparation.identification.${key}`, message: 'Confira o tamanho dos textos da preparação.' });
+  if (preparation.additionalControls.length > 4000) issues.push({ path: 'preparation.additionalControls', message: 'Confira o tamanho dos textos da preparação.' });
+  if (complete) {
+    if ((preparation.requiredActivities || []).some(id => !preparation.activities.includes(id)) || preparation.requiredActivities !== undefined && preparation.activities.some(id => PT_SERVICE_ACTIVITY_IDS.includes(id) && !preparation.requiredActivities!.includes(id))) issues.push({ path: 'preparation.activities', message: 'Mantenha as categorias vinculadas aos serviços agendados nesta PT, sem adicionar serviços ao registro.' });
+    if (typeof preparation.identification.activityDescription === 'string' && preparation.identification.activityDescription.trim().length < 10) issues.push({ path: 'preparation.identification.activityDescription', message: 'Descreva a atividade com pelo menos 10 caracteres.' });
+    for (const key of ['location', 'workFront', 'serviceProvider', 'riskAnalysisReference'] as const) {
+      const value = preparation.identification[key];
+      if (typeof value === 'string' && !value.trim()) issues.push({ path: `preparation.identification.${key}`, message: 'Informe fornecedor, frente, local e referência da análise de risco.' });
+    }
+    if (!preparation.activities.length && preparation.requiredActivities === undefined) issues.push({ path: 'preparation.activities', message: 'Selecione pelo menos uma categoria de atividade do modelo.' });
+    if (preparation.activities.includes('pressurized') && preparation.additionalControls.trim().length < 10) issues.push({ path: 'preparation.additionalControls', message: 'Sistemas pressurizados: descreva os controles complementares com pelo menos 10 caracteres.' });
+  }
+  appendSourceCheckIssues(issues, preparation.checks.filter(item => preparation.activities.includes(item.section)), complete, 'preparation.checks');
+  return issues;
 }
 
 export function validatePreparation(preparation: PermitPreparationDto, complete = false): string | undefined {
-  if (preparation.sourceId !== source.sourceId || preparation.sourceRevision !== source.sourceRevision) return 'A identificação do modelo não corresponde à versão desta PT.';
-  if (Object.values(preparation.identification).some(value => typeof value !== 'string' || value.length > 2000) || preparation.additionalControls.length > 4000) return 'Confira o tamanho dos textos da preparação.';
-  if (complete) {
-    if ((preparation.requiredActivities || []).some(id => !preparation.activities.includes(id)) || preparation.requiredActivities !== undefined && preparation.activities.some(id => PT_SERVICE_ACTIVITY_IDS.includes(id) && !preparation.requiredActivities!.includes(id))) return 'Mantenha as categorias vinculadas aos serviços agendados nesta PT, sem adicionar serviços ao registro.';
-    if (preparation.identification.activityDescription.trim().length < 10) return 'Descreva a atividade com pelo menos 10 caracteres.';
-    if (!preparation.identification.location.trim() || !preparation.identification.workFront.trim() || !preparation.identification.serviceProvider.trim() || !preparation.identification.riskAnalysisReference.trim()) return 'Informe fornecedor, frente, local e referência da análise de risco.';
-    if (!preparation.activities.length && preparation.requiredActivities === undefined) return 'Selecione pelo menos uma categoria de atividade do modelo.';
-    if (preparation.activities.includes('pressurized') && preparation.additionalControls.trim().length < 10) return 'Sistemas pressurizados: descreva os controles complementares com pelo menos 10 caracteres.';
-  }
-  return validateSourceChecks(preparation.checks.filter(item => preparation.activities.includes(item.section)), complete);
+  return preparationIssues(preparation, complete)[0]?.message;
 }
 
 /** Canonicalizes writable values; IDs, sections, source cells and labels come from the source catalog. */

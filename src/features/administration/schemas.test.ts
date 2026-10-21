@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { MeDto } from '../../shared/contracts';
-import { delegatedScope, documentTypePayload, documentTypeSchema, userAccessSchema, type DocumentTypeForm, type UserAccessForm } from './schemas';
+import { delegatedScope, documentTypePayload, documentTypeSchema, localAccessInstant, userAccessSchema, type DocumentTypeForm, type UserAccessForm } from './schemas';
 
 const typeForm: DocumentTypeForm = {
   code: 'PROCEDIMENTO', name: 'Procedimento documental', category: 'Administrativo', requiredFields: ['title'], allowedAccessClasses: ['INTERNAL', 'RESTRICTED'], defaultAccessClass: 'INTERNAL', mimeTypes: 'application/pdf\napplication/pdf', maxSizeMb: 5, renewalEnabled: false, noticeDays: 20, periodMonths: 0, retentionCode: 'POL-EXEMPLO', retentionVersion: '1', retentionSource: 'Política sintética de teste', reviewRequired: true, signatureRequired: true, allowSelfApproval: false, allowMultipleActiveVersions: false,
 };
 const me: MeDto = { user: { id: 'manager', displayName: 'Pessoa de teste', email: 'teste@example.invalid' }, roles: ['ADMIN'], permissions: ['users.manage'], scope: { companyIds: ['company-allowed'], unitIds: ['unit-allowed'], sectorIds: ['sector-allowed'], teamIds: [], ownOnly: false }, accessExpiresAt: '2099-01-01T00:00:00Z' };
-const userForm: UserAccessForm = { displayName: 'Pessoa de teste', email: 'teste@example.invalid', roles: ['HR'], unitIds: ['unit-allowed'], ownOnly: false, status: 'ACTIVE', expiresAt: '' };
+const userForm: UserAccessForm = { displayName: 'Pessoa de teste', email: 'teste@example.invalid', roles: ['HR'], companyIds: ['company-allowed'], unitIds: ['unit-allowed'], teamIds: [], ownOnly: false, status: 'ACTIVE', expiresAt: '' };
 
 describe('políticas documentais e concessão de acesso', () => {
+  it('envia a concessão no fuso de São Paulo, inclusive a virada de dia UTC', () => {
+    expect(localAccessInstant('2099-01-01T23:30')).toBe('2099-01-02T02:30:00.000Z');
+    expect(localAccessInstant('2099-01-01T12:45:30')).toBe('2099-01-01T15:45:30.000Z');
+    expect(delegatedScope({ ...userForm, expiresAt: '2099-01-01T23:30' }, me).expiresAt).toBe('2099-01-02T02:30:00.000Z');
+    expect(() => delegatedScope({ ...userForm, expiresAt: '2099-02-30T12:00' }, me)).toThrow('data e hora válidas');
+  });
   it('recusa classificação padrão que não consta entre as permitidas', () => {
     const result = documentTypeSchema.safeParse({ ...typeForm, defaultAccessClass: 'MEDICAL' });
     expect(result.success).toBe(false);
@@ -29,12 +35,19 @@ describe('políticas documentais e concessão de acesso', () => {
   it('impede concessão de unidade fora do escopo antes de enviar a alteração', () => {
     expect(() => delegatedScope({ ...userForm, unitIds: ['unit-other'] }, me)).toThrow('fora do seu escopo');
   });
-  it('retira referências externas ao reaplicar uma concessão existente', () => {
-    const result = delegatedScope(userForm, me, { companyIds: ['company-allowed', 'company-other'], unitIds: ['unit-allowed'], sectorIds: ['sector-allowed', 'sector-other'], teamIds: ['team-other'], ownOnly: true });
-    expect(result.companyIds).toEqual(['company-allowed']);
-    expect(result.sectorIds).toEqual(['sector-allowed']);
-    expect(result.teamIds).toEqual([]);
-    expect(result.ownOnly).toBe(false);
+  it('recusa restrições históricas externas sem removê-las silenciosamente', () => {
+    const original = { companyIds: ['company-allowed'], unitIds: ['unit-allowed'], sectorIds: ['sector-allowed', 'sector-other'], teamIds: [], ownOnly: true };
+    expect(() => delegatedScope(userForm, me, original)).toThrow('setores fora do seu escopo');
+    expect(original.sectorIds).toEqual(['sector-allowed', 'sector-other']);
+  });
+  it('não amplia equipes, dados próprios ou prazo além da autoridade delegante', () => {
+    expect(() => delegatedScope(userForm, { ...me, scope: { ...me.scope, teamIds: ['team-a'] } })).toThrow('equipes');
+    expect(() => delegatedScope(userForm, { ...me, scope: { ...me.scope, ownOnly: true } })).toThrow('dados próprios');
+    expect(() => delegatedScope(userForm, { ...me, scope: { ...me.scope, expiresAt: '2099-01-02T00:00:00Z' } })).toThrow('vencimento');
+    expect(delegatedScope({ ...userForm, teamIds: ['team-a'] }, { ...me, scope: { ...me.scope, teamIds: ['team-a'] } }).teamIds).toEqual(['team-a']);
+  });
+  it('não concede empresas externas mesmo que a unidade permaneça autorizada', () => {
+    expect(() => delegatedScope({ ...userForm, companyIds: ['company-other'] }, me)).toThrow('empresa fora do seu escopo');
   });
   it('exige concessão temporária para auditor e recusa prazo expirado', () => {
     expect(userAccessSchema.safeParse({ ...userForm, roles: ['AUDITOR'] }).success).toBe(false);

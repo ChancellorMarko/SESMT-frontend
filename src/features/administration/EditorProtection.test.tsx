@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cloneElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,11 +23,13 @@ const organization: OrganizationDto = {
 const page = <T,>(items: T[]) => ({ items, page: 1, pageSize: 20, total: items.length });
 beforeEach(() => {
   vi.restoreAllMocks(); vi.clearAllMocks();
+  state.unitId = 'unit-a'; state.sessionKey = 'session-a';
   vi.mocked(api.get).mockImplementation(async path => {
     if (path === '/users') return page([userRecord]) as never;
     if (path === '/document-types') return page([typeRecord]) as never;
     if (path === '/roles') return [{ code: 'HR', label: 'Recursos Humanos', permissions: [] }] as never;
     if (path === '/organization') return structuredClone(organization) as never;
+    if (path === '/teams') return [] as never;
     return page([]) as never;
   });
 });
@@ -41,6 +44,55 @@ function contextAllowed() {
 }
 
 describe('Proteção dos formulários administrativos', () => {
+  it.each([
+    { element: <UsersPage />, open: 'Alterar acesso', key: 'users' },
+    { element: <DocumentTypesPage />, open: 'Editar política', key: 'document-types' },
+  ])('remove o editor de $key quando uma nova consulta nega acesso aos dados em cache', async ({ element, open, key }) => {
+    const user = userEvent.setup(); const { client } = show(element);
+    await user.click(await screen.findByRole('button', { name: open }));
+    vi.mocked(api.get).mockRejectedValue(new ApiError(403, { code: 'FORBIDDEN', message: 'Concessão encerrada.', requestId: 'test' }));
+    await act(async () => { await client.refetchQueries({ queryKey: [key] }); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: open })).not.toBeInTheDocument();
+    expect(screen.getByText('Concessão encerrada.')).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+  it.each([
+    { label: 'usuários', element: <UsersPage />, open: 'Alterar acesso', save: 'Salvar acesso', next: 'Convidar usuário', field: 'Nome', value: 'Novo convite em outra unidade', record: userRecord },
+    { label: 'políticas', element: <DocumentTypesPage />, open: 'Editar política', save: 'Salvar política', next: 'Novo tipo', field: 'Nome', value: 'Nova política em outra unidade', record: typeRecord },
+  ])('cancela a gravação de $label após mudança forçada de contexto e ignora a resposta antiga', async ({ element, open, save, next, field, value, record }) => {
+    const user = userEvent.setup();
+    let finish!: (value: unknown) => void;
+    vi.mocked(api.patch).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const view = show(element);
+    await user.click(await screen.findByRole('button', { name: open }));
+    await user.click(screen.getByRole('button', { name: save }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
+    const signal = vi.mocked(api.patch).mock.calls[0][2]?.signal;
+    expect(signal?.aborted).toBe(false);
+    state.unitId = 'unit-b'; state.sessionKey = 'session-b';
+    view.rerender(<QueryClientProvider client={view.client}>{cloneElement(element)}</QueryClientProvider>);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(signal?.aborted).toBe(true);
+    await user.click(screen.getByRole('button', { name: next }));
+    fireEvent.change(await screen.findByLabelText(field), { target: { value } });
+    await act(async () => { finish(record); });
+    expect(screen.getByLabelText(field)).toHaveValue(value);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByText(/confirmad[ao] pela API/)).not.toBeInTheDocument();
+  });
+
+  it('mostra o prazo de acesso em São Paulo e mantém o instante ao salvar sem edição', async () => {
+    const record = { ...userRecord, scope: { ...userRecord.scope, expiresAt: '2099-01-02T02:30:00.000Z' } };
+    vi.mocked(api.get).mockImplementation(async path => path === '/users' ? page([record]) as never : path === '/roles' ? [{ code: 'HR', label: 'Recursos Humanos', permissions: [] }] as never : path === '/teams' ? [] as never : structuredClone(organization) as never);
+    vi.mocked(api.patch).mockResolvedValue(record as never);
+    const user = userEvent.setup(); show(<UsersPage />);
+    await user.click(await screen.findByRole('button', { name: 'Alterar acesso' }));
+    expect(screen.getByLabelText('Concessão válida até (São Paulo)')).toHaveValue('2099-01-01T23:30');
+    await user.click(screen.getByRole('button', { name: 'Salvar acesso' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.patch).mock.calls[0][1]).toMatchObject({ scope: { expiresAt: record.scope.expiresAt } });
+  });
   it('mantém o modal organizacional e seu preenchimento após falha de atualização', async () => {
     const { client } = show(<OrganizationPage />);
     await screen.findByRole('heading', { name: 'Cadastros organizacionais' });

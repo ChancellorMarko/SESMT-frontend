@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesignationDto, DesignationCoverageDto } from '../shared/contracts/designations';
 import { PT_SERVICE_TYPES } from '../shared/lib/service-types';
 import { COMPANY, id, makeFixtures, UNIT_A, UNIT_B } from './fixtures';
@@ -36,6 +36,79 @@ describe('designações operacionais em demonstração', () => {
     const request = new Request(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     return await demo.route(request, url, url.pathname.replace('/api/v1', ''), context) as T;
   }
+
+  it('protege consultas por permissão e empresa mesmo com unidade autorizada no payload', async () => {
+    await expect(call(`/designations/${id(600)}`, 'GET', undefined, undefined, actor([]))).rejects.toMatchObject({ status: 403 });
+    const restricted = actor(); restricted.user.scope.companyIds = [];
+    await expect(call(`/designations?unitId=${UNIT_A}`, 'GET', undefined, undefined, restricted)).rejects.toMatchObject({ status: 403 });
+    await expect(call(`/designations/${id(600)}`, 'GET', undefined, undefined, restricted)).rejects.toMatchObject({ status: 404 });
+    await expect(call(`/designation-coverage?unitId=${UNIT_A}&serviceTypeIds=${id(210)}`, 'GET', undefined, undefined, restricted)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('não altera campos ou histórico quando a edição contém vigência inválida ou serviço duplicado', async () => {
+    const current = await call<DesignationDto>(`/designations/${id(600)}`);
+    for (const change of [{ serviceTypeIds: [id(211)], validUntil: '1900-01-01' }, { validFrom: '2026-02-31' }, { serviceTypeIds: [id(210), id(210)] }, { notes: 'Notas novas', locationPattern: 42 }]) {
+      await expect(call(`/designations/${current.id}`, 'PATCH', change, current.revision)).rejects.toMatchObject({ status: 422 });
+      expect(await call(`/designations/${current.id}`)).toEqual(current);
+    }
+  });
+
+  it('aceita troca de responsável e registra a nova revisão somente após validar todos os campos', async () => {
+    const current = await call<DesignationDto>(`/designations/${id(600)}`);
+    const updated = await call<DesignationDto>(`/designations/${current.id}`, 'PATCH', { responsibleId: id(26), notes: 'Troca registrada na demonstração.' }, current.revision);
+    expect(updated.responsibleId).toBe(id(26));
+    expect(updated.responsibleName).toBe('Felipe Demo · bombeiro');
+    expect(updated.revision).toBe(current.revision + 1);
+    expect(updated.history.at(-1)?.action).toBe('DESIGNATION_UPDATED');
+  });
+
+  it('rejeita configuração restrita antes de ler o corpo da requisição', async () => {
+    const restricted = actor(); restricted.user.scope.teamIds = [id(200)];
+    const url = new URL(`http://localhost/api/v1/designations?unitId=${UNIT_A}`);
+    const request = new Request(url, { method: 'POST' });
+    const reader = vi.fn(); Object.defineProperty(request, 'json', { value: reader });
+    await expect(demo.route(request, url, '/designations', restricted)).rejects.toMatchObject({ status: 403 });
+    expect(reader).not.toHaveBeenCalled();
+  });
+
+  it('apenas uma revogação vence quando dois corpos chegam com a mesma revisão', async () => {
+    const current = await call<DesignationDto>(`/designations/${id(600)}`);
+    const path = `/designations/${current.id}/revoke`;
+    const paused = (reason: string) => {
+      let resume!: () => void;
+      const payload = new Promise<unknown>(resolve => { resume = () => resolve({ reason }); });
+      const url = new URL(`http://localhost/api/v1${path}`);
+      const request = new Request(url, { method: 'POST', headers: { 'If-Match': `"${current.revision}"` } });
+      Object.defineProperty(request, 'json', { value: () => payload });
+      return { resume, result: demo.route(request, url, path, actor()) };
+    };
+    const first = paused('Primeira revogação registrada.');
+    const second = paused('Segunda revogação concorrente.');
+    const result = Promise.allSettled([first.result, second.result]);
+    first.resume(); second.resume();
+    const settled = await result;
+    expect(settled.filter(value => value.status === 'fulfilled')).toHaveLength(1);
+    expect(settled.find(value => value.status === 'rejected')).toMatchObject({ reason: { status: 412, code: 'REVISION_CONFLICT' } });
+    const saved = await call<DesignationDto>(`/designations/${current.id}`);
+    expect(saved.history.filter(entry => entry.action === 'DESIGNATION_REVOKED')).toHaveLength(1);
+    expect(saved.revision).toBe(current.revision + 1);
+  });
+
+  it('reconfere a concessão de acesso após aguardar o motivo da revogação', async () => {
+    const current = await call<DesignationDto>(`/designations/${id(600)}`);
+    const context = actor();
+    let resume!: () => void;
+    const payload = new Promise<unknown>(resolve => { resume = () => resolve({ reason: 'Revogação em trânsito.' }); });
+    const path = `/designations/${current.id}/revoke`;
+    const url = new URL(`http://localhost/api/v1${path}`);
+    const request = new Request(url, { method: 'POST', headers: { 'If-Match': `"${current.revision}"` } });
+    Object.defineProperty(request, 'json', { value: () => payload });
+    const pending = demo.route(request, url, path, context);
+    context.user.scope.companyIds = [];
+    const rejected = expect(pending).rejects.toMatchObject({ status: 403 });
+    resume(); await rejected;
+    expect(await call(`/designations/${current.id}`)).toEqual(current);
+  });
 
   it('lista as designações com isolamento de unidade e filtros de situação', async () => {
     const all = await call<DesignationDto[]>(`/designations?unitId=${UNIT_A}`);

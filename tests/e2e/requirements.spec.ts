@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { loginDemo, navigateWithinApp } from './helpers';
+import { openModule, loginDemo, navigateWithinApp } from './helpers';
 
 test('gestor salva e publica uma matriz, reavalia pendências e preserva a PT concluída', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Matriz de requisitos', exact: true }).click();
+  await openModule(page, 'Matriz de requisitos');
   await expect(page.getByRole('heading', { name: 'Matriz de requisitos documentais' })).toBeVisible();
   await page.getByLabel('Título da regra 1 *', { exact: true }).fill('Critério revisado na demonstração E2E');
   await page.getByRole('button', { name: 'Salvar rascunho', exact: true }).click();
@@ -29,7 +29,7 @@ test('gestor salva e publica uma matriz, reavalia pendências e preserva a PT co
   expect(after.eligible.eligible).toBe(false); expect(after.eligible.requirementVersion).toBe('DEMO-MATRIZ-2');
   expect(after.eligible.participants[0].items[0].status).toBe('MISSING');
   expect(after.closed.requirementVersion).toBe('DEMO-MATRIZ-1'); expect(after.snapshot).toEqual(after.closed);
-  await page.getByRole('link', { name: 'Pendências documentais', exact: true }).click();
+  await openModule(page, 'Pendências documentais');
   await page.getByRole('searchbox', { name: 'Buscar pessoa ou atendimento' }).fill('camila');
   await expect(page.getByRole('heading', { name: 'Camila Demo', exact: true })).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Bruno Demo', exact: true })).toHaveCount(0);
@@ -47,7 +47,7 @@ test('gestor salva e publica uma matriz, reavalia pendências e preserva a PT co
 
 test('conflito de matriz preserva preenchimento e a troca de unidade exige resolver alterações', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Matriz de requisitos', exact: true }).click();
+  await openModule(page, 'Matriz de requisitos');
   const title = page.getByLabel('Título da regra 1 *', { exact: true });
   await title.fill('Minha alteração local preservada');
   await page.evaluate(async () => {
@@ -80,10 +80,10 @@ test('conflito de matriz preserva preenchimento e a troca de unidade exige resol
 
 test('técnico consulta a matriz e apenas pendências dos seus atendimentos; trabalhador não acessa', async ({ page }) => {
   await loginDemo(page, 'Técnico de segurança');
-  await page.getByRole('link', { name: 'Matriz de requisitos', exact: true }).click();
+  await openModule(page, 'Matriz de requisitos');
   await expect(page.getByRole('heading', { name: 'Matriz de requisitos documentais' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Salvar rascunho', exact: true })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Pendências documentais', exact: true }).click();
+  await openModule(page, 'Pendências documentais');
   await expect(page.getByRole('region', { name: 'Pendências de AG-DEMO-220', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Situação documental', exact: true }).selectOption('all');
   await expect(page.getByRole('region', { name: 'Pendências de AG-DEMO-221', exact: true })).toBeVisible();

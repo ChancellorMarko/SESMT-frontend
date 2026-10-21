@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
-import { loginDemo, logout, navigateWithinApp } from './helpers';
+import { openModule, loginDemo, logout, navigateWithinApp } from './helpers';
 
 const appointmentId = '00000000-0000-4000-8000-000000000221';
 const unitId = '00000000-0000-4000-8000-000000000002';
@@ -112,7 +112,7 @@ test('técnico percorre AT vinculada à PT, revalida, encerra e imprime sem alte
 
 test('conflito de rascunho preserva campos e troca de unidade exige resolver alterações', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Autorizações de trabalho', exact: true }).click();
+  await openModule(page, 'Autorizações de trabalho');
   await page.getByRole('link', { name: 'Criar AT', exact: true }).click();
   await page.getByLabel('Atendimento da AT *', { exact: true }).selectOption(appointmentId);
   await page.getByRole('button', { name: 'Salvar rascunho da AT', exact: true }).click();

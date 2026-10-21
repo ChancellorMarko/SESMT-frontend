@@ -1,25 +1,35 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useLocation } from 'react-router';
 import { Check, ClipboardCheck, Clock, Download, FileCheck2, LockKeyhole, ShieldCheck, UserPlus, Users } from 'lucide-react';
-import { api, ApiError, revisionEtag } from '../../shared/api/client';
+import { api, API_MODE, ApiError, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { ChecklistItemDto, FinalPdfDto, ParticipantDto, PermitPreparationDto, PermitSnapshotDto, PermitSourceCheckDto, ScienceDto, TeamDto, WorkPermitDto } from '../../shared/contracts/work-permits';
 import type { ServiceTemplateVersionDto } from '../../shared/contracts/service-templates';
+import type { SignatureRepresentationDto } from '../../shared/contracts/signature-representation';
 import { formatDate } from '../../shared/lib/format';
 import { triggerDownload } from '../../shared/lib/downloads';
+import { invalidateConsultation } from '../../shared/lib/consultation-cache';
+import { permitNavigation, permitReturnDestination } from './permit-navigation';
+import { SIGNATURE_IMAGE_MAX_FILE_BYTES } from '../../shared/lib/signature-image';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, type Tone } from '../../shared/ui';
 import { PermitStatus } from './PermitStatus';
 import { SignaturePad } from './SignaturePad';
+import { PermitChecklist } from './PermitChecklist';
+import { PermitOrientation, type PermitSection } from './PermitOrientation';
+import { permitGuidance } from './permit-guidance';
+import orientationStyles from './PermitOrientation.module.css';
 import { PermitPreparation, SourceChecks } from './PermitPreparation';
 import { PermitAttachments } from './PermitAttachments';
 import { PermitLifecycleActions } from './PermitLifecycleActions';
 import { validatePreparation, validateSourceChecks } from './templates/ri-s-36001';
-import { errorMessage, isDrawingRepresentation, releaseBlockers, validateChecklist, validateScience, validateText } from './validation';
+import { errorMessage, isDrawingRepresentation, isImageRepresentation, releaseBlockers, validateChecklist, validateScience, validateText } from './validation';
 import { DesignationCoveragePanel } from '../designations';
 import { appointmentServiceIds } from '../../shared/lib/appointment-services';
 import type { DesignationCoverageDto } from '../../shared/contracts/designations';
 import { permitEventLabels as eventLabels } from './event-labels';
+import { validateFinalPdf } from './final-pdf';
 import styles from './permits.module.css';
 
 type Command = 'science' | 'release' | 'start' | 'complete' | 'review' | 'new-version' | 'submit-correction';
@@ -57,7 +67,7 @@ function Snapshot({ snapshot, current }: { snapshot: PermitSnapshotDto; current:
         <h3>{snapshot.decision === 'APPROVE' ? 'Aprovação do encerramento' : 'Devolução do encerramento'}</h3>
         <p>{snapshot.reviewedBy} · {formatDate(snapshot.reviewedAt)}</p>
         {snapshot.comment && <p className={styles.preserveText}>{snapshot.comment}</p>}
-        {snapshot.signatureImage ? (
+        {snapshot.signatureImage && (isDrawingRepresentation(snapshot.signatureImage) || isImageRepresentation(snapshot.signatureImage)) ? (
           <div>
             <img src={snapshot.signatureImage} alt="Assinatura do responsável" className={styles.signatureImage} />
             <p className="muted">{snapshot.signatureMethod === 'DRAWN' ? 'Rubrica desenhada' : 'Imagem anexada'} · {snapshot.signatureRepresentation || 'Responsável técnico'}</p>
@@ -79,14 +89,14 @@ export function PermitDetailPage() {
   const { me, sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
   const location = useLocation();
-  const stateNav = location.state as { fromSearch?: string; fromConsulta?: boolean } | null;
-  const backTarget = stateNav?.fromConsulta
-    ? `/app/consulta?tab=permits${stateNav.fromSearch ? `&${stateNav.fromSearch.replace(/^\?/, '')}` : ''}`
-    : stateNav?.fromSearch
-    ? `/app/pts${stateNav.fromSearch}`
-    : '/app/pts';
-  const backLabel = stateNav?.fromConsulta ? 'Voltar à consulta' : 'Voltar às PTs';
   const permitQuery = useQuery({ queryKey: ['work-permit', sessionKey, unitId, id], queryFn: ({ signal }) => api.get<WorkPermitDto>(`/work-permits/${id}`, { signal }) });
+  const returnOrigin = permitNavigation(location.state, sessionKey, unitId, id, can('appointments.read'), can('eligibility.read'), permitQuery.data?.appointment.id);
+  const returnDestination = permitReturnDestination(returnOrigin);
+  const backTarget = returnDestination.to;
+  const backLabel = returnDestination.label;
+  const backState = returnDestination.state;
+  const agendaOrigin = returnOrigin && 'permitAgendaReturnTo' in returnOrigin ? returnOrigin.permitAgendaReturnTo : undefined;
+  const appointmentState = agendaOrigin ? { fromSearch: agendaOrigin.search, ...(agendaOrigin.readinessReturnTo ? { readinessReturnTo: agendaOrigin.readinessReturnTo } : {}) } : undefined;
   const [checklist, setChecklist] = useState<ChecklistItemDto[]>([]);
   const [preparation, setPreparation] = useState<PermitPreparationDto>();
   const [closingChecks, setClosingChecks] = useState<PermitSourceCheckDto[]>([]);
@@ -111,10 +121,21 @@ export function PermitDetailPage() {
   const [reviewDrawing, setReviewDrawing] = useState('');
   const [reviewImage, setReviewImage] = useState('');
   const [reviewImageName, setReviewImageName] = useState('');
+  const [readingReviewImage, setReadingReviewImage] = useState(false);
+  const reviewImageReader = useRef<FileReader | null>(null);
+  const [reviewProfile, setReviewProfile] = useState<SignatureRepresentationDto>();
+  const profileQuery = useQuery({
+    queryKey: ['signature-representation', sessionKey, unitId],
+    queryFn: ({ signal }) => api.get<SignatureRepresentationDto | null>('/me/signature-representation', { signal }),
+    enabled: command === 'review' && can('permits.review'),
+    refetchOnWindowFocus: true,
+  });
+  const ownProfile = profileQuery.data?.userId === me?.user.id ? profileQuery.data : null;
 
   // Final PDF download states (priority #115)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [pdfDisclaimer, setPdfDisclaimer] = useState<string | null>(null);
+  const pdfRequest = useRef<AbortController | null>(null);
 
   // Controlled participant modification states (priority #94/#116)
   const [isEditingParticipants, setIsEditingParticipants] = useState(false);
@@ -123,6 +144,8 @@ export function PermitDetailPage() {
   const [confirmedParticipantsChange, setConfirmedParticipantsChange] = useState(false);
 
   const permit = permitQuery.data;
+  const pdfContext = useRef('');
+  pdfContext.current = JSON.stringify([id, sessionKey, unitId, permit?.id, permit?.appointment.unitId, permit?.version, !permitQuery.isError && permit?.snapshots.some(snapshot => snapshot.version === permit.version && snapshot.decision === 'APPROVE')]);
   const serviceTypeIds = permit ? appointmentServiceIds(permit.appointment) : [];
   const coverageQuery = useQuery({
     queryKey: ['designation-coverage', sessionKey, unitId, serviceTypeIds.slice().sort().join(','), permit?.appointment.location, permit?.appointment.responsibleId],
@@ -145,6 +168,11 @@ export function PermitDetailPage() {
   const formDirty = checklistDirty || preparationDirty || closingDirty;
   const summaryDirty = Boolean(permit && operatorAuthorized && summary !== (permit.summary || '') && (['EXECUTING', 'SUSPENDED', 'CANCELED'].includes(permit.operationStatus) || correctionDraft));
   useEffect(() => { setCommand(undefined); setIntent(undefined); setFormBase(null); setLocalError(''); setNotice(''); }, [id, sessionKey, unitId]);
+  useEffect(() => {
+    setReviewDrawing(''); setReviewImage(''); setReviewImageName(''); setReadingReviewImage(false); setReviewProfile(undefined);
+    setPdfDisclaimer(null); setIsDownloadingPdf(false);
+    return () => { cancelReviewImageRead(); pdfRequest.current?.abort(); pdfRequest.current = null; };
+  }, [id, sessionKey, unitId]);
 
   const teamQuery = useQuery({
     queryKey: ['team', sessionKey, permit?.appointment.teamId],
@@ -164,6 +192,7 @@ export function PermitDetailPage() {
       setIsEditingParticipants(false);
       setNotice('Composição de participantes da equipe atualizada com sucesso.');
       void Promise.all(['work-permit', 'work-permits', 'appointments', 'appointment', 'eligibility', 'documentary-readiness'].map(key => client.invalidateQueries({ queryKey: [key] })));
+      void invalidateConsultation(client, 'permits', { sessionKey, unitId });
     },
     onError: (err) => {
       setLocalError(errorMessage(err));
@@ -171,18 +200,60 @@ export function PermitDetailPage() {
   });
 
   async function downloadFinalPdf() {
-    if (!permit || isDownloadingPdf) return;
+    const snapshot = permit?.snapshots.find(item => item.version === permit.version && item.decision === 'APPROVE');
+    if (!permit || !snapshot || permit.id !== id || permit.appointment.unitId !== unitId || permitQuery.isError || pdfRequest.current) return;
+    const controller = new AbortController(); pdfRequest.current = controller;
+    const requestContext = pdfContext.current;
     setIsDownloadingPdf(true);
-    setLocalError('');
+    setLocalError(''); setPdfDisclaimer(null);
     try {
-      const res = await api.get<FinalPdfDto>(`/work-permits/${permit.id}/final-pdf`);
-      setPdfDisclaimer(res.disclaimer);
+      const res = await api.get<FinalPdfDto>(`/work-permits/${permit.id}/final-pdf`, { query: { version: snapshot.version }, signal: controller.signal });
+      if (controller.signal.aborted || pdfRequest.current !== controller || requestContext !== pdfContext.current) return;
+      validateFinalPdf(res, permit.id, snapshot.version);
       triggerDownload(res.url, res.fileName);
+      setPdfDisclaimer(res.backendPersisted ? res.disclaimer : res.disclaimer || 'PDF demonstrativo, sem persistência ou validade operacional.');
     } catch (err) {
-      setLocalError(errorMessage(err));
+      if (!controller.signal.aborted && requestContext === pdfContext.current) setLocalError(errorMessage(err));
     } finally {
-      setIsDownloadingPdf(false);
+      if (pdfRequest.current === controller) { pdfRequest.current = null; setIsDownloadingPdf(false); }
     }
+  }
+
+  function cancelReviewImageRead() {
+    const reader = reviewImageReader.current;
+    reviewImageReader.current = null;
+    if (reader?.readyState === FileReader.LOADING) reader.abort();
+  }
+  function changeReviewMethod(next: typeof reviewMethod) {
+    cancelReviewImageRead(); setReadingReviewImage(false);
+    setReviewMethod(next); setReviewDrawing(''); setReviewImage(''); setReviewImageName(''); setReviewProfile(undefined); setConfirmed(false); setLocalError('');
+  }
+  function selectPersonalProfile() {
+    if (!ownProfile || profileQuery.isFetching || profileQuery.isError || writePending) return;
+    cancelReviewImageRead(); setReadingReviewImage(false);
+    setReviewProfile(structuredClone(ownProfile)); setReviewMethod(ownProfile.method);
+    setReviewDrawing(''); setReviewImage(''); setReviewImageName(''); setConfirmed(false); setLocalError('');
+  }
+  function selectReviewImage(event: ChangeEvent<HTMLInputElement>) {
+    cancelReviewImageRead(); setReadingReviewImage(false);
+    setReviewImage(''); setReviewImageName(''); setConfirmed(false); setLocalError('');
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) { setLocalError('Selecione uma imagem PNG ou JPEG.'); event.target.value = ''; return; }
+    if (!file.size || file.size > SIGNATURE_IMAGE_MAX_FILE_BYTES) { setLocalError('A imagem deve conter dados e ter até 2 MB.'); event.target.value = ''; return; }
+    const reader = new FileReader(); reviewImageReader.current = reader; setReadingReviewImage(true);
+    reader.onload = () => {
+      if (reviewImageReader.current !== reader) return;
+      reviewImageReader.current = null; setReadingReviewImage(false);
+      const image = typeof reader.result === 'string' ? reader.result : '';
+      if (!isImageRepresentation(image)) { setLocalError('Não foi possível ler uma representação PNG ou JPEG válida.'); return; }
+      setReviewImage(image); setReviewImageName(file.name); setConfirmed(false);
+    };
+    reader.onerror = () => {
+      if (reviewImageReader.current !== reader) return;
+      reviewImageReader.current = null; setReadingReviewImage(false); setLocalError('Não foi possível ler a imagem. Selecione o arquivo novamente.');
+    };
+    reader.readAsDataURL(file);
   }
 
   function openParticipantsModal() {
@@ -222,10 +293,12 @@ export function PermitDetailPage() {
     setCommand(undefined); setLocalError(''); setNotice(variables.command === 'checklist' ? 'Checklist salvo nesta versão.' : variables.command === 'preparation' ? 'Preparação da PT salva nesta versão.' : `${commandLabels[variables.command]}: ação registrada.`);
     // The confirmed response is authoritative for this PT. Refresh other views in the background.
     void Promise.all(['work-permit', 'work-permits', 'appointments', 'appointment', 'permit-dashboard', 'pt-dashboard', 'eligibility', 'documentary-readiness', 'designation-coverage'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    void invalidateConsultation(client, 'permits', { sessionKey, unitId });
   }, onError: error => {
     if (error instanceof ApiError && ['DOCUMENTARY_BLOCK', 'CHECKLIST_PENDING', 'SCIENCES_PENDING'].includes(error.code)) void client.invalidateQueries({ queryKey: ['work-permit', sessionKey, unitId, id] });
   } });
   const writePending = mutation.isPending || attachmentsBusy || lifecycleBusy || participantsMutation.isPending;
+  useNavigationGuard({ dirty: formDirty || summaryDirty || Boolean(command) || isEditingParticipants, busy: writePending });
   useEffect(() => {
     if (!permit) return;
     if (!formBase || formBase.id !== permit.id || (formBase.revision !== permit.revision && !formDirty && !summaryDirty)) {
@@ -267,22 +340,22 @@ export function PermitDetailPage() {
     if (writePending) { setLocalError('Aguarde a confirmação da ação em andamento antes de abrir outra confirmação.'); return; }
     if (permit) setIntent({ revision: permit.revision, version: permit.version });
     setCommand(next); setConfirmed(false); setComment(''); setDecision('APPROVE'); setLocalError(''); setDrawing(''); setMethod('TYPED');
-    setReviewMethod('TYPED'); setReviewDrawing(''); setReviewImage(''); setReviewImageName(''); mutation.reset();
+    cancelReviewImageRead(); setReadingReviewImage(false); setReviewMethod('TYPED'); setReviewDrawing(''); setReviewImage(''); setReviewImageName(''); setReviewProfile(undefined); mutation.reset();
     const participant = permit?.appointment.participants.find(item => item.workerId === participantId);
     setWorkerId(participant?.workerId || ''); setDeclarantName(participant?.name || '');
   }
-  function close() { if (!writePending) { setCommand(undefined); setIntent(undefined); setLocalError(''); mutation.reset(); } }
+  function close() { if (!writePending) { cancelReviewImageRead(); setReadingReviewImage(false); setCommand(undefined); setIntent(undefined); setLocalError(''); mutation.reset(); } }
   async function saveChecklist(event: FormEvent) {
     event.preventDefault(); if (writePending) return; setLocalError(''); mutation.reset();
     const error = validateChecklist(checklist);
-    if (error) { setLocalError(error); return; }
+    if (error) return;
     try { await mutation.mutateAsync({ command: 'checklist', body: { items: checklist } }); } catch { /* Keep the answers for correction. */ }
   }
   async function savePreparation(event: FormEvent) {
     event.preventDefault(); if (writePending) return; setLocalError(''); mutation.reset();
     if (!preparation) return;
     const error = validatePreparation(preparation);
-    if (error) { setLocalError(error); return; }
+    if (error) return;
     try { await mutation.mutateAsync({ command: 'preparation', body: preparation }); } catch { /* Keep the local preparation. */ }
   }
   async function submit(event: FormEvent) {
@@ -311,21 +384,24 @@ export function PermitDetailPage() {
       if (!confirmed) { setLocalError('Confirme a criação da nova versão documental.'); return; }
       body = { reason: comment.trim() };
     } else if (command === 'review') {
+      if (readingReviewImage) { setLocalError('Aguarde a leitura da imagem antes de confirmar.'); return; }
       const error = decision === 'RETURN' ? validateText(comment, 'Motivo da devolução') : comment.length > 4000 ? 'A observação deve ter até 4.000 caracteres.' : undefined;
       if (error) { setLocalError(error); return; }
       if (!confirmed) { setLocalError('Confirme sua decisão sobre esta versão.'); return; }
       if (decision === 'APPROVE') {
         if (!me?.user.displayName) { setLocalError('Não foi possível identificar o responsável autenticado.'); return; }
-        if (reviewMethod === 'DRAWN' && !reviewDrawing) { setLocalError('Desenhe sua assinatura no quadro antes de confirmar a aprovação.'); return; }
-        if (reviewMethod === 'IMAGE' && !reviewImage) { setLocalError('Selecione uma imagem de sua assinatura antes de confirmar a aprovação.'); return; }
+        if (reviewProfile && (profileQuery.isFetching || profileQuery.isError || !ownProfile || ownProfile.id !== reviewProfile.id || ownProfile.version !== reviewProfile.version || reviewProfile.userId !== me.user.id)) { setLocalError('Sua representação pessoal foi alterada ou não pôde ser conferida. Carregue e selecione o perfil atual antes de aprovar.'); return; }
+        if (reviewMethod === 'DRAWN' && !isDrawingRepresentation(reviewProfile?.image || reviewDrawing)) { setLocalError('Desenhe sua assinatura no quadro antes de confirmar a aprovação.'); return; }
+        if (reviewMethod === 'IMAGE' && !isImageRepresentation(reviewProfile?.image || reviewImage)) { setLocalError('Selecione uma imagem de sua assinatura antes de confirmar a aprovação.'); return; }
       }
       body = {
         decision,
         comment: comment.trim(),
         ...(decision === 'APPROVE' ? {
-          signatureRepresentation: me!.user.displayName,
+          signatureRepresentation: reviewProfile?.representation || me!.user.displayName,
           signatureMethod: reviewMethod,
-          signatureImage: reviewMethod === 'DRAWN' ? reviewDrawing : reviewMethod === 'IMAGE' ? reviewImage : undefined,
+          signatureImage: reviewMethod === 'DRAWN' ? reviewProfile?.image || reviewDrawing : reviewMethod === 'IMAGE' ? reviewProfile?.image || reviewImage : undefined,
+          ...(reviewProfile ? { signatureProfileId: reviewProfile.id, signatureProfileVersion: reviewProfile.version } : {}),
         } : {}),
       };
     } else {
@@ -336,13 +412,14 @@ export function PermitDetailPage() {
   }
 
   if (permitQuery.isPending) return <Spinner />;
-  if (permitQuery.isError || !permit) return <div className="panel stack"><Feedback tone="danger">{errorMessage(permitQuery.error)}</Feedback><Button variant="secondary" onClick={() => permitQuery.refetch()}>Tentar novamente</Button><Link to={backTarget}>{backLabel}</Link></div>;
-  if (permit.appointment.unitId !== unitId) return <div className="panel stack"><EmptyState title="PT de outra unidade" description="Selecione a unidade deste atendimento para consultar seu conteúdo, ou volte à lista da unidade atual." /><Link to={backTarget}>{backLabel}</Link></div>;
+  if (permitQuery.isError || !permit) return <div className="panel stack"><Feedback tone="danger">{errorMessage(permitQuery.error)}</Feedback><Button variant="secondary" onClick={() => permitQuery.refetch()}>Tentar novamente</Button><Link to={backTarget} state={backState}>{backLabel}</Link></div>;
+  if (permit.appointment.unitId !== unitId) return <div className="panel stack"><EmptyState title="PT de outra unidade" description="Selecione a unidade deste atendimento para consultar seu conteúdo, ou volte à lista da unidade atual." /><Link to={backTarget} state={backState}>{backLabel}</Link></div>;
   const actions = permit.availableActions;
   const has = (action: string) => actions.includes(action) && (action === 'REVIEW' ? can('permits.review') : operatorAuthorized);
   const canEdit = has('EDIT_CHECKLIST');
   const correction = correctionDraft;
   const currentSciences = permit.sciences.filter(science => science.version === permit.version);
+  const currentScienceCount = permit.appointment.participants.filter(participant => currentSciences.some(science => science.workerId === participant.workerId)).length;
   const blockers = releaseBlockers(permit);
   if (Array.isArray(coverageQuery.data?.items) && !coverageQuery.data.fullyCovered) {
     blockers.push('Há serviços sem designação operacional vigente cobrindo este responsável e local.');
@@ -360,44 +437,63 @@ export function PermitDetailPage() {
   const canWriteSummary = has('COMPLETE') || correction && operatorAuthorized;
   const preservedSummaryDraft = summaryDirty && ['SUSPENDED', 'CANCELED'].includes(permit.operationStatus);
   const staleIntent = Boolean(command && intent && (intent.revision !== permit.revision || intent.version !== permit.version));
-  const step = permit.operationStatus === 'CANCELED' ? -1 : permit.operationStatus === 'VERIFICATION' ? 0 : permit.operationStatus === 'RELEASED' ? 1 : permit.operationStatus === 'EXECUTING' ? 2 : permit.operationStatus === 'SUSPENDED' ? permit.lifecycle?.suspendedFrom === 'RELEASED' ? 1 : 2 : permit.reviewStatus === 'VALIDATED' ? 4 : 3;
+  const showLifecycle = can('permits.read') && Boolean(permit.lifecycle || operatorAuthorized && permit.reviewStatus === 'NOT_SUBMITTED' && (
+    actions.includes('SUSPEND') && ['RELEASED', 'EXECUTING'].includes(permit.operationStatus)
+    || actions.includes('RESUME') && permit.operationStatus === 'SUSPENDED'
+    || actions.includes('CANCEL') && ['VERIFICATION', 'RELEASED', 'SUSPENDED'].includes(permit.operationStatus)
+  ));
+  const sections: PermitSection[] = [
+    { id: 'preparacao', label: 'Preparação' }, { id: 'conferencia', label: 'Checklist' },
+    { id: 'requisitos', label: 'Requisitos' }, { id: 'ciencias', label: 'Ciências' },
+    { id: 'designacao', label: 'Designação' }, { id: 'operacao', label: 'Liberação e execução' },
+    ...(showLifecycle ? [{ id: 'interrupcao' as const, label: 'Interrupção e retomada' }] : []),
+    ...(can('permits.read') ? [{ id: 'anexos' as const, label: 'Anexos' }] : []),
+    { id: 'encerramento', label: 'Encerramento' }, { id: 'revisao', label: 'Revisão final' },
+    { id: 'historico', label: 'Histórico' },
+  ];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const coverage = coverageQuery.isPending ? 'pending' : coverageQuery.isError || coverageQuery.data?.unitId !== unitId || !Array.isArray(coverageQuery.data?.items) || typeof coverageQuery.data.fullyCovered !== 'boolean'
+    ? 'unavailable' : !coverageQuery.data.fullyCovered || Boolean(coverageQuery.data.operationalWindowEnd && today > coverageQuery.data.operationalWindowEnd) ? 'blocked' : 'covered';
+  const guidance = permitGuidance(permit, { authorizedActions: actions.filter(has), operator: operatorAuthorized, reviewer: can('permits.review'), preparationDirty, checklistDirty, closingDirty, summaryDirty, busy: writePending, stale: staleForm, coverage });
   const editItem = (itemId: string, changes: Partial<ChecklistItemDto>) => { setChecklist(items => items.map(item => item.id === itemId ? { ...item, ...changes } : item)); setNotice(''); };
-  const canDownloadFinalPdf = Boolean(permit && (permit.reviewStatus === 'VALIDATED' || permit.operationStatus === 'COMPLETED'));
+  const canDownloadFinalPdf = permit.snapshots.some(snapshot => snapshot.version === permit.version && snapshot.decision === 'APPROVE');
 
-  return <div className="stack" role="region" aria-label="Permissão de trabalho" aria-busy={writePending}>
-    <PageHeader eyebrow={`${permit.code} · VERSÃO ${permit.version}`} title={permit.appointment.serviceLabel} description="Atendimento digital, da conferência em campo à revisão do encerramento." actions={<div className="actions">{canDownloadFinalPdf && <Button variant="secondary" onClick={downloadFinalPdf} disabled={isDownloadingPdf}><Download size={14} aria-hidden="true" /> {isDownloadingPdf ? 'Baixando…' : 'Baixar PDF final'}</Button>}<Link to={`/app/pts/${id}/imprimir`}>Visualizar / imprimir PT</Link><Link to={backTarget}>{backLabel}</Link></div>} />
+  return <div className={`stack ${orientationStyles.workspace}`} role="region" aria-label="Permissão de trabalho" aria-busy={writePending}>
+    {agendaOrigin && <nav aria-label="Caminho da PT" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-6 text-slate-500 [overflow-wrap:anywhere]">
+      <Link to={`/app/agenda${agendaOrigin.search}`} className="inline-flex min-h-11 items-center">Agenda</Link><span aria-hidden="true">/</span>
+      <Link to={`/app/agenda/${encodeURIComponent(permit.appointment.id)}`} state={appointmentState} className="inline-flex min-h-11 items-center">Atendimento {permit.appointment.code}</Link><span aria-hidden="true">/</span>
+      <span aria-current="page">{permit.code}</span>
+    </nav>}
+    <PageHeader eyebrow={`${permit.code} · VERSÃO ${permit.version}`} title={permit.appointment.serviceLabel} description="Atendimento digital, da conferência em campo à revisão do encerramento." actions={<div className="actions">{canDownloadFinalPdf && <Button variant="secondary" onClick={downloadFinalPdf} disabled={isDownloadingPdf}><Download size={14} aria-hidden="true" /> {isDownloadingPdf ? 'Baixando…' : 'Baixar PDF final'}</Button>}<Link className="button button--secondary !min-h-11" to={`/app/pts/${id}/imprimir`} state={returnOrigin}>Visualizar / imprimir PT</Link><Link className="button button--ghost !min-h-11" to={backTarget} state={backState}>{backLabel}</Link></div>} />
     {writePending && <p className="muted" role="status">Registrando a ação. Aguarde a confirmação antes de mudar de tela ou unidade.</p>}
     {notice && <Feedback tone="success">{notice}</Feedback>}
     {!command && (localError || writeError) && <Feedback tone="danger">{localError || writeError}{(conflict || staleForm) && <div className="actions"><Button variant="secondary" onClick={reloadCurrent}>Carregar versão atual para conferir</Button></div>}</Feedback>}
     <section className={`panel ${styles.context}`} aria-label="Contexto da permissão de trabalho">
-      <div className={styles.contextHeader}><PermitStatus operationStatus={permit.operationStatus} reviewStatus={permit.reviewStatus} /><Badge tone={currentSciences.length === permit.appointment.participants.length ? 'success' : 'warning'}>Ciências {currentSciences.length}/{permit.appointment.participants.length}</Badge></div>
-      <dl className={styles.contextGrid}><div><dt>Local</dt><dd>{permit.appointment.location}</dd></div><div><dt>Equipe</dt><dd>{permit.appointment.teamName}</dd></div><div><dt>Responsável operacional</dt><dd>{permit.appointment.responsibleName}</dd></div><div><dt>Período agendado</dt><dd>{formatDate(permit.appointment.startsAt)} até {formatDate(permit.appointment.endsAt)}</dd></div><div><dt>Modelo utilizado</dt><dd>{permit.templateVersion}</dd></div><div><dt>Agendamento de origem</dt><dd><Link to={`/app/agenda/${permit.appointment.id}`}>{permit.appointment.code}</Link></dd></div></dl>
+      <div className={styles.contextHeader}><PermitStatus operationStatus={permit.operationStatus} reviewStatus={permit.reviewStatus} /><Badge tone={currentScienceCount === permit.appointment.participants.length ? 'success' : 'warning'}>Ciências {currentScienceCount}/{permit.appointment.participants.length}</Badge></div>
+      <dl className={styles.contextGrid}><div><dt>Local</dt><dd>{permit.appointment.location}</dd></div><div><dt>Equipe</dt><dd>{permit.appointment.teamName}</dd></div><div><dt>Responsável operacional</dt><dd>{permit.appointment.responsibleName}</dd></div><div><dt>Período agendado</dt><dd>{formatDate(permit.appointment.startsAt)} até {formatDate(permit.appointment.endsAt)}</dd></div><div><dt>Modelo utilizado</dt><dd>{permit.templateVersion}</dd></div><div><dt>Agendamento de origem</dt><dd>{can('appointments.read') ? <Link to={`/app/agenda/${encodeURIComponent(permit.appointment.id)}`} state={appointmentState}>{permit.appointment.code}</Link> : permit.appointment.code}</dd></div></dl>
       <ServiceTemplates templates={permit.serviceTemplates} />
       <Feedback tone="warning">Modelo escolar ilustrativo. Os requisitos, o checklist e as designações desta demonstração precisam ser substituídos pelos procedimentos aprovados do SESMT antes do uso real.</Feedback>
     </section>
-    <nav className={styles.steps} aria-label="Etapas da PT">{[['conferencia', 'Conferência'], ['operacao', 'Liberação'], ['operacao', 'Execução'], ['encerramento', 'Encerramento'], ['revisao', 'Revisão final']].map(([anchor, label], index) => <a key={label} href={`#${anchor}`} className={index === step ? styles.currentStep : index < step ? styles.finishedStep : ''} aria-current={index === step ? 'step' : undefined}><span>{index < step ? <Check size={14} aria-hidden="true" /> : index + 1}</span>{label}</a>)}</nav>
+    <PermitOrientation key={`${permit.id}:${permit.version}`} guidance={guidance} sections={sections} initialHash={formBase?.id === permit.id ? location.hash : ''} />
     {permit.reviewStatus === 'RETURNED' && <Feedback tone="warning">A revisão foi devolvida: {permit.reviewComment || 'Consulte o motivo no histórico.'} A atividade continua concluída. Uma correção cria uma nova versão documental, sem iniciar novamente a execução.</Feedback>}
     {correction && <Feedback tone="info">Versão {permit.version} em correção documental. Confira o conteúdo e registre novas ciências antes de reapresentar. A operação permanece concluída.</Feedback>}
 
-    {preparation ? <PermitPreparation value={preparation} editable={has('EDIT_PREPARATION')} pending={writePending || staleForm} dirty={preparationDirty} onChange={value => { setPreparation(value); setNotice(''); }} onSubmit={savePreparation} /> : <Feedback tone="info">Exemplo anterior à digitalização do modelo: esta PT não contém preparação estruturada da planilha recebida.</Feedback>}
+    <div id="preparacao">{preparation ? <PermitPreparation key={`${permit.id}:${permit.version}`} value={preparation} editable={has('EDIT_PREPARATION')} pending={writePending || staleForm} dirty={preparationDirty} onChange={value => { setPreparation(value); setNotice(''); }} onSubmit={savePreparation} /> : <section className="panel stack" aria-label="Preparação do modelo PT"><h2>Preparação da PT</h2><Feedback tone="info">Exemplo anterior à digitalização do modelo: esta PT não contém preparação estruturada da planilha recebida.</Feedback></section>}</div>
 
     <section id="conferencia" className="panel stack" aria-labelledby="checklist-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ClipboardCheck size={20} aria-hidden="true" /></span><h2 id="checklist-title">1. Conferência do atendimento</h2><p className="muted">Checklist ilustrativo · {permit.templateVersion}</p></div>{!canEdit && <Badge><LockKeyhole size={12} aria-hidden="true" /> Conteúdo preservado</Badge>}</div>
-      <form onSubmit={saveChecklist} className="stack">
-        {checklist.map((item, index) => <fieldset key={item.id} className={styles.checklistItem} disabled={!canEdit || writePending}><legend>{index + 1}. {item.label}{item.required && <span> (obrigatório)</span>}</legend>{item.serviceName && <p className="muted">{item.serviceName} · template v{item.templateVersion || 'não registrada'}</p>}<div className={styles.answerOptions}>{(['YES', 'NO'] as const).map(answer => <label key={answer}><input type="radio" name={`checklist-${item.id}`} checked={item.answer === answer} onChange={() => editItem(item.id, { answer })} />{answer === 'YES' ? 'Sim' : 'Não'}</label>)}</div>{item.blockingAnswers && <small className="muted">{item.blockingAnswers.length ? `Respostas impeditivas deste template: ${item.blockingAnswers.map(answer => answer === 'YES' ? 'Sim' : 'Não').join(', ')}.` : 'Este item registra a condição, sem resposta impeditiva configurada.'}</small>}{(canEdit || item.note) && <Field label={`Observação do item ${index + 1}`}><textarea aria-label={`Observação do item ${index + 1}`} value={item.note || ''} rows={2} maxLength={1000} placeholder={item.answer === 'NO' ? 'Explique a situação desta resposta.' : 'Observação, quando necessária.'} onChange={event => editItem(item.id, { note: event.target.value })} /></Field>}</fieldset>)}
-        {canEdit && <div className="actions"><Button type="submit" disabled={writePending || !checklistDirty || staleForm}>Salvar checklist</Button><span className="muted" role="status">{checklistDirty ? 'Há respostas ainda não salvas.' : 'Respostas sincronizadas com esta versão.'}</span></div>}
-      </form>
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ClipboardCheck size={20} aria-hidden="true" /></span><h2 id="checklist-title">Conferência do atendimento</h2><p className="muted">Checklist ilustrativo · {permit.templateVersion}</p></div>{!canEdit && <Badge><LockKeyhole size={12} aria-hidden="true" /> Conteúdo preservado</Badge>}</div>
+      <PermitChecklist key={`${permit.id}:${permit.version}`} items={checklist} editable={canEdit} pending={writePending} dirty={checklistDirty} stale={staleForm} onChange={editItem} onSubmit={saveChecklist} />
     </section>
 
-    <section className="panel stack" aria-labelledby="eligibility-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ShieldCheck size={20} aria-hidden="true" /></span><h2 id="eligibility-title">2. Requisitos por participante</h2><p className="muted">Matriz {permit.eligibility.requirementVersion} · última consulta {formatDate(permit.eligibility.checkedAt)}</p></div><Badge tone={permit.eligibility.eligible ? 'success' : 'danger'}>{permit.eligibility.eligible ? 'Requisitos documentais atendidos' : 'Há pendências impeditivas'}</Badge></div>
+    <section id="requisitos" className="panel stack" aria-labelledby="eligibility-title">
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ShieldCheck size={20} aria-hidden="true" /></span><h2 id="eligibility-title">Requisitos por participante</h2><p className="muted">Matriz {permit.eligibility.requirementVersion} · última consulta {formatDate(permit.eligibility.checkedAt)}</p></div><Badge tone={permit.eligibility.eligible ? 'success' : 'danger'}>{permit.eligibility.eligible ? 'Requisitos documentais atendidos' : 'Há pendências impeditivas'}</Badge></div>
       <p className="muted">A função desempenhada no serviço determina os requisitos. Receber um arquivo não significa conferi-lo. A liberação e o início consultam novamente a situação vigente.</p>
       <div className={styles.participantGrid}>{permit.eligibility.participants.map(participant => <article key={participant.workerId} className={styles.participantCard}><div className={styles.cardTop}><div><h3>{participant.name}</h3><p className="muted">Função no serviço: {participant.serviceFunction}</p></div><Badge tone={participant.eligible ? 'success' : 'danger'}>{participant.eligible ? 'Conferido' : 'Pendente'}</Badge></div><ul className={styles.requirements}>{participant.items.map(item => <li key={item.requirementId}><div><strong>{item.label}</strong><Badge tone={evidenceTones[item.status] || 'neutral'}>{evidenceLabels[item.status] || item.status}</Badge></div><p className="muted">{item.reason || item.description}</p>{item.restricted ? <p className="muted"><LockKeyhole size={12} aria-hidden="true" /> Requisito com acesso restrito. Apenas a situação operacional permitida é exibida.</p> : item.validUntil && <p className="muted">Validade da evidência conforme a matriz: {formatDate(item.validUntil)}</p>}</li>)}</ul></article>)}</div>
-      <div className="actions"><Link to={`/app/agenda/${permit.appointment.id}`} className="button button--secondary">Consultar pendências e evidências</Link><Button variant="ghost" onClick={() => permitQuery.refetch()} disabled={permitQuery.isFetching || writePending}>Atualizar conferência</Button></div>
+      <div className="actions">{can('appointments.read') && <Link to={`/app/agenda/${encodeURIComponent(permit.appointment.id)}`} state={appointmentState} className="button button--secondary">Consultar pendências e evidências</Link>}<Button variant="ghost" onClick={() => permitQuery.refetch()} disabled={permitQuery.isFetching || writePending}>Atualizar conferência</Button></div>
     </section>
 
-    <section className="panel stack" aria-labelledby="sciences-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Users size={20} aria-hidden="true" /></span><h2 id="sciences-title">3. Ciência dos participantes</h2><p className="muted">Declarações referentes à PT {permit.code}, versão {permit.version}.</p></div><Badge tone={currentSciences.length === permit.appointment.participants.length ? 'success' : 'warning'}>{currentSciences.length}/{permit.appointment.participants.length} registradas</Badge></div>
+    <section id="ciencias" className="panel stack" aria-labelledby="sciences-title">
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Users size={20} aria-hidden="true" /></span><h2 id="sciences-title">Ciência dos participantes</h2><p className="muted">Declarações referentes à PT {permit.code}, versão {permit.version}.</p></div><Badge tone={currentScienceCount === permit.appointment.participants.length ? 'success' : 'warning'}>{currentScienceCount}/{permit.appointment.participants.length} registradas</Badge></div>
       <p className="muted">A manifestação confirma a ciência sobre o registro apresentado. Não substitui capacitação, conferência documental ou liberação da atividade.</p>
       <div className={styles.participantGrid}>{permit.appointment.participants.map(participant => {
         const science = currentSciences.find(item => item.workerId === participant.workerId);
@@ -415,6 +511,7 @@ export function PermitDetailPage() {
     </section>
 
     <DesignationCoveragePanel
+      sectionId="designacao"
       unitId={permit.appointment.unitId}
       serviceTypeIds={serviceTypeIds}
       location={permit.appointment.location}
@@ -422,7 +519,7 @@ export function PermitDetailPage() {
     />
 
     <section id="operacao" className="panel stack" aria-labelledby="operation-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Clock size={20} aria-hidden="true" /></span><h2 id="operation-title">4. Liberação e execução</h2><p className="muted">Abrir o atendimento inicia a verificação. Liberar e iniciar são ações distintas.</p></div></div>
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Clock size={20} aria-hidden="true" /></span><h2 id="operation-title">Liberação e execução</h2><p className="muted">Abrir o atendimento inicia a verificação. Liberar e iniciar são ações distintas.</p></div></div>
       {['VERIFICATION', 'RELEASED', 'SUSPENDED'].includes(permit.operationStatus) && blockers.length > 0 && <Feedback tone="warning"><strong>Antes de continuar:</strong><ul className={styles.blockers}>{blockers.map(blocker => <li key={blocker}>{blocker}</li>)}</ul></Feedback>}
       <dl className={styles.contextGrid}><div><dt>Liberação registrada</dt><dd>{permit.releasedAt ? formatDate(permit.releasedAt) : 'Ainda não registrada'}</dd></div><div><dt>Início da execução</dt><dd>{permit.startedAt ? formatDate(permit.startedAt) : 'Ainda não registrado'}</dd></div><div><dt>Conclusão operacional</dt><dd>{permit.completedAt ? formatDate(permit.completedAt) : 'Ainda não registrada'}</dd></div></dl>
       <div className="actions">{has('RELEASE') && <Button onClick={() => open('release')} disabled={writePending || checklistDirty || preparationDirty || blockers.length > 0}>Liberar execução</Button>}{has('START') && <Button onClick={() => open('start')} disabled={writePending || blockers.length > 0}>Registrar início da execução</Button>}</div>
@@ -431,18 +528,18 @@ export function PermitDetailPage() {
       {permit.operationStatus === 'COMPLETED' && <Feedback tone="info">A atividade está concluída. A revisão final e eventuais correções tratam do registro documental e não autorizam retrospectivamente a execução.</Feedback>}
     </section>
 
-    <PermitLifecycleActions permit={permit} disabled={mutation.isPending || attachmentsBusy || Boolean(command)} onBusyChange={setLifecycleBusy} />
-    <PermitAttachments permit={permit} disabled={formDirty || summaryDirty || writePending || Boolean(command)} onBusyChange={setAttachmentsBusy} />
+    <PermitLifecycleActions sectionId="interrupcao" permit={permit} disabled={mutation.isPending || attachmentsBusy || Boolean(command)} onBusyChange={setLifecycleBusy} />
+    <PermitAttachments sectionId="anexos" permit={permit} disabled={formDirty || summaryDirty || mutation.isPending || lifecycleBusy || participantsMutation.isPending || Boolean(command)} onBusyChange={setAttachmentsBusy} />
 
     <section id="encerramento" className="panel stack" aria-labelledby="completion-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><FileCheck2 size={20} aria-hidden="true" /></span><h2 id="completion-title">5. Encerramento do atendimento</h2><p className="muted">Resumo, versão enviada e pendências da revisão.</p></div></div>
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><FileCheck2 size={20} aria-hidden="true" /></span><h2 id="completion-title">Encerramento do atendimento</h2><p className="muted">Resumo, versão enviada e pendências da revisão.</p></div></div>
       {permit.preparation && <details open={has('COMPLETE') || correction || closingDirty} className={styles.snapshot} aria-label="Checklist de encerramento do modelo"><summary>Checklist de encerramento do modelo · {closingChecks.filter(item => item.answer !== null).length}/{closingChecks.length}</summary><p className="muted">Registre Sim, Não ou Não aplicável por item e justifique Não / Não aplicável. O encerramento preserva o estado registrado; novas pendências devem constar no resumo e na revisão.</p><SourceChecks checks={closingChecks} disabled={writePending || staleForm || !canWriteSummary} prefix="closing" onChange={setClosingChecks} /></details>}
       {canWriteSummary || preservedSummaryDraft ? <><Field label="Resumo do atendimento"><textarea aria-label="Resumo do atendimento" value={summary} disabled={writePending || !canWriteSummary} onChange={event => { setSummary(event.target.value); setNotice(''); }} maxLength={4000} rows={5} placeholder="Descreva o atendimento realizado, o resultado e as observações para a revisão." /></Field>{preservedSummaryDraft && <Feedback>Rascunho local preservado. Este resumo ainda não foi enviado e pode ser consultado durante a suspensão ou após o cancelamento.</Feedback>}{canWriteSummary && <div className="actions"><Button onClick={() => open(correction ? 'submit-correction' : 'complete')} disabled={writePending || staleForm || checklistDirty || preparationDirty || (correction && !has('SUBMIT_CORRECTION'))}>{correction ? 'Reapresentar correção para revisão' : 'Concluir atividade e enviar para revisão'}</Button><span className="muted">{correction && !has('SUBMIT_CORRECTION') ? 'Confira o checklist e registre todas as ciências para habilitar a reapresentação.' : 'O envio preserva uma cópia desta versão.'}</span></div>}</> : permit.summary ? <p className={styles.preserveText}>{permit.summary}</p> : <EmptyState title="Encerramento ainda não enviado" description="O resumo ficará disponível após a conclusão pelo responsável operacional." />}
       {has('NEW_VERSION') && <Button variant="secondary" disabled={writePending} onClick={() => open('new-version')}>Criar versão de correção</Button>}
     </section>
 
     <section id="revisao" className="panel stack" aria-labelledby="review-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Check size={20} aria-hidden="true" /></span><h2 id="review-title">6. Revisão final e versões</h2><p className="muted">Decisão explícita sobre uma versão identificada do encerramento.</p></div></div>
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><Check size={20} aria-hidden="true" /></span><h2 id="review-title">Revisão final e versões</h2><p className="muted">Decisão explícita sobre uma versão identificada do encerramento.</p></div></div>
       <PermitStatus operationStatus={permit.operationStatus} reviewStatus={permit.reviewStatus} />
       {has('REVIEW') && <div className="actions"><Button disabled={writePending} onClick={() => open('review')}>Revisar encerramento da versão {permit.version}</Button><span className="muted">Consulte a versão enviada antes de aprovar ou devolver.</span></div>}
 
@@ -450,13 +547,13 @@ export function PermitDetailPage() {
         <div className="panel stack" style={{ background: 'var(--color-bg-subtle, #f8fafc)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1rem' }}>Documento final controlado (PDF)</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>{API_MODE === 'demo' ? 'PDF demonstrativo da versão aprovada' : 'PDF da versão aprovada'}</h3>
               <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
-                Download autorizado do PDF digital com todas as decisões, ciências e snapshots preservados.
+                {API_MODE === 'demo' ? 'Arquivo gerado na demonstração, sem persistência ou validade operacional.' : 'Solicite o arquivo da versão aprovada. Confira as informações de emissão e custódia retornadas pelo serviço.'}
               </p>
             </div>
             <Button variant="secondary" onClick={downloadFinalPdf} disabled={isDownloadingPdf}>
-              <Download size={14} aria-hidden="true" /> {isDownloadingPdf ? 'Baixando PDF…' : 'Baixar PDF final homologado'}
+              <Download size={14} aria-hidden="true" /> {isDownloadingPdf ? 'Baixando PDF…' : 'Baixar PDF final'}
             </Button>
           </div>
           {pdfDisclaimer && <Feedback tone="info">{pdfDisclaimer}</Feedback>}
@@ -469,7 +566,7 @@ export function PermitDetailPage() {
       {permit.snapshots.length ? <div className="stack">{[...permit.snapshots].reverse().map(snapshot => <Snapshot key={snapshot.version} snapshot={snapshot} current={snapshot.version === permit.version} />)}</div> : <p className="muted">Nenhuma versão foi enviada para revisão.</p>}
     </section>
 
-    <section className="panel stack" aria-labelledby="history-title"><h2 id="history-title">Histórico do atendimento</h2><ol className={styles.timeline}>{[...permit.history].reverse().map(event => <li key={event.id}><span className={styles.timelineDot} /><div><strong>{eventLabels[event.action] || event.action.replace(/_/g, ' ')}</strong><p className="muted">{event.actorName} · {formatDate(event.occurredAt)}{event.version && ` · versão ${event.version}`}</p>{event.reason && <p className={styles.preserveText}>{event.reason}</p>}</div></li>)}</ol></section>
+    <section id="historico" className="panel stack" aria-labelledby="history-title"><h2 id="history-title">Histórico do atendimento</h2><ol className={styles.timeline}>{[...permit.history].reverse().map(event => <li key={event.id}><span className={styles.timelineDot} /><div><strong>{eventLabels[event.action] || event.action.replace(/_/g, ' ')}</strong><p className="muted">{event.actorName} · {formatDate(event.occurredAt)}{event.version && ` · versão ${event.version}`}</p>{event.reason && <p className={styles.preserveText}>{event.reason}</p>}</div></li>)}</ol></section>
 
     <Modal open={Boolean(command)} title={command ? commandLabels[command] : ''} onClose={close}>
       {command && <form onSubmit={submit} className="stack">
@@ -493,7 +590,7 @@ export function PermitDetailPage() {
         {command === 'review' && <>
           <Feedback tone="info">Você está decidindo sobre o encerramento da versão {permit.version}. A revisão acontece após a conclusão da atividade; não substitui a liberação inicial.</Feedback>
           <Field label="Decisão da revisão">
-            <select aria-label="Decisão da revisão" value={decision} onChange={event => { setDecision(event.target.value as 'APPROVE' | 'RETURN'); setConfirmed(false); }}>
+            <select aria-label="Decisão da revisão" value={decision} onChange={event => { setDecision(event.target.value as 'APPROVE' | 'RETURN'); changeReviewMethod('TYPED'); }}>
               <option value="APPROVE">Aprovar encerramento</option>
               <option value="RETURN">Devolver para correção</option>
             </select>
@@ -502,18 +599,25 @@ export function PermitDetailPage() {
             <textarea aria-label={decision === 'RETURN' ? 'Motivo da devolução' : 'Observação da revisão (opcional)'} value={comment} onChange={event => { setComment(event.target.value); setConfirmed(false); }} maxLength={4000} />
           </Field>
           {decision === 'APPROVE' && <>
+            <div className="panel stack">
+              <h3>Representação pessoal reutilizável</h3>
+              {profileQuery.isPending ? <p role="status">Carregando sua representação pessoal…</p> : profileQuery.isError ? <><Feedback tone="warning">Não foi possível conferir seu perfil pessoal. Você pode registrar a representação apenas nesta revisão.</Feedback><Button variant="secondary" onClick={() => void profileQuery.refetch()}>Carregar representação pessoal</Button></> : ownProfile ? <><p>{ownProfile.representation} · perfil v{ownProfile.version} · {ownProfile.method === 'TYPED' ? 'Nome digitado' : ownProfile.method === 'DRAWN' ? 'Desenho' : 'Imagem'}</p><Button variant="secondary" disabled={writePending || profileQuery.isFetching} onClick={selectPersonalProfile}>Usar representação pessoal salva</Button></> : <p className="muted">Você ainda não possui um perfil pessoal salvo.</p>}
+              <Link to="/app/minha-representacao">Gerenciar minha representação</Link>
+              {reviewProfile && <><p role="status">Perfil pessoal v{reviewProfile.version} selecionado. A cópia será preservada nesta decisão.</p>{reviewProfile.image ? <img src={reviewProfile.image} alt="Representação pessoal selecionada" className={styles.signatureImage} /> : <p className={styles.typedRepresentation}>{reviewProfile.representation}</p>}<Button variant="secondary" onClick={() => changeReviewMethod('TYPED')}>Usar representação apenas nesta revisão</Button></>}
+            </div>
+            {!reviewProfile && <>
             <fieldset className={styles.methodChoices}>
               <legend>Forma da representação do engenheiro</legend>
               <label>
-                <input type="radio" name="review-signature-method" checked={reviewMethod === 'TYPED'} onChange={() => { setReviewMethod('TYPED'); setConfirmed(false); }} />
+                <input type="radio" name="review-signature-method" checked={reviewMethod === 'TYPED'} onChange={() => changeReviewMethod('TYPED')} />
                 Nome digitado
               </label>
               <label>
-                <input type="radio" name="review-signature-method" checked={reviewMethod === 'DRAWN'} onChange={() => { setReviewMethod('DRAWN'); setConfirmed(false); }} />
+                <input type="radio" name="review-signature-method" checked={reviewMethod === 'DRAWN'} onChange={() => changeReviewMethod('DRAWN')} />
                 Desenho
               </label>
               <label>
-                <input type="radio" name="review-signature-method" checked={reviewMethod === 'IMAGE'} onChange={() => { setReviewMethod('IMAGE'); setConfirmed(false); }} />
+                <input type="radio" name="review-signature-method" checked={reviewMethod === 'IMAGE'} onChange={() => changeReviewMethod('IMAGE')} />
                 Upload de imagem
               </label>
             </fieldset>
@@ -530,24 +634,14 @@ export function PermitDetailPage() {
                 <Field label="Imagem da assinatura (PNG/JPEG até 2 MB)">
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg"
+                    accept="image/png,image/jpeg"
                     aria-label="Upload de imagem da rubrica"
                     disabled={writePending}
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 2 * 1024 * 1024) { setLocalError('A imagem deve ter até 2 MB.'); return; }
-                      const reader = new FileReader();
-                      reader.onload = ev => {
-                        setReviewImage(String(ev.target?.result || ''));
-                        setReviewImageName(file.name);
-                        setConfirmed(false);
-                      };
-                      reader.readAsDataURL(file);
-                    }}
+                    onChange={selectReviewImage}
                   />
                 </Field>
                 {reviewImageName && <small className="muted">Arquivo selecionado: {reviewImageName}</small>}
+                {readingReviewImage && <p className="muted" role="status">Lendo a imagem selecionada…</p>}
               </div>
             )}
 
@@ -555,18 +649,19 @@ export function PermitDetailPage() {
               <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 600 }}>Prévia da representação visual do engenheiro:</p>
               {reviewMethod === 'TYPED' && <div className={styles.typedRepresentation}>{me?.user.displayName}</div>}
               {reviewMethod === 'DRAWN' && (reviewDrawing ? <img src={reviewDrawing} alt="Prévia da assinatura desenhada" className={styles.signatureImage} /> : <p className="muted" style={{ fontStyle: 'italic', margin: 0 }}>Desenho da assinatura pendente</p>)}
-              {reviewMethod === 'IMAGE' && (reviewImage ? <img src={reviewImage} alt="Prévia da imagem da assinatura" className={styles.signatureImage} /> : <p className="muted" style={{ fontStyle: 'italic', margin: 0 }}>Nenhuma imagem carregada</p>)}
+              {reviewMethod === 'IMAGE' && (reviewImage ? <img src={reviewImage} alt="Prévia da imagem da assinatura" className={styles.signatureImage} onError={() => { setReviewImage(''); setReviewImageName(''); setConfirmed(false); setLocalError('A imagem selecionada não pode ser exibida. Escolha um PNG ou JPEG válido.'); }} /> : <p className="muted" style={{ fontStyle: 'italic', margin: 0 }}>Nenhuma imagem carregada</p>)}
             </div>
+            </>}
 
             <p className="muted">A representação visual será gravada no snapshot da versão {permit.version}. Não constitui certificado ICP-Brasil ou assinatura digital certificada.</p>
           </>}
           <label className={styles.confirmation}>
-            <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />
+            <input type="checkbox" checked={confirmed} disabled={readingReviewImage} onChange={event => setConfirmed(event.target.checked)} />
             <span>{decision === 'APPROVE' ? `Eu, ${me?.user.displayName}, conferi a versão ${permit.version} e confirmo sua aprovação, com minha representação nesta decisão.` : `Confirmo a devolução da versão ${permit.version} pelo motivo informado, mantendo a atividade concluída.`}</span>
           </label>
         </>}
         </fieldset>
-        <div className="actions"><Button type="submit" disabled={writePending || conflict || staleIntent}>{writePending ? 'Registrando…' : command === 'review' ? decision === 'APPROVE' ? 'Confirmar aprovação' : 'Confirmar devolução' : 'Confirmar ação'}</Button><Button variant="secondary" onClick={close} disabled={writePending}>Cancelar</Button></div>
+        <div className="actions"><Button type="submit" disabled={writePending || readingReviewImage || conflict || staleIntent}>{writePending ? 'Registrando…' : command === 'review' ? decision === 'APPROVE' ? 'Confirmar aprovação' : 'Confirmar devolução' : 'Confirmar ação'}</Button><Button variant="secondary" onClick={close} disabled={writePending}>Cancelar</Button></div>
       </form>}
     </Modal>
 

@@ -1,3 +1,4 @@
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PauseCircle, PlayCircle } from 'lucide-react';
@@ -6,6 +7,7 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import type { WorkPermitDto } from '../../shared/contracts/work-permits';
 import { PERMIT_LIFECYCLE_REASON_MAX, type PermitLifecycleCommand, type PermitLifecycleRecordDto } from '../../shared/contracts/permit-lifecycle';
 import { formatDate } from '../../shared/lib/format';
+import { invalidateConsultation } from '../../shared/lib/consultation-cache';
 import { Button, Feedback, Field, Modal } from '../../shared/ui';
 import { errorMessage, validateText } from './validation';
 import styles from './PermitLifecycleActions.module.css';
@@ -14,8 +16,8 @@ const labels: Record<PermitLifecycleCommand, string> = { suspend: 'Suspender ope
 const actionNames: Record<PermitLifecycleCommand, string> = { suspend: 'SUSPEND', resume: 'RESUME', cancel: 'CANCEL' };
 type Intent = { revision: number; version: number; state: PermitLifecycleRecordDto['operationStatus'] };
 
-export function PermitLifecycleActions({ permit: value, disabled = false, onBusyChange }: {
-  permit: WorkPermitDto; disabled?: boolean; onBusyChange?: (busy: boolean) => void;
+export function PermitLifecycleActions({ permit: value, disabled = false, onBusyChange, sectionId }: {
+  permit: WorkPermitDto; disabled?: boolean; onBusyChange?: (busy: boolean) => void; sectionId?: string;
 }) {
   const { me, sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
@@ -44,9 +46,13 @@ export function PermitLifecycleActions({ permit: value, disabled = false, onBusy
     setNotice(command === 'suspend' ? 'Operação suspensa. A retomada exige nova conferência das condições e da documentação.'
       : command === 'resume' ? 'Retomada registrada na mesma versão da PT após conferência.' : 'PT cancelada. O registro e seu histórico foram preservados.');
     setCommand(undefined); setIntent(undefined); setFailure('');
-    await Promise.all(['work-permit', 'work-permits', 'appointments', 'appointment', 'permit-dashboard', 'pt-dashboard', 'eligibility'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all([
+      ...['work-permit', 'work-permits', 'appointments', 'appointment', 'permit-dashboard', 'pt-dashboard', 'eligibility'].map(key => client.invalidateQueries({ queryKey: [key] })),
+      invalidateConsultation(client, 'permits', { sessionKey, unitId }),
+    ]);
   } });
   const busy = mutation.isPending || refreshing;
+  useNavigationGuard({ dirty: Boolean(command), busy });
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   useEffect(() => { setCommand(undefined); setIntent(undefined); setReason(''); setFailure(''); setNotice(''); mutation.reset(); }, [permit.id, sessionKey, unitId]);
@@ -96,7 +102,7 @@ export function PermitLifecycleActions({ permit: value, disabled = false, onBusy
   const conflict = staleIntent || mutation.error instanceof ApiError && mutation.error.status === 412;
   const visible = has('suspend') || has('resume') || has('cancel') || permit.lifecycle || notice;
   if (!visible) return null;
-  return <section className="panel stack" aria-label="Interrupção e retomada da PT" aria-busy={busy}>
+  return <section id={sectionId} className="panel stack" aria-label="Interrupção e retomada da PT" aria-busy={busy}>
     <div><p className="eyebrow">Controle da operação</p><h2>Interrupção e retomada</h2><p className="muted">Registre uma interrupção, confira as condições para retomar ou encerre a permissão por cancelamento.</p></div>
     {notice && <Feedback tone="success">{notice}</Feedback>}
     {permit.operationStatus === 'SUSPENDED' && <Feedback tone="warning"><strong>Operação suspensa.</strong> {permit.lifecycle?.suspensionReason}<p className="muted">{permit.lifecycle?.suspendedByName} · {formatDate(permit.lifecycle?.suspendedAt)}. Retomar exige a mesma equipe, as condições conferidas e elegibilidade documental atual.</p></Feedback>}

@@ -5,6 +5,8 @@ import { LoginPage, RecoveryPage, ResetPasswordPage } from '../features/auth/Aut
 import { AppLayout } from './layouts/AppLayout';
 import { Spinner } from '../shared/ui';
 import { AppErrorBoundary } from './AppErrorBoundary';
+import { homePath } from './navigation';
+import { RoutePresentation } from './navigation/RoutePresentation';
 
 const DocumentsPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentsPage})));
 const ExpirationsPage=lazy(()=>import('../features/documents/ExpirationsPage').then(m=>({default:m.ExpirationsPage})));
@@ -48,22 +50,24 @@ const DesignationFormPage=lazy(()=>import('../features/designations').then(m=>({
 const DesignationDetailPage=lazy(()=>import('../features/designations').then(m=>({default:m.DesignationDetailPage})));
 const ConsultationPage=lazy(()=>import('../features/search/ConsultationPage').then(m=>({default:m.ConsultationPage})));
 const TeamInvitePage=lazy(()=>import('../features/teams/TeamInvitePage').then(m=>({default:m.TeamInvitePage})));
+const SignatureProfilePage=lazy(()=>import('../features/signature-profile/SignatureProfilePage').then(m=>({default:m.SignatureProfilePage})));
 export function Guard({ permission,children }: { permission?: string; children:ReactNode }) {
   const s=useSession(); if(s.status==='restoring') return <Spinner/>;
   if(!s.me) return <Navigate to="/login" replace/>;
   if(permission&&!s.can(permission)) return <div className="error-page"><p className="eyebrow">ACESSO RESTRITO</p><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
   return children;
 }
-function Home() { const s=useSession(); return <Navigate replace to={s.can('dashboard.read')?'/app/dashboard':s.can('documents.read')?'/app/documentos':'/app/notificacoes'}/>; }
+function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can)}/>; }
 export function App() {
   const location = useLocation(); const session = useSession();
-  return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><Routes>
+  return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><RoutePresentation contextKey={`${session.sessionKey}:${session.unitId}`} /><Routes>
     <Route path="/login" element={<LoginPage/>}/><Route path="/mfa" element={<Navigate to="/login" replace/>}/>
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
     <Route path="/convite/:token" element={<TeamInvitePage/>}/>
     <Route path="/app" element={<Guard><AppLayout/></Guard>}>
       <Route index element={<Home/>}/>
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
+      <Route path="minha-representacao" element={<Guard permission="permits.review"><SignatureProfilePage/></Guard>}/>
       <Route path="dashboard" element={<Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
@@ -106,7 +110,7 @@ export function App() {
       <Route path="auditoria" element={<Guard permission="audit.read"><AuditPage/></Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard permission="users.manage"><UsersPage/></Guard>}/>
       <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
-      <Route path="configuracoes/parametros" element={<Guard permission="documentTypes.write"><ParametersPage/></Guard>}/>
+      <Route path="configuracoes/parametros" element={<Guard><ParametersPage/></Guard>}/>
       <Route path="configuracoes/requisitos" element={<Guard permission="requirements.read"><RequirementMatrixPage/></Guard>}/>
       <Route path="configuracoes/servicos" element={<Guard permission="requirements.read"><ServiceTemplatesPage/></Guard>}/>
     </Route>

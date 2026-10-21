@@ -125,7 +125,7 @@ describe('PET atravessa os handlers HTTP reais da demonstração', () => {
   });
   it('auditor com unidade restrita não consulta registros fora do alcance concedido', async () => {
     const { value } = await create(); await login('admin');
-    const response = await send('PATCH', `/users/${id(22)}/access`, { roles: ['AUDITOR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_B], sectorIds: [id(7)], teamIds: [], ownOnly: false } }, { revision: 1 });
+    const response = await send('PATCH', `/users/${id(22)}/access`, { roles: ['AUDITOR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_B], sectorIds: [id(7)], teamIds: [], ownOnly: false, expiresAt: new Date(Date.now() + 86400000).toISOString() } }, { revision: 1 });
     expect(response.status).toBe(200); await login('auditor');
     for (const path of [listPath, `/confined-space-permits/${value.id}?unitId=${UNIT_A}`]) expect([403, 404]).toContain((await send('GET', path)).status);
     const permitted = await send('GET', `/confined-space-permits?unitId=${UNIT_B}`); expect(permitted.status).toBe(200);

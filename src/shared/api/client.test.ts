@@ -10,6 +10,40 @@ beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('cliente HTTP e ciclo da sessão', () => {
+  it('envia solicitação por convite sem credenciais nem renovação da sessão', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => pathOf(input).includes('/team-invites/public/') ? error('TOKEN_EXPIRED', 401) : json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { api, setAccessToken, setExpiredHandler } = await import('./client');
+    const expired = vi.fn(); setAccessToken('private-token'); setExpiredHandler(expired);
+    await expect(api.post('/team-invites/public/link/appointments', { location: 'Local' }, { idempotencyKey: 'invite-operation' })).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(expired).not.toHaveBeenCalled();
+    const request = fetchMock.mock.calls[0][1]!; const headers = new Headers(request.headers);
+    expect(request.credentials).toBe('omit'); expect(headers.has('Authorization')).toBe(false); expect(headers.has('X-CSRF-Token')).toBe(false);
+    expect(headers.get('Idempotency-Key')).toBe('invite-operation');
+    await api.get('/documents'); expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get('Authorization')).toBe('Bearer private-token');
+  });
+  it('salva perfil via PUT com revisão e identidade da operação', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => json({ revision: 1 })); vi.stubGlobal('fetch', fetchMock);
+    const { api } = await import('./client');
+    await api.put('/me/signature-representation', { method: 'TYPED' }, { etag: '"0"', idempotencyKey: 'profile-operation' });
+    const request = fetchMock.mock.calls[0][1]!;
+    expect(request.method).toBe('PUT'); expect(new Headers(request.headers).get('If-Match')).toBe('"0"'); expect(new Headers(request.headers).get('Idempotency-Key')).toBe('profile-operation');
+  });
+  it('nega convite público sem renovar ou encerrar a sessão de quem abriu o link', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => pathOf(input).includes('/team-invites/public/') ? error('TOKEN_EXPIRED', 401) : json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { api, setAccessToken, setExpiredHandler } = await import('./client');
+    const expired = vi.fn(); setAccessToken('retained-token'); setExpiredHandler(expired);
+    await expect(api.get('/team-invites/public/denied-token')).rejects.toMatchObject({ status: 401, code: 'TOKEN_EXPIRED' });
+    expect(expired).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const publicRequest = fetchMock.mock.calls[0] as unknown as [RequestInfo, RequestInit];
+    expect(publicRequest[1].credentials).toBe('omit');
+    expect(new Headers(publicRequest[1].headers).has('Authorization')).toBe(false);
+    await api.get('/documents');
+    const authenticated = fetchMock.mock.calls[1] as unknown as [RequestInfo, RequestInit];
+    expect(new Headers(authenticated[1].headers).get('Authorization')).toBe('Bearer retained-token');
+  });
   it.each([null, [], 'erro', { message: { unexpected: true }, fieldErrors: 'invalid' }])('normaliza erro fora do contrato sem quebrar a recuperação: %j', async value => {
     vi.stubGlobal('fetch', vi.fn(async () => json(value, 500)));
     const { api } = await import('./client');

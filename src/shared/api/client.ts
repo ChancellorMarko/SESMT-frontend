@@ -47,6 +47,7 @@ function errorDto(value: unknown): ErrorDto {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}, retried = false): Promise<T> {
+  const publicInvite = /^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path);
   const requestEpoch = epoch;
   const url = new URL(`${BASE}${path}`, window.location.origin);
   Object.entries(options.query || {}).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v)); });
@@ -56,8 +57,8 @@ async function request<T>(method: string, path: string, body?: unknown, options:
   if (options.signal?.aborted) abort();
   const timeout = setTimeout(() => controller.abort(new DOMException('A requisição excedeu o tempo de espera.', 'TimeoutError')), 30000);
   const headers = new Headers({ Accept: 'application/json' });
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (csrf && method !== 'GET') headers.set('X-CSRF-Token', csrf);
+  if (token && !publicInvite) headers.set('Authorization', `Bearer ${token}`);
+  if (csrf && method !== 'GET' && !publicInvite) headers.set('X-CSRF-Token', csrf);
   if (options.etag) headers.set('If-Match', options.etag);
   if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
   const form = body instanceof FormData;
@@ -66,7 +67,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
     if (controller.signal.aborted) throw controller.signal.reason;
     let response: Response;
     try {
-      response = await waitFor(fetch(url, { method, headers, credentials: 'include', signal: controller.signal, body: body === undefined ? undefined : form ? body : JSON.stringify(body) }), controller.signal);
+      response = await waitFor(fetch(url, { method, headers, credentials: publicInvite ? 'omit' : 'include', signal: controller.signal, body: body === undefined ? undefined : form ? body : JSON.stringify(body) }), controller.signal);
     } catch (error) {
       if (controller.signal.aborted) throw controller.signal.reason || error;
       throw new Error('Não foi possível conectar à API. Verifique a conexão e tente novamente.');
@@ -80,7 +81,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
       }
       if (requestEpoch !== epoch || options.signal?.aborted) throw new DOMException('Contexto de acesso alterado.', 'AbortError');
       const eligible = method === 'GET' || !!options.idempotencyKey;
-      if (response.status === 401 && data.code === 'TOKEN_EXPIRED' && !path.startsWith('/auth/') && !retried && eligible) {
+      if (response.status === 401 && data.code === 'TOKEN_EXPIRED' && !path.startsWith('/auth/') && !publicInvite && !retried && eligible) {
         try {
           await waitFor(renewSession(), controller.signal);
           if (requestEpoch !== epoch || options.signal?.aborted) throw new DOMException('Requisição cancelada.', 'AbortError');
@@ -90,7 +91,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
           throw error;
         }
       }
-      if (response.status === 401 && !path.startsWith('/auth/')) { clearCredentials(); onExpired(); }
+      if (response.status === 401 && !path.startsWith('/auth/') && !publicInvite) { clearCredentials(); onExpired(); }
       throw new ApiError(response.status, data);
     }
     if (response.status === 204) return undefined as T;
@@ -111,6 +112,7 @@ export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
 };
 export async function obtainCsrf() {
   const sessionEpoch = epoch;

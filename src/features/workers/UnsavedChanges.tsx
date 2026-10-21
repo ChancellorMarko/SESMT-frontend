@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Button, Modal } from '../../shared/ui';
+import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
 
-/** Protects ordinary in-app links and full page exits without a data-router dependency. */
-export function UnsavedChanges({ dirty, busy, protectContext = false }: { dirty: boolean; busy: boolean; protectContext?: boolean }) {
+/** Keeps local link/full-page guards and registers history/logout protection when available. */
+export function UnsavedChanges({ dirty, busy, protectContext = false, navigationState }: { dirty: boolean; busy: boolean; protectContext?: boolean; navigationState?: { state: unknown } }) {
+  useNavigationGuard({ dirty, busy });
   const navigate = useNavigate();
-  const [destination, setDestination] = useState<string>();
+  const route = useLocation();
+  const returnState = navigationState ? navigationState.state : route.state;
+  const [destination, setDestination] = useState<{ to: string; state: unknown }>();
   useEffect(() => {
     if (!dirty && !busy) return;
     function beforeUnload(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = ''; }
@@ -20,12 +24,14 @@ export function UnsavedChanges({ dirty, busy, protectContext = false }: { dirty:
       const target = new URL(anchor.href, location.href);
       if (target.origin !== location.origin || (target.pathname === location.pathname && target.search === location.search)) return;
       event.preventDefault(); event.stopPropagation();
-      if (!busy) setDestination(`${target.pathname}${target.search}${target.hash}`);
+      // Preserve the route's return context when the original Link navigation is intercepted.
+      // State remains data; only the same-origin URL above determines the destination.
+      if (!busy) setDestination({ to: `${target.pathname}${target.search}${target.hash}`, state: returnState });
     }
     window.addEventListener('beforeunload', beforeUnload);
     window.addEventListener('sesmt:before-context-change', contextChange);
     document.addEventListener('click', click, true);
     return () => { window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('sesmt:before-context-change', contextChange); document.removeEventListener('click', click, true); };
-  }, [dirty, busy, protectContext]);
-  return <Modal open={Boolean(destination)} title="Alterações não salvas" onClose={() => setDestination(undefined)}><div className="stack"><p>Você alterou este formulário. Deseja sair e descartar as alterações?</p><div className="actions"><Button variant="secondary" onClick={() => setDestination(undefined)}>Continuar preenchendo</Button><Button variant="danger" onClick={() => { if (destination) navigate(destination); setDestination(undefined); }}>Descartar e sair</Button></div></div></Modal>;
+  }, [dirty, busy, protectContext, returnState]);
+  return <Modal open={Boolean(destination)} title="Alterações não salvas" onClose={() => setDestination(undefined)}><div className="stack"><p>Você alterou este formulário. Deseja sair e descartar as alterações?</p><div className="actions"><Button variant="secondary" onClick={() => setDestination(undefined)}>Continuar preenchendo</Button><Button variant="danger" onClick={() => { if (destination) navigate(destination.to, { state: destination.state }); setDestination(undefined); }}>Descartar e sair</Button></div></div></Modal>;
 }

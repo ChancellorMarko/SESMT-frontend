@@ -1,0 +1,14 @@
+.summary{border:1px solid #fecdd3;border-radius:16px;background:#fff7f8;padding:16px;min-width:0;color:#881337;scroll-margin-top:110px}
+.summary h3{margin:0;font-size:15px;line-height:1.5}
+.summary p{margin:6px 0 10px;font-size:12px;line-height:1.6}
+.summary ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.summary li{min-width:0}
+.summary li button{width:100%;display:grid;gap:3px;text-align:left;border:0;border-radius:8px;background:transparent;color:inherit;padding:10px 8px;min-height:44px;overflow-wrap:anywhere;font-size:12px;line-height:1.6;cursor:pointer}
+.summary li button:hover{background:#ffe4e9}
+.summary li button strong{text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.summary li button:focus-visible,.expand:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.expand{border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;min-height:44px;padding:10px 8px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.invalid{border-color:var(--danger)!important}
+.error{color:var(--danger);font-size:12px;line-height:1.6;margin:8px 0;overflow-wrap:anywhere}
+.target{scroll-margin-top:110px}
+.target input[aria-invalid="true"],.target textarea[aria-invalid="true"],.target select[aria-invalid="true"]{border-color:var(--danger)}

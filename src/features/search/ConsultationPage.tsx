@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { FileSearch, FolderOpen, ClipboardCheck, Search, MapPin, Calendar, Clock, Filter, ArrowUpRight } from 'lucide-react';
+import { FolderOpen, ClipboardCheck, Search, MapPin, FileCheck, HardHat } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type {
@@ -11,12 +11,10 @@ import type {
   WorkerDto,
 } from '../../shared/contracts';
 import type {
-  FinalReviewStatus,
-  OperationStatus,
   PermitOptionsDto,
   WorkPermitDto,
 } from '../../shared/contracts/work-permits';
-import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
 import { DocumentStatus } from '../documents/DocumentStatus';
 import {
   documentStatuses,
@@ -29,61 +27,109 @@ import { positivePage } from '../documents/expiry';
 import { operationLabels, PermitStatus, reviewLabels } from '../permits/PermitStatus';
 import { errorMessage as permitErrorMessage } from '../permits/validation';
 import styles from './Consultation.module.css';
+import { consultationResults } from './consultation-results';
+import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
+import { PagedSelect } from '../../shared/ui/PagedSelect';
+import { PreparationSearchTab } from './PreparationSearchTab';
 
-type ActiveTab = 'documents' | 'permits';
+const consultationTabs = {
+  documents: { permission: 'documents.read', label: 'Documentos controlados', icon: FolderOpen },
+  permits: { permission: 'permits.read', label: 'Permissões de trabalho (PTs)', icon: ClipboardCheck },
+  ats: { permission: 'at.read', label: 'Autorizações de trabalho (ATs)', icon: FileCheck },
+  pets: { permission: 'pet.read', label: 'PETs de espaços confinados', icon: HardHat },
+};
+type ActiveTab = keyof typeof consultationTabs;
+
+function documentFilterError(status: string, from: string, to: string) {
+  if (status && !documentStatuses.some(value => value === status)) return 'Selecione uma situação documental válida.';
+  if (from && !isCivilDate(from)) return 'Data inicial de vencimento inválida.';
+  if (to && !isCivilDate(to)) return 'Data final de vencimento inválida.';
+  if (from && to && from > to) return 'A data final deve ser igual ou posterior à data inicial.';
+  return '';
+}
+
+function permitFilterError(operation: string, review: string) {
+  if (operation && !Object.hasOwn(operationLabels, operation)) return 'Selecione uma situação operacional válida.';
+  if (review && !Object.hasOwn(reviewLabels, review)) return 'Selecione uma revisão do encerramento válida.';
+  return '';
+}
 
 export function ConsultationPage() {
   const { unitId, sessionKey, can } = useSession();
   const [params, setParams] = useSearchParams();
-  const location = useLocation();
+  const tabsId = useId();
+  const allowedTabs = (Object.keys(consultationTabs) as ActiveTab[]).filter(tab => can(consultationTabs[tab].permission));
+  const rawTab = params.get('tab');
+  const requestedTab = rawTab && Object.hasOwn(consultationTabs, rawTab) ? rawTab as ActiveTab : undefined;
+  const invalidContext = params.getAll('tab').length > 1 || params.getAll('unitId').length > 1 || Boolean(rawTab && !requestedTab);
+  const activeTab = requestedTab && allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0];
+  const contextReady = !invalidContext && rawTab === activeTab && params.get('unitId') === unitId;
 
-  const activeTab: ActiveTab = params.get('tab') === 'permits' ? 'permits' : 'documents';
+  useEffect(() => {
+    if (!unitId || !activeTab || invalidContext) return;
+    const next = requestedTab && requestedTab !== activeTab ? new URLSearchParams() : new URLSearchParams(params);
+    next.set('tab', activeTab);
+    if (params.has('unitId') && params.get('unitId') !== unitId) {
+      for (const key of ['page', 'workerId', 'teamId', 'responsibleId']) next.delete(key);
+    }
+    next.set('unitId', unitId);
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+  }, [activeTab, invalidContext, params, requestedTab, setParams, unitId]);
 
   function switchTab(nextTab: ActiveTab) {
-    setParams(prev => {
-      const next = new URLSearchParams();
-      next.set('tab', nextTab);
-      return next;
-    });
+    // Each resource has its own filter vocabulary; changing tabs starts a new search.
+    setParams(new URLSearchParams({ tab: nextTab, ...(unitId ? { unitId } : {}) }));
   }
+
+  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>) {
+    const position = allowedTabs.indexOf(activeTab!);
+    const next = event.key === 'ArrowRight' ? allowedTabs[(position + 1) % allowedTabs.length]
+      : event.key === 'ArrowLeft' ? allowedTabs[(position + allowedTabs.length - 1) % allowedTabs.length]
+      : event.key === 'Home' ? allowedTabs[0] : event.key === 'End' ? allowedTabs.at(-1) : undefined;
+    if (!next) return;
+    event.preventDefault();
+    switchTab(next);
+    document.getElementById(`${tabsId}-${next}`)?.focus();
+  }
+
+  if (!allowedTabs.length) return <EmptyState title="Acesso restrito" description="Seu perfil não possui acesso às consultas." />;
+  if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade de trabalho para consultar os registros." />;
 
   return (
     <div className="stack">
       <PageHeader
         eyebrow="BUSCA E AUDITORIA OPERACIONAL"
         title="Central de consulta unificada"
-        description="Pesquise documentos controlados e permissões de trabalho com filtros avançados, paginação e rastreabilidade."
+        description="Consulte documentos controlados, PTs, ATs e preparações de PET com filtros, paginação e histórico."
       />
 
       <div className={styles.tabBar} role="tablist" aria-label="Abas de consulta">
-        {can('documents.read') && (
+        {allowedTabs.map(tab => {
+          const { icon: Icon, label } = consultationTabs[tab];
+          return (
           <button
+            key={tab}
             type="button"
             role="tab"
-            aria-selected={activeTab === 'documents'}
-            className={`${styles.tabBtn} ${activeTab === 'documents' ? styles.tabBtnActive : ''}`}
-            onClick={() => switchTab('documents')}
+            id={`${tabsId}-${tab}`}
+            aria-controls={`${tabsId}-${tab}-panel`}
+            tabIndex={activeTab === tab ? 0 : -1}
+            aria-selected={activeTab === tab}
+            className={`${styles.tabBtn} ${activeTab === tab ? styles.tabBtnActive : ''}`}
+            onClick={() => switchTab(tab)}
+            onKeyDown={navigateTabs}
           >
-            <FolderOpen size={17} aria-hidden="true" />
-            <span>Documentos controlados</span>
+            <Icon size={17} aria-hidden="true" />
+            <span>{label}</span>
           </button>
-        )}
-        {can('permits.read') && (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'permits'}
-            className={`${styles.tabBtn} ${activeTab === 'permits' ? styles.tabBtnActive : ''}`}
-            onClick={() => switchTab('permits')}
-          >
-            <ClipboardCheck size={17} aria-hidden="true" />
-            <span>Permissões de trabalho (PTs)</span>
-          </button>
-        )}
+          );
+        })}
       </div>
 
-      {activeTab === 'documents' && <DocumentsSearchTab />}
-      {activeTab === 'permits' && <PermitsSearchTab />}
+      {invalidContext && <Feedback tone="danger">O endereço da consulta contém aba ou unidade inválida ou repetida. <Button variant="secondary" onClick={() => switchTab(activeTab!)}>Reiniciar consulta</Button></Feedback>}
+      {allowedTabs.map(tab => <div key={tab} role="tabpanel" id={`${tabsId}-${tab}-panel`} aria-labelledby={`${tabsId}-${tab}`} hidden={activeTab !== tab} tabIndex={0}>
+        {activeTab === tab && contextReady && (tab === 'documents' ? <DocumentsSearchTab key={`documents-${sessionKey}-${unitId}`} /> : tab === 'permits' ? <PermitsSearchTab key={`permits-${sessionKey}-${unitId}`} /> : <PreparationSearchTab key={`${tab}-${sessionKey}-${unitId}`} kind={tab} />)}
+      </div>)}
     </div>
   );
 }
@@ -119,6 +165,7 @@ function DocumentsSearchTab() {
   }, [q, typeId, status, workerId, validUntilFrom, validUntilTo]);
 
   const hasFilters = Boolean(q || typeId || status || workerId || validUntilFrom || validUntilTo);
+  const appliedError = documentFilterError(status, validUntilFrom, validUntilTo);
 
   const documents = useQuery({
     queryKey: ['consulta-documents', sessionKey, unitId, page, q, typeId, status, workerId, validUntilFrom, validUntilTo],
@@ -137,37 +184,31 @@ function DocumentsSearchTab() {
           validUntilTo: validUntilTo || undefined,
         },
       }),
+    enabled: can('documents.read') && !appliedError,
+  });
+
+  const types = usePagedLookup<DocumentTypeDto>({
+    queryKey: ['document-types', sessionKey, unitId, 'consulta-filter'],
+    path: '/document-types',
+    query: { activeOnly: true },
+    selectedIds: draftType ? [draftType] : [],
     enabled: can('documents.read'),
   });
 
-  const types = useQuery({
-    queryKey: ['document-types', sessionKey],
-    queryFn: ({ signal }) =>
-      api.get<PageDto<DocumentTypeDto>>('/document-types', { signal, query: { pageSize: 100, activeOnly: true } }),
-    enabled: can('documents.read'),
-  });
-
-  const workers = useQuery({
+  const workers = usePagedLookup<WorkerDto>({
     queryKey: ['workers', 'consulta-filter', sessionKey, unitId],
-    queryFn: ({ signal }) =>
-      api.get<PageDto<WorkerDto>>('/workers', { signal, query: { unitId: unitId || undefined, pageSize: 100 } }),
+    path: '/workers',
+    query: { unitId: unitId || undefined },
+    selectedIds: draftWorker ? [draftWorker] : [],
     enabled: can('workers.read'),
   });
 
+  const availableTypes = types.isError ? [] : [...types.items, ...types.selectedItems];
+
   function handleSearch(event: FormEvent) {
     event.preventDefault();
-    if (draftValidFrom && !isCivilDate(draftValidFrom)) {
-      setValidationError('Data inicial de vencimento inválida.');
-      return;
-    }
-    if (draftValidTo && !isCivilDate(draftValidTo)) {
-      setValidationError('Data final de vencimento inválida.');
-      return;
-    }
-    if (draftValidFrom && draftValidTo && draftValidFrom > draftValidTo) {
-      setValidationError('A data final deve ser igual ou posterior à data inicial.');
-      return;
-    }
+    const error = documentFilterError(draftStatus, draftValidFrom, draftValidTo);
+    if (error) { setValidationError(error); return; }
     setValidationError('');
 
     setParams(prev => {
@@ -225,35 +266,25 @@ function DocumentsSearchTab() {
 
         {validationError && <Feedback tone="danger">{validationError}</Feedback>}
 
-        <div className="form-grid">
-          <Field label="Tipo documental">
-            <select value={draftType} onChange={e => setDraftType(e.target.value)}>
-              <option value="">Todos os tipos</option>
-              {types.data?.items.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </Field>
+        <div className={`form-grid ${styles.filterGrid}`}>
+          <PagedSelect lookup={types} label="Tipo documental" noun="tipos" value={draftType}
+            onChange={value => { if (typeof value === 'string') setDraftType(value); }}
+            getLabel={type => type.name} emptyLabel="Todos os tipos" />
 
           <Field label="Situação">
             <select value={draftStatus} onChange={e => setDraftStatus(e.target.value)}>
               <option value="">Todas as situações</option>
+              {draftStatus && !documentStatuses.some(value => value === draftStatus) && <option value={draftStatus}>Situação inválida: {draftStatus}</option>}
               {documentStatuses.map(st => (
                 <option key={st} value={st}>{docStatusLabels[st]}</option>
               ))}
             </select>
           </Field>
 
-          {can('workers.read') && (
-            <Field label="Trabalhador vinculado">
-              <select value={draftWorker} onChange={e => setDraftWorker(e.target.value)}>
-                <option value="">Todos os trabalhadores</option>
-                {workers.data?.items.map(w => (
-                  <option key={w.id} value={w.id}>{w.fullName} ({w.registration})</option>
-                ))}
-              </select>
-            </Field>
-          )}
+          {can('workers.read') ? <PagedSelect lookup={workers} label="Trabalhador vinculado" noun="trabalhadores" value={draftWorker}
+            onChange={value => { if (typeof value === 'string') setDraftWorker(value); }}
+            getLabel={worker => `${worker.fullName} (${worker.registration})`} emptyLabel="Todos os trabalhadores" />
+            : draftWorker && <Field label="Trabalhador vinculado"><select value={draftWorker} onChange={event => setDraftWorker(event.target.value)}><option value="">Todos os trabalhadores</option><option value={draftWorker}>Trabalhador selecionado: {draftWorker}</option></select></Field>}
 
           <Field label="Vencimento a partir de">
             <input
@@ -273,10 +304,14 @@ function DocumentsSearchTab() {
         </div>
       </form>
 
-      {documents.isPending && <Spinner />}
-      {documents.isError && <Feedback tone="danger">{docErrorMessage(documents.error)}</Feedback>}
+      {appliedError && <Feedback tone="danger">Filtros da consulta inválidos. {appliedError} Corrija os campos e pesquise novamente ou limpe os filtros.</Feedback>}
+      {!appliedError && documents.isPending && <Spinner />}
+      {!appliedError && documents.isError && <Feedback tone="danger">
+        <p>{docErrorMessage(documents.error)}</p>
+        <Button variant="secondary" disabled={documents.isFetching} onClick={() => void documents.refetch()}>Tentar consultar documentos novamente</Button>
+      </Feedback>}
 
-      {documents.data && !documents.isError && (
+      {documents.data && !documents.isError && !appliedError && (
         documents.data.items.length ? (
           <>
             <div className="table-wrap">
@@ -294,28 +329,28 @@ function DocumentsSearchTab() {
                 </thead>
                 <tbody>
                   {documents.data.items.map(doc => {
-                    const typeObj = types.data?.items.find(t => t.id === doc.typeId);
+                    const typeObj = availableTypes.find(t => t.id === doc.typeId);
                     return (
                       <tr key={doc.id}>
                         <td>
                           <Link
                             to={`/app/documentos/${doc.id}`}
-                            state={{ fromSearch: location.search, fromConsulta: true }}
+                            state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                           >
                             <strong>{doc.title}</strong>
                           </Link>
                           <span className="muted" style={{ display: 'block' }}>{doc.code}</span>
                         </td>
-                        <td>{typeObj?.name || 'Tipo padrão'}</td>
+                        <td>{typeObj?.name || 'Tipo não disponível'}</td>
                         <td>
                           <DocumentStatus status={doc.status} />
                         </td>
-                        <td>{doc.validUntil ? formatDate(doc.validUntil) : 'Não expira'}</td>
+                        <td>{doc.validUntil ? formatDate(doc.validUntil) : 'Não informada'}</td>
                         <td>{formatDate(doc.issueDate)}</td>
                         <td>
                           <Link
                             to={`/app/documentos/${doc.id}`}
-                            state={{ fromSearch: location.search, fromConsulta: true }}
+                            state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                             aria-label={`Abrir ${doc.title}`}
                           >
                             Consultar →
@@ -328,47 +363,16 @@ function DocumentsSearchTab() {
               </table>
             </div>
 
-            <div className="toolbar">
-              <p className="muted">
-                {documents.data.total} documento(s) encontrado(s) · Página {page} de{' '}
-                {Math.max(1, Math.ceil(documents.data.total / documents.data.pageSize))}
-              </p>
-              <div className="actions">
-                <Button
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() =>
-                    setParams(prev => {
-                      const next = new URLSearchParams(prev);
-                      next.set('page', String(page - 1));
-                      return next;
-                    })
-                  }
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={page * documents.data.pageSize >= documents.data.total}
-                  onClick={() =>
-                    setParams(prev => {
-                      const next = new URLSearchParams(prev);
-                      next.set('page', String(page + 1));
-                      return next;
-                    })
-                  }
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
           </>
         ) : (
           <EmptyState
             title={hasFilters ? 'Nenhum documento encontrado' : 'Nenhum documento disponível'}
-            description={hasFilters ? 'Revise os filtros aplicados para consultar outros registros.' : 'Não há documentos no seu alcance de acesso nesta unidade.'}
+            description={page > 1 && documents.data.total > 0 ? 'Esta página não contém resultados. Use Anterior para retornar às páginas disponíveis.' : hasFilters ? 'Revise os filtros aplicados para consultar outros registros.' : 'Não há documentos no seu alcance de acesso nesta unidade.'}
           />
         )
+      )}
+      {documents.data && !documents.isError && !appliedError && (documents.data.total > 0 || page > 1) && (
+        <QueryPagination total={documents.data.total} page={page} pageSize={documents.data.pageSize} kind="documento(s)" />
       )}
     </section>
   );
@@ -389,6 +393,7 @@ function PermitsSearchTab() {
   const [draftOp, setDraftOp] = useState(operationStatus);
   const [draftReview, setDraftReview] = useState(reviewStatus);
   const [draftTeam, setDraftTeam] = useState(teamId);
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     setSearch(q);
@@ -398,6 +403,7 @@ function PermitsSearchTab() {
   }, [q, operationStatus, reviewStatus, teamId]);
 
   const hasFilters = Boolean(q || operationStatus || reviewStatus || teamId);
+  const appliedError = permitFilterError(operationStatus, reviewStatus);
 
   const options = useQuery({
     queryKey: ['permit-options', sessionKey, unitId],
@@ -420,25 +426,17 @@ function PermitsSearchTab() {
           teamId: teamId || undefined,
         },
       }),
-    enabled: can('permits.read'),
+    enabled: can('permits.read') && !appliedError,
   });
 
-  const permitItems: WorkPermitDto[] = useMemo(() => {
-    if (!permits.data) return [];
-    if (Array.isArray(permits.data)) return permits.data;
-    return permits.data.items || [];
-  }, [permits.data]);
-
-  const totalCount = useMemo(() => {
-    if (!permits.data) return 0;
-    if (Array.isArray(permits.data)) return permits.data.length;
-    return permits.data.total;
-  }, [permits.data]);
-
-  const pageSize = 10;
+  const { items: permitItems, total: totalCount, pageSize } = consultationResults(permits.data, page);
+  const availableTeams = options.isError ? [] : options.data?.teams ?? [];
 
   function handleSearch(event: FormEvent) {
     event.preventDefault();
+    const error = permitFilterError(draftOp, draftReview);
+    if (error) { setValidationError(error); return; }
+    setValidationError('');
     setParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('tab', 'permits');
@@ -460,6 +458,7 @@ function PermitsSearchTab() {
     setDraftOp('');
     setDraftReview('');
     setDraftTeam('');
+    setValidationError('');
     setParams(new URLSearchParams({ tab: 'permits' }));
   }
 
@@ -485,10 +484,13 @@ function PermitsSearchTab() {
           )}
         </div>
 
-        <div className="form-grid">
+        {validationError && <Feedback tone="danger">{validationError}</Feedback>}
+
+        <div className={`form-grid ${styles.filterGrid}`}>
           <Field label="Situação operacional">
             <select value={draftOp} onChange={e => setDraftOp(e.target.value)}>
               <option value="">Todas</option>
+              {draftOp && !Object.hasOwn(operationLabels, draftOp) && <option value={draftOp}>Situação inválida: {draftOp}</option>}
               {Object.entries(operationLabels).map(([val, label]) => (
                 <option key={val} value={val}>{label}</option>
               ))}
@@ -498,29 +500,37 @@ function PermitsSearchTab() {
           <Field label="Revisão do encerramento">
             <select value={draftReview} onChange={e => setDraftReview(e.target.value)}>
               <option value="">Todas</option>
+              {draftReview && !Object.hasOwn(reviewLabels, draftReview) && <option value={draftReview}>Revisão inválida: {draftReview}</option>}
               {Object.entries(reviewLabels).map(([val, label]) => (
                 <option key={val} value={val}>{label}</option>
               ))}
             </select>
           </Field>
 
-          {options.data && options.data.teams.length > 0 && (
-            <Field label="Equipe operacional">
+          <Field label="Equipe operacional">
               <select value={draftTeam} onChange={e => setDraftTeam(e.target.value)}>
                 <option value="">Todas as equipes</option>
-                {options.data.teams.map(t => (
+                {draftTeam && !availableTeams.some(t => t.id === draftTeam) && <option value={draftTeam}>Equipe selecionada: {draftTeam}</option>}
+                {availableTeams.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
-            </Field>
-          )}
+          </Field>
         </div>
       </form>
 
-      {permits.isPending && <Spinner />}
-      {permits.isError && <Feedback tone="danger">{permitErrorMessage(permits.error)}</Feedback>}
+      {options.isError && <Feedback tone="danger">
+        <p>Não foi possível carregar as equipes do filtro. {permitErrorMessage(options.error)}</p>
+        <Button variant="secondary" disabled={options.isFetching} onClick={() => void options.refetch()}>Tentar carregar equipes novamente</Button>
+      </Feedback>}
+      {appliedError && <Feedback tone="danger">Filtros da consulta inválidos. {appliedError} Corrija os campos e pesquise novamente ou limpe os filtros.</Feedback>}
+      {!appliedError && permits.isPending && <Spinner />}
+      {!appliedError && permits.isError && <Feedback tone="danger">
+        <p>{permitErrorMessage(permits.error)}</p>
+        <Button variant="secondary" disabled={permits.isFetching} onClick={() => void permits.refetch()}>Tentar consultar PTs novamente</Button>
+      </Feedback>}
 
-      {permits.data && !permits.isError && (
+      {permits.data && !permits.isError && !appliedError && (
         permitItems.length ? (
           <>
             <div className="table-wrap">
@@ -543,7 +553,7 @@ function PermitsSearchTab() {
                       <td>
                         <Link
                           to={`/app/pts/${permit.id}`}
-                          state={{ fromSearch: location.search, fromConsulta: true }}
+                          state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                         >
                           <strong>{permit.code}</strong>
                         </Link>
@@ -570,7 +580,7 @@ function PermitsSearchTab() {
                       <td>
                         <Link
                           to={`/app/pts/${permit.id}`}
-                          state={{ fromSearch: location.search, fromConsulta: true }}
+                          state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                           aria-label={`Abrir ${permit.code}`}
                         >
                           Consultar →
@@ -582,48 +592,38 @@ function PermitsSearchTab() {
               </table>
             </div>
 
-            <div className="toolbar">
-              <p className="muted">
-                {totalCount} atendimento(s) encontrado(s) · Página {page} de{' '}
-                {Math.max(1, Math.ceil(totalCount / pageSize))}
-              </p>
-              <div className="actions">
-                <Button
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() =>
-                    setParams(prev => {
-                      const next = new URLSearchParams(prev);
-                      next.set('page', String(page - 1));
-                      return next;
-                    })
-                  }
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={page * pageSize >= totalCount}
-                  onClick={() =>
-                    setParams(prev => {
-                      const next = new URLSearchParams(prev);
-                      next.set('page', String(page + 1));
-                      return next;
-                    })
-                  }
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
           </>
         ) : (
           <EmptyState
             title={hasFilters ? 'Nenhuma PT encontrada' : 'Nenhuma PT disponível'}
-            description={hasFilters ? 'Ajuste os filtros para pesquisar outros atendimentos.' : 'Não há atendimentos de PT cadastrados para o seu escopo nesta unidade.'}
+            description={page > 1 && totalCount > 0 ? 'Esta página não contém resultados. Use Anterior para retornar às páginas disponíveis.' : hasFilters ? 'Ajuste os filtros para pesquisar outros atendimentos.' : 'Não há atendimentos de PT cadastrados para o seu escopo nesta unidade.'}
           />
         )
       )}
+      {permits.data && !permits.isError && !appliedError && (totalCount > 0 || page > 1) && (
+        <QueryPagination total={totalCount} page={page} pageSize={pageSize} kind="PT(s)" />
+      )}
     </section>
   );
+}
+
+
+function QueryPagination({ total, page, pageSize, kind }: { total: number; page: number; pageSize: number; kind: string }) {
+  const [, setParams] = useSearchParams();
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  function go(nextPage: number) {
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (nextPage === 1) next.delete('page');
+      else next.set('page', String(nextPage));
+      return next;
+    });
+  }
+  return <nav className="toolbar" aria-label="Paginação da consulta">
+    <p className="muted" role="status">{total} {kind} encontrado(s) · Página {page} de {lastPage}</p>
+    <div className="actions">
+      <Button variant="secondary" disabled={page <= 1} onClick={() => go(Math.min(page - 1, lastPage))}>Anterior</Button>
+      <Button variant="secondary" disabled={page >= lastPage} onClick={() => go(page + 1)}>Próxima</Button>
+    </div>
+  </nav>;
 }

@@ -1,5 +1,7 @@
 import type { ChecklistItemDto, WorkPermitDto } from '../../shared/contracts/work-permits';
 import { validatePreparation } from './templates/ri-s-36001';
+import { isSignatureImageRepresentation, SIGNATURE_IMAGE_MAX_DATA_URL_LENGTH } from '../../shared/lib/signature-image';
+import type { PermitValidationIssue } from './validation-issues';
 
 export const normalizeName = (value: string) => value.trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 
@@ -11,14 +13,25 @@ export function validateScience(participantName: string, declarantName: string, 
   return undefined;
 }
 
-export function isDrawingRepresentation(value: string) { return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value) && value.length < 1_000_000; }
-export function isImageRepresentation(value: string) { return /^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(value) && value.length < 2_000_000; }
+export function isDrawingRepresentation(value: string) { return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value) && value.length <= SIGNATURE_IMAGE_MAX_DATA_URL_LENGTH; }
+export const isImageRepresentation = isSignatureImageRepresentation;
+
+export function checklistIssues(items: ChecklistItemDto[]): PermitValidationIssue[] {
+  const issues: PermitValidationIssue[] = [];
+  // Keep rule groups in the same priority as the original first-message validator.
+  for (const item of items) if (item.required && item.answer === null) issues.push({ path: `checklist.${item.id}.answer`, message: 'Responda todos os itens obrigatórios antes de salvar.' });
+  for (const item of items) {
+    if (item.answer !== 'NO') continue;
+    // Earlier failures previously returned before inspecting malformed later notes.
+    if (issues.length && item.note != null && typeof item.note !== 'string') continue;
+    if (!item.note?.trim()) issues.push({ path: `checklist.${item.id}.note`, message: 'Explique as respostas “Não” no campo de observação do item.' });
+  }
+  for (const item of items) if ((item.note?.length ?? 0) > 1000) issues.push({ path: `checklist.${item.id}.note`, message: 'Cada observação deve ter até 1.000 caracteres.' });
+  return issues;
+}
 
 export function validateChecklist(items: ChecklistItemDto[]): string | undefined {
-  if (items.some(item => item.required && item.answer === null)) return 'Responda todos os itens obrigatórios antes de salvar.';
-  if (items.some(item => item.answer === 'NO' && !item.note?.trim())) return 'Explique as respostas “Não” no campo de observação do item.';
-  if (items.some(item => (item.note?.length ?? 0) > 1000)) return 'Cada observação deve ter até 1.000 caracteres.';
-  return undefined;
+  return checklistIssues(items)[0]?.message;
 }
 
 export function releaseBlockers(permit: WorkPermitDto): string[] {

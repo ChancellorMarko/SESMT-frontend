@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { api, API_MODE, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { ConfinedSpacePermitDto, PetAtmosphericReadingDto, PetOptionsDto, PetPersonDto, PetPreparationDto } from '../../shared/contracts/confined-space-permits';
 import type { AppointmentDto } from '../../shared/contracts/work-permits';
 import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { preparationListPath, preparationOrigin } from '../../shared/lib/preparation-navigation';
+import { invalidateConsultation } from '../../shared/lib/consultation-cache';
 import { appointmentInstant, appointmentLocal } from '../agenda/support';
 import { UnsavedChanges } from '../workers/UnsavedChanges';
 import { canonicalPetPreparation, createPetPreparation, PET_CONTROLS, PET_EQUIPMENT, PET_SOURCE, petIdentificationLabels, petRoleLabels, preparationPending, validatePetPreparation } from './model';
@@ -16,21 +18,34 @@ import styles from './confined-space.module.css';
 function allowedAppointment(appointment: AppointmentDto, unitId?: string) {
   return appointment.unitId === unitId && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(appointment.status);
 }
+function verifiedRecord(record: ConfinedSpacePermitDto, unitId: string | undefined, expected: { id?: string; companyId?: string; appointmentId?: string; minimumRevision?: number; afterRevision?: number } = {}) {
+  if (!record.id || expected.id && record.id !== expected.id || expected.companyId && record.companyId !== expected.companyId || record.unitId !== unitId || record.appointment.unitId !== unitId || expected.appointmentId && record.appointment.id !== expected.appointmentId || record.appointment.companyId && record.companyId !== record.appointment.companyId) throw new Error('A resposta pertence a outro registro ou unidade. Seu preenchimento foi preservado.');
+  if (!Number.isSafeInteger(record.revision) || record.revision < 1) throw new Error('A revisão recebida é inválida. Seu preenchimento foi preservado.');
+  if (expected.minimumRevision !== undefined && record.revision < expected.minimumRevision) throw new Error('A revisão recebida é anterior à preparação consultada. Seu preenchimento foi preservado.');
+  if (expected.afterRevision !== undefined && record.revision <= expected.afterRevision) throw new Error('O salvamento não confirmou uma nova revisão. Seu preenchimento foi preservado.');
+  return record;
+}
 export function PetFormPage() {
   const { id } = useParams(); const session = useSession(); const [search] = useSearchParams();
   const options = useQuery({ queryKey: ['confined-space-permit-options', session.sessionKey, session.unitId], queryFn: ({ signal }) => api.get<PetOptionsDto>('/confined-space-permit-options', { query: { unitId: session.unitId }, signal }), enabled: session.can('pet.write') && Boolean(session.unitId) && !id });
-  const record = useQuery({ queryKey: petKey(session.sessionKey, session.unitId, id), queryFn: ({ signal }) => api.get<ConfinedSpacePermitDto>(`/confined-space-permits/${id}`, { query: { unitId: session.unitId }, signal }), enabled: session.can('pet.write') && Boolean(id && session.unitId), refetchOnWindowFocus: false });
-  if (!session.can('pet.write')) return <EmptyState title="Acesso restrito" description="Seu perfil não pode preparar rascunhos de PET." />;
-  if (!session.unitId) return <EmptyState title="Selecione uma unidade" />;
-  if (id ? record.isPending : options.isPending) return <Spinner />;
-  const failure = id ? !record.data && record.error : !options.data && options.error;
-  if (failure) return <div className="panel stack"><Feedback tone="danger">{petError(failure)}</Feedback><Button variant="secondary" onClick={() => { if (id) void record.refetch(); else void options.refetch(); }}>Tentar novamente</Button></div>;
-  if (id && (!record.data || record.data.unitId !== session.unitId || record.data.appointment.unitId !== session.unitId)) return <EmptyState title="PET fora da unidade atual" />;
-  return <PetEditor key={`${session.sessionKey}:${session.unitId}:${id || 'new'}`} record={id ? record.data : undefined} options={options.data?.appointments || []} initialAppointmentId={search.get('appointmentId') || undefined} />;
+  const record = useQuery({ queryKey: petKey(session.sessionKey, session.unitId, id), queryFn: async ({ signal }) => verifiedRecord(await api.get<ConfinedSpacePermitDto>(`/confined-space-permits/${id}`, { query: { unitId: session.unitId }, signal }), session.unitId, { id }), enabled: session.can('pet.write') && Boolean(id && session.unitId), refetchOnWindowFocus: false });
+  const context = `${session.sessionKey}:${session.unitId}:${id || 'new'}`;
+  const admission = useRef({ context, opened: false });
+  if (admission.current.context !== context) admission.current = { context, opened: false };
+  const source = id ? record : options;
+  if (source.isSuccess && !source.isFetching) admission.current.opened = true;
+  if (!session.can('pet.write')) { admission.current.opened = false; return <EmptyState title="Acesso restrito" description="Seu perfil não pode preparar rascunhos de PET." />; }
+  if (!session.unitId) { admission.current.opened = false; return <EmptyState title="Selecione uma unidade" />; }
+  if (source.isPending || !admission.current.opened && source.isFetching) { admission.current.opened = false; return <Spinner />; }
+  const failure = source.error;
+  if (failure && !admission.current.opened) return <div className="panel stack"><Feedback tone="danger">{petError(failure)}</Feedback><Button variant="secondary" disabled={source.isFetching} onClick={() => void source.refetch()}>Tentar novamente</Button></div>;
+  if (id && (!record.data || record.data.id !== id || record.data.unitId !== session.unitId || record.data.appointment.unitId !== session.unitId)) { admission.current.opened = false; return <EmptyState title="PET fora da unidade atual" />; }
+  return <PetEditor key={context} record={id ? record.data : undefined} options={options.data?.appointments || []} initialAppointmentId={search.get('appointmentId') || undefined} refreshError={failure} refreshing={source.isFetching} retry={() => void source.refetch()} />;
 }
 
-function PetEditor({ record, options, initialAppointmentId }: { record?: ConfinedSpacePermitDto; options: AppointmentDto[]; initialAppointmentId?: string }) {
-  const { sessionKey, unitId } = useSession(); const client = useQueryClient(); const navigate = useNavigate();
+function PetEditor({ record, options, initialAppointmentId, refreshError, refreshing, retry }: { record?: ConfinedSpacePermitDto; options: AppointmentDto[]; initialAppointmentId?: string; refreshError?: unknown; refreshing: boolean; retry: () => void }) {
+  const { sessionKey, unitId } = useSession(); const client = useQueryClient(); const navigate = useNavigate(); const location = useLocation();
+  const listNavigation = preparationOrigin(location.state, unitId, 'pets');
   const initial = options.find(item => item.id === initialAppointmentId && allowedAppointment(item, unitId));
   const [selectedId, setSelectedId] = useState(record?.appointment.id || initial?.id || '');
   const [reference, setReference] = useState(record); const [latest, setLatest] = useState<ConfinedSpacePermitDto>();
@@ -43,6 +58,7 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
   useEffect(() => { active.current = true; return () => { active.current = false; pendingRequest.current?.abort(); }; }, []);
   const appointment = record?.appointment || options.find(item => item.id === selectedId);
   const busy = saving || checking; const dirty = JSON.stringify(values) !== baseline || Boolean(!record && selectedId);
+  const consultationUnavailable = Boolean(refreshError) || refreshing;
   const editable = !reference || reference.status === 'DRAFT' && reference.availableActions.includes('EDIT');
   const failureStatus = (failure as { status?: number } | undefined)?.status;
   const conflict = reviewRequired || Boolean(reference && record?.revision !== reference.revision) || [412, 428].includes(failureStatus || 0);
@@ -80,6 +96,11 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
     if (!instant) { setFailure(new Error('Confira a data e hora informadas. Os horários usam o fuso de São Paulo.')); return undefined; }
     return instant;
   }
+  function currentRevision() {
+    const cached = reference && client.getQueryData<ConfinedSpacePermitDto>(petKey(sessionKey, unitId, reference.id));
+    const revisions = [reference?.revision, record?.revision, cached && cached.id === reference?.id && cached.unitId === unitId ? cached.revision : undefined];
+    return Math.max(0, ...revisions.filter((revision): revision is number => Number.isSafeInteger(revision) && (revision ?? 0) > 0));
+  }
   async function checkCurrent() {
     if (!reference || operationBusy.current || busy) return;
     operationBusy.current = true; setChecking(true); setFailure(undefined);
@@ -87,14 +108,15 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
     try {
       const current = await api.get<ConfinedSpacePermitDto>(`/confined-space-permits/${reference.id}`, { signal: controller.signal, query: { unitId } });
       if (!active.current || controller.signal.aborted) return;
-      if (current.id !== reference.id || current.unitId !== unitId || current.appointment.unitId !== unitId || current.appointment.id !== reference.appointment.id) throw new Error('A resposta pertence a outro registro ou unidade. Seu preenchimento foi preservado.');
-      if (current.revision < reference.revision) throw new Error('A revisão recebida é anterior à preparação consultada. Seu preenchimento foi preservado.');
+      verifiedRecord(current, unitId, { id: reference.id, companyId: reference.companyId, appointmentId: reference.appointment.id, minimumRevision: currentRevision() });
       setLatest(current);
     } catch (error) { if (active.current && !controller.signal.aborted) setFailure(error); }
     finally { operationBusy.current = false; if (active.current) setChecking(false); }
   }
   function adopt(current: ConfinedSpacePermitDto, keep: boolean) {
     if (busy) return;
+    try { verifiedRecord(current, unitId, { id: reference?.id, companyId: reference?.companyId, appointmentId: reference?.appointment.id, minimumRevision: currentRevision() }); }
+    catch (error) { setFailure(error); setReviewRequired(true); setLatest(undefined); return; }
     if (!keep && dirty && !window.confirm('Carregar a PET atual descarta seu preenchimento local. Deseja continuar?')) return;
     const preparation = structuredClone(current.preparation);
     if (!keep) setValues(preparation);
@@ -103,7 +125,7 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
   }
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (operationBusy.current || busy || conflict || latest || !editable || !appointment || appointment.unitId !== unitId) return;
+    if (operationBusy.current || busy || consultationUnavailable || conflict || latest || !editable || !appointment || !record && !allowedAppointment(appointment, unitId) || appointment.unitId !== unitId) return;
     const invalid = validatePetPreparation(values);
     if (invalid) { setFailure(new Error(invalid)); return; }
     const payload = canonicalPetPreparation(values);
@@ -112,17 +134,21 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
     try {
       const saved = reference ? await api.patch<ConfinedSpacePermitDto>(`/confined-space-permits/${reference.id}`, payload, { signal: controller.signal, etag: revisionEtag(reference.revision), query: { unitId } }) : await api.post<ConfinedSpacePermitDto>('/confined-space-permits', { appointmentId: appointment.id, ...payload }, { signal: controller.signal, query: { unitId } });
       if (!active.current || controller.signal.aborted) return;
-      if (saved.unitId !== unitId || saved.appointment.unitId !== unitId || saved.appointment.id !== appointment.id || reference && saved.id !== reference.id) throw new Error('A resposta pertence a outro registro ou unidade. Seu preenchimento foi preservado.');
+      try { verifiedRecord(saved, unitId, { id: reference?.id, companyId: reference?.companyId || appointment.companyId, appointmentId: appointment.id, minimumRevision: currentRevision(), afterRevision: reference?.revision }); }
+      catch (error) { if (reference) setReviewRequired(true); throw error; }
       client.setQueryData(petKey(sessionKey, unitId, saved.id), saved);
-      void client.invalidateQueries({ queryKey: ['confined-space-permits'] }); void client.invalidateQueries({ queryKey: ['confined-space-permit-options'] });
+      void client.invalidateQueries({ queryKey: ['confined-space-permits', sessionKey, unitId] }); void client.invalidateQueries({ queryKey: ['confined-space-permit-options', sessionKey, unitId] });
+      void invalidateConsultation(client, 'pets', { sessionKey, unitId });
       setValues(structuredClone(saved.preparation)); setBaseline(JSON.stringify(saved.preparation));
-      navigate(`/app/pets/${saved.id}`, { state: { success: 'Rascunho da PET salvo. Este registro não autoriza a entrada.' } });
+      navigate(`/app/pets/${saved.id}`, { state: { ...listNavigation, success: 'Rascunho da PET salvo. Este registro não autoriza a entrada.' } });
     } catch (error) { if (active.current && !controller.signal.aborted) { setFailure(error); if ([412, 428].includes((error as { status?: number })?.status || 0)) setReviewRequired(true); } }
     finally { operationBusy.current = false; if (active.current) setSaving(false); }
   }
-  const returnPath = record ? `/app/pets/${record.id}` : '/app/pets';
-  return <div className="stack"><UnsavedChanges dirty={dirty} busy={busy} /><PageHeader eyebrow="PET · preparação" title={record ? `Preparar ${record.code}` : 'Preparar PET'} description="Organize a identificação do espaço confinado, as pessoas previstas e os registros do modelo recebido. O rascunho pode ser salvo incompleto." actions={<Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath}>Voltar</Link>} />
+  const returnPath = record ? `/app/pets/${record.id}` : preparationListPath(listNavigation, 'pets');
+  return <div className="stack"><UnsavedChanges dirty={dirty} busy={busy} /><PageHeader eyebrow="PET · preparação" title={record ? `Preparar ${record.code}` : 'Preparar PET'} description="Organize a identificação do espaço confinado, as pessoas previstas e os registros do modelo recebido. O rascunho pode ser salvo incompleto." actions={<Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath} state={listNavigation}>Voltar</Link>} />
     <Feedback tone="info">{API_MODE === 'demo' ? 'Rascunho de demonstração, sem validade operacional.' : 'Rascunho de preparação, ainda não emitido.'} Preencher ou salvar esta PET não autoriza entrada nem substitui a avaliação e a emissão pelos responsáveis.</Feedback>
+    {Boolean(refreshError) && <Feedback tone="warning">Não foi possível atualizar a consulta. Seu preenchimento local foi preservado. Confira os dados antes de salvar novamente. {petError(refreshError)} <Button variant="secondary" disabled={busy || refreshing} onClick={retry}>Tentar atualizar consulta</Button></Feedback>}
+    {refreshing && <p role="status">Conferindo os dados da preparação antes de permitir o salvamento…</p>}
     {!record && <section className="panel stack"><Field label="Atendimento da PET *"><select disabled={busy} value={selectedId} onChange={event => selectAppointment(event.target.value)}><option value="">Selecione um atendimento confirmado ou aberto</option>{options.filter(item => allowedAppointment(item, unitId)).map(item => <option key={item.id} value={item.id}>{item.code} · {item.serviceLabel} · {item.teamName}</option>)}</select></Field>{!options.some(item => allowedAppointment(item, unitId)) && <p className="muted">Nenhum atendimento confirmado ou aberto disponível nesta unidade.</p>}</section>}
     {appointment && <><PetAppointment appointment={appointment} /><form className="panel stack" aria-label="Preparação da PET" onSubmit={event => void save(event)} noValidate>
       {failure !== undefined && <Feedback tone="danger">{petError(failure)}</Feedback>}
@@ -163,7 +189,7 @@ function PetEditor({ record, options, initialAppointmentId }: { record?: Confine
       </div><div className="actions"><Button variant="ghost" aria-label={`Remover leitura ${index + 1}`} onClick={() => setValues(current => ({ ...current, atmosphere: current.atmosphere.filter(item => item.id !== reading.id) }))}>Remover leitura</Button></div></fieldset>)}</div><div className="actions"><Button variant="secondary" disabled={values.atmosphere.length >= 100} onClick={() => setValues(current => ({ ...current, atmosphere: [...current.atmosphere, { id: crypto.randomUUID(), phase: current.atmosphere.length ? 'FOLLOW_UP' : 'INITIAL', measuredAt: '', instrument: '', responsibleName: '', oxygenPercent: '', carbonMonoxidePpm: '', flammabilityPercentLel: '', otherAgent: '', otherValue: '', otherUnit: '', notes: '' }] }))}>Adicionar leitura atmosférica</Button></div></fieldset>
       <section className="stack" aria-label="Pendências da preparação"><h2>Pendências de preenchimento</h2>{pending.length ? <><p className="muted">{pending.length} itens ainda precisam de registro. Você pode salvar e continuar depois.</p><details><summary className={styles.summary}>Conferir pendências</summary><ul>{pending.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></details></> : <p className="muted">Os registros de preparação foram preenchidos. Este rascunho continua sem autorizar entrada.</p>}</section>
       <small className={styles.hash}>Origem: {PET_SOURCE.sourceId} · revisão {PET_SOURCE.sourceRevision}. O rótulo de um controle administrativo da célula B38 foi adaptado; o texto original permanece no catálogo de origem.</small>
-      <div className="actions"><Button type="submit" disabled={busy || conflict || Boolean(latest) || !editable}>{saving ? 'Salvando…' : 'Salvar rascunho da PET'}</Button><Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath}>Cancelar preenchimento</Link></div>
+      <div className="actions"><Button type="submit" disabled={busy || consultationUnavailable || conflict || Boolean(latest) || !editable || !record && !allowedAppointment(appointment, unitId)}>{saving ? 'Salvando…' : 'Salvar rascunho da PET'}</Button><Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath} state={listNavigation}>Cancelar preenchimento</Link></div>
     </form></>}
   </div>;
 }

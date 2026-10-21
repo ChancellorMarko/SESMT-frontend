@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageDto } from '../../shared/contracts';
 import type { ConfinedSpacePermitDto } from '../../shared/contracts/confined-space-permits';
@@ -10,6 +10,7 @@ import { api, ApiError } from '../../shared/api/client';
 import { PetsPage } from './PetsPage';
 import { PetDetailPage } from './PetDetailPage';
 import { PetPrintPage } from './PetPrintPage';
+import { PetFormPage } from './PetFormPage';
 import { PET_SOURCE, createPetPreparation } from './model';
 
 const state = vi.hoisted(() => ({ unitId: 'unit-a', sessionKey: 'session-a', permissions: ['pet.read', 'pet.write', 'appointments.read'] }));
@@ -30,16 +31,18 @@ function example(): ConfinedSpacePermitDto {
     createdAt: '2026-10-11T12:00:00Z', createdByName: 'Autor da primeira revisão', updatedAt: '2026-10-11T13:00:00Z' };
 }
 function LocationProbe() { const location = useLocation(); return <output aria-label="Endereço atual">{location.pathname}{location.search}</output>; }
-function show(route = '/app/pets/pet-a') {
+function ConsultationEntry() { const location = useLocation(); return <><h1>Consulta central</h1><Link to="/app/pets/pet-a" state={{ fromConsulta: true, fromSearch: location.search, fromUnitId: state.unitId }}>Consultar PET da central</Link></>; }
+function show(route = '/app/pets/pet-a', navigationState?: unknown) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[route]}><LocationProbe /><Routes>
-    <Route path="/app/pets" element={<PetsPage />} /><Route path="/app/pets/:id" element={<PetDetailPage />} /><Route path="/app/pets/:id/imprimir" element={<PetPrintPage />} />
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[{ pathname: route.split('?')[0], search: route.includes('?') ? `?${route.split('?').slice(1).join('?')}` : '', state: navigationState }]}><LocationProbe /><Routes>
+    <Route path="/app/consulta" element={<ConsultationEntry />} /><Route path="/app/pets" element={<PetsPage />} /><Route path="/app/pets/nova" element={<PetFormPage />} /><Route path="/app/pets/:id" element={<PetDetailPage />} /><Route path="/app/pets/:id/editar" element={<PetFormPage />} /><Route path="/app/pets/:id/imprimir" element={<PetPrintPage />} />
   </Routes></MemoryRouter></QueryClientProvider>;
   const view = render(tree()); return { client, view, rerender: () => view.rerender(tree()) };
 }
 beforeEach(() => {
   vi.clearAllMocks(); state.unitId = 'unit-a'; state.sessionKey = 'session-a'; state.permissions = ['pet.read', 'pet.write', 'appointments.read']; record = example();
   vi.mocked(api.get).mockImplementation(async (path, config) => {
+    if (path === '/confined-space-permit-options') return { appointments: [structuredClone(record.appointment)] } as never;
     if (path !== '/confined-space-permits') return structuredClone(record) as never;
     const page = Number(config?.query?.page || 1), q = String(config?.query?.q || '').toLocaleLowerCase('pt-BR');
     const rows = Array.from({ length: 12 }, (_, index) => ({ ...structuredClone(record), id: `pet-${index + 1}`, code: `PET-${101 + index}` }));
@@ -49,6 +52,43 @@ beforeEach(() => {
 });
 
 describe('consulta, versões e impressão da preparação PET', { timeout: 15000 }, () => {
+  it('preserva filtros da central ao abrir PET, mudar revisão, imprimir e retornar', async () => {
+    const user = userEvent.setup(); const centralPath = '/app/consulta?tab=pets&q=tanque&page=2&unitId=unit-a'; show(centralPath);
+    await user.click(screen.getByRole('link', { name: 'Consultar PET da central' })); await screen.findByRole('heading', { name: 'PET-101' });
+    expect(screen.getByRole('link', { name: 'Voltar à consulta' })).toHaveAttribute('href', centralPath);
+    await user.selectOptions(screen.getByLabelText('Revisão da preparação'), '1'); await user.click(screen.getByRole('link', { name: 'Visualizar / imprimir rascunho' }));
+    const article = await screen.findByRole('article', { name: 'Rascunho imprimível da PET' }); expect(article).toHaveTextContent('EC-HISTORICO'); expect(article).not.toHaveTextContent('EC-ATUAL');
+    await user.click(screen.getByRole('link', { name: 'Voltar à PET' })); await screen.findByRole('heading', { name: 'PET-101' }); expect(screen.getByLabelText('Revisão da preparação')).toHaveValue('1');
+    await user.click(screen.getByRole('link', { name: 'Voltar à consulta' })); await screen.findByRole('heading', { name: 'Consulta central' }); expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(centralPath);
+    expect(api.patch).not.toHaveBeenCalled(); expect(api.post).not.toHaveBeenCalled();
+  });
+  it('preserva retorno à central ao editar e salvar a preparação sem autorizar entrada', async () => {
+    const user = userEvent.setup(); const centralPath = '/app/consulta?tab=pets&q=reservat%C3%B3rio&page=3&unitId=unit-a'; show(centralPath);
+    vi.mocked(api.patch).mockImplementationOnce(async (_path, input) => {
+      record = { ...record, revision: record.revision + 1, preparation: input as ConfinedSpacePermitDto['preparation'] };
+      record.snapshots = [...record.snapshots, { revision: record.revision, preparation: structuredClone(record.preparation), savedAt: record.updatedAt, actorName: 'Autor da atualização' }];
+      return structuredClone(record) as never;
+    });
+    await user.click(screen.getByRole('link', { name: 'Consultar PET da central' })); await screen.findByRole('heading', { name: 'PET-101' }); await user.click(screen.getByRole('link', { name: 'Editar preparação' }));
+    await screen.findByRole('form', { name: 'Preparação da PET' }); const task = screen.getByLabelText('Objetivo da entrada / tarefa prevista'); await user.clear(task); await user.type(task, 'Tarefa editada a partir da central');
+    await user.click(screen.getByRole('button', { name: 'Salvar rascunho da PET' })); await screen.findByRole('heading', { name: 'PET-101' });
+    expect(screen.getByRole('article', { name: 'Preparação da PET' })).toHaveTextContent('Tarefa editada a partir da central'); expect(screen.getByText('Rascunho da PET salvo. Este registro não autoriza a entrada.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voltar à consulta' })).toHaveAttribute('href', centralPath); await user.click(screen.getByRole('link', { name: 'Voltar à consulta' }));
+    expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(centralPath); expect(api.patch).toHaveBeenCalledOnce(); expect(api.post).not.toHaveBeenCalled();
+  });
+  it('conserva origem da central após recuperar revisão inválida e rejeita origem de outra unidade', async () => {
+    const user = userEvent.setup(); const fromSearch = '?tab=pets&q=tanque&page=2&unitId=unit-a'; const first = show('/app/pets/pet-a?revision=999', { fromConsulta: true, fromSearch, fromUnitId: 'unit-a' });
+    await user.click(await screen.findByRole('button', { name: 'Consultar revisão atual' })); await screen.findByRole('heading', { name: 'PET-101' }); expect(screen.getByRole('link', { name: 'Voltar à consulta' })).toHaveAttribute('href', `/app/consulta${fromSearch}`); first.view.unmount();
+    show('/app/pets/pet-a', { fromConsulta: true, fromSearch: '?tab=pets&q=outra-unidade', fromUnitId: 'unit-b' }); await screen.findByRole('heading', { name: 'PET-101' });
+    expect(screen.queryByRole('link', { name: 'Voltar à consulta' })).not.toBeInTheDocument(); expect(screen.getByRole('link', { name: 'Voltar às PETs' })).toHaveAttribute('href', '/app/pets');
+  });
+  it('retorna aos critérios da central ao descartar nova preparação', async () => {
+    const user = userEvent.setup(); const fromSearch = '?tab=pets&q=novo&page=2&unitId=unit-a';
+    show('/app/pets/nova?appointmentId=appointment-a', { fromConsulta: true, fromSearch, fromUnitId: 'unit-a' }); await screen.findByRole('form', { name: 'Preparação da PET' });
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute('href', `/app/consulta${fromSearch}`);
+    await user.click(screen.getByRole('link', { name: 'Cancelar preenchimento' })); await screen.findByRole('dialog', { name: 'Alterações não salvas' }); await user.click(screen.getByRole('button', { name: 'Descartar e sair' }));
+    await screen.findByRole('heading', { name: 'Consulta central' }); expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(`/app/consulta${fromSearch}`); expect(api.post).not.toHaveBeenCalled();
+  });
   it('consulta o atual com edição autorizada, impressão da revisão explícita e contexto da unidade', async () => {
     show(); await screen.findByRole('heading', { name: 'PET-101' });
     expect(screen.getByRole('link', { name: 'Editar preparação' })).toHaveAttribute('href', '/app/pets/pet-a/editar');
@@ -112,6 +152,38 @@ describe('consulta, versões e impressão da preparação PET', { timeout: 15000
 });
 
 describe('lista de preparações PET', { timeout: 15000 }, () => {
+  it('preserva a busca e a página da lista ao consultar, mudar revisão e imprimir', async () => {
+    const user = userEvent.setup();
+    show('/app/pets?q=PET&page=2&unitId=unit-a');
+    const link = await screen.findByRole('link', { name: 'PET-111' });
+    // The list fixture has twelve IDs; return the matching detail for the opened result.
+    record.id = 'pet-11'; record.code = 'PET-111';
+    await user.click(link);
+    await screen.findByRole('heading', { name: 'PET-111' });
+    const returnToList = '/app/pets?q=PET&page=2&unitId=unit-a';
+    expect(screen.getByRole('link', { name: 'Voltar às PETs' })).toHaveAttribute('href', returnToList);
+    await user.selectOptions(screen.getByLabelText('Revisão da preparação'), '1');
+    await user.click(screen.getByRole('link', { name: 'Visualizar / imprimir rascunho' }));
+    await screen.findByRole('article', { name: 'Rascunho imprimível da PET' });
+    await user.click(screen.getByRole('link', { name: 'Voltar à PET' }));
+    await screen.findByRole('heading', { name: 'PET-111' });
+    expect(screen.getByLabelText('Revisão da preparação')).toHaveValue('1');
+    await user.click(screen.getByRole('link', { name: 'Voltar às PETs' }));
+    expect(await screen.findByRole('link', { name: 'PET-111' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(returnToList);
+    expect(screen.getByLabelText('Buscar PET por código, espaço ou tarefa')).toHaveValue('PET');
+  });
+  it('não reaproveita critérios de uma unidade anterior', async () => {
+    show('/app/pets/pet-a', { fromPreparationList: 'pets', fromUnitId: 'unit-b', fromSearch: '?q=segredo&page=2&unitId=unit-b' });
+    await screen.findByRole('heading', { name: 'PET-101' });
+    expect(screen.getByRole('link', { name: 'Voltar às PETs' })).toHaveAttribute('href', '/app/pets');
+  });
+  it.each(['id', 'appointment'])('não revela registro quando a identidade de %s diverge da rota ou unidade', async field => {
+    if (field === 'id') record.id = 'other-pet'; else record.appointment.unitId = 'unit-b';
+    show('/app/pets/pet-a');
+    await screen.findByText('PET de outra unidade');
+    expect(screen.queryByRole('article', { name: 'Preparação da PET' })).not.toBeInTheDocument();
+  });
   it('busca por envio explícito, preserva o contexto e reinicia a paginação', async () => {
     const user = userEvent.setup(); show('/app/pets?page=2&unitId=unit-a');
     await screen.findByRole('link', { name: 'PET-111' }); expect(screen.queryByRole('link', { name: 'PET-101' })).not.toBeInTheDocument();

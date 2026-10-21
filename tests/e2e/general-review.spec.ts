@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginDemo, navigateWithinApp } from './helpers';
+import { openModule, loginDemo, navigateWithinApp } from './helpers';
 
 test('painel documental recupera data inválida e mantém filtros ao abrir documentos', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -23,7 +23,7 @@ test('painel documental recupera data inválida e mantém filtros ao abrir docum
 
 test('novo documento pede um único descarte na troca de unidade e conserva dados ao cancelar', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await openModule(page, 'Documentos');
   await page.getByRole('link', { name: 'Novo documento', exact: true }).click();
   await expect(page.getByLabel('Título *', { exact: true })).toBeVisible();
   const unit = page.getByRole('combobox', { name: 'Unidade de trabalho' });
@@ -49,7 +49,7 @@ test('novo documento pede um único descarte na troca de unidade e conserva dado
 
 test('admin pesquisa usuários por nome e a lista respeita a unidade selecionada', async ({ page }) => {
   await loginDemo(page, 'Administrador');
-  await page.getByRole('link', { name: 'Usuários e acessos', exact: true }).click();
+  await openModule(page, 'Usuários e acessos');
   await page.getByLabel('Pesquisar nome ou e-mail').fill('CAMILA');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await expect(page.getByRole('cell').filter({ hasText: 'Camila Demo' })).toBeVisible();

@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { WorkerDetailPage } from './WorkerDetailPage';
@@ -84,6 +84,8 @@ beforeEach(() => {
     if (path === '/workers/worker-1/movements') {
       return { items: [], total: 0, page: 1, pageSize: 5 };
     }
+    if (path === '/workers/worker-1/integration/options') return { policy: { version: 'DEMO-1', evidenceRequired: true, allowNotApplicable: false, maxFileSizeBytes: 10 * 1024 * 1024, allowedMimeTypes: ['application/pdf', 'image/png', 'image/jpeg'], description: 'Política administrativa de demonstração.' }, documents: [] };
+    if (path === '/workers/worker-1/integration/evidences') return [];
     if (path === '/documents') {
       return { items: [], total: 0, page: 1, pageSize: 5 };
     }
@@ -91,19 +93,46 @@ beforeEach(() => {
   });
 });
 
-function renderPage() {
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/app/trabalhadores/worker-1']}>
+afterEach(() => vi.restoreAllMocks());
+
+function ReturnDestination() {
+  const location = useLocation();
+  return <p>Destino: {location.pathname}{location.search}{location.hash}</p>;
+}
+
+function renderPage(options: { state?: unknown; hash?: string } = {}) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[{ pathname: '/app/trabalhadores/worker-1', hash: options.hash, state: options.state }]}>
         <Routes>
           <Route path="/app/trabalhadores/:id" element={<WorkerDetailPage />} />
+          <Route path="/app/agenda/:id" element={<ReturnDestination />} />
+          <Route path="/app/pendencias" element={<ReturnDestination />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return { ...view, client };
 }
 
 describe('WorkerDetailPage', () => {
+  it('preserva a consulta validada nos retornos e nas ações da ficha', async () => {
+    const search = '?unitId=unit-1&q=Juliana&status=ACTIVE&page=2';
+    renderPage({ state: { workerListReturnTo: { unitId: 'unit-1', sessionKey: 'worker-detail', search } } });
+    expect(await screen.findByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', `/app/trabalhadores${search}`);
+    expect(screen.getByRole('link', { name: 'Editar cadastro' })).toHaveAttribute('href', '/app/trabalhadores/worker-1/editar');
+    const navigation = screen.getByRole('navigation', { name: 'Seções da ficha do trabalhador' });
+    fireEvent.click(within(navigation).getByRole('link', { name: 'Histórico' }));
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Histórico de movimentações' })).toHaveFocus());
+    expect(screen.getByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', `/app/trabalhadores${search}`);
+    expect(within(navigation).getByRole('link', { name: 'Histórico' })).toHaveAttribute('aria-current', 'location');
+  });
+  it('não oferece atalho de equipe sem leitura do módulo', async () => {
+    renderPage(); await screen.findByRole('heading', { name: 'Juliana Costa' });
+    expect(screen.queryByRole('link', { name: /Ver equipe/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Consulta da equipe não habilitada')).toBeInTheDocument();
+  });
   it('exibe situação de integração administrativa e equipes vinculadas', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Juliana Costa' })).toBeInTheDocument();
@@ -111,7 +140,8 @@ describe('WorkerDetailPage', () => {
     // Integration section
     expect(screen.getByRole('heading', { name: 'Integração administrativa' })).toBeInTheDocument();
     expect(screen.getAllByText('integracao_juliana.pdf').length).toBe(2);
-    expect(screen.getAllByText('Engenharia de Segurança').length).toBe(2);
+    expect(screen.getByText('Engenharia de Segurança')).toBeInTheDocument();
+    expect(screen.getByText(/Responsável: Engenharia de Segurança/)).toBeInTheDocument();
     expect(screen.getByText('Treinamento presencial na integração de novos contratados')).toBeInTheDocument();
 
     // Teams section
@@ -136,7 +166,8 @@ describe('WorkerDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Juliana Costa' })).toBeInTheDocument();
 
     // Open form
-    const newIntegrationBtn = screen.getByRole('button', { name: 'Registrar nova integração' });
+    const newIntegrationBtn = await screen.findByRole('button', { name: 'Registrar nova integração' });
+    await waitFor(() => expect(newIntegrationBtn).toBeEnabled());
     fireEvent.click(newIntegrationBtn);
 
     expect(screen.getByRole('heading', { name: 'Registrar nova integração' })).toBeInTheDocument();
@@ -144,7 +175,6 @@ describe('WorkerDetailPage', () => {
     // Fill form
     fireEvent.change(screen.getByLabelText('Data de realização *'), { target: { value: '2026-04-01' } });
     fireEvent.change(screen.getByLabelText('Validade da integração'), { target: { value: '2027-04-01' } });
-    fireEvent.change(screen.getByLabelText('Responsável pelo registro'), { target: { value: 'SESMT Corporativo' } });
 
     // Submit
     fireEvent.click(screen.getByRole('button', { name: 'Salvar integração' }));
@@ -153,15 +183,86 @@ describe('WorkerDetailPage', () => {
       expect(api.post).toHaveBeenCalledWith(
         '/workers/worker-1/integration',
         expect.objectContaining({
-          status: 'INTEGRATED',
+          status: 'PENDING',
           integratedAt: '2026-04-01',
           validUntil: '2027-04-01',
-          responsibleName: 'SESMT Corporativo',
+          policyVersion: 'DEMO-1',
         }),
-        { etag: '"3"' }
+        expect.objectContaining({ etag: '"3"', signal: expect.any(AbortSignal), idempotencyKey: expect.any(String) })
       );
     });
 
-    expect(await screen.findByText('Integração administrativa registrada com sucesso.')).toBeInTheDocument();
+    expect(await screen.findByText(/Integração administrativa registrada\. A execução continua/)).toBeInTheDocument();
+  });
+
+  it('retorna ao atendimento de origem preservando filtros e seção', async () => {
+    renderPage({ state: { integrationReturnTo: { pathname: '/app/agenda/appointment-1', search: '?tab=equipe&status=SCHEDULED', hash: '#participantes', unitId: 'unit-1' } } });
+    const returnLink = await screen.findByRole('link', { name: 'Voltar ao atendimento' });
+    expect(returnLink).toHaveAttribute('href', '/app/agenda/appointment-1?tab=equipe&status=SCHEDULED#participantes');
+    expect(screen.getByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', '/app/trabalhadores');
+
+    fireEvent.click(returnLink);
+    expect(await screen.findByText('Destino: /app/agenda/appointment-1?tab=equipe&status=SCHEDULED#participantes')).toBeInTheDocument();
+  });
+
+  it('retorna às pendências com a busca e o filtro que originaram a navegação', async () => {
+    renderPage({ state: { integrationReturnTo: { pathname: '/app/pendencias', search: '?q=Juliana&status=PENDING&page=2', unitId: 'unit-1' } } });
+    const returnLink = await screen.findByRole('link', { name: 'Voltar às pendências' });
+    expect(returnLink).toHaveAttribute('href', '/app/pendencias?q=Juliana&status=PENDING&page=2');
+
+    fireEvent.click(returnLink);
+    expect(await screen.findByText('Destino: /app/pendencias?q=Juliana&status=PENDING&page=2')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['URL externa', { pathname: 'https://example.com/app/pendencias', search: '', unitId: 'unit-1' }],
+    ['URL relativa a protocolo', { pathname: '//example.com/app/pendencias', search: '', unitId: 'unit-1' }],
+    ['protocolo javascript', { pathname: 'javascript:alert(1)', search: '', unitId: 'unit-1' }],
+    ['barras duplicadas', { pathname: '/app//pendencias', search: '', unitId: 'unit-1' }],
+    ['travessia de diretórios', { pathname: '/app/agenda/../pendencias', search: '', unitId: 'unit-1' }],
+    ['travessia codificada', { pathname: '/app/agenda/%2e%2e', search: '', unitId: 'unit-1' }],
+    ['barra codificada', { pathname: '/app/agenda/appointment%2F1', search: '', unitId: 'unit-1' }],
+    ['rota fora do fluxo', { pathname: '/app/documentos', search: '', unitId: 'unit-1' }],
+    ['outra unidade', { pathname: '/app/pendencias', search: '', unitId: 'unit-2' }],
+    ['unidade ausente', { pathname: '/app/pendencias', search: '' }],
+    ['busca fora de formato', { pathname: '/app/pendencias', search: '//example.com', unitId: 'unit-1' }],
+    ['fragmento na busca', { pathname: '/app/pendencias', search: '?status=PENDING#injetado', unitId: 'unit-1' }],
+    ['controle na busca', { pathname: '/app/pendencias', search: '?q=teste\n', unitId: 'unit-1' }],
+    ['fragmento fora de formato', { pathname: '/app/pendencias', search: '', hash: '//example.com', unitId: 'unit-1' }],
+    ['separador invertido', { pathname: '/app/pendencias', search: '', hash: '#\\example.com', unitId: 'unit-1' }],
+    ['objeto inválido', 'https://example.com'],
+  ])('descarta retorno com %s e mantém o retorno à lista', async (_description, integrationReturnTo) => {
+    renderPage({ state: { integrationReturnTo } });
+    expect(await screen.findByRole('heading', { name: 'Juliana Costa' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Voltar ao atendimento|Voltar às pendências/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', '/app/trabalhadores');
+  });
+
+  it('descarta o retorno se o vínculo do trabalhador não corresponder à unidade ativa', async () => {
+    const originalGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (...args) => args[0] === '/workers/worker-1' ? { ...mockWorker, unitId: 'unit-2' } : originalGet(...args));
+    renderPage({ state: { integrationReturnTo: { pathname: '/app/pendencias', search: '', unitId: 'unit-1' } } });
+
+    expect(await screen.findByRole('heading', { name: 'Juliana Costa' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Voltar às pendências' })).not.toBeInTheDocument();
+  });
+
+  it('foca a integração após carregar o cadastro sem tomar o foco novamente ao atualizar seus dados', async () => {
+    const { client } = renderPage({ hash: '#integracao' });
+    const panel = await screen.findByRole('region', { name: 'Integração administrativa do trabalhador' });
+    await waitFor(() => expect(panel).toHaveFocus());
+    expect(panel).toHaveAttribute('id', 'integracao');
+    expect(panel).toHaveAttribute('tabindex', '-1');
+
+    const returnLink = screen.getByRole('link', { name: 'Voltar à lista' });
+    returnLink.focus();
+    act(() => client.setQueryData(['worker', 'worker-detail', 'unit-1', 'worker-1'], { ...mockWorker, revision: 4 }));
+    expect(returnLink).toHaveFocus();
+  });
+
+  it('preserva o foco inicial quando não há âncora de integração', async () => {
+    renderPage();
+    const panel = await screen.findByRole('region', { name: 'Integração administrativa do trabalhador' });
+    expect(panel).not.toHaveFocus();
   });
 });

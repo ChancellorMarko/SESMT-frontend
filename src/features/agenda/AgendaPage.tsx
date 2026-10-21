@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router';
-import { CalendarDays, Filter, List, MapPin, Users } from 'lucide-react';
+import { CalendarDays, Clock3, List, Plus, Search } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { AppointmentDto, PermitOptionsDto } from '../../shared/contracts/work-permits';
 import { formatDate } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { AppliedFilters, FilterDisclosure, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { AgendaCalendarView } from './AgendaCalendarView';
-import { appointmentDateOnly, appointmentLabels, appointmentTimeOnly, errorMessage } from './support';
-import styles from './Agenda.module.css';
+import { AgendaList } from './AgendaList';
+import { calendarDate, calendarToday } from './calendar';
+import { agendaOrderError, agendaOrderLabels, agendaPeriodRange, orderAppointments, type AgendaOrder, type AgendaPeriod } from './agenda-presentation';
+import { AgendaPeriodControls } from './AgendaPeriodControls';
+import { appointmentDateOnly, appointmentLabels, errorMessage } from './support';
 
 export function AgendaPage() {
   const { unitId, sessionKey, can } = useSession();
@@ -27,41 +31,60 @@ export function AgendaPage() {
   const to = params.get('to') || '';
   const blockedOnly = params.get('eligibility') === 'blocked';
   const view = params.get('view') === 'calendar' ? 'calendar' : 'list';
+  const orderError = agendaOrderError(params);
+  const order = (orderError ? 'START_ASC' : params.get('order') || 'START_ASC') as AgendaOrder;
+  const today = calendarToday();
 
   const [search, setSearch] = useState(q);
   const [locationInput, setLocationInput] = useState(filterLocation);
   const [showAdvanced, setShowAdvanced] = useState(Boolean(from || to || teamId || responsibleId || serviceTypeId || filterLocation));
+  const searchRef = useRef<HTMLInputElement>(null);
+  const quickPeriodChange = useRef(false);
+  const previousContext = useRef<string | null>(null);
+  const context = JSON.stringify([sessionKey, unitId]);
+  const [preparedContext, setPreparedContext] = useState('');
+  const contextReady = preparedContext === context;
+  const allowed = can('appointments.read');
+  const fromError = from && !calendarDate(from) ? 'Informe uma data inicial válida.' : undefined;
+  const toError = to && !calendarDate(to) ? 'Informe uma data final válida.'
+    : calendarDate(from) && calendarDate(to) && from > to ? 'O fim do período deve ser igual ou posterior ao início.' : undefined;
+  const periodError = fromError || toError;
 
   // Sync internal input state with params
   useEffect(() => { setSearch(q); }, [q]);
   useEffect(() => { setLocationInput(filterLocation); }, [filterLocation]);
-
-  // Restore filters from sessionStorage if opened without query parameters
   useEffect(() => {
-    if (!unitId) return;
+    if (quickPeriodChange.current) { quickPeriodChange.current = false; return; }
+    if (from || to || teamId || responsibleId || serviceTypeId || filterLocation) setShowAdvanced(true);
+  }, [from, to, teamId, responsibleId, serviceTypeId, filterLocation]);
+
+  // Restore once per context. An intentionally empty URL must remain empty on filter removal or Back.
+  useEffect(() => {
+    if (!unitId || !allowed) return;
     const storageKey = `agenda_filters_${unitId}`;
-    if (!location.search && typeof window !== 'undefined') {
-      const saved = window.sessionStorage?.getItem(storageKey);
-      if (saved) {
-        setParams(new URLSearchParams(saved), { replace: true });
+    const enteringContext = previousContext.current !== context;
+    const changedContext = previousContext.current !== null && enteringContext;
+    previousContext.current = context;
+    if (enteringContext && (!location.search || changedContext)) {
+      let saved = '';
+      try { saved = window.sessionStorage.getItem(storageKey) || ''; } catch { /* URL remains usable with blocked storage. */ }
+      const next = new URLSearchParams(saved);
+      if (next.toString() !== params.toString()) {
+        setPreparedContext(''); setParams(next, { replace: true }); return;
       }
     }
-  }, [unitId, location.search, setParams]);
-
-  // Persist current filters in sessionStorage
-  useEffect(() => {
-    if (!unitId || typeof window === 'undefined') return;
-    const storageKey = `agenda_filters_${unitId}`;
-    if (params.toString()) {
-      window.sessionStorage?.setItem(storageKey, params.toString());
-    }
-  }, [unitId, params]);
+    setPreparedContext(context);
+    try {
+      if (params.toString()) window.sessionStorage.setItem(storageKey, params.toString());
+      else window.sessionStorage.removeItem(storageKey);
+    } catch { /* URL remains the source of truth when persistence is unavailable. */ }
+  }, [unitId, allowed, context, location.search, params, setParams]);
 
   // Fetch options (teams, services, responsibles) for filters
   const optionsQuery = useQuery({
     queryKey: ['permit-options', sessionKey, unitId],
     queryFn: ({ signal }) => api.get<PermitOptionsDto>('/permit-options', { signal, query: { unitId } }),
-    enabled: can('appointments.read') && Boolean(unitId),
+    enabled: allowed && Boolean(unitId) && contextReady,
   });
 
   const appointments = useQuery({
@@ -81,8 +104,9 @@ export function AgendaPage() {
         eligibility: blockedOnly ? 'blocked' : undefined,
       },
     }),
-    enabled: can('appointments.read') && Boolean(unitId),
+    enabled: allowed && Boolean(unitId) && contextReady && !periodError && !orderError,
   });
+  const orderedAppointments = useMemo(() => orderAppointments(appointments.data || [], order), [appointments.data, order]);
 
   const filtered = Boolean(q || status || teamId || responsibleId || serviceTypeId || filterLocation || from || to || blockedOnly);
 
@@ -95,11 +119,26 @@ export function AgendaPage() {
     });
   }
 
+  function removeFilter(key: string) {
+    change(key, ''); searchRef.current?.focus();
+  }
+
   function setView(nextView: 'list' | 'calendar') {
     setParams(previous => {
       const next = new URLSearchParams(previous);
       if (nextView === 'calendar') next.set('view', 'calendar');
       else next.delete('view');
+      return next;
+    });
+  }
+
+  function setQuickPeriod(period: AgendaPeriod) {
+    const range = agendaPeriodRange(period, today);
+    quickPeriodChange.current = from !== range.from || to !== range.to;
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      for (const key of ['from', 'to'] as const) { if (range[key]) next.set(key, range[key]); else next.delete(key); }
+      if (view === 'calendar' && range.from) { next.set('calendarDate', range.from); next.set('day', range.from); }
       return next;
     });
   }
@@ -118,17 +157,38 @@ export function AgendaPage() {
 
   function clearFilters() {
     if (unitId && typeof window !== 'undefined') {
-      window.sessionStorage?.removeItem(`agenda_filters_${unitId}`);
+      try { window.sessionStorage.removeItem(`agenda_filters_${unitId}`); } catch { /* Filters also live in the URL. */ }
     }
-    setParams(view === 'calendar' ? { view: 'calendar' } : {});
+    setParams(previous => {
+      const next = new URLSearchParams();
+      for (const key of ['view', 'calendarDate', 'calendarMode', 'day', 'order']) {
+        if (key === 'order' && orderError) continue;
+        const value = previous.get(key);
+        if (value) next.set(key, value);
+      }
+      return next;
+    });
     setSearch('');
     setLocationInput('');
+    setShowAdvanced(false);
   }
 
   if (!can('appointments.read')) return <EmptyState title="Acesso restrito" description="Seu perfil não possui acesso à agenda." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade para consultar os serviços agendados." />;
 
-  const options = optionsQuery.data;
+  const options = optionsQuery.isError ? undefined : optionsQuery.data;
+  const filterValues = { q, status, from, to, teamId, responsibleId, serviceTypeId, location: filterLocation, eligibility: blockedOnly ? 'blocked' : '' };
+  const filterNames = { q: 'Busca', status: 'Situação', from: 'Período inicial', to: 'Período final', teamId: 'Equipe', responsibleId: 'Responsável', serviceTypeId: 'Serviço', location: 'Local', eligibility: 'Documentação' };
+  const appliedFilters: AppliedFilter[] = (Object.keys(filterValues) as (keyof typeof filterValues)[]).filter(key => filterValues[key]).map(key => ({
+    key, label: filterNames[key], value: key === 'status' ? appointmentLabels[status as keyof typeof appointmentLabels] ?? 'Situação indisponível'
+      : key === 'teamId' ? options?.teams.find(team => team.id === teamId && team.unitId === unitId)?.name ?? 'Identificação indisponível'
+        : key === 'responsibleId' ? options?.responsibles.find(person => person.id === responsibleId)?.name ?? 'Identificação indisponível'
+          : key === 'serviceTypeId' ? options?.services.find(service => service.id === serviceTypeId)?.name ?? 'Identificação indisponível'
+            : key === 'eligibility' ? 'Com pendências documentais'
+              : key === 'from' || key === 'to' ? calendarDate(filterValues[key]) ? formatDate(filterValues[key]) : 'Data inválida' : filterValues[key],
+  }));
+  const advancedCount = [from, to, teamId, responsibleId, serviceTypeId, filterLocation].filter(Boolean).length;
+  const hasDraftChanges = search.trim() !== q || locationInput.trim() !== filterLocation;
 
   return (
     <div className="stack">
@@ -137,11 +197,11 @@ export function AgendaPage() {
         title="Agenda de serviços"
         description="Organize a equipe, o horário e os participantes de cada serviço. A liberação para executar acontece na PT em campo."
         actions={
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div className={styles.viewToggle} role="group" aria-label="Visualização da agenda">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-2xl border border-white/90 bg-white/60 p-1" role="group" aria-label="Visualização da agenda">
               <button
                 type="button"
-                className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleBtnActive : ''}`}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-xs font-medium transition-colors ${view === 'list' ? 'bg-white text-[#315884] shadow-[0_4px_14px_-6px_rgba(68,94,181,.3)]' : 'text-slate-500 hover:bg-white/50'}`}
                 onClick={() => setView('list')}
                 aria-pressed={view === 'list'}
               >
@@ -149,7 +209,7 @@ export function AgendaPage() {
               </button>
               <button
                 type="button"
-                className={`${styles.toggleBtn} ${view === 'calendar' ? styles.toggleBtnActive : ''}`}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-xs font-medium transition-colors ${view === 'calendar' ? 'bg-white text-[#315884] shadow-[0_4px_14px_-6px_rgba(68,94,181,.3)]' : 'text-slate-500 hover:bg-white/50'}`}
                 onClick={() => setView('calendar')}
                 aria-pressed={view === 'calendar'}
               >
@@ -158,22 +218,24 @@ export function AgendaPage() {
             </div>
             {can('appointments.write') && (
               <Link className="button button--primary" to="/app/agenda/novo">
-                Agendar serviço
+                <Plus size={16} aria-hidden="true" />Agendar serviço
               </Link>
             )}
           </div>
         }
       />
 
-      <form className="panel stack" onSubmit={handleSearchSubmit} role="search" aria-label="Filtros da agenda">
-        <div className="form-grid">
+      <form noValidate className="panel flex flex-col gap-4" onSubmit={handleSearchSubmit} role="search" aria-label="Filtros da agenda">
+        <div className={`grid items-end gap-3 ${can('eligibility.read') ? 'md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'}`}>
           <Field label="Buscar atendimento">
-            <input
+            <div className="relative"><Search size={16} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" aria-hidden="true" /><input
+              ref={searchRef}
+              className="!pl-10"
               maxLength={200}
               value={search}
               onChange={event => setSearch(event.target.value)}
               placeholder="Código, serviço, equipe, responsável ou local"
-            />
+            /></div>
           </Field>
           <Field label="Situação do agendamento">
             <select value={status} onChange={event => change('status', event.target.value)}>
@@ -193,10 +255,16 @@ export function AgendaPage() {
           )}
         </div>
 
-        {showAdvanced && (
-          <div className="stack" style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-            <div className="form-grid">
-              <Field label="Período inicial (de)">
+        <AgendaPeriodControls from={from} to={to} today={today} disabled={!contextReady} onChange={setQuickPeriod} />
+
+        <div className="flex flex-wrap items-end justify-between gap-3"><div className="flex flex-wrap items-center gap-2">
+          <Button type="submit"><Search size={14} aria-hidden="true" />Pesquisar</Button>
+          {(filtered || hasDraftChanges || orderError) && <Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>}
+          {hasDraftChanges && <span className="text-[11px] leading-5 text-amber-700">Busca ou local ainda não aplicados à lista.</span>}
+        </div><div className="w-full sm:w-56"><Field label="Ordenar atendimentos" error={orderError}><select value={orderError ? '' : order} disabled={!contextReady} onChange={event => change('order', event.target.value === 'START_ASC' ? '' : event.target.value)}>{orderError && <option value="">Selecione uma ordenação</option>}{Object.entries(agendaOrderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field></div></div>
+        <FilterDisclosure open={showAdvanced} onOpenChange={setShowAdvanced} count={advancedCount} label="Filtros avançados">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <Field label="Período inicial (de)" error={fromError}>
                 <input
                   type="date"
                   value={from}
@@ -204,10 +272,11 @@ export function AgendaPage() {
                   aria-label="Data inicial do filtro"
                 />
               </Field>
-              <Field label="Período final (até)">
+              <Field label="Período final (até)" error={toError}>
                 <input
                   type="date"
                   value={to}
+                  min={calendarDate(from)}
                   onChange={event => change('to', event.target.value)}
                   aria-label="Data final do filtro"
                 />
@@ -245,127 +314,39 @@ export function AgendaPage() {
                 />
               </Field>
             </div>
-          </div>
-        )}
-
-        <div className="actions" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button variant="secondary" type="submit">Pesquisar</Button>
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => setShowAdvanced(prev => !prev)}
-            >
-              <Filter size={14} aria-hidden="true" /> {showAdvanced ? 'Menos filtros' : 'Filtros avançados'}
-            </Button>
-            {filtered && <Button variant="ghost" type="button" onClick={clearFilters}>Limpar filtros</Button>}
-          </div>
-          <span className="muted" style={{ alignSelf: 'center', fontSize: '12px' }}>
-            Horários no fuso de Brasília (America/Sao_Paulo)
-          </span>
-        </div>
+        </FilterDisclosure>
+        <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />
+        <p className="!m-0 flex items-center gap-1.5 text-[10px] leading-5 text-slate-500"><Clock3 size={12} aria-hidden="true" />Horários no fuso de Brasília (America/Sao_Paulo)</p>
       </form>
 
-      {appointments.isPending ? (
+      {periodError || orderError ? (
+        <div className="panel stack"><Feedback tone="warning">{periodError ? 'Confira as datas do período para consultar a agenda.' : orderError}</Feedback><EmptyState title="Corrija os filtros da agenda" description={periodError ? 'A consulta será realizada depois de informar um período válido.' : 'Escolha uma ordenação válida para consultar os atendimentos.'} /></div>
+      ) : !contextReady || appointments.isPending ? (
         <Spinner />
       ) : appointments.isError ? (
         <div className="panel stack">
           <Feedback tone="danger">{errorMessage(appointments.error)}</Feedback>
           <Button variant="secondary" onClick={() => void appointments.refetch()}>Tentar novamente</Button>
         </div>
+      ) : view === 'calendar' ? (
+        <AgendaCalendarView
+          appointments={orderedAppointments}
+          searchString={location.search}
+          initialDate={from || (appointments.data?.[0] ? appointmentDateOnly(appointments.data[0].startsAt) : undefined)}
+        />
       ) : !appointments.data?.length ? (
         <EmptyState
           title={filtered ? 'Nenhum atendimento encontrado' : 'Nenhum serviço agendado'}
           description={filtered ? 'Ajuste a pesquisa ou limpe os filtros para encontrar outros registros.' : 'Agende um serviço para organizar o próximo atendimento da equipe.'}
         />
-      ) : view === 'calendar' ? (
-        <AgendaCalendarView
-          appointments={appointments.data}
-          searchString={location.search}
-          initialDate={from || (appointments.data[0] ? appointmentDateOnly(appointments.data[0].startsAt) : undefined)}
-        />
       ) : (
-        <>
-          <p className="muted">{appointments.data.length} atendimento(s) encontrado(s) · Horários de Brasília</p>
-          <div className={styles.cards}>
-            {appointments.data.map(appointment => {
-              const hasAdjustment = Boolean(
-                appointment.confirmedStartsAt &&
-                appointment.requestedStartsAt &&
-                appointment.confirmedStartsAt !== appointment.requestedStartsAt
-              );
-              return (
-                <article className={`panel ${styles.card}`} key={appointment.id}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.cardCode}>{appointment.code}</p>
-                      <h2>
-                        <Link to={`/app/agenda/${appointment.id}`} state={{ fromSearch: location.search }}>
-                          {appointment.serviceLabel}
-                        </Link>
-                      </h2>
-                      <p className="muted">{appointment.teamName}</p>
-                    </div>
-                    <Badge tone={appointment.status === 'CANCELED' ? 'neutral' : appointment.status === 'REQUESTED' ? 'warning' : 'success'}>
-                      {appointmentLabels[appointment.status]}
-                    </Badge>
-                  </div>
-
-                  <dl className={styles.metadata}>
-                    <div>
-                      <dt><CalendarDays size={13} aria-hidden="true" /> Início</dt>
-                      <dd>
-                        {formatDate(appointment.startsAt)}
-                        {appointment.status === 'REQUESTED' && <small className="muted"> (Solicitado)</small>}
-                        {appointment.status === 'CONFIRMED' && <small className="muted"> (Confirmado)</small>}
-                        {hasAdjustment && <Badge tone="neutral">Horário ajustado</Badge>}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Término previsto</dt>
-                      <dd>{formatDate(appointment.endsAt)}</dd>
-                    </div>
-                    <div>
-                      <dt><MapPin size={13} aria-hidden="true" /> Local</dt>
-                      <dd>{appointment.location}</dd>
-                    </div>
-                    <div>
-                      <dt><Users size={13} aria-hidden="true" /> Participantes</dt>
-                      <dd>{appointment.participants.length} pessoa(s)</dd>
-                    </div>
-                    <div>
-                      <dt>Responsável</dt>
-                      <dd>{appointment.responsibleName}</dd>
-                    </div>
-                    <div>
-                      <dt>Horário de solicitação</dt>
-                      <dd>
-                        {appointment.requestedStartsAt
-                          ? `${appointmentTimeOnly(appointment.requestedStartsAt)} às ${appointmentTimeOnly(appointment.requestedEndsAt || appointment.endsAt)}`
-                          : `${appointmentTimeOnly(appointment.startsAt)} às ${appointmentTimeOnly(appointment.endsAt)}`}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <div className="actions">
-                    <Link
-                      className="button button--secondary"
-                      to={`/app/agenda/${appointment.id}`}
-                      state={{ fromSearch: location.search }}
-                    >
-                      Consultar atendimento
-                    </Link>
-                    {appointment.permitId && can('permits.read') && (
-                      <Link className="button button--ghost" to={`/app/pts/${appointment.permitId}`}>
-                        Ver PT →
-                      </Link>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </>
+          <section aria-label="Resultados da agenda" aria-busy={appointments.isFetching} className="overflow-hidden rounded-3xl border border-white/90 bg-white/85 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-2.5"><CalendarDays size={16} className="text-[#6582b0]" aria-hidden="true" /><h2 className="!m-0 !text-[14px] text-[#315884]">Atendimentos da unidade</h2></div>
+              <p role="status" className="!m-0 text-[11px] text-slate-500">{appointments.isFetching ? 'Atualizando agenda…' : `${appointments.data.length} atendimento(s) encontrado(s)`}</p>
+            </div>
+            <AgendaList appointments={orderedAppointments} searchString={location.search} canReadPermits={can('permits.read')} />
+          </section>
       )}
     </div>
   );

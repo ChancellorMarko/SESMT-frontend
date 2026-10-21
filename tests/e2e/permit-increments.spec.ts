@@ -76,7 +76,11 @@ test('anexo, interrupção, retomada e encerramento preservam a versão no celul
   await expect(document).toContainText('documento-teste.pdf');
   await expect(document).toContainText(draft);
   await expect(document).toContainText('PENDENTE DE REVISÃO');
-  await expect(document.getByText('Sim', { exact: true })).toHaveCount(22);
+  const releaseHeading = document.getByRole('heading', { name: 'Liberação e execução preservadas', exact: true });
+  const release = releaseHeading.locator('..');
+  await expect(release).toContainText('Diego Demo');
+  await expect(release.getByRole('cell', { name: 'Sim', exact: true })).toHaveCount(3);
+  await expect(document.locator('section').filter({ hasNot: page.getByRole('heading', { name: 'Liberação e execução preservadas', exact: true }) }).getByText('Sim', { exact: true })).toHaveCount(22);
   await expect(page.getByRole('button', { name: 'Imprimir / salvar PDF' })).toBeEnabled();
   await page.screenshot({ path: 'docs/frontend/qa/pt-modelo-preenchido-desktop.png', fullPage: true });
   await page.emulateMedia({ media: 'print' });

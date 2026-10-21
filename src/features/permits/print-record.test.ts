@@ -30,7 +30,7 @@ describe('registro imprimível versionado', () => {
     expect(record.isDraft).toBe(true);
   });
   it('não substitui silenciosamente uma versão ausente ou inválida pela atual', () => {
-    for (const version of ['0', '-1', '3', 'NaN', '1.5']) expect(printablePermit(permit, version)).toBeUndefined();
+    for (const version of ['', '0', '-1', '3', 'NaN', '1.5', ' 1 ', '1e0', '0x1', '01', '9007199254740993']) expect(printablePermit(permit, version)).toBeUndefined();
   });
   it('distingue suspensão e cancelamento de um rascunho em preenchimento', () => {
     expect(printablePermit({ ...permit, operationStatus: 'CANCELED' })?.documentStatus).toBe('PERMISSÃO CANCELADA');

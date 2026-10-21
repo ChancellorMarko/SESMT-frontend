@@ -54,11 +54,19 @@ describe('escopo organizacional e data civil da auditoria demo', () => {
     expect((await records()).filter(item => item.resourceType === 'ORGANIZATION')).toHaveLength(6);
   });
   it('mantém globais da empresa aplicáveis e omite organização sem proprietário comprovável', async () => {
+    // Represent a legacy orphan in the fixture; new writes must reject missing ownership.
+    const orphan = { id: id(950), name: 'Cargo legado sem vínculo de empresa', status: 'ACTIVE' as const, revision: 1 };
+    vi.spyOn(fixtures, 'makeFixtures').mockImplementation(() => {
+      const data = originalFixtures(); data.organization.jobs.push(orphan);
+      data.audit.push({ id: crypto.randomUUID(), actorId: id(20), action: 'ORGANIZATION_CREATED', resourceType: 'ORGANIZATION', resourceId: orphan.id, occurredAt: new Date().toISOString(), requestId: crypto.randomUUID(), outcome: 'DEMO' });
+      return data;
+    });
+    resetDemo(); await login();
     for (const [path, recordId] of [['companies', COMPANY], ['establishments', id(4)], ['jobs', id(8)], ['job-functions', id(10)]]) {
       expect((await send('PATCH', `/${path}/${recordId}`, { name: `Nome atualizado ${path}` }, 1)).ok).toBe(true);
     }
-    const foreignCompany = await create('/companies', { name: 'Outra organização sem acesso' });
-    const orphan = await create('/jobs', { name: 'Cargo sem vínculo de empresa' });
+    const foreignCompany = await create('/companies', { name: 'Outra organização sem acesso', taxId: '12345678000199', classification: 'SERVICE_PROVIDER' });
+    expect((await send('POST', '/jobs', { name: 'Novo cargo sem vínculo de empresa' })).status).toBe(422);
     const otherEstablishment = await create('/establishments', { name: 'Outro estabelecimento', companyId: COMPANY });
     for (const query of ['', `unitId=${UNIT_A}`, `unitId=${UNIT_B}`]) {
       const ids = (await records(query)).filter(item => item.resourceType === 'ORGANIZATION').map(item => item.resourceId);
@@ -70,7 +78,7 @@ describe('escopo organizacional e data civil da auditoria demo', () => {
     const sectorA = await create('/sectors', { name: 'Setor permitido', unitId: UNIT_A });
     const sectorB = await create('/sectors', { name: 'Setor fora do escopo', unitId: UNIT_B });
     await login('admin');
-    const response = await send('PATCH', `/users/${id(22)}/access`, { roles: ['AUDITOR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_A], sectorIds: [id(5), id(6)], teamIds: [], ownOnly: false } }, 1);
+    const response = await send('PATCH', `/users/${id(22)}/access`, { roles: ['AUDITOR'], scope: { companyIds: [COMPANY], unitIds: [UNIT_A], sectorIds: [id(5), id(6)], teamIds: [], ownOnly: false, expiresAt: new Date(Date.now() + 86400000).toISOString() } }, 1);
     expect(response.ok).toBe(true);
     await login('auditor');
     const ids = (await records()).filter(item => item.resourceType === 'ORGANIZATION').map(item => item.resourceId);

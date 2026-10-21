@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { loginDemo, navigateWithinApp } from './helpers';
+import { openModule, loginDemo, navigateWithinApp } from './helpers';
 
 test('catálogo pesquisa perguntas e diferencia PT escolhida, AT, PET e revisão alternativa', async ({ page }) => {
   await loginDemo(page, 'Técnico de segurança');
-  await page.getByRole('link', { name: 'Modelo da PT', exact: true }).click();
+  await openModule(page, 'Modelo da PT');
   await expect(page.getByRole('heading', { name: 'RI-S-36001 · revisão A', exact: true })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Autorização de Trabalho', exact: true })).toBeVisible();
   const pet = page.getByRole('article', { name: 'PET de espaço confinado', exact: true });

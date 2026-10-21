@@ -74,7 +74,7 @@ const blockedData: DesignationCoverageDto = {
   ],
 };
 
-function renderPanel(props: { unitId: string; serviceTypeIds: string[]; location?: string }) {
+function renderPanel(props: { unitId: string; serviceTypeIds: string[]; location?: string; sectionId?: string }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -116,5 +116,49 @@ describe('DesignationCoveragePanel', () => {
     expect(screen.getByText('Expirada')).toBeInTheDocument();
     expect(screen.getByText('Eletricidade')).toBeInTheDocument();
     expect(screen.getByText('Sem designação')).toBeInTheDocument();
+  });
+  it('não altera o array de serviços recebido, mesmo congelado e fora de ordem', async () => {
+    vi.mocked(api.get).mockResolvedValue(blockedData);
+    const services = Object.freeze(['serv-2', 'serv-1']) as unknown as string[];
+    renderPanel({ unitId: 'unit-a', serviceTypeIds: services });
+    await screen.findByText('Bloqueio de designação');
+    expect(services).toEqual(['serv-2', 'serv-1']);
+    expect(api.get).toHaveBeenCalledWith('/designation-coverage', expect.objectContaining({ query: expect.objectContaining({ serviceTypeIds: 'serv-2,serv-1' }) }));
+  });
+  it('consulta a cobertura com permissão de agenda sem exigir permissão de PT', async () => {
+    state.permissions = ['appointments.read']; vi.mocked(api.get).mockResolvedValue(coveredData);
+    renderPanel({ unitId: 'unit-a', serviceTypeIds: ['serv-1'] });
+    expect(await screen.findByText('Cobertura completa')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Consultar todas as designações/ })).toBeInTheDocument();
+  });
+  it('não entra em carregamento infinito nem faz consulta quando não há permissão', () => {
+    state.permissions = []; const { container } = renderPanel({ unitId: 'unit-a', serviceTypeIds: ['serv-1'] });
+    expect(container).toBeEmptyDOMElement(); expect(api.get).not.toHaveBeenCalled();
+  });
+  it('não mostra uma cobertura retornada para outra unidade', async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...coveredData, unitId: 'unit-b' });
+    renderPanel({ unitId: 'unit-a', serviceTypeIds: ['serv-1'] });
+    expect(await screen.findByText(/A cobertura retornada pertence a outra unidade/)).toBeInTheDocument();
+    expect(screen.queryByText('Cobertura completa')).not.toBeInTheDocument();
+  });
+  it('mantém o destino de navegação e seu título durante carregamento e falha', async () => {
+    let fail!: (error: Error) => void;
+    vi.mocked(api.get).mockImplementation(() => new Promise((_, reject) => { fail = reject; }));
+    renderPanel({ unitId: 'unit-a', serviceTypeIds: ['serv-1'], sectionId: 'designacao' });
+    const loading = screen.getByRole('region', { name: 'Carregando cobertura' });
+    expect(loading).toHaveAttribute('id', 'designacao');
+    expect(loading.querySelector('h2')).toHaveTextContent('Cobertura por designações operacionais');
+    fail(new Error('Falha de rede demonstrativa'));
+    const failure = await screen.findByRole('region', { name: 'Erro de cobertura' });
+    expect(failure).toHaveAttribute('id', 'designacao');
+    expect(failure.querySelector('h2')).toHaveTextContent('Cobertura por designações operacionais');
+    expect(screen.queryByText('Cobertura completa')).not.toBeInTheDocument();
+  });
+  it('oferece um destino legível para resposta inválida sem mostrar cobertura anterior', async () => {
+    vi.mocked(api.get).mockResolvedValue({ unitId: 'unit-a', items: null });
+    renderPanel({ unitId: 'unit-a', serviceTypeIds: ['serv-1'], sectionId: 'designacao' });
+    expect(await screen.findByText(/Não foi possível conferir a resposta de cobertura/)).toBeInTheDocument();
+    expect(document.getElementById('designacao')?.querySelector('h2')).toHaveTextContent('Cobertura por designações operacionais');
+    expect(screen.queryByText('Cobertura completa')).not.toBeInTheDocument();
   });
 });

@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../../shared/api/client';
+import { api, ApiError } from '../../shared/api/client';
+import type { TeamDto } from '../../shared/contracts/work-permits';
+import type { TeamInviteDto } from '../../shared/contracts/teams';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { TeamsPage } from './TeamsPage';
 
@@ -12,7 +14,7 @@ vi.mock('../../shared/api/client', async original => ({
 }));
 vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: vi.fn() }));
 
-const mockTeams = [
+const mockTeams: TeamDto[] = [
   {
     id: 'team-active',
     name: 'Equipe Operacional Ativa',
@@ -40,7 +42,7 @@ const mockTeams = [
   },
 ];
 
-const mockInvites = [
+const mockInvites: TeamInviteDto[] = [
   {
     id: 'inv-1',
     token: 'tok-abc',
@@ -51,22 +53,24 @@ const mockInvites = [
     companyId: 'comp-1',
     companyName: 'Empresa 1',
     status: 'ACTIVE' as const,
-    expiresAt: '2026-10-25T18:00:00Z',
+    expiresAt: new Date(Date.now() + 86400000).toISOString(),
     createdAt: '2026-10-13T10:00:00Z',
     createdByName: 'Admin',
     membersCount: 1,
     serviceFunctions: ['Encarregado'],
-    shareUrl: 'http://localhost:5173/convite/tok-abc',
+    shareUrl: `${window.location.origin}/convite/tok-abc`,
   },
 ];
+const context = { sessionKey: 'teams-test', unitId: 'unit-1' as string | undefined, permissions: ['teams.read', 'teams.write'] };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(useSession).mockReturnValue({
+  context.sessionKey = 'teams-test'; context.unitId = 'unit-1'; context.permissions = ['teams.read', 'teams.write'];
+  vi.mocked(useSession).mockImplementation(() => ({
     me: { id: 'admin', displayName: 'Admin' } as any,
-    unitId: 'unit-1',
-    sessionKey: 'teams-test',
-    can: permission => ['teams.read', 'teams.write'].includes(permission),
+    unitId: context.unitId,
+    sessionKey: context.sessionKey,
+    can: permission => context.permissions.includes(permission),
     status: 'authenticated',
     sessionError: null,
     setUnitId: vi.fn(),
@@ -74,12 +78,18 @@ beforeEach(() => {
     verifyMfa: vi.fn(),
     logout: vi.fn(),
     restore: vi.fn(),
-  });
-  vi.mocked(api.get).mockImplementation(((path: string) => {
-    if (path === '/teams') return Promise.resolve(mockTeams);
+  }));
+  vi.mocked(api.get).mockReset().mockImplementation(((path: string, options?: { query?: { unitId?: string } }) => {
+    if (path === '/teams') return Promise.resolve(mockTeams.filter(team => team.unitId === options?.query?.unitId));
     if (path === '/team-invites') return Promise.resolve(mockInvites);
     return Promise.resolve([]);
   }) as any);
+  vi.mocked(api.patch).mockReset().mockImplementation(async (path, input) => {
+    const team = mockTeams.find(item => path === `/teams/${item.id}`)!;
+    return { ...team, ...(input as object), revision: team.revision + 1 } as never;
+  });
+  vi.mocked(api.post).mockReset().mockImplementation(async path => path === '/team-invites' ? { ...mockInvites[0], id: 'inv-created', token: 'created-token', shareUrl: `${window.location.origin}/convite/created-token` } as never : { ...mockInvites[0], status: 'REVOKED' } as never);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, writable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
 });
 
 function Harness() {
@@ -92,17 +102,41 @@ function Harness() {
   );
 }
 
-function show(query = '') {
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+function show(query = '', existingClient?: QueryClient) {
+  const client = existingClient || new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const tree = () => (
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[`/app/equipes${query}`]}>
         <Harness />
       </MemoryRouter>
     </QueryClientProvider>
   );
+  const view = render(tree()); return { ...view, client, update: () => view.rerender(tree()) };
 }
 
+async function openInvites() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar link de convite' })).toBeEnabled());
+  return screen.getByRole('dialog');
+}
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+const responseError = 'A resposta não corresponde à equipe ou ao convite solicitado. Atualize a consulta antes de continuar.';
+
 describe('TeamsPage', () => {
+  it('distingue indisponibilidade temporária da revogação e abre o convite na instância da demonstração', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce(mockTeams).mockResolvedValueOnce([{ ...mockInvites[0], status: 'REVOKED', unavailableReason: 'TEAM_INACTIVE' }]);
+    show(); await screen.findByText('Equipe Operacional Ativa');
+    fireEvent.click(screen.getByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
+    expect(await screen.findByText('Indisponível · equipe inativa')).toBeVisible();
+    expect(screen.queryByText('Revogado')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Abrir convite nesta demonstração' });
+    expect(link).toHaveAttribute('href', '/convite/tok-abc');
+    expect(link).not.toHaveAttribute('target', '_blank');
+  });
   it('exibe equipes ativas e inativas com badges e motivo', async () => {
     show();
     expect(await screen.findByText('Equipe Operacional Ativa')).toBeInTheDocument();
@@ -153,7 +187,7 @@ describe('TeamsPage', () => {
           status: 'INACTIVE',
           inactiveReason: 'Fim do contrato de terceirização',
         },
-        { etag: '"2"' }
+        { etag: '"2"', signal: expect.any(AbortSignal) }
       );
     });
   });
@@ -175,7 +209,7 @@ describe('TeamsPage', () => {
       expect(api.patch).toHaveBeenCalledWith(
         '/teams/team-inactive',
         { status: 'ACTIVE' },
-        { etag: '"5"' }
+        { etag: '"5"', signal: expect.any(AbortSignal) }
       );
     });
   });
@@ -192,13 +226,13 @@ describe('TeamsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Convites da equipe: Equipe Operacional Ativa' })).toBeInTheDocument();
     expect(screen.getByText('Links gerados para esta equipe')).toBeInTheDocument();
-    expect(await screen.findByDisplayValue('http://localhost:5173/convite/tok-abc')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue(`${window.location.origin}/convite/tok-abc`)).toBeInTheDocument();
 
     const copyBtn = screen.getByRole('button', { name: 'Copiar link' });
     fireEvent.click(copyBtn);
 
     await waitFor(() => {
-      expect(writeTextMock).toHaveBeenCalledWith('http://localhost:5173/convite/tok-abc');
+      expect(writeTextMock).toHaveBeenCalledWith(`${window.location.origin}/convite/tok-abc`);
       expect(screen.getByText('Copiado!')).toBeInTheDocument();
     });
   });
@@ -214,12 +248,12 @@ describe('TeamsPage', () => {
       companyId: 'comp-1',
       companyName: 'Empresa 1',
       status: 'ACTIVE',
-      expiresAt: '2026-10-30T10:00:00Z',
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
       createdAt: '2026-10-13T10:00:00Z',
       createdByName: 'Admin',
       membersCount: 1,
       serviceFunctions: ['Encarregado'],
-      shareUrl: 'http://localhost:5173/convite/tok-xyz',
+      shareUrl: `${window.location.origin}/convite/tok-xyz`,
     });
 
     show();
@@ -229,6 +263,7 @@ describe('TeamsPage', () => {
     fireEvent.click(inviteBtn);
 
     await screen.findByRole('heading', { name: 'Convites da equipe: Equipe Operacional Ativa' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar link de convite' })).toBeEnabled());
 
     const select = screen.getByLabelText('Validade do link');
     fireEvent.change(select, { target: { value: '72' } });
@@ -240,7 +275,7 @@ describe('TeamsPage', () => {
       expect(api.post).toHaveBeenCalledWith('/team-invites', {
         teamId: 'team-active',
         validityHours: 72,
-      });
+      }, { signal: expect.any(AbortSignal) });
       expect(screen.getByText('Novo link de convite gerado com sucesso!')).toBeInTheDocument();
     });
   });
@@ -263,8 +298,144 @@ describe('TeamsPage', () => {
     fireEvent.click(revokeBtn);
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/team-invites/inv-1/revoke', {});
+      expect(api.post).toHaveBeenCalledWith('/team-invites/inv-1/revoke', {}, { signal: expect.any(AbortSignal) });
       expect(screen.getByText('Convite revogado com sucesso.')).toBeInTheDocument();
     });
+  });
+
+  it.each(['unit', 'session', 'permission'] as const)('aborta alteração de situação ao mudar %s e ignora resposta tardia', async change => {
+    const pending = deferred<unknown>(); let signal: AbortSignal | undefined;
+    vi.mocked(api.patch).mockImplementation(((_path: string, _input: unknown, options: { signal: AbortSignal }) => { signal = options.signal; return pending.promise; }) as any);
+    const view = show(); const invalidate = vi.spyOn(view.client, 'invalidateQueries');
+    fireEvent.click(await screen.findByRole('button', { name: 'Inativar equipe' }));
+    const form = screen.getByRole('button', { name: 'Confirmar inativação' }).closest('form')!;
+    act(() => { fireEvent.submit(form); fireEvent.submit(form); });
+    expect(api.patch).toHaveBeenCalledTimes(1);
+    if (change === 'unit') context.unitId = 'unit-2';
+    if (change === 'session') context.sessionKey = 'other-session';
+    if (change === 'permission') context.permissions = ['teams.read'];
+    view.update(); expect(signal?.aborted).toBe(true);
+    await act(async () => { pending.resolve({ ...mockTeams[0], status: 'INACTIVE', revision: 3 }); await pending.promise; });
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(screen.queryByText(/inativada com sucesso/)).not.toBeInTheDocument();
+  });
+
+  it.each(['id', 'unit', 'revision'] as const)('bloqueia recibo de situação com %s incorreto até conferir novamente', async mismatch => {
+    const receipt = { ...mockTeams[0], status: 'INACTIVE', revision: 3 };
+    if (mismatch === 'id') receipt.id = 'other-team';
+    if (mismatch === 'unit') receipt.unitId = 'other-unit';
+    if (mismatch === 'revision') receipt.revision = 2;
+    vi.mocked(api.patch).mockResolvedValue(receipt as never);
+    const view = show(); const invalidate = vi.spyOn(view.client, 'invalidateQueries');
+    fireEvent.click(await screen.findByRole('button', { name: 'Inativar equipe' }));
+    fireEvent.change(screen.getByLabelText('Motivo da inativação (opcional)'), { target: { value: 'Conferir recebimento' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar inativação' }));
+    expect(await screen.findByText(responseError)).toBeVisible();
+    expect(screen.getByLabelText('Motivo da inativação (opcional)')).toHaveValue('Conferir recebimento');
+    expect(screen.getByRole('button', { name: 'Confirmar inativação' })).toBeDisabled();
+    expect(invalidate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Atualizar equipes e conferir' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar inativação' })).toBeEnabled());
+  });
+
+  it.each(['create', 'revoke'] as const)('impede duplicidade de %s e aborta ao fechar o modal', async operation => {
+    const pending = deferred<unknown>(); let signal: AbortSignal | undefined;
+    vi.mocked(api.post).mockImplementation(((_path: string, _input: unknown, options: { signal: AbortSignal }) => { signal = options.signal; return pending.promise; }) as any);
+    const view = show(); const invalidate = vi.spyOn(view.client, 'invalidateQueries');
+    const dialog = await openInvites();
+    if (operation === 'create') {
+      const form = within(dialog).getByRole('button', { name: 'Gerar link de convite' }).closest('form')!;
+      act(() => { fireEvent.submit(form); fireEvent.submit(form); });
+    } else {
+      const revoke = within(dialog).getByRole('button', { name: 'Revogar convite' });
+      act(() => { fireEvent.click(revoke); fireEvent.click(revoke); });
+    }
+    expect(api.post).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar janela' }));
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { pending.resolve({ ...mockInvites[0], status: operation === 'create' ? 'ACTIVE' : 'REVOKED' }); await pending.promise; });
+    expect(invalidate).not.toHaveBeenCalled(); expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { unitId: 'other-unit' }, { teamId: 'other-team' },
+    { shareUrl: 'javascript:alert(1)' }, { shareUrl: 'https://external.example/convite/tok-abc' },
+    { shareUrl: `${window.location.origin}/convite/other-token` },
+  ])('recusa lista de convites fora do escopo ou com URL insegura: %j', async invalid => {
+    vi.mocked(api.get).mockImplementation(((path: string) => Promise.resolve(path === '/teams' ? mockTeams : [{ ...mockInvites[0], ...invalid }])) as any);
+    show(); fireEvent.click(await screen.findByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
+    expect(await screen.findByText(responseError)).toBeVisible();
+    expect(screen.queryByRole('textbox', { name: /Link de convite/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Abrir convite/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gerar link de convite' })).toBeDisabled();
+  });
+
+  it.each([{ unitId: 'other-unit' }, { teamId: 'other-team' }, { shareUrl: 'javascript:alert(1)' }, { expiresAt: '2020-01-01T00:00:00Z' }])('não copia nem invalida recibo de convite inválido: %j', async invalid => {
+    vi.mocked(api.post).mockResolvedValue({ ...mockInvites[0], ...invalid } as never);
+    const view = show(); const invalidate = vi.spyOn(view.client, 'invalidateQueries'); await openInvites();
+    fireEvent.click(screen.getByRole('button', { name: 'Gerar link de convite' }));
+    expect(await screen.findByText(responseError)).toBeVisible();
+    expect(invalidate).not.toHaveBeenCalled(); expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(screen.queryByText('Novo link de convite gerado com sucesso!')).not.toBeInTheDocument();
+  });
+
+  it.each([403, 404])('não copia convite criado quando a conferência posterior retorna %s', async status => {
+    show(); await openInvites();
+    vi.mocked(api.get).mockRejectedValueOnce(new ApiError(status, { code: 'FORBIDDEN', message: 'Detalhe restrito do convite', requestId: 'test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gerar link de convite' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tentar carregar convites novamente' })).toBeEnabled());
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(screen.queryByText('Novo link de convite gerado com sucesso!')).not.toBeInTheDocument();
+    expect(screen.queryByText('Detalhe restrito do convite')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Link de convite/ })).not.toBeInTheDocument();
+  });
+
+  it('mantém convites previamente recusados ocultos ao reabrir até uma consulta válida', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    show('', client); const dialog = await openInvites();
+    vi.mocked(api.get).mockRejectedValueOnce(new ApiError(403, { code: 'FORBIDDEN', message: 'Restrito', requestId: 'test' }));
+    await act(async () => { await client.refetchQueries({ queryKey: ['team-invites', 'teams-test', 'unit-1', 'team-active'], exact: true }); });
+    await screen.findByRole('button', { name: 'Tentar carregar convites novamente' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar janela' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
+    expect(screen.queryByRole('textbox', { name: /Link de convite/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar carregar convites novamente' }));
+    expect(await screen.findByDisplayValue(mockInvites[0].shareUrl)).toBeVisible();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar link de convite' })).toBeEnabled());
+  });
+
+  it.each(['summary', 'inactiveReason'] as const)('recusa cache de equipes com %s inválido enquanto a rede está pendente', async invalid => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const pending = deferred<unknown>();
+    client.setQueryData(['teams', 'teams-test', 'unit-1'], [invalid === 'summary' ? { id: 'team-active', name: 'Resumo', unitId: 'unit-1', companyId: 'comp-1' } : { ...mockTeams[1], inactiveReason: {} }]);
+    vi.mocked(api.get).mockImplementation((() => pending.promise) as any); show('', client);
+    expect(await screen.findByText(responseError)).toBeVisible();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
+
+  it('não renderiza URL insegura em cache e libera o modal após resposta fresca válida', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); const pending = deferred<unknown>();
+    client.setQueryData(['team-invites', 'teams-test', 'unit-1', 'team-active'], [{ ...mockInvites[0], shareUrl: 'javascript:alert(1)' }]);
+    vi.mocked(api.get).mockImplementation(((path: string) => path === '/teams' ? Promise.resolve(mockTeams) : pending.promise) as any);
+    show('', client); fireEvent.click(await screen.findByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
+    expect(await screen.findByText(responseError)).toBeVisible();
+    expect(screen.queryByRole('link', { name: /Abrir convite/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Link de convite/ })).not.toBeInTheDocument();
+    await act(async () => { pending.resolve(mockInvites); await pending.promise; });
+    expect(await screen.findByDisplayValue(mockInvites[0].shareUrl)).toBeVisible();
+  });
+
+  it.each(['unit', 'read'] as const)('não consulta equipes sem %s', async missing => {
+    if (missing === 'unit') context.unitId = undefined; else context.permissions = [];
+    show(); expect(api.get).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Inativar equipe' })).not.toBeInTheDocument();
+  });
+
+  it('não oferece convites nem alteração de situação para consulta sem escrita', async () => {
+    context.permissions = ['teams.read']; show(); await screen.findByText('Equipe Operacional Ativa');
+    expect(screen.queryByRole('button', { name: /Convites por link da equipe/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Inativar equipe|Reativar equipe/ })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled(); expect(api.patch).not.toHaveBeenCalled();
   });
 });

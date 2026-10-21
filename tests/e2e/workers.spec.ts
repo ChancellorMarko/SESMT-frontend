@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { loginDemo } from './helpers';
+import { openModule, loginDemo } from './helpers';
 
 async function fillWorker(page: Page, name: string, registration: string) {
   await page.getByLabel('Nome completo *', { exact: true }).fill(name);
@@ -18,7 +18,7 @@ async function fillWorker(page: Page, name: string, registration: string) {
 
 test('RH cadastra trabalhador com lotação e recebe duplicidade sem perder o formulário', async ({ page }) => {
   await loginDemo(page, 'RH');
-  await page.getByRole('link', { name: 'Trabalhadores', exact: true }).click();
+  await openModule(page, 'Trabalhadores');
   await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click();
   await fillWorker(page, 'Pessoa sintética E2E RH', 'E2E-RH-001');
   // CPF não faz parte do contrato mínimo de WorkerDto desta versão.
@@ -43,7 +43,7 @@ test('RH cadastra trabalhador com lotação e recebe duplicidade sem perder o fo
 
 test('movimentação exige justificativa e preserva vínculo anterior no histórico', async ({ page }) => {
   await loginDemo(page, 'RH');
-  await page.getByRole('link', { name: 'Trabalhadores', exact: true }).click();
+  await openModule(page, 'Trabalhadores');
   await page.getByRole('link', { name: 'Camila Demo', exact: true }).click();
   await page.getByRole('link', { name: 'Registrar movimentação', exact: true }).click();
   await page.getByLabel('Data efetiva *', { exact: true }).fill('2025-04-01');
@@ -67,14 +67,19 @@ test('movimentação exige justificativa e preserva vínculo anterior no histór
 
 test('troca de unidade protege rascunho, isola lista e organização cadastra, edita e inativa setor', async ({ page }) => {
   await loginDemo(page);
-  await page.getByRole('link', { name: 'Trabalhadores', exact: true }).click();
+  await openModule(page, 'Trabalhadores');
   await expect(page.getByRole('link', { name: 'Camila Demo', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Luiza Demo', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click();
   await page.getByLabel('Nome completo *', { exact: true }).fill('Rascunho que deve ser protegido');
-  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Navegação', exact: true });
+  await menu.getByRole('link', { name: 'Documentos', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Alterações não salvas', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Continuar preenchendo', exact: true }).click();
+  await expect(menu.getByRole('link', { name: 'Documentos', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
   await expect(page.getByLabel('Nome completo *', { exact: true })).toHaveValue('Rascunho que deve ser protegido');
   page.once('dialog', async dialog => { expect(dialog.message()).toContain('alterações não salvas'); await dialog.dismiss(); });
   await page.getByLabel('Unidade de trabalho', { exact: true }).selectOption({ label: 'Unidade Operacional' });
@@ -88,7 +93,7 @@ test('troca de unidade protege rascunho, isola lista e organização cadastra, e
   await expect(page.getByRole('link', { name: 'Luiza Demo', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Camila Demo', exact: true })).toHaveCount(0);
   await page.getByLabel('Unidade de trabalho', { exact: true }).selectOption({ label: 'Unidade Matriz' });
-  await page.getByRole('link', { name: 'Organização', exact: true }).click();
+  await openModule(page, 'Organização');
   await page.getByRole('button', { name: /^Setores/ }).click();
   await page.getByRole('button', { name: 'Cadastrar setor', exact: true }).click();
   await page.getByRole('dialog', { name: 'Cadastrar setor', exact: true }).getByLabel('Nome *', { exact: true }).fill('Setor sintético E2E');

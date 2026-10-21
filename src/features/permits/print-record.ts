@@ -2,8 +2,9 @@ import type { WorkPermitDto } from '../../shared/contracts/work-permits';
 
 /** A printed historical version always uses its submitted content and decision. */
 export function printablePermit(permit: WorkPermitDto, requestedVersion?: string | null) {
-  const version = requestedVersion ? Number(requestedVersion) : permit.version;
-  if (!Number.isInteger(version) || version < 1) return undefined;
+  if (requestedVersion !== undefined && requestedVersion !== null && !/^[1-9]\d*$/.test(requestedVersion)) return undefined;
+  const version = requestedVersion == null ? permit.version : Number(requestedVersion);
+  if (!Number.isSafeInteger(version) || version < 1) return undefined;
   const snapshot = permit.snapshots.find(item => item.version === version);
   if (!snapshot && version !== permit.version) return undefined;
   const isDraft = !snapshot && !['RELEASED', 'EXECUTING', 'SUSPENDED', 'CANCELED'].includes(permit.operationStatus);
@@ -15,6 +16,9 @@ export function printablePermit(permit: WorkPermitDto, requestedVersion?: string
   return {
     version,
     snapshot,
+    release: snapshot ? snapshot.release : permit.release,
+    startedAt: snapshot ? snapshot.startedAt : permit.startedAt,
+    completedAt: snapshot ? snapshot.completedAt : permit.completedAt,
     isDraft,
     identificationVersioned: !snapshot || Boolean(snapshot.appointment),
     templateVersion: snapshot?.templateVersion || (snapshot ? snapshot.preparation ? `${snapshot.preparation.sourceId} / ${snapshot.preparation.sourceRevision}` : 'Não registrado nesta versão histórica' : permit.templateVersion),
