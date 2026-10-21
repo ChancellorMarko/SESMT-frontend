@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { animate, useReducedMotion } from 'framer-motion';
+import { animate } from 'framer-motion';
+import { useAppReducedMotion } from '../motion/MotionPreferences';
 import { cn } from '../lib/cn';
 
 export function AnimatedNumber({ value, suffix = '', duration = 1.1, className }: { value: number; suffix?: string; duration?: number; className?: string }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
   const element = useRef<HTMLSpanElement>(null);
   const previous = useRef(0);
   const safeValue = Number.isFinite(value) ? value : 0;

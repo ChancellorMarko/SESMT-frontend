@@ -33,7 +33,7 @@
 .permitTableAction svg{flex-shrink:0}
 .permitPagination{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 24px;border-top:1px solid #f1f5f9;font-size:11px}
 .mobileCellLabel{display:none}
-@media(max-width:1023px){
+@media(max-width:1199px){
   .permitResultsHeader{padding:16px 18px}
   .permitTable{display:block;min-width:0}
   .permitTable thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

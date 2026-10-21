@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users } from 'lucide-react';
+import { motion, useAnimationControls } from 'framer-motion';
+import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import type { AppointmentDto } from '../../shared/contracts/work-permits';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { Badge, Button } from '../../shared/ui';
@@ -25,6 +27,12 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
   const mode = params.get('calendarMode') === 'week' ? 'week' : 'month';
   const selectedDay = params.has('day') ? calendarDate(params.get('day')) : viewDate;
   const days = calendarDays(viewDate, mode);
+  const reduceMotion = useAppReducedMotion();
+  const periodMotion = useAnimationControls();
+  const dayMotion = useAnimationControls();
+  const periodKey = `${mode}:${days[0]}`;
+  const previousPeriod = useRef(periodKey);
+  const previousDay = useRef(selectedDay);
   const dayButtons = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocus = useRef<string | undefined>(undefined);
   const focusedDay = selectedDay && days.includes(selectedDay) ? selectedDay : days.includes(viewDate) ? viewDate : days[0];
@@ -44,6 +52,28 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
       pendingFocus.current = undefined;
     }
   }, [viewDate, selectedDay, mode]);
+
+  function settlePeriod() { periodMotion.stop(); periodMotion.set({ opacity: 1, y: 0 }); }
+  function settleDay() { dayMotion.stop(); dayMotion.set({ opacity: 1, y: 0 }); }
+  useEffect(() => {
+    const changed = previousPeriod.current !== periodKey;
+    previousPeriod.current = periodKey;
+    // Day-key navigation keeps its focused grid steady; only period controls animate it.
+    if (reduceMotion || !changed || Array.from(dayButtons.current.values()).some(button => button === document.activeElement)) {
+      periodMotion.set({ opacity: 1, y: 0 }); return;
+    }
+    periodMotion.set({ opacity: .65, y: 6 });
+    void periodMotion.start({ opacity: 1, y: 0, transition: { duration: .28, ease: [.22, 1, .36, 1] } });
+    return () => periodMotion.stop();
+  }, [periodMotion, reduceMotion, periodKey]);
+  useEffect(() => {
+    const changed = previousDay.current !== selectedDay;
+    previousDay.current = selectedDay;
+    if (reduceMotion || !selectedDay || !changed) { dayMotion.set({ opacity: 1, y: 0 }); return; }
+    dayMotion.set({ opacity: .6, y: 6 });
+    void dayMotion.start({ opacity: 1, y: 0, transition: { duration: .26, ease: [.22, 1, .36, 1] } });
+    return () => dayMotion.stop();
+  }, [dayMotion, reduceMotion, selectedDay]);
 
   function update(date: string, selected = date, nextMode = mode) {
     setParams(previous => {
@@ -119,7 +149,7 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
       </header>
 
       <p className={styles.calendarHint} id="agenda-calendar-keys">Selecione um dia para consultar os atendimentos. No teclado, use as setas para mudar o dia, Home/End para a semana e Page Up/Page Down para o período.</p>
-      <div className={styles.calendarGrid} role="grid" aria-label={mode === 'month' ? `Calendário de ${capitalizedMonth}` : `Calendário semanal de ${title}`} aria-describedby="agenda-calendar-keys">
+      <motion.div data-agenda-calendar-period className={`${styles.calendarGrid} ${styles.motionArea}`} initial={false} animate={periodMotion} onFocusCapture={settlePeriod} onPointerDownCapture={settlePeriod} role="grid" aria-label={mode === 'month' ? `Calendário de ${capitalizedMonth}` : `Calendário semanal de ${title}`} aria-describedby="agenda-calendar-keys">
         <div className={styles.weekdaysHeader} role="row">
           {WEEKDAYS.map(day => <div className={styles.weekdayCell} key={day} role="columnheader">{day}</div>)}
         </div>
@@ -146,10 +176,10 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {selectedDay && (
-        <section className={`panel stack ${styles.selectedDayPanel}`} aria-label={`Atendimentos em ${selectedLabel}`}>
+        <motion.section data-agenda-day className={`panel stack ${styles.selectedDayPanel} ${styles.motionArea}`} initial={false} animate={dayMotion} onFocusCapture={settleDay} onPointerDownCapture={settleDay} aria-label={`Atendimentos em ${selectedLabel}`}>
           <div className={styles.selectedDayHeader}>
             <div><h3>Atendimentos em {selectedLabel}</h3><p className="muted" role="status">{selectedDayItems.length === 0 ? 'Nenhum atendimento agendado para esta data.' : `${selectedDayItems.length} atendimento(s) agendado(s) · Horário de Brasília`}</p></div>
             <Button variant="ghost" onClick={() => update(viewDate, 'none')}>Fechar detalhe do dia</Button>
@@ -166,7 +196,7 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
               <div className="actions"><Link className="button button--secondary" to={`/app/agenda/${appointment.id}`} state={{ fromSearch }}>Consultar atendimento</Link>{appointment.permitId && can('permits.read') && <Link className="button button--ghost" to={`/app/pts/${encodeURIComponent(appointment.permitId)}`} state={permitAgendaNavigation({ permitAgendaReturnTo: { permitId: appointment.permitId, appointmentId: appointment.id, unitId, sessionKey, source: 'agenda', search: fromSearch } }, sessionKey, unitId, appointment.permitId)}>Ver PT →</Link>}</div>
             </article>)}
           </div>}
-        </section>
+        </motion.section>
       )}
     </div>
   );

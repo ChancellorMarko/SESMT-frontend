@@ -1,6 +1,6 @@
 .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.card{display:flex;flex-direction:column;gap:14px;cursor:pointer;transition:border-color .15s ease}
-.card:hover{border-color:var(--primary)}
+.card{display:flex;flex-direction:column;gap:14px;cursor:pointer;transition:border-color var(--motion-fast),box-shadow var(--motion-normal),translate var(--motion-normal) var(--motion-ease),scale var(--motion-fast) var(--motion-ease)}
+.card:active:not([aria-disabled=true]){scale:.99}
 .cardHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .cardHeader h3{margin:0 0 5px;font-size:15px}
 .cardHeader p{margin:0}
@@ -23,8 +23,14 @@
 .serviceChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
 .serviceChoice{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
 .serviceSelected{border-color:var(--primary);background:var(--surface)}
+.serviceChoice{transition:border-color var(--motion-fast),background-color var(--motion-fast),box-shadow var(--motion-normal)}
+.serviceChoice:focus-within{border-color:#8da9ec;box-shadow:0 0 0 3px #4679ee0d}
 .detailColumns{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(250px,.6fr);align-items:start;gap:20px}
 .legend{font-size:12px;line-height:1.7;color:var(--muted);margin:0}
 .wide{grid-column:1/-1}
 @media(max-width:1000px){.detailColumns{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}
 @media(max-width:700px){.metadata{gap:12px}.serviceChoices{grid-template-columns:1fr}.coverageItem{flex-direction:column;align-items:flex-start;gap:8px}.coverageMeta{text-align:left}}
+@media(hover:hover) and (pointer:fine){.card:hover:not([aria-disabled=true]){border-color:#8da9ec;translate:0 -5px;box-shadow:0 16px 32px -18px #183b6880}.serviceChoice:not(:has(input:disabled)):hover{border-color:#adc0df}}
+@media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) .card{translate:none!important;scale:none!important}}
+:global(:root[data-motion=reduced]) .card{translate:none!important;scale:none!important}
+@media print{.card{translate:none!important;scale:none!important}}

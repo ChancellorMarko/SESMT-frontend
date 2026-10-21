@@ -58,7 +58,9 @@ const routes = [
   { path: '/app/configuracoes/servicos', title: 'Serviços e templates de PT' },
 ];
 
-export function pageTitle(pathname: string): string {
-  const title = matchRoutes(routes, { pathname })?.at(-1)?.route.title ?? 'Página não encontrada';
+export function pageTitle(pathname: string, search = ''): string {
+  const area = pathname === '/app/dashboard' ? new URLSearchParams(search).get('area') : null;
+  const areaTitle = area === 'inspecoes' ? 'Inspeções de segurança' : area === 'saude' ? 'ASOs e NRs' : area === 'epis' ? 'Equipamentos de proteção' : undefined;
+  const title = areaTitle ?? matchRoutes(routes, { pathname })?.at(-1)?.route.title ?? 'Página não encontrada';
   return `${title} — Ampara SESMT`;
 }

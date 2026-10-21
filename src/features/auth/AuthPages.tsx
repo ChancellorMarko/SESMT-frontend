@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
-import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
+import { motion, type HTMLMotionProps } from 'framer-motion';
+import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, Flame, HardHat, HeartPulse, LockKeyhole, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -23,7 +24,7 @@ const profiles: { role: string; label: string; icon: LucideIcon }[] = [
 ];
 
 function AuthButton({ children, variant = 'primary', className = '', ...props }: HTMLMotionProps<'button'> & { variant?: 'primary' | 'ghost' }) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useAppReducedMotion();
   return <motion.button
     type="button"
     whileHover={reducedMotion || props.disabled ? undefined : { y: -1 }}
@@ -45,7 +46,7 @@ function AuthCard({ title, description, children }: { title: string; description
 }
 
 export function AuthLayout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useAppReducedMotion();
   return <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-[#eff2f8] text-slate-800">
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <div className="absolute -left-40 -top-28 size-[560px] rounded-full bg-blue-200/40 blur-[110px]" />
@@ -77,7 +78,7 @@ export function AuthLayout({ children, wide = false }: { children: ReactNode; wi
 export function LoginPage() {
   const session = useSession();
   const navigate = useNavigate();
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useAppReducedMotion();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);

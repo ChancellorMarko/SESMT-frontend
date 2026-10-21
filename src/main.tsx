@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { MotionConfig } from 'framer-motion';
+import { MotionProvider } from './shared/motion/MotionPreferences';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './shared/auth/SessionProvider';
 import { API_MODE } from './shared/api/client';
@@ -21,6 +21,6 @@ async function start() {
   }
   const queryClient=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:30000,refetchOnWindowFocus:false},mutations:{retry:false}}});
   const router = createBrowserRouter([{ path: '*', element: <ProtectedApp /> }]);
-  createRoot(document.getElementById('root')!).render(<MotionConfig reducedMotion="user"><QueryClientProvider client={queryClient}><SessionProvider><RouterProvider router={router} /></SessionProvider></QueryClientProvider></MotionConfig>);
+  createRoot(document.getElementById('root')!).render(<MotionProvider><QueryClientProvider client={queryClient}><SessionProvider><RouterProvider router={router} /></SessionProvider></QueryClientProvider></MotionProvider>);
 }
 start().catch(error=>{console.error('Falha ao inicializar o frontend',error);const root=document.getElementById('root');if(root){root.textContent='Não foi possível iniciar a aplicação. Recarregue a página ou confira a configuração de integração.';root.setAttribute('role','alert');}});

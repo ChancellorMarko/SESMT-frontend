@@ -10,8 +10,8 @@
 
 .toolbarGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:flex-end}
 .viewToggle{display:flex;align-items:center;gap:2px;background:#f3f6fb;border:1px solid #e5ebf4;border-radius:14px;padding:3px}
-.toggleBtn{display:inline-flex;min-height:44px;align-items:center;gap:6px;padding:6px 12px;border:none;background:transparent;color:#64748b;font-size:13px;font-weight:500;border-radius:10px;cursor:pointer;transition:background .15s ease,color .15s ease}
-.toggleBtn:hover{background:#eaf0f9;color:#24466e}
+.toggleBtn{display:inline-flex;min-height:44px;align-items:center;gap:6px;padding:6px 12px;border:none;background:transparent;color:#64748b;font-size:13px;font-weight:500;border-radius:10px;cursor:pointer;transition:background-color var(--motion-fast),color var(--motion-fast),box-shadow var(--motion-normal),scale var(--motion-fast) var(--motion-ease)}
+.toggleBtn:active:not(:disabled){scale:.97}
 .toggleBtn:focus-visible{outline:2px solid #6487c4;outline-offset:2px}
 .toggleBtnActive{background:#fff;color:#24466e!important;font-weight:600;box-shadow:0 2px 8px #3158840b}
 
@@ -29,8 +29,8 @@
 
 .monthDaysGrid{display:flex;flex-direction:column;background:#e9eef6;gap:1px}
 .calendarWeek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px}
-.dayCell{min-height:105px;min-width:0;background:#fff;padding:5px;display:flex;flex-direction:column;gap:6px;transition:background .15s ease}
-.dayCell:hover{background:#f8faff}
+.dayCell{min-height:105px;min-width:0;background:#fff;padding:5px;display:flex;flex-direction:column;gap:6px;transition:background-color var(--motion-fast),outline-color var(--motion-fast)}
+.dayCell:focus-within{background:#f8faff}
 .daySelect{border:0;background:transparent;width:100%;min-width:0;min-height:44px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:2px;padding:2px;color:var(--text);cursor:pointer;border-radius:9px}
 .daySelect:focus-visible{outline:2px solid #6487c4;outline-offset:-2px}
 .otherMonthCell{background:#fafbfd;color:#94a3b8}
@@ -38,12 +38,13 @@
 .selectedDayCell{background:#eff5ff!important;outline:2px solid #8faad5;outline-offset:-2px}
 .selectedDayCell .daySelect{color:#24466e}
 .dayCellHeader{display:flex;align-items:center;justify-content:space-between}
-.dayNumber{font-size:13px;font-weight:600}
+.dayNumber{font-size:13px;font-weight:600;transition:color var(--motion-fast),scale var(--motion-fast) var(--motion-ease)}
+.daySelect:active:not(:disabled) .dayNumber{scale:.9}
 .dayCountBadge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:#315884;color:#fff}
 
 .cellAppointments{display:flex;flex-direction:column;gap:4px;overflow:hidden}
-.eventPill{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;font-size:11px;text-decoration:none;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s}
-.eventPill:hover{opacity:.85}
+.eventPill{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;font-size:11px;text-decoration:none;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity var(--motion-fast),translate var(--motion-normal) var(--motion-ease),box-shadow var(--motion-normal)}
+.eventPill:active:not([aria-disabled=true]){opacity:.8}
 .eventPill:focus-visible{outline:2px solid #6487c4;outline-offset:-2px}
 .eventPillRequested{background:var(--warning-soft,#faf4e7);color:var(--warning,#86601f);border-color:transparent}
 .eventPillConfirmed{background:var(--success-soft,#edf5ef);color:var(--success,#37664b);border-color:transparent}
@@ -58,6 +59,13 @@
 .selectedDayHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .selectedDayHeader h3{margin:0 0 4px;font-size:15px;color:#24466e}
 .selectedDayHeader p{margin:0}
+.motionArea{min-width:0;transform-origin:top center}
+.requestDetails[open]>p{animation:request-details-in .22s ease-out}
+@keyframes request-details-in{from{opacity:.6;translate:0 -3px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) .motionArea{transform:none!important;opacity:1!important}:global(:root:not([data-motion=full])) .requestDetails[open]>p{animation:none}}
+:global(:root[data-motion=reduced]) .motionArea{transform:none!important;opacity:1!important}
+:global(:root[data-motion=reduced]) .requestDetails[open]>p{animation:none}
+@media print{.motionArea{transform:none!important;opacity:1!important}.requestDetails[open]>p{animation:none}}
 
 @media(max-width:800px){
   .timeSection{grid-template-columns:1fr}
@@ -71,3 +79,58 @@
 @media (max-width:700px) {
   .requirementActions { min-width:0; flex-wrap:wrap; }
 }
+
+.serviceChoice,.participantChoice{transition:background-color var(--motion-fast),border-color var(--motion-fast),box-shadow var(--motion-normal)}
+.serviceChoice:focus-within,.participantChoice:focus-within{border-color:#8da9ec;box-shadow:0 0 0 3px #4679ee0d}
+@media(hover:hover) and (pointer:fine){
+  .toggleBtn:hover:not(:disabled):not([aria-pressed=true]){background:#eaf0f9;color:#24466e}
+  .dayCell:hover{background:#f8faff}
+  .eventPill:hover:not([aria-disabled=true]){translate:2px 0;box-shadow:0 3px 8px -5px #183b6870}
+  .serviceChoice:not(:has(input:disabled)):hover,.participantChoice:not(:has(input:disabled)):hover{border-color:#adc0df}
+}
+@media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) :is(.toggleBtn,.dayNumber,.eventPill){translate:none!important;scale:none!important}}
+:global(:root[data-motion=reduced]) :is(.toggleBtn,.dayNumber,.eventPill){translate:none!important;scale:none!important}
+@media print{.toggleBtn,.dayNumber,.eventPill{translate:none!important;scale:none!important}}
+
+.agendaWorkspace{gap:22px;min-width:0}
+.planningHeader{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:22px 28px;min-width:0;padding:25px 28px;border:1px solid #dce5f0;border-radius:25px;background:radial-gradient(ellipse at 100% 0,#e9f1ff99,transparent 55%),#fffefa;box-shadow:0 13px 32px -27px #183b6855,inset 0 1px #fff}
+.planningHeader::before{position:absolute;top:25px;bottom:25px;left:0;width:3px;border-radius:0 3px 3px 0;background:#4679ee;content:''}
+.planningCopy{flex:1 1 340px;min-width:0;max-width:690px}
+.planningEyebrow{display:flex;align-items:center;gap:9px;margin:0 0 10px;color:#607b9f;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;line-height:1.6}
+.planningEyebrow>span{display:grid;place-items:center;width:28px;height:28px;flex-shrink:0;border:1px solid #dce7f7;border-radius:9px;background:#edf3fe;color:#4679ee}
+.planningHeader h1{position:relative;margin:0;color:#183b68;font-size:30px;font-weight:550;letter-spacing:-.045em;line-height:1.2}
+.planningHeader h1[data-page-focus]:focus{outline:0;border-radius:0}
+.planningHeader h1[data-page-focus]:focus::before{position:absolute;top:3px;bottom:3px;left:-14px;width:3px;border-radius:3px;background:#4679ee;content:''}
+.planningDescription{max-width:650px;margin:10px 0 0;color:#687e97;font-size:12px;line-height:1.8}
+.planningActions{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;gap:12px;min-width:0}
+.planningView{display:flex;align-items:center;gap:3px;max-width:100%;padding:4px;border:1px solid #e0e8f4;border-radius:15px;background:#edf2f9}
+.planningToggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;min-width:0;padding:9px 13px;border-radius:11px;color:#71829a;font-size:12px;font-weight:550;line-height:1.5;transition:background .22s,color .22s,box-shadow .22s,transform .22s}
+.planningToggle svg{flex-shrink:0}
+.planningToggle[aria-pressed=true]{color:#183b68;background:#fffefa;box-shadow:0 4px 10px -7px #183b6855,inset 0 1px #fff}
+.planningToggle:focus-visible{outline:3px solid #87a9e6;outline-offset:2px}
+.planningActions>:global(.button){white-space:normal}
+.agendaWorkspace .filterPanel{padding:23px 25px;border-color:#e0e7ef;border-radius:23px;background:#fffefa;box-shadow:0 9px 28px -24px #183b6840}
+.filterPanel :global(.field)>label,.filterPanel :global(.field)>span>label{font-size:11px;color:#5e7592;font-weight:550}
+.filterPanel :global(.field) input,.filterPanel :global(.field) select{border-color:#dfe6f0;background:#fdfefd}
+.filterPanel :global(.field) input:focus,.filterPanel :global(.field) select:focus{border-color:#7fa2df;background:#fff}
+.resultsPanel{min-width:0;overflow:hidden;border:1px solid #dce5ef;border-radius:24px;background:#fffefa;box-shadow:0 12px 30px -25px #183b6845}
+.resultsHeading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:19px 23px;border-bottom:1px solid #e7edf3;background:linear-gradient(100deg,#fffefa,#f6f9fe)}
+.resultsHeading>div{display:flex;align-items:center;gap:11px;min-width:0}
+.resultsIcon{display:grid;place-items:center;width:34px;height:34px;flex-shrink:0;border:1px solid #e0e9f7;border-radius:11px;background:#edf3fc;color:#4679ee}
+.resultsHeading h2{margin:0;color:#2c4d76;font-size:15px;font-weight:600;line-height:1.5}
+.resultsHeading>p{margin:0;padding:5px 9px;border:1px solid #e1e9f3;border-radius:8px;background:#f2f6fc;color:#67809f;font-size:11px;line-height:1.6}
+.agendaTable th{color:#66809e;font-size:11px;letter-spacing:.015em}
+.agendaTable .appointmentRow>td{border-bottom-color:#e8edf3}
+.agendaTable small{margin-top:5px!important;color:#74859a;font-size:11px;line-height:1.7}
+.serviceMark{display:flex;align-items:center;justify-content:center;width:36px;height:36px;margin-top:2px;flex-shrink:0;border:1px solid #e2ebfa;border-radius:12px;background:linear-gradient(135deg,#f2f6fd,#e8effb);color:#5a7fb1}
+.serviceCode{margin-bottom:3px;color:#7c8ea5;font-size:10px;font-weight:600;letter-spacing:.05em;line-height:1.7;overflow-wrap:anywhere}
+.serviceLink{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%;min-height:44px;color:#244d7d;font-size:13px;font-weight:600;line-height:1.7;text-decoration:none}
+.serviceLink:hover{text-decoration:underline;text-underline-offset:4px}
+.agendaTable time{color:#506c8e;line-height:1.7}
+@media(hover:hover) and (pointer:fine){.planningToggle:hover:not([aria-pressed=true]){background:#ffffff9c;color:#315884;transform:translateY(-1px)}.agendaTable .appointmentRow:hover>td{background:#f7faff}}
+@media(max-width:1000px){.planningCopy{flex-basis:100%;max-width:none}.planningActions{width:100%;justify-content:space-between}.planningHeader{gap:19px}.agendaTable :global(.button){font-size:11px;padding-inline:11px}}
+@media(max-width:767px){.agendaTable tbody{background:#f3f6fa!important;padding:13px!important}.agendaTable .appointmentRow{border-color:#e0e7f0;border-radius:18px;background:#fffefa;box-shadow:0 4px 15px -13px #183b6855}.agendaTable .appointmentRow>td{background:transparent}.serviceMark{width:32px;height:32px;border-radius:10px}.serviceLink{font-size:14px}.agendaTable small{font-size:12px}.resultsHeading{padding:18px}.resultsHeading>p{margin-left:45px}.agendaTable :global(.button){font-size:12px}}
+@media(max-width:599px){.agendaWorkspace{gap:18px}.planningHeader{padding:22px;border-radius:22px}.planningHeader h1{font-size:28px}.planningCopy{flex-basis:100%}.planningDescription{font-size:12px}.planningActions{gap:12px}.planningView{width:100%}.planningToggle{flex:1}.planningActions>:global(.button){width:100%;justify-content:space-between}.agendaWorkspace .filterPanel{padding:19px;border-radius:21px}.resultsHeading h2{font-size:14px}.resultsHeading>p{margin-left:0}.resultsPanel{border-radius:21px}}
+@media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) .planningToggle{transition:none;transform:none}}
+:global(:root[data-motion=reduced]) .planningToggle{transition:none;transform:none}
+@media print{.planningHeader,.resultsPanel{border-color:#becbdc;background:#fff;box-shadow:none}.planningHeader{padding:18px;break-inside:avoid}.planningHeader::before,.planningHeader h1::before,.planningActions,.agendaWorkspace .filterPanel{display:none}.planningHeader h1{font-size:26px}.resultsHeading{background:#fff}.agendaTable tbody{background:#fff!important}.agendaTable .appointmentRow{box-shadow:none;break-inside:avoid}}

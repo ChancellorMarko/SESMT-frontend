@@ -1,0 +1,40 @@
+.backdrop {
+  animation: backdrop-enter 280ms ease-out;
+}
+
+.dialog {
+  transform-origin: 50% 45%;
+  animation: dialog-enter 420ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.feedback {
+  animation: message-enter 220ms ease-out;
+}
+
+.emptyState {
+  animation: message-enter 300ms cubic-bezier(.22, 1, .36, 1);
+}
+
+@keyframes backdrop-enter {
+  from { opacity: .45; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-enter {
+  from { opacity: .25; transform: translateY(26px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes message-enter {
+  from { opacity: .65; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(:root:not([data-motion=full])) :is(.backdrop, .dialog, .feedback, .emptyState) { animation: none; }
+}
+:global(:root[data-motion=reduced]) :is(.backdrop, .dialog, .feedback, .emptyState) { animation: none; }
+
+@media print {
+  .backdrop, .dialog, .feedback, .emptyState { animation: none; }
+}

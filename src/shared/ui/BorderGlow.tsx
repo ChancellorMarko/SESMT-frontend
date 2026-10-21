@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { useAppReducedMotion } from '../motion/MotionPreferences';
 import styles from './BorderGlow.module.css';
 
 type GlowVariables = CSSProperties & Record<`--${string}`, string | number>;
@@ -75,11 +75,11 @@ function animateValue({ start = 0, end = 100, duration = 1000, delay = 0, ease =
 /** BorderGlow supplied by the user, adapted to TypeScript and local CSS Modules. */
 export function BorderGlow({ children, className = '', edgeSensitivity = 30, glowColor = '40 80 80', backgroundColor = '#120F17', borderRadius = 28, glowRadius = 40, glowIntensity = 1, coneSpread = 25, animated = false, colors = defaultColors, fillOpacity = .5 }: BorderGlowProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const card = cardRef.current;
-    if (!card || reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches || event.pointerType !== 'mouse' || !window.matchMedia(pointerQuery).matches) return;
+    if (!card || reduceMotion || event.pointerType !== 'mouse' || !window.matchMedia(pointerQuery).matches) return;
     const bounds = card.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return;
     const x = event.clientX - bounds.left, y = event.clientY - bounds.top;

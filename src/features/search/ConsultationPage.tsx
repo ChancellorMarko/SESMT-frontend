@@ -127,7 +127,7 @@ export function ConsultationPage() {
       </div>
 
       {invalidContext && <Feedback tone="danger">O endereço da consulta contém aba ou unidade inválida ou repetida. <Button variant="secondary" onClick={() => switchTab(activeTab!)}>Reiniciar consulta</Button></Feedback>}
-      {allowedTabs.map(tab => <div key={tab} role="tabpanel" id={`${tabsId}-${tab}-panel`} aria-labelledby={`${tabsId}-${tab}`} hidden={activeTab !== tab} tabIndex={0}>
+      {allowedTabs.map(tab => <div key={tab} role="tabpanel" data-consultation-panel data-motion-managed className={styles.tabPanel} id={`${tabsId}-${tab}-panel`} aria-labelledby={`${tabsId}-${tab}`} hidden={activeTab !== tab} tabIndex={0}>
         {activeTab === tab && contextReady && (tab === 'documents' ? <DocumentsSearchTab key={`documents-${sessionKey}-${unitId}`} /> : tab === 'permits' ? <PermitsSearchTab key={`permits-${sessionKey}-${unitId}`} /> : <PreparationSearchTab key={`${tab}-${sessionKey}-${unitId}`} kind={tab} />)}
       </div>)}
     </div>

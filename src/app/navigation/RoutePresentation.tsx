@@ -13,17 +13,19 @@ function visible(element: HTMLElement) {
 
 /** Place before the routed content so print pages can apply their specific title afterwards. */
 export function RoutePresentation({ contextKey }: { contextKey: string }) {
-  const { pathname, hash } = useLocation();
+  const { pathname, search, hash } = useLocation();
+  const title = pageTitle(pathname, search);
+  const screenPath = `${pathname}:${title}`;
   const currentHash = useRef(hash);
   currentHash.current = hash;
   const previousPath = useRef<string | undefined>(undefined);
   const stopPendingFocus = useRef<(() => void) | undefined>(undefined);
 
-  useEffect(() => { document.title = pageTitle(pathname); }, [pathname, contextKey]);
+  useEffect(() => { document.title = title; }, [title, contextKey]);
 
   useEffect(() => {
-    const samePage = previousPath.current === pathname;
-    previousPath.current = pathname;
+    const samePage = previousPath.current === screenPath;
+    previousPath.current = screenPath;
     if (currentHash.current) return;
     // Changing a unit should leave its selector available for further keyboard interaction.
     if (samePage && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) return;
@@ -77,7 +79,7 @@ export function RoutePresentation({ contextKey }: { contextKey: string }) {
     document.addEventListener('focusin', preserveLocalFocus, true);
     schedule();
     return stop;
-  }, [pathname, contextKey]);
+  }, [screenPath, contextKey]);
 
   // Hash navigation belongs to the page/skip-link, including when its data is still loading.
   useEffect(() => { if (hash) stopPendingFocus.current?.(); }, [hash]);

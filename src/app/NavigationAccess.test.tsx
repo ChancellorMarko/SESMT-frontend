@@ -38,6 +38,60 @@ beforeEach(() => {
 
 describe('navegação inicial conforme permissões independentes', () => {
   it.each([
+    { query: 'inspeção segurança', name: 'Inspeções de segurança', to: '/app/dashboard?area=inspecoes' },
+    { query: 'renovar ASO', name: 'ASOs', to: '/app/dashboard?area=saude&healthView=asos' },
+    { query: 'certificados NR', name: 'Capacitações e NRs', to: '/app/dashboard?area=saude&healthView=nrs' },
+    { query: 'capacetes', name: 'EPIs', to: '/app/dashboard?area=epis' },
+  ])('encontra $name na busca por $query sem perder o destino específico', async ({ query, name, to }) => {
+    session.permissions = ['dashboard.read', 'appointments.read'];
+    show('/app/dashboard');
+    await screen.findByRole('heading', { name: 'Painel operacional de teste' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir navegação' }));
+    const menu = within(screen.getByRole('dialog', { name: 'Navegação' }));
+    fireEvent.change(menu.getByRole('textbox', { name: 'Buscar módulos de navegação' }), { target: { value: query } });
+    const destination = menu.getByRole('link', { name });
+    expect(destination).toHaveAttribute('href', to);
+    fireEvent.click(destination);
+    expect(screen.getByTestId('location')).toHaveTextContent(to);
+    expect(screen.queryByRole('dialog', { name: 'Navegação' })).not.toBeInTheDocument();
+  });
+
+  it('não expõe áreas operacionais na busca sem a permissão do painel', async () => {
+    session.permissions = ['documents.read'];
+    show('/app/documentos');
+    await screen.findByRole('heading', { name: 'Documentos de teste' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir navegação' }));
+    const menu = within(screen.getByRole('dialog', { name: 'Navegação' }));
+    fireEvent.change(menu.getByRole('textbox', { name: 'Buscar módulos de navegação' }), { target: { value: 'ASO' } });
+    expect(menu.queryByRole('navigation', { name: 'Áreas de prevenção' })).not.toBeInTheDocument();
+    expect(menu.getByText('Nenhum módulo encontrado. Tente outro termo.')).toBeInTheDocument();
+  });
+  it('indica a visão geral como destino ativo quando a área da URL não existe', async () => {
+    session.permissions = ['dashboard.read', 'appointments.read'];
+    show('/app/dashboard?area=desconhecida');
+    await screen.findByRole('heading', { name: 'Painel operacional de teste' });
+    const shortcuts = within(screen.getByRole('navigation', { name: 'Acesso rápido' }));
+    expect(shortcuts.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    expect(shortcuts.getByRole('link', { name: 'Inspeções' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('abre o guia pelo menu e devolve o foco sem deixar modais sobrepostos', async () => {
+    session.permissions = ['documents.read'];
+    show('/app/documentos');
+    await screen.findByRole('heading', { name: 'Documentos de teste' });
+    const menuTrigger = screen.getByRole('button', { name: 'Abrir navegação' });
+    menuTrigger.focus(); fireEvent.click(menuTrigger);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Navegação' })).getByRole('button', { name: 'Consultar Guia Ampara' }));
+    const guide = screen.getByRole('dialog', { name: 'Guia Ampara' });
+    expect(screen.queryByRole('dialog', { name: 'Navegação' })).not.toBeInTheDocument();
+    expect(guide).toHaveFocus();
+    expect(within(guide).getByRole('link', { name: /Encontrar um documento/ })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(menuTrigger).toHaveFocus();
+  });
+
+  it.each([
     { permissions: ['dashboard.read', 'appointments.read'], path: '/app/dashboard', heading: 'Painel operacional de teste' },
     { permissions: ['dashboard.read'], path: '/app/painel-documental', heading: 'Painel documental de teste' },
     { permissions: ['dashboard.read', 'documents.read'], path: '/app/painel-documental', heading: 'Painel documental de teste' },

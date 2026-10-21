@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { CalendarDays, Clock3, List, Plus, Search } from 'lucide-react';
+import { motion, useAnimationControls } from 'framer-motion';
+import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { AppointmentDto, PermitOptionsDto } from '../../shared/contracts/work-permits';
 import { formatDate } from '../../shared/lib/format';
-import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { AppliedFilters, FilterDisclosure, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { AgendaCalendarView } from './AgendaCalendarView';
 import { AgendaList } from './AgendaList';
@@ -14,11 +16,15 @@ import { calendarDate, calendarToday } from './calendar';
 import { agendaOrderError, agendaOrderLabels, agendaPeriodRange, orderAppointments, type AgendaOrder, type AgendaPeriod } from './agenda-presentation';
 import { AgendaPeriodControls } from './AgendaPeriodControls';
 import { appointmentDateOnly, appointmentLabels, errorMessage } from './support';
+import styles from './Agenda.module.css';
 
 export function AgendaPage() {
   const { unitId, sessionKey, can } = useSession();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const reduceMotion = useAppReducedMotion();
+  const resultsMotion = useAnimationControls();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Search and filter parameters
   const q = params.get('q') || '';
@@ -108,6 +114,16 @@ export function AgendaPage() {
   });
   const orderedAppointments = useMemo(() => orderAppointments(appointments.data || [], order), [appointments.data, order]);
 
+  function settleResults() { resultsMotion.stop(); resultsMotion.set({ opacity: 1, y: 0 }); }
+  useEffect(() => {
+    if (reduceMotion || !contextReady || appointments.isPending || appointments.isError || periodError || orderError || resultsRef.current?.contains(document.activeElement)) {
+      resultsMotion.set({ opacity: 1, y: 0 }); return;
+    }
+    resultsMotion.set({ opacity: .6, y: 8 });
+    void resultsMotion.start({ opacity: 1, y: 0, transition: { duration: .3, ease: [.22, 1, .36, 1] } });
+    return () => resultsMotion.stop();
+  }, [resultsMotion, reduceMotion, contextReady, appointments.isPending, appointments.isError, appointments.dataUpdatedAt, periodError, orderError, view, order]);
+
   const filtered = Boolean(q || status || teamId || responsibleId || serviceTypeId || filterLocation || from || to || blockedOnly);
 
   function change(key: string, value: string) {
@@ -191,17 +207,18 @@ export function AgendaPage() {
   const hasDraftChanges = search.trim() !== q || locationInput.trim() !== filterLocation;
 
   return (
-    <div className="stack">
-      <PageHeader
-        eyebrow="Planejamento e atendimento"
-        title="Agenda de serviços"
-        description="Organize a equipe, o horário e os participantes de cada serviço. A liberação para executar acontece na PT em campo."
-        actions={
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-2xl border border-white/90 bg-white/60 p-1" role="group" aria-label="Visualização da agenda">
+    <div className={`stack ${styles.agendaWorkspace}`}>
+      <header className={styles.planningHeader} data-motion-surface>
+        <div className={styles.planningCopy}>
+          <p className={styles.planningEyebrow}><span aria-hidden="true"><CalendarDays size={16} /></span>Planejamento e atendimento</p>
+          <h1>Agenda de serviços</h1>
+          <p className={styles.planningDescription}>Organize a equipe, o horário e os participantes de cada serviço. A liberação para executar acontece na PT em campo.</p>
+        </div>
+        <div className={styles.planningActions}>
+            <div className={styles.planningView} role="group" aria-label="Visualização da agenda">
               <button
                 type="button"
-                className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-xs font-medium transition-colors ${view === 'list' ? 'bg-white text-[#315884] shadow-[0_4px_14px_-6px_rgba(68,94,181,.3)]' : 'text-slate-500 hover:bg-white/50'}`}
+                className={styles.planningToggle}
                 onClick={() => setView('list')}
                 aria-pressed={view === 'list'}
               >
@@ -209,7 +226,7 @@ export function AgendaPage() {
               </button>
               <button
                 type="button"
-                className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-xs font-medium transition-colors ${view === 'calendar' ? 'bg-white text-[#315884] shadow-[0_4px_14px_-6px_rgba(68,94,181,.3)]' : 'text-slate-500 hover:bg-white/50'}`}
+                className={styles.planningToggle}
                 onClick={() => setView('calendar')}
                 aria-pressed={view === 'calendar'}
               >
@@ -221,11 +238,10 @@ export function AgendaPage() {
                 <Plus size={16} aria-hidden="true" />Agendar serviço
               </Link>
             )}
-          </div>
-        }
-      />
+        </div>
+      </header>
 
-      <form noValidate className="panel flex flex-col gap-4" onSubmit={handleSearchSubmit} role="search" aria-label="Filtros da agenda">
+      <form noValidate className={`panel flex flex-col gap-4 ${styles.filterPanel}`} onSubmit={handleSearchSubmit} role="search" aria-label="Filtros da agenda">
         <div className={`grid items-end gap-3 ${can('eligibility.read') ? 'md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'}`}>
           <Field label="Buscar atendimento">
             <div className="relative"><Search size={16} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" aria-hidden="true" /><input
@@ -319,6 +335,7 @@ export function AgendaPage() {
         <p className="!m-0 flex items-center gap-1.5 text-[10px] leading-5 text-slate-500"><Clock3 size={12} aria-hidden="true" />Horários no fuso de Brasília (America/Sao_Paulo)</p>
       </form>
 
+      <motion.div ref={resultsRef} data-agenda-results data-motion-managed className={styles.motionArea} initial={false} animate={resultsMotion} onFocusCapture={settleResults} onPointerDownCapture={settleResults}>
       {periodError || orderError ? (
         <div className="panel stack"><Feedback tone="warning">{periodError ? 'Confira as datas do período para consultar a agenda.' : orderError}</Feedback><EmptyState title="Corrija os filtros da agenda" description={periodError ? 'A consulta será realizada depois de informar um período válido.' : 'Escolha uma ordenação válida para consultar os atendimentos.'} /></div>
       ) : !contextReady || appointments.isPending ? (
@@ -340,14 +357,15 @@ export function AgendaPage() {
           description={filtered ? 'Ajuste a pesquisa ou limpe os filtros para encontrar outros registros.' : 'Agende um serviço para organizar o próximo atendimento da equipe.'}
         />
       ) : (
-          <section aria-label="Resultados da agenda" aria-busy={appointments.isFetching} className="overflow-hidden rounded-3xl border border-white/90 bg-white/85 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-              <div className="flex items-center gap-2.5"><CalendarDays size={16} className="text-[#6582b0]" aria-hidden="true" /><h2 className="!m-0 !text-[14px] text-[#315884]">Atendimentos da unidade</h2></div>
-              <p role="status" className="!m-0 text-[11px] text-slate-500">{appointments.isFetching ? 'Atualizando agenda…' : `${appointments.data.length} atendimento(s) encontrado(s)`}</p>
+          <section aria-label="Resultados da agenda" aria-busy={appointments.isFetching} className={styles.resultsPanel}>
+            <div className={styles.resultsHeading}>
+              <div><span className={styles.resultsIcon} aria-hidden="true"><CalendarDays size={18} /></span><h2>Atendimentos da unidade</h2></div>
+              <p role="status">{appointments.isFetching ? 'Atualizando agenda…' : `${appointments.data.length} atendimento(s) encontrado(s)`}</p>
             </div>
             <AgendaList appointments={orderedAppointments} searchString={location.search} canReadPermits={can('permits.read')} />
           </section>
       )}
+      </motion.div>
     </div>
   );
 }

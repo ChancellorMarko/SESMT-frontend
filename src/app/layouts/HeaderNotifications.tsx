@@ -5,6 +5,7 @@ import { Bell } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { checkedPage, isRecord, shortText } from '../../shared/lib/scoped-page';
+import styles from './HeaderNotifications.module.css';
 
 type UnreadNotice = { id: string; readAt?: undefined };
 
@@ -33,12 +34,12 @@ export function HeaderNotifications({ className }: { className?: string }) {
   const total = enabled && !unread.isError && unread.isSuccess ? verifiedTotal : undefined;
 
   if (!allowed) return null;
-  return <Link to="/app/notificacoes" className={`${className || ''} relative`} aria-label="Abrir notificações" aria-describedby={total === undefined ? undefined : descriptionId} title="Abrir notificações">
-    <Bell size={18} aria-hidden="true" />
+  return <Link to="/app/notificacoes" className={`${className || ''} ${styles.trigger} relative`} aria-label="Abrir notificações" aria-describedby={total === undefined ? undefined : descriptionId} title="Abrir notificações">
+    <Bell className={styles.bell} size={18} aria-hidden="true" />
     {total !== undefined && <span id={descriptionId} className="sr-only">{total === 0 ? 'Nenhuma notificação não lida.' : `${total} ${total === 1 ? 'notificação não lida' : 'notificações não lidas'}.`}</span>}
     {total !== undefined && total > 0 && <>
-      <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[#eff2f8] bg-indigo-600 px-0.5 text-[8px] font-semibold leading-none text-white">{total > 99 ? '99+' : total}</span>
-      <span aria-hidden="true" className="absolute bottom-1 right-1 size-1.5 rounded-full bg-indigo-500 motion-safe:animate-pulse" />
+      <span key={`${sessionKey}:${unitId}:${total}`} data-notification-count={total} aria-hidden="true" className={`${styles.count} absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[#fffefa] bg-[#4679ee] px-0.5 text-[8px] font-semibold leading-none text-white`}>{total > 99 ? '99+' : total}</span>
+      <span aria-hidden="true" className="absolute bottom-1 right-1 size-1.5 rounded-full bg-[#4679ee]" />
     </>}
   </Link>;
 }

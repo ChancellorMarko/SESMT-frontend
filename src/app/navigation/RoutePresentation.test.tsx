@@ -1,6 +1,6 @@
 import { createContext, Suspense, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { createMemoryRouter, Route, RouterProvider, Routes } from 'react-router';
+import { createMemoryRouter, Route, RouterProvider, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoutePresentation } from './RoutePresentation';
 
@@ -43,6 +43,11 @@ function NavigationModal() {
   return <div ref={dialog} role="dialog" aria-modal="true" aria-label="Navegação" tabIndex={-1}>Menu de navegação</div>;
 }
 
+function DashboardDestination() {
+  const area = new URLSearchParams(useLocation().search).get('area');
+  return <Destination key={area} title={area === 'inspecoes' ? 'Inspeções de segurança' : area === 'saude' ? 'ASOs e NRs' : 'Visão geral'} />;
+}
+
 function Harness() {
   const configuration = useContext(ConfigurationContext);
   return <>
@@ -51,6 +56,7 @@ function Harness() {
       <RoutePresentation contextKey={configuration.contextKey} />
       <main id="conteudo" tabIndex={-1}>
         <Routes>
+          <Route path="/app/dashboard" element={<DashboardDestination />} />
           <Route path="/app/documentos" element={<Destination title="Documentos" delayed />} />
           <Route path="/app/agenda" element={<Destination title="Agenda de serviços" />} />
           <Route path="/app/trabalhadores/w1" element={<HashDestination />} />
@@ -102,6 +108,19 @@ async function navigate(router: ReturnType<typeof createMemoryRouter>, path: str
 }
 
 describe('apresentação acessível das rotas', () => {
+  it('anuncia a troca de área do dashboard sem interromper suas abas internas', async () => {
+    const { router } = show('/app/dashboard?area=inspecoes');
+    await flushFrames();
+    expect(document.title).toBe('Inspeções de segurança — Ampara SESMT');
+    screen.getByRole('combobox', { name: 'Unidade de trabalho' }).focus();
+    await navigate(router, '/app/dashboard?area=saude');
+    expect(screen.getByRole('heading', { name: 'ASOs e NRs' })).toHaveFocus();
+    expect(document.title).toBe('ASOs e NRs — Ampara SESMT');
+    const input = screen.getByRole('textbox'); input.focus();
+    await navigate(router, '/app/dashboard?area=saude&healthView=nrs');
+    expect(input).toHaveFocus();
+    expect(document.title).toBe('ASOs e NRs — Ampara SESMT');
+  });
   it('identifica a página na aba e foca o título ao concluir a navegação', async () => {
     show();
     await flushFrames();

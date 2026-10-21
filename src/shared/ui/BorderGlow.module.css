@@ -153,7 +153,7 @@
   outline-offset: 3px;
 }
 
-@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+@media (hover: none), (pointer: coarse) {
   .root {
     transform: none;
   }
@@ -165,6 +165,17 @@
     transition: none;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :global(:root:not([data-motion=full])) .root { transform: none; }
+  :global(:root:not([data-motion=full])) .root::before,
+  :global(:root:not([data-motion=full])) .root::after,
+  :global(:root:not([data-motion=full])) .root > .edgeLight { display: none; transition: none; }
+}
+:global(:root[data-motion=reduced]) .root { transform: none; }
+:global(:root[data-motion=reduced]) .root::before,
+:global(:root[data-motion=reduced]) .root::after,
+:global(:root[data-motion=reduced]) .root > .edgeLight { display: none; transition: none; }
 
 @media (forced-colors: active) {
   .root {

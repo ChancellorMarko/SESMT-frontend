@@ -46,6 +46,9 @@
     --info-soft: #edf2ff;
     --radius: 24px;
     --shadow: 0 12px 40px -24px rgba(68, 94, 181, .2);
+    --motion-fast: 180ms;
+    --motion-normal: 320ms;
+    --motion-ease: cubic-bezier(.22, 1, .36, 1);
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
@@ -67,14 +70,15 @@
     @apply w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800;
     border-style: solid;
     outline-offset: 1px;
-    transition: border-color .15s, box-shadow .15s;
+    transition: border-color var(--motion-fast), box-shadow var(--motion-normal), background-color var(--motion-fast);
   }
   input::placeholder, textarea::placeholder { color: #8795a8; }
   input:focus, select:focus, textarea:focus { border-color: #8da9ec; box-shadow: 0 0 0 3px #4679ee0d; }
   textarea { min-height: 100px; resize: vertical; }
-  input[type=checkbox], input[type=radio] { width: 17px; height: 17px; accent-color: var(--primary); }
+  input[type=checkbox], input[type=radio] { width: 17px; height: 17px; accent-color: var(--primary); transition: scale var(--motion-fast) var(--motion-ease); }
+  input:is([type=checkbox], [type=radio]):active:not(:disabled) { scale: .9; }
   input[type=file] { font-size: 12px; }
-  input[type=file]::file-selector-button { border: 0; background: #edf2ff; color: var(--primary); padding: 8px 12px; margin-right: 10px; border-radius: 8px; cursor: pointer; }
+  input[type=file]::file-selector-button { border: 0; background: #edf2ff; color: var(--primary); padding: 8px 12px; margin-right: 10px; border-radius: 8px; cursor: pointer; transition: background-color var(--motion-fast), color var(--motion-fast); }
   hr { border: 0; border-top: 1px solid var(--border); margin: 22px 0; }
 }
 
@@ -89,18 +93,17 @@
   .button {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-2.5 text-[13px] font-semibold no-underline;
     max-width: 100%; min-width: 0; border-style: solid; line-height: 1.4; white-space: normal; text-align: center; overflow-wrap: anywhere;
-    transition: background .2s, color .2s, border-color .2s;
+    transition: background-color var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-normal), translate var(--motion-normal) var(--motion-ease), scale var(--motion-fast) var(--motion-ease);
   }
   .button > svg { flex-shrink: 0; }
+  .button > svg:not(.spin) { transition: translate var(--motion-normal) var(--motion-ease); }
+  .button:active:not(:disabled):not([aria-disabled=true]) { translate: 0 0; scale: .98; }
+  .button[aria-disabled=true] { opacity: .55; cursor: not-allowed; }
   .stack > .button { align-self: flex-start; }
   .button--primary { @apply bg-ampara-900 text-white; border-color: transparent; }
-  .button--primary:hover:not(:disabled) { @apply bg-ampara-950; }
   .button--secondary { @apply border-slate-200 bg-white/80 text-slate-700; }
-  .button--secondary:hover:not(:disabled) { @apply border-indigo-200 bg-indigo-50/70; }
   .button--ghost { @apply bg-transparent text-slate-500 shadow-none; }
-  .button--ghost:hover:not(:disabled) { @apply bg-indigo-50 text-ampara-900; }
   .button--danger { @apply border-rose-200 bg-white/80 text-rose-700; }
-  .button--danger:hover:not(:disabled) { @apply border-rose-300 bg-rose-50; }
   .actions { @apply flex flex-wrap items-center gap-2; }
   .panel { @apply min-w-0 rounded-3xl border border-white/80 bg-white/85 p-6 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)] backdrop-blur-md; border-style: solid; }
   .stack { @apply flex flex-col gap-5; }
@@ -110,7 +113,12 @@
   .toolbar .field { min-width: 140px; flex: 1; }
   .form-grid { @apply grid grid-cols-2 gap-[18px]; }
   .field { @apply flex min-w-0 flex-col gap-2 text-xs font-medium text-slate-600; }
+  .field > label, .field > span:first-child { transition: color var(--motion-fast); }
+  .field:focus-within > label, .field:focus-within > span:first-child { color: var(--brand-navy); }
   .field-error { color: var(--danger); font-size: 11px; font-weight: 450; }
+  #conteudo details > summary { cursor: pointer; transition: color var(--motion-fast); }
+  #conteudo details > summary:focus-visible { outline: 3px solid #779ae9; outline-offset: 3px; border-radius: 4px; }
+  #conteudo details[open] > :not(summary) { animation: details-enter 180ms ease-out; }
   .field input, .field select, .field textarea { font-size: 13px; font-weight: 400; }
   .badge { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium; line-height: 1.4; white-space: nowrap; }
   .badge--success { color: var(--success); background: var(--success-soft); }
@@ -123,9 +131,10 @@
   .data-table th { @apply whitespace-nowrap border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500; border-bottom-style: solid; }
   .data-table td { @apply border-b border-slate-100 px-4 py-4 align-middle; border-bottom-style: solid; }
   .data-table tr:last-child td { border-bottom: 0; }
-  .data-table tbody tr:hover { background: #f5f7fd; }
+  .data-table tbody tr { transition: background-color var(--motion-fast); }
+  .data-table tbody tr:focus-within { background: #f5f7fd; }
   .data-table td > a:not(.button) { font-weight: 550; text-decoration: none; }
-  .data-table td > a:not(.button):hover { text-decoration: underline; }
+  .data-table td > a:not(.button):focus-visible { text-decoration: underline; }
   .data-table td small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
   .feedback { @apply rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs text-indigo-900; border-style: solid; line-height: 1.65; }
   .feedback--danger { @apply border-rose-100 bg-rose-50 text-rose-800; }
@@ -137,8 +146,8 @@
   .loading { @apply flex items-center justify-center gap-3 p-8 text-xs text-slate-500; }
   .spin { animation: spin 1s linear infinite; }
   .tabs { @apply mb-5 flex flex-wrap gap-1 rounded-2xl bg-slate-100/70 p-1; }
-  .tabs button { @apply min-h-11 rounded-xl border-0 bg-transparent px-4 py-2.5 text-xs text-slate-500; }
-  .tabs button:hover { @apply text-ampara-900; }
+  .tabs button { @apply min-h-11 rounded-xl border-0 bg-transparent px-4 py-2.5 text-xs text-slate-500; transition: background-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-normal), scale var(--motion-fast) var(--motion-ease); }
+  .tabs button:active:not(:disabled):not([aria-disabled=true]) { scale: .97; }
   .tabs button[aria-selected=true], .tabs button[aria-pressed=true], .tabs button.active,
   .tabs button[aria-selected=true]:hover, .tabs button[aria-pressed=true]:hover, .tabs button.active:hover { @apply bg-white font-semibold text-ampara-900 shadow-[0_4px_12px_-8px_rgba(68,94,181,.4)]; }
   .modal-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-ampara-950/35 p-6 backdrop-blur-md; }
@@ -152,6 +161,20 @@
   .error-page h1 { font-size: 32px; }
   .error-page p { max-width: 450px; margin: 20px auto; color: var(--muted); }
   .table-scroll-hint { display: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .button:hover:not(:disabled):not([aria-disabled=true]) { translate: 0 -4px; scale: 1.02; box-shadow: 0 12px 24px -10px #183b6860; }
+    .button:hover:not(:disabled):not([aria-disabled=true]) > svg:not(.spin) { translate: 0 -2px; }
+    .button--primary:hover:not(:disabled):not([aria-disabled=true]) { @apply bg-ampara-950; box-shadow: 0 12px 28px -9px #183b6890, 0 0 0 4px #4679ee12; }
+    .button--secondary:hover:not(:disabled):not([aria-disabled=true]) { @apply border-indigo-200 bg-indigo-50/70; }
+    .button--ghost:hover:not(:disabled):not([aria-disabled=true]) { @apply bg-indigo-50 text-ampara-900; box-shadow: none; }
+    .button--danger:hover:not(:disabled):not([aria-disabled=true]) { @apply border-rose-300 bg-rose-50; }
+    .button:active:not(:disabled):not([aria-disabled=true]) { translate: 0 0; scale: .97; }
+    input:not(:disabled):not([readonly]):not(:focus):hover, select:not(:disabled):not(:focus):hover, textarea:not(:disabled):not([readonly]):not(:focus):hover { border-color: #adc0df; }
+    input[type=file]:not(:disabled):hover::file-selector-button { background: #dfe9ff; }
+    .data-table tbody tr:hover { background: #f5f7fd; }
+    .data-table td > a:not(.button):hover { text-decoration: underline; }
+    .tabs button:hover:not(:disabled):not([aria-disabled=true]):not([aria-selected=true]):not([aria-pressed=true]):not(.active) { @apply text-ampara-900; background-color: #ffffff90; }
+  }
   @media (max-width: 700px) {
     .page-header { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 22px; }
     .panel { padding: 18px; }
@@ -168,8 +191,12 @@
   }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes details-enter { from { opacity: .6; } to { opacity: 1; } }
 @media (max-width: 700px) { h1 { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  :root:not([data-motion=full]) *, :root:not([data-motion=full]) *::before, :root:not([data-motion=full]) *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  :root:not([data-motion=full]) :is(.button, .button > svg:not(.spin), .tabs button, input:is([type=checkbox], [type=radio])) { translate: none !important; scale: none !important; }
 }
-@media print { html { scroll-padding-top: 0; } }
+:root[data-motion=reduced] *, :root[data-motion=reduced] *::before, :root[data-motion=reduced] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+:root[data-motion=reduced] :is(.button, .button > svg:not(.spin), .tabs button, input:is([type=checkbox], [type=radio])) { translate: none !important; scale: none !important; }
+@media print { html { scroll-padding-top: 0; } .button, .button > svg:not(.spin), .tabs button { translate: none !important; scale: none !important; } #conteudo details[open] > :not(summary) { animation: none; } }

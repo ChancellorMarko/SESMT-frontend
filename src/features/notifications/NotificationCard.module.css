@@ -1,0 +1,36 @@
+.card {
+  background: #fffefa;
+  transition: border-color 240ms ease, background-color 240ms ease, box-shadow 240ms ease;
+  animation: notice-enter 320ms cubic-bezier(.22, 1, .36, 1);
+}
+.card[data-notification-state=unread] { border-color: #dbe5f3; }
+.card[data-notification-state=read] { border-color: #e6e8e4; }
+.card:focus-within { border-color: #adc4e6; animation: none; }
+.icon, .card :global(.badge) { transition: background-color 240ms ease, color 240ms ease; }
+.readReceipt { animation: receipt-enter 240ms ease-out; }
+.recordLink { border-radius: 4px; transition: color 160ms ease; }
+.arrow { display: inline-block; transition: translate 240ms cubic-bezier(.22, 1, .36, 1); }
+.recordLink:focus-visible { color: #244d8c; }
+.recordLink:focus-visible .arrow { translate: 3px 0; }
+@media (hover: hover) and (pointer: fine) {
+  .recordLink:hover { color: #244d8c; }
+  .recordLink:hover .arrow { translate: 3px 0; }
+}
+@keyframes notice-enter {
+  from { opacity: .65; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes receipt-enter {
+  from { opacity: .6; translate: 0 3px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :global(:root:not([data-motion=full])) :is(.card, .icon, .card :global(.badge), .readReceipt, .recordLink, .arrow) { animation: none; transition: none; }
+  :global(:root:not([data-motion=full])) .arrow { translate: none !important; }
+}
+:global(:root[data-motion=reduced]) :is(.card, .icon, .card :global(.badge), .readReceipt, .recordLink, .arrow) { animation: none; transition: none; }
+:global(:root[data-motion=reduced]) .arrow { translate: none !important; }
+@media print {
+  .card, .readReceipt { animation: none; }
+  .arrow { translate: none !important; }
+}

@@ -1,6 +1,7 @@
-import { Children, cloneElement, isValidElement, useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
+import { Children, cloneElement, isValidElement, useLayoutEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { X, LoaderCircle, Inbox } from 'lucide-react';
+import motionStyles from './ui-motion.module.css';
 
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
   return <button type="button" {...props} className={`button button--${variant} ${className}`} />;
@@ -47,16 +48,16 @@ export function Field({ label, error, required, children }: { label: string; err
   const message = error && <span className="field-error" id={`${generatedId}-error`} role="alert">{error}</span>;
   return controlId ? <div className="field">{indicator ? <span>{caption}{indicator}</span> : caption}{content}{requirement}{message}</div> : <label className="field"><span>{label}</span>{content}{message}</label>;
 }
-export function Feedback({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) { return <div className={`feedback feedback--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>{children}</div>; }
-export function EmptyState({ title, description }: { title: string; description?: string }) { return <div className="empty-state"><Inbox size={32} aria-hidden="true" /><h3>{title}</h3>{description && <p className="muted">{description}</p>}</div>; }
+export function Feedback({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) { return <div className={`feedback feedback--${tone} ${motionStyles.feedback}`} role={tone === 'danger' ? 'alert' : 'status'}>{children}</div>; }
+export function EmptyState({ title, description }: { title: string; description?: string }) { return <div className={`empty-state ${motionStyles.emptyState}`}><Inbox size={32} aria-hidden="true" /><h3>{title}</h3>{description && <p className="muted">{description}</p>}</div>; }
 export function Spinner() { return <div className="loading" role="status"><LoaderCircle className="spin" size={22} aria-hidden="true" /> Carregando informações…</div>; }
 type ModalLayer = { dialog: RefObject<HTMLDivElement|null>; previous: HTMLElement|null };
 const modalLayers:ModalLayer[]=[];
 let unlockedOverflow='';
-export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ open, title, onClose, children, className = '' }: { open: boolean; title: string; onClose: () => void; children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null); const titleId = useId();
   const closeRef=useRef(onClose); closeRef.current=onClose;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const layer:ModalLayer={dialog:ref,previous:document.activeElement as HTMLElement|null};
     if(!modalLayers.length) unlockedOverflow=document.body.style.overflow;
@@ -98,5 +99,5 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
     };
   }, [open]);
   if (!open) return null;
-  return createPortal(<div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><div className="modal" ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><div className="modal-header"><h2 id={titleId}>{title}</h2><Button variant="ghost" aria-label="Fechar janela" onClick={onClose}><X size={20} /></Button></div>{children}</div></div>, document.body);
+  return createPortal(<div className={`modal-backdrop ${motionStyles.backdrop}`} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><div className={`modal ${className || motionStyles.dialog}`} ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><div className="modal-header"><h2 id={titleId}>{title}</h2><Button variant="ghost" aria-label="Fechar janela" onClick={onClose}><X size={20} /></Button></div>{children}</div></div>, document.body);
 }

@@ -1,0 +1,17 @@
+.content { overflow: hidden; }
+.content[data-expanded] { overflow: visible; }
+.chip { animation: chip-enter 220ms cubic-bezier(.22,1,.36,1); transition: background-color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-normal), scale var(--motion-fast); }
+.chip:focus-visible { border-color: #8da9ec; background: #edf3ff; }
+.chip:active { scale: .97; }
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover { border-color: #b5c9ee; background: #e5edfc; box-shadow: 0 4px 12px -8px #183b6860; }
+}
+@keyframes chip-enter { from { opacity: .5; scale: .96; } to { opacity: 1; scale: 1; } }
+@media (max-width: 700px) { .chip { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { :global(:root:not([data-motion=full])) .chip { animation: none; transition: none; scale: none !important; } }
+:global(:root[data-motion=reduced]) .chip { animation: none; transition: none; scale: none !important; }
+@media print {
+  .content { height: auto !important; opacity: 1 !important; overflow: visible; }
+  .content[aria-hidden=true] { display: none !important; }
+  .chip { animation: none; scale: none !important; }
+}

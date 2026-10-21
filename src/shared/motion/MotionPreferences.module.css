@@ -1,0 +1,15 @@
+.root { display: flex; min-width: 0; flex-direction: column; gap: 18px; }
+.description { margin: 0; color: #6d7c90; font-size: 13px; line-height: 1.7; }
+.choices { display: grid; min-width: 0; gap: 10px; margin: 0; padding: 0; border: 0; }
+.choice { display: flex; min-height: 84px; min-width: 0; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e0e6ee; border-radius: 16px; background: #fffefa; cursor: pointer; transition: border-color .2s, background-color .2s, box-shadow .2s; }
+.choice input { flex-shrink: 0; }
+.choice:has(input:checked) { border-color: #7fa2ed; background: #f0f5ff; box-shadow: 0 0 0 1px #4679ee20; }
+.choice:focus-within { outline: 3px solid #779ae9; outline-offset: 3px; }
+.icon { display: grid; width: 38px; height: 38px; flex-shrink: 0; place-items: center; border-radius: 12px; background: #eaf0fc; color: #4679ee; }
+.choice strong { display: block; color: #183b68; font-size: 13px; font-weight: 600; }
+.choice small { display: block; margin-top: 5px; color: #6b7c91; font-size: 11px; line-height: 1.6; }
+.status { margin: 0; padding: 12px 14px; border-radius: 12px; background: #f4f5f1; color: #5d7190; font-size: 12px; line-height: 1.7; }
+@media (hover: hover) and (pointer: fine) { .choice:hover { border-color: #a6bfea; background: #f6f8ff; } }
+@media (max-width: 440px) { .choice { gap: 10px; padding: 12px; }.icon { width: 32px; height: 32px; } }
+:global(:root[data-motion=reduced]) .choice { transition: none; }
+@media print { .choice { transition: none; } }

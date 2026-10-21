@@ -15,9 +15,9 @@ function Location() {
   return <output data-testid="location">{location.pathname}{location.search}</output>;
 }
 
-function show() {
+function show(query = '') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={['/app/dashboard?area=epis']}><OperationsDashboardPage /><Location /></MemoryRouter></QueryClientProvider>;
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[`/app/dashboard${query}`]}><OperationsDashboardPage /><Location /></MemoryRouter></QueryClientProvider>;
   const view = render(tree());
   return { ...view, update: () => view.rerender(tree()) };
 }
@@ -45,6 +45,13 @@ beforeEach(() => {
 });
 
 describe('atalhos contextuais do painel operacional', () => {
+  it.each(['inspecoes', 'saude', 'epis'])('mantém o painel %s independente das consultas e filtros operacionais gerais', area => {
+    show(`?area=${area}`);
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Operação da unidade selecionada' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Pesquisar na plataforma')).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalled();
+  });
   it('abre a agenda com o período, equipe, serviço e local usados no painel', async () => {
     show(); await applyContext();
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/permit-dashboard', expect.objectContaining({ query: {
