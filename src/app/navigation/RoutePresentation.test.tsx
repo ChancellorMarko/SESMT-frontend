@@ -115,11 +115,11 @@ describe('apresentação acessível das rotas', () => {
     screen.getByRole('combobox', { name: 'Unidade de trabalho' }).focus();
     await navigate(router, '/app/dashboard?area=saude');
     expect(screen.getByRole('heading', { name: 'ASOs e NRs' })).toHaveFocus();
-    expect(document.title).toBe('ASOs e NRs — Ampara SESMT');
+    expect(document.title).toBe('Saúde ocupacional e capacitações — Ampara SESMT');
     const input = screen.getByRole('textbox'); input.focus();
     await navigate(router, '/app/dashboard?area=saude&healthView=nrs');
     expect(input).toHaveFocus();
-    expect(document.title).toBe('ASOs e NRs — Ampara SESMT');
+    expect(document.title).toBe('Saúde ocupacional e capacitações — Ampara SESMT');
   });
   it('identifica a página na aba e foca o título ao concluir a navegação', async () => {
     show();

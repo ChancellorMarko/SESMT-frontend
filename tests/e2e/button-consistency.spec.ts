@@ -99,7 +99,7 @@ for (const width of [1440, 768, 320]) {
       ['/app/equipes/novo', 'Nova equipe'],
       ['/app/agenda', 'Agenda de serviços'],
       ['/app/agenda/novo', 'Agendar serviço'],
-      ['/app/pts', 'Permissões de trabalho'],
+      ['/app/pts', 'Permissões de trabalho (PT)'],
       ['/app/vencimentos?q=PGR', 'Vencimentos'],
       ['/app/notificacoes?read=false', 'Notificações'],
       ['/app/auditoria?action=DOCUMENT_CREATED', 'Auditoria'],

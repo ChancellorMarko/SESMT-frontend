@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { api, ApiError } from '../../shared/api/client';
@@ -8,6 +8,8 @@ import type { WorkAuthorizationDto } from '../../shared/contracts/work-authoriza
 import type { ConfinedSpacePermitDto } from '../../shared/contracts/confined-space-permits';
 import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { authorizationLabels, authorizationTones } from '../authorizations/support';
+import { ConsultationSearchHeading, PendingSearchChanges } from './ConsultationSearchTools';
+import styles from './Consultation.module.css';
 
 type Kind = 'ats' | 'pets';
 type RecordDto = WorkAuthorizationDto | ConfinedSpacePermitDto;
@@ -86,6 +88,8 @@ function PreparationSearchContent({ kind }: { kind: Kind }) {
   const appliedError = criteriaError(params, kind);
   const unitMatches = Boolean(unitId && params.get('unitId') === unitId);
   const [search, setSearch] = useState(rawSearch), [draftStatus, setDraftStatus] = useState(status), [draftError, setDraftError] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
+  const draftChanged = search !== rawSearch || kind === 'ats' && draftStatus !== status;
   useEffect(() => { setSearch(rawSearch); setDraftStatus(status); setDraftError(''); }, [location.search]);
   const enabled = allowed && unitMatches && !appliedError;
   const queryKey = [...scope, page, q, ...(kind === 'ats' ? [status] : [])];
@@ -116,6 +120,11 @@ function PreparationSearchContent({ kind }: { kind: Kind }) {
   function clear() {
     const next = new URLSearchParams({ tab: kind }); if (unitId) next.set('unitId', unitId);
     setSearch(''); setDraftStatus(''); setDraftError(''); setParams(next);
+    searchInput.current?.focus({ preventScroll: true });
+  }
+  function discardDraft() {
+    setSearch(rawSearch); setDraftStatus(status); setDraftError('');
+    searchInput.current?.focus({ preventScroll: true });
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -141,12 +150,16 @@ function PreparationSearchContent({ kind }: { kind: Kind }) {
   const searchLabel = kind === 'ats' ? 'Buscar AT por código/atendimento/equipe/local' : 'Buscar PET por código/espaço/tarefa';
   const from = { fromConsulta: true, fromSearch: location.search, fromUnitId: unitId };
   return <section className="stack" aria-label={`Consulta de ${label}`}>
-    <Feedback tone="info">{kind === 'pets' ? 'A PET permanece como rascunho de preparação. A entrada não está autorizada.' : 'Consulta dos registros de AT. A autorização de uma AT não libera uma PT.'}</Feedback>
-    <form className="panel form-grid" aria-label={`Filtros de consulta de ${label}`} onSubmit={submit}>
-      <Field label={searchLabel}><input type="search" value={search} maxLength={200} disabled={blocked} onChange={event => setSearch(event.target.value)} /></Field>
+    <Feedback tone="info">{kind === 'pets' ? 'A permissão de entrada e trabalho (PET) permanece como rascunho de preparação. A entrada não está autorizada.' : 'Consulta de autorizações de trabalho (AT). Autorizar uma AT não libera uma permissão de trabalho (PT).'}</Feedback>
+    <form className={`panel stack ${styles.searchPanel} ${styles.searchForm}`} aria-label={`Filtros de consulta de ${label}`} onSubmit={submit}>
+      <ConsultationSearchHeading title={kind === 'ats' ? 'Pesquisar autorizações de trabalho (AT)' : 'Pesquisar preparações de entrada e trabalho (PET)'} description={kind === 'ats' ? 'Código, atendimento, equipe ou local.' : 'Código, espaço e tarefa prevista para a preparação.'} />
+      <div className={`form-grid ${styles.preparationGrid}`}>
+      <Field label={searchLabel}><input ref={searchInput} type="search" value={search} maxLength={200} disabled={blocked} onChange={event => setSearch(event.target.value)} /></Field>
       {kind === 'ats' && <Field label="Estado da AT"><select value={draftStatus} disabled={blocked} onChange={event => setDraftStatus(event.target.value)}><option value="">Todos</option>{status && !Object.hasOwn(authorizationLabels, status) && <option value={status}>Estado inválido</option>}{Object.entries(authorizationLabels).map(([value, name]) => <option value={value} key={value}>{name}</option>)}</select></Field>}
+      </div>
       <div className="actions"><Button type="submit" disabled={blocked}>Pesquisar</Button><Button variant="secondary" disabled={result.isFetching} onClick={clear}>Limpar filtros</Button></div>
     </form>
+    {!blocked && draftChanged && <PendingSearchChanges onDiscard={discardDraft} />}
     {(appliedError || draftError) && <Feedback tone="warning">{appliedError || draftError}</Feedback>}
     {!appliedError && (failed ? <div className="panel stack"><Feedback tone="danger">{errorMessage(result.error ?? denial.data?.error, kind)}</Feedback><Button variant="secondary" disabled={result.isFetching} onClick={() => void retry()}>Tentar novamente</Button></div> : result.isPending ? <Spinner /> : <div className="panel stack">
       {!items.length ? <EmptyState title={`Nenhuma ${kind === 'ats' ? 'AT' : 'PET'} encontrada`} description={page > 1 ? 'Volte à primeira página ou ajuste os filtros para consultar os registros disponíveis.' : 'Ajuste os filtros para consultar os registros disponíveis nesta unidade.'} /> : <div className="table-wrap" role="region" aria-label={`Tabela de ${label}`} tabIndex={0}><table className="data-table"><caption className="sr-only">Resultados da consulta de {label}</caption><thead><tr><th scope="col">Código</th><th scope="col">Atendimento</th><th scope="col">{kind === 'ats' ? 'Serviço e equipe' : 'Espaço e tarefa'}</th><th scope="col">Local</th><th scope="col">Estado</th><th scope="col">Revisão</th></tr></thead><tbody>{items.map(row => <tr key={row.id}><td><Link to={`/app/${kind}/${encodeURIComponent(row.id)}`} state={from}>{row.code}</Link></td><td>{row.appointment.code}</td><td>{kind === 'ats' ? <>{row.appointment.serviceLabel}<br /><small>{row.appointment.teamName}</small></> : <>{(row as ConfinedSpacePermitDto).preparation.identification.spaceCode || 'Espaço ainda não identificado'}<br /><small>{(row as ConfinedSpacePermitDto).preparation.identification.task || row.appointment.serviceLabel}</small></>}</td><td>{row.appointment.location}</td><td>{kind === 'ats' ? <Badge tone={authorizationTones[row.status]}>{authorizationLabels[row.status]}</Badge> : <Badge tone="warning">Rascunho · entrada não autorizada</Badge>}</td><td>{row.revision}</td></tr>)}</tbody></table></div>}

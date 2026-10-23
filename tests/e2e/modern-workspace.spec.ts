@@ -11,7 +11,7 @@ test('dock, busca por teclado e acompanhamento ilustrativo mantêm ações e ret
   expect(railBounds).not.toBeNull();
   expect(railBounds!.height).toBeGreaterThan(railBounds!.width);
   await expect(dock).toBeInViewport();
-  for (const name of ['Dashboard', 'Inspeções', 'ASOs e NRs', 'EPIs', 'Relatórios']) await expect(dock.getByRole('link', { name, exact: true })).toBeVisible();
+  for (const name of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) await expect(dock.getByRole('link', { name, exact: true })).toBeVisible();
   await expect(page.getByText('Cenário ilustrativo de SST', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs no cenário ilustrativo' })).toHaveAttribute('aria-valuenow', '92');
   await dock.getByRole('link', { name: 'Inspeções', exact: true }).click();
@@ -24,7 +24,7 @@ test('dock, busca por teclado e acompanhamento ilustrativo mantêm ações e ret
   await expect(detail.getByRole('status')).toContainText('Exemplo incluído no acompanhamento desta sessão');
   await page.keyboard.press('Escape');
   await expect(action).toBeFocused();
-  await dock.getByRole('link', { name: 'EPIs', exact: true }).click();
+  await dock.getByRole('link', { name: 'Equipamentos de proteção individual (EPI)', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Equipamentos de proteção', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Conferências de EPIs', exact: true })).toBeVisible();
   await dock.getByRole('link', { name: 'Relatórios', exact: true }).click();
@@ -48,8 +48,8 @@ for (const width of [320, 390]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loginDemo(page, 'Engenheiro');
     await expect(page.getByRole('banner').getByAltText('Ampara SESMT', { exact: true })).toBeVisible();
-    await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'ASOs e NRs', exact: true })).toBeVisible();
+    await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Saúde ocupacional e capacitações', exact: true })).toBeVisible();
     const info = page.getByRole('button', { name: 'Ver detalhe: Conferir identificação do documento', exact: true });
     await info.click();
     await expect(page.getByRole('dialog')).toContainText('Exemplo fictício');

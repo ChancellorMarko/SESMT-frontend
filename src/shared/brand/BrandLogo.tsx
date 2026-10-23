@@ -1,10 +1,11 @@
 import { cn } from '../lib/cn';
 
 /** The user-selected primary logo, with a real transparent background. */
-export function BrandLogo({ tone = 'light', compact = false, className = '' }: {
+export function BrandLogo({ tone = 'light', compact = false, className = '', priority = false }: {
   tone?: 'light' | 'dark';
   compact?: boolean;
   className?: string;
+  priority?: boolean;
 }) {
   const source = compact ? 'icon.png' : 'logo-principal.png';
   return <img
@@ -13,6 +14,7 @@ export function BrandLogo({ tone = 'light', compact = false, className = '' }: {
     alt="Ampara SESMT"
     width={compact ? 48 : 240}
     height={compact ? 48 : 97}
-    decoding="async"
+    decoding={priority ? 'sync' : 'async'}
+    fetchPriority={priority ? 'high' : undefined}
   />;
 }

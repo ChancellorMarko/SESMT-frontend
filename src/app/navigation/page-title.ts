@@ -19,23 +19,23 @@ const routes = [
   { path: '/app/equipes', title: 'Equipes de trabalho' },
   { path: '/app/equipes/novo', title: 'Nova equipe' },
   { path: '/app/equipes/:id/editar', title: 'Editar equipe' },
-  { path: '/app/pts', title: 'Permissões de trabalho' },
-  { path: '/app/pts/:id/imprimir', title: 'Imprimir PT' },
+  { path: '/app/pts', title: 'Permissões de trabalho (PT)' },
+  { path: '/app/pts/:id/imprimir', title: 'Imprimir permissão de trabalho' },
   { path: '/app/pts/:id', title: 'Permissão de trabalho' },
   { path: '/app/designacoes', title: 'Designações operacionais' },
   { path: '/app/designacoes/nova', title: 'Nova designação' },
   { path: '/app/designacoes/:id', title: 'Designação operacional' },
-  { path: '/app/modelos-pt', title: 'Catálogo da PT' },
+  { path: '/app/modelos-pt', title: 'Modelo de permissão de trabalho (PT)' },
   { path: '/app/pendencias', title: 'Pendências documentais' },
-  { path: '/app/ats', title: 'Autorizações de trabalho' },
-  { path: '/app/ats/nova', title: 'Criar AT' },
-  { path: '/app/ats/:id/editar', title: 'Editar AT' },
-  { path: '/app/ats/:id/imprimir', title: 'Imprimir AT' },
+  { path: '/app/ats', title: 'Autorizações de trabalho (AT)' },
+  { path: '/app/ats/nova', title: 'Criar autorização de trabalho' },
+  { path: '/app/ats/:id/editar', title: 'Editar autorização de trabalho' },
+  { path: '/app/ats/:id/imprimir', title: 'Imprimir autorização de trabalho' },
   { path: '/app/ats/:id', title: 'Autorização de trabalho' },
-  { path: '/app/pets', title: 'Permissões de entrada e trabalho' },
-  { path: '/app/pets/nova', title: 'Preparar PET' },
-  { path: '/app/pets/:id/editar', title: 'Editar PET' },
-  { path: '/app/pets/:id/imprimir', title: 'Imprimir PET' },
+  { path: '/app/pets', title: 'Permissões de entrada e trabalho (PET)' },
+  { path: '/app/pets/nova', title: 'Preparar permissão de entrada e trabalho' },
+  { path: '/app/pets/:id/editar', title: 'Editar permissão de entrada e trabalho' },
+  { path: '/app/pets/:id/imprimir', title: 'Imprimir permissão de entrada e trabalho' },
   { path: '/app/pets/:id', title: 'Permissão de entrada e trabalho' },
   { path: '/app/documentos', title: 'Documentos' },
   { path: '/app/vencimentos', title: 'Vencimentos' },
@@ -55,12 +55,12 @@ const routes = [
   { path: '/app/configuracoes/tipos-documentais', title: 'Tipos documentais' },
   { path: '/app/configuracoes/parametros', title: 'Parâmetros documentais' },
   { path: '/app/configuracoes/requisitos', title: 'Matriz de requisitos' },
-  { path: '/app/configuracoes/servicos', title: 'Serviços e templates de PT' },
+  { path: '/app/configuracoes/servicos', title: 'Serviços e modelos de permissão de trabalho' },
 ];
 
 export function pageTitle(pathname: string, search = ''): string {
   const area = pathname === '/app/dashboard' ? new URLSearchParams(search).get('area') : null;
-  const areaTitle = area === 'inspecoes' ? 'Inspeções de segurança' : area === 'saude' ? 'ASOs e NRs' : area === 'epis' ? 'Equipamentos de proteção' : undefined;
+  const areaTitle = area === 'inspecoes' ? 'Inspeções de segurança' : area === 'saude' ? 'Saúde ocupacional e capacitações' : area === 'epis' ? 'Equipamentos de proteção' : undefined;
   const title = areaTitle ?? matchRoutes(routes, { pathname })?.at(-1)?.route.title ?? 'Página não encontrada';
   return `${title} — Ampara SESMT`;
 }

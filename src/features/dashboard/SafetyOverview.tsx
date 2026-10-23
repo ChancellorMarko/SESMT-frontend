@@ -13,8 +13,8 @@ import styles from './SafetyOverview.module.css';
 const areas = [
   { id: '', label: 'Todos os registros', icon: Layers3 },
   { id: 'inspecoes', label: 'Inspeções', icon: ClipboardCheck },
-  { id: 'saude', label: 'ASO e treinamentos', icon: HeartPulse },
-  { id: 'epis', label: 'EPIs', icon: HardHat },
+  { id: 'saude', label: 'Saúde e capacitações', icon: HeartPulse },
+  { id: 'epis', label: 'Equipamentos de proteção', icon: HardHat },
 ];
 
 export function getSafetyArea(value: string | null): SafetyArea | '' {
@@ -57,7 +57,7 @@ function EquipmentGauge() {
   const reduce = useAppReducedMotion();
   const circumference = 2 * Math.PI * 58;
   return <motion.article variants={reveal(reduce)} className={`${styles.card} ${styles.gaugeCard}`}>
-    <header className={styles.cardHeader}><div><h3>Entregas de EPIs</h3><p>Lote ilustrativo</p></div><HardHat size={17} aria-hidden="true" /></header>
+    <header className={styles.cardHeader}><div><h3>Entregas de equipamentos</h3><p>Equipamentos de proteção individual (EPI) · lote ilustrativo</p></div><HardHat size={17} aria-hidden="true" /></header>
     <div className={styles.gauge}><svg viewBox="0 0 150 150" aria-hidden="true"><circle cx="75" cy="75" r="58" fill="none" stroke="#edf1f8" strokeWidth="12" /><motion.circle cx="75" cy="75" r="58" fill="none" stroke="#4679ee" strokeWidth="12" strokeLinecap="round" strokeDasharray={circumference} transform="rotate(-90 75 75)" initial={reduce ? false : { strokeDashoffset: circumference }} animate={{ strokeDashoffset: circumference * (1 - safetyScenario.epiDelivered / 100) }} transition={{ duration: reduce ? 0 : 1.1, delay: reduce ? 0 : .2 }} /></svg><div><strong><AnimatedNumber value={safetyScenario.epiDelivered} suffix="%" /></strong><span>no cenário</span></div></div>
     <p><strong>{safetyScenario.epiDelivered}</strong> de {safetyScenario.epiExpected} entregas previstas</p><span className={styles.gaugeFootnote}>A entrega não comprova aptidão.</span>
   </motion.article>;
@@ -112,8 +112,8 @@ export function SafetyOverview({ canReadDocuments }: { canReadDocuments: boolean
       <KpiCard title="Índice de entrega de EPIs" icon={<HardHat size={17} />} onDetails={() => setIndicator('Índice de entrega de EPIs')}>
         <div className={styles.kpiValue}><strong>{demo ? <AnimatedNumber value={safetyScenario.epiDelivered} suffix="%" /> : '—'}</strong></div>{demo ? <><Progress value={safetyScenario.epiDelivered} aria-label="Entregas de EPIs no cenário ilustrativo" className={styles.deliveryProgress} indicatorClassName={styles.deliveryIndicator} /><span className={styles.kpiNote}>92 de 100 entregas previstas · exemplo</span></> : disconnected}
       </KpiCard>
-      <KpiCard title="ASOs e treinamentos" icon={<HeartPulse size={17} />} onDetails={() => setIndicator('ASOs e treinamentos')}>
-        <div className={styles.kpiValue}><strong>{demo ? <AnimatedNumber value={safetyScenario.upcomingExpirations} /> : '—'}</strong>{demo && <small>a vencer</small>}</div>{demo ? <span className={styles.kpiNote}><Clock3 size={12} aria-hidden="true" />Janela ilustrativa de 30 dias</span> : disconnected}
+      <KpiCard title="Saúde e capacitações" icon={<HeartPulse size={17} />} onDetails={() => setIndicator('Saúde e capacitações')}>
+        <div className={styles.kpiValue}><strong>{demo ? <AnimatedNumber value={safetyScenario.upcomingExpirations} /> : '—'}</strong>{demo && <small>a vencer</small>}</div>{demo ? <span className={styles.kpiNote}><Clock3 size={12} aria-hidden="true" />Atestados de saúde ocupacional (ASO) e treinamentos · janela ilustrativa de 30 dias</span> : disconnected}
       </KpiCard>
       <KpiCard title="Inspeções de risco pendentes" featured icon={<ClipboardCheck size={17} />} onDetails={() => setIndicator('Inspeções de risco pendentes')}>
         <div className={styles.kpiValue}><strong>{demo ? <AnimatedNumber value={safetyScenario.inspectionBacklog} /> : '—'}</strong>{demo && <small>registros</small>}</div><button type="button" className={styles.priorityAction} onClick={() => demo ? setSelected(safetyOccurrences[0]) : setIndicator('Inspeções de risco pendentes')}>{demo ? 'Conferir exemplo prioritário' : 'Não conectado'}<ArrowUpRight size={13} aria-hidden="true" /></button>

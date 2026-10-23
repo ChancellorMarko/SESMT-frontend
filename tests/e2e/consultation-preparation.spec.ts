@@ -25,9 +25,9 @@ test('central permite percorrer as quatro abas por teclado sem transbordamento n
   await navigateWithinApp(page, '/app/consulta');
   const tabs = page.getByRole('tablist', { name: 'Abas de consulta', exact: true });
   const documents = tabs.getByRole('tab', { name: 'Documentos controlados', exact: true });
-  const permits = tabs.getByRole('tab', { name: 'Permissões de trabalho (PTs)', exact: true });
-  const authorizations = tabs.getByRole('tab', { name: 'Autorizações de trabalho (ATs)', exact: true });
-  const pets = tabs.getByRole('tab', { name: 'PETs de espaços confinados', exact: true });
+  const permits = tabs.getByRole('tab', { name: 'Permissões de trabalho (PT)', exact: true });
+  const authorizations = tabs.getByRole('tab', { name: 'Autorizações de trabalho (AT)', exact: true });
+  const pets = tabs.getByRole('tab', { name: 'Permissões de entrada e trabalho (PET)', exact: true });
   await expect(tabs.getByRole('tab')).toHaveCount(4);
   await documents.focus();
   for (const tab of [permits, authorizations, pets, documents]) {

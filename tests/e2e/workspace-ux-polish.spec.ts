@@ -7,7 +7,7 @@ test('navegação por toque tem nomes visíveis e capacitações cabem em 320px'
   await loginDemo(page, 'Engenheiro');
   const shortcuts = page.getByRole('navigation', { name: 'Acesso rápido' });
   const captions: { x: number; width: number }[] = [];
-  for (const [name, caption] of [['Dashboard', 'Início'], ['Inspeções', 'Inspeções'], ['ASOs e NRs', 'ASOs/NRs'], ['EPIs', 'EPIs'], ['Relatórios', 'Relatórios']]) {
+  for (const [name, caption] of [['Dashboard', 'Início'], ['Inspeções', 'Inspeções'], ['Saúde e capacitações', 'Saúde'], ['Equipamentos de proteção individual (EPI)', 'Proteção'], ['Relatórios', 'Relatórios']]) {
     const link = shortcuts.getByRole('link', { name, exact: true });
     const text = link.getByText(caption, { exact: true }).filter({ visible: true });
     await expect(text).toBeVisible();
@@ -17,8 +17,8 @@ test('navegação por toque tem nomes visíveis e capacitações cabem em 320px'
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
   }
   for (let index = 1; index < captions.length; index++) expect(captions[index].x - captions[index - 1].x - captions[index - 1].width).toBeGreaterThanOrEqual(2);
-  await shortcuts.getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-  await page.getByRole('tab', { name: 'Capacitações e NRs', exact: true }).click();
+  await shortcuts.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+  await page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true }).click();
   const teams = page.getByRole('list', { name: 'Capacitações por equipe', exact: true });
   await expect(teams).toBeVisible();
   await expect(page.getByRole('table')).toHaveCount(0);
@@ -41,8 +41,8 @@ test('guia fica fora do conteúdo e pode ser aberto pelo menu sem sobrepor modai
   await page.setViewportSize({ width: 950, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await loginDemo(page, 'Engenheiro');
-  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-  await page.getByRole('tab', { name: 'Capacitações e NRs', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+  await page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true }).click();
   await expect(page.getByRole('table')).toBeVisible();
   const main = await page.locator('main#conteudo').boundingBox();
   const launcher = await page.getByRole('button', { name: 'Abrir Guia Ampara', exact: true }).boundingBox();
@@ -64,7 +64,7 @@ test('EPIs mantém indicadores compactos e permite desfazer o acompanhamento sem
   await page.setViewportSize({ width: 950, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await loginDemo(page, 'Engenheiro');
-  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'EPIs', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Equipamentos de proteção individual (EPI)', exact: true }).click();
   const tops: number[] = [];
   for (const title of ['Entregas previstas', 'Comprovantes conferidos', 'Registros a conferir', 'Categorias do ciclo']) {
     const card = page.getByRole('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) });

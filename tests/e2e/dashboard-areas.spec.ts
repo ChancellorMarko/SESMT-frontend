@@ -40,18 +40,18 @@ test('os acessos rápidos apresentam indicadores e seções próprios de cada á
   await expect(page.getByText('Cenário ilustrativo de inspeções', { exact: true })).toBeVisible();
   await expectNoGenericDashboard(page);
 
-  await dock.getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'ASOs e NRs', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Acompanhamento de ASOs', exact: true })).toBeVisible();
+  await dock.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Saúde ocupacional e capacitações', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fila de conferência documental', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Onde estão os achados', exact: true })).toHaveCount(0);
   await expectNoGenericDashboard(page);
 
-  await dock.getByRole('link', { name: 'EPIs', exact: true }).click();
+  await dock.getByRole('link', { name: 'Equipamentos de proteção individual (EPI)', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Equipamentos de proteção', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Entregas e comprovantes', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Conferências de EPIs', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Acompanhamento de ASOs', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toHaveCount(0);
   await expectNoGenericDashboard(page);
 
   await dock.getByRole('link', { name: 'Dashboard', exact: true }).click();
@@ -64,11 +64,11 @@ test('os acessos rápidos apresentam indicadores e seções próprios de cada á
 test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e histórico', async ({ page }) => {
   const verifyPageErrors = observePageErrors(page);
   await loginDemo(page, 'Engenheiro');
-  await quickNavigation(page).getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-  const asos = page.getByRole('tab', { name: 'ASOs', exact: true });
-  const nrs = page.getByRole('tab', { name: 'Capacitações e NRs', exact: true });
+  await quickNavigation(page).getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+  const asos = page.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)', exact: true });
+  const nrs = page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true });
   await expect(asos).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('heading', { name: 'Acompanhamento de ASOs', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toBeVisible();
 
   // Seed an unrelated query parameter without replacing React Router's history
   // state. The tab controls must retain it through real browser navigation.
@@ -86,7 +86,7 @@ test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e hist
   await expect(page).toHaveURL(/healthView=nrs/);
   await expect(page.getByRole('heading', { name: 'Capacitações por equipe', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Planejamento de capacitações', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Acompanhamento de ASOs', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('context')).toBe('consulta-preservada');
   expect(new URL(page.url()).searchParams.get('area')).toBe('saude');
 
@@ -104,7 +104,7 @@ test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e hist
   await expect(page.getByRole('heading', { name: 'Capacitações por equipe', exact: true })).toBeVisible();
   await page.goForward();
   await expect(asos).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('heading', { name: 'Acompanhamento de ASOs', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('context')).toBe('consulta-preservada');
   verifyPageErrors();
 });
@@ -131,7 +131,7 @@ test('detalhes de inspeção e saúde acompanham apenas o exemplo e devolvem o f
   await expect(finding).toBeFocused();
   await expect(page.getByText('Em acompanhamento · exemplo', { exact: true })).toBeVisible();
 
-  await dock.getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
+  await dock.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
   const documentDetail = page.getByRole('button', { name: 'Ver detalhe: Conferir identificação do documento', exact: true });
   await documentDetail.click();
   const documentDialog = page.getByRole('dialog', { name: 'Conferir identificação do documento', exact: true });
@@ -140,7 +140,7 @@ test('detalhes de inspeção e saúde acompanham apenas o exemplo e devolvem o f
   await page.keyboard.press('Escape');
   await expect(documentDialog).toHaveCount(0);
   await expect(documentDetail).toBeFocused();
-  await page.getByRole('tab', { name: 'Capacitações e NRs', exact: true }).click();
+  await page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true }).click();
   const trainingDetail = page.getByRole('button', { name: 'Ver detalhe: Planejar orientação da manutenção', exact: true });
   await trainingDetail.click();
   const trainingDialog = page.getByRole('dialog', { name: 'Planejar orientação da manutenção', exact: true });
@@ -168,8 +168,8 @@ test('os painéis cabem em 320px e mantêm a preferência de animação entre á
 
   for (const destination of [
     { link: 'Inspeções', heading: 'Onde estão os achados' },
-    { link: 'ASOs e NRs', heading: 'Acompanhamento de ASOs' },
-    { link: 'EPIs', heading: 'Equipamentos de proteção' },
+    { link: 'Saúde e capacitações', heading: 'Atestados de saúde ocupacional (ASO)' },
+    { link: 'Equipamentos de proteção individual (EPI)', heading: 'Equipamentos de proteção' },
   ]) {
     await dock.getByRole('link', { name: destination.link, exact: true }).click();
     await expect(page.getByRole('heading', { name: destination.heading, exact: true })).toBeVisible();
@@ -178,8 +178,8 @@ test('os painéis cabem em 320px e mantêm a preferência de animação entre á
     await expectNoOverflow(page);
   }
 
-  await dock.getByRole('link', { name: 'ASOs e NRs', exact: true }).click();
-  await page.getByRole('tab', { name: 'Capacitações e NRs', exact: true }).click();
+  await dock.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
+  await page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Capacitações por equipe', exact: true })).toBeVisible();
   await expectNoOverflow(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });

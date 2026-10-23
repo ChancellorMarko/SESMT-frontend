@@ -6,6 +6,7 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import type { PageDto } from '../../shared/contracts';
 import type { ConfinedSpacePermitDto } from '../../shared/contracts/confined-space-permits';
 import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 import { formatDate } from '../../shared/lib/format';
 import { preparationNavigation } from '../../shared/lib/preparation-navigation';
 import { petError, petPage } from './support';
@@ -25,7 +26,7 @@ export function PetsPage() {
   },[session.unitId,urlUnit,params,setParams]);
   const list=useQuery({queryKey:['confined-space-permits',session.sessionKey,session.unitId,page,q],queryFn:({signal})=>api.get<PageDto<ConfinedSpacePermitDto>>('/confined-space-permits',{signal,query:{unitId:session.unitId,page,pageSize:10,q}}),enabled:session.can('pet.read')&&Boolean(session.unitId)&&(!urlUnit||urlUnit===session.unitId)});
   function setPage(value:number){const next=new URLSearchParams(params);next.set('page',String(value));setParams(next);}
-  return <div className="stack"><PageHeader eyebrow="PREPARAÇÃO DOCUMENTAL" title="PETs de espaços confinados" description="Prepare a identificação do espaço, as funções previstas, os controles e os registros atmosféricos." actions={session.can('pet.write')&&<Link className="button button--primary" to="/app/pets/nova" state={listNavigation}>Nova PET</Link>}/>
+  return <div className="stack"><PageHeader eyebrow="ESPAÇOS CONFINADOS · PREPARAÇÃO DOCUMENTAL" title="Permissões de entrada e trabalho (PET)" description="Prepare o rascunho com a identificação do espaço, as funções previstas, os controles e os registros atmosféricos." actions={<div className="actions"><TerminologyHelp related={['PT','AT','PET']}>Entenda PT, AT e PET</TerminologyHelp>{session.can('pet.write')&&<Link className="button button--primary" to="/app/pets/nova" state={listNavigation}>Nova PET</Link>}</div>}/>
     <Feedback>Esta etapa organiza rascunhos. A emissão da PET e o controle de entrada ainda não estão disponíveis.</Feedback>
     <form className="panel toolbar" onSubmit={event=>{event.preventDefault();const next=new URLSearchParams(params);next.delete('page');if(search.trim())next.set('q',search.trim().slice(0,200));else next.delete('q');setParams(next);}}><Field label="Buscar PET por código, espaço ou tarefa"><input maxLength={200} value={search} onChange={event=>setSearch(event.target.value)} placeholder="Ex.: PET, tanque, inspeção"/></Field><Button type="submit">Buscar</Button>{q&&<Button variant="secondary" onClick={()=>{const next=new URLSearchParams(params);next.delete('q');next.delete('page');setParams(next);}}>Limpar busca</Button>}</form>
     {!session.can('pet.read')?<EmptyState title="Acesso restrito"/>:!session.unitId?<EmptyState title="Selecione uma unidade"/>:list.isPending?<Spinner/>:list.isError?<div className="panel stack"><Feedback tone="danger">{petError(list.error)}</Feedback><Button onClick={()=>void list.refetch()}>Tentar novamente</Button></div>:<section className="panel stack" aria-label="Preparações de PET">

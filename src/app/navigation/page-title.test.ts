@@ -22,11 +22,11 @@ describe('título da página', () => {
       ['/app/equipes/EQ-001/editar', 'Editar equipe'],
       ['/app/designacoes/nova', 'Nova designação'],
       ['/app/designacoes/DS-001', 'Designação operacional'],
-      ['/app/ats/nova', 'Criar AT'],
-      ['/app/ats/AT-001/editar', 'Editar AT'],
+      ['/app/ats/nova', 'Criar autorização de trabalho'],
+      ['/app/ats/AT-001/editar', 'Editar autorização de trabalho'],
       ['/app/ats/AT-001', 'Autorização de trabalho'],
-      ['/app/pets/nova', 'Preparar PET'],
-      ['/app/pets/PET-001/editar', 'Editar PET'],
+      ['/app/pets/nova', 'Preparar permissão de entrada e trabalho'],
+      ['/app/pets/PET-001/editar', 'Editar permissão de entrada e trabalho'],
       ['/app/pets/PET-001', 'Permissão de entrada e trabalho'],
       ['/app/documentos/novo', 'Novo documento'],
       ['/app/documentos/DOC-001/editar', 'Editar documento'],
@@ -41,7 +41,7 @@ describe('título da página', () => {
   });
 
   it('fornece título genérico de impressão antes de carregar um registro específico', () => {
-    for (const [resource, label] of [['pts', 'PT'], ['ats', 'AT'], ['pets', 'PET']]) {
+    for (const [resource, label] of [['pts', 'permissão de trabalho'], ['ats', 'autorização de trabalho'], ['pets', 'permissão de entrada e trabalho']]) {
       expect(pageTitle(`/app/${resource}/registro-confidencial/imprimir`)).toBe(title(`Imprimir ${label}`));
     }
   });

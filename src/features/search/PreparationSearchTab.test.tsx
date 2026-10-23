@@ -80,7 +80,12 @@ describe.each<Kind>(['ats', 'pets'])('consulta unificada de %s', kind => {
     expect(screen.getAllByRole('row')).toHaveLength(11);
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(api.get).toHaveBeenCalledWith(endpoint(kind), expect.objectContaining({ signal: expect.any(AbortSignal), query: { unitId: 'unit-a', page: 1, pageSize: 10, q: undefined, ...(kind === 'ats' ? { status: undefined } : {}) } }));
-    if (kind === 'pets') expect(screen.getByRole('region', { name: 'Consulta de PETs' })).toHaveTextContent('A entrada não está autorizada.');
+    expect(screen.getByRole('heading', { name: kind === 'ats' ? 'Pesquisar autorizações de trabalho (AT)' : 'Pesquisar preparações de entrada e trabalho (PET)' })).toBeVisible();
+    if (kind === 'pets') {
+      expect(screen.getByRole('region', { name: 'Consulta de PETs' })).toHaveTextContent('A permissão de entrada e trabalho (PET) permanece como rascunho de preparação. A entrada não está autorizada.');
+    } else {
+      expect(screen.getByRole('region', { name: 'Consulta de ATs' })).toHaveTextContent('Consulta de autorizações de trabalho (AT). Autorizar uma AT não libera uma permissão de trabalho (PT).');
+    }
     expect(api.post).not.toHaveBeenCalled(); expect(api.patch).not.toHaveBeenCalled();
     await user.click(link);
     expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(`/app/${kind}/${kind}-1`);
@@ -103,6 +108,37 @@ describe.each<Kind>(['ats', 'pets'])('consulta unificada de %s', kind => {
     await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
     await screen.findByRole('link', { name: code(kind) });
     expect(search).toHaveValue(''); expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(`/app/consulta?tab=${kind}&unitId=unit-a`);
+  });
+
+  it('descarta só o rascunho preservando a página e permite pesquisar novamente pelo botão', async () => {
+    const user = userEvent.setup(); const { route } = show(kind, 'q=DEMO&page=2');
+    await screen.findByRole('link', { name: code(kind, 11) });
+    const search = screen.getByRole('searchbox');
+    const calls = vi.mocked(api.get).mock.calls.length;
+    await user.clear(search); await user.type(search, 'rascunho não aplicado');
+    if (kind === 'ats') await user.selectOptions(screen.getByRole('combobox', { name: 'Estado da AT' }), 'SUSPENDED');
+    expect(screen.getAllByRole('status').some(node => node.textContent?.includes('Há alterações nos filtros ainda não aplicadas.'))).toBe(true);
+    expect(api.get).toHaveBeenCalledTimes(calls);
+    await user.click(screen.getByRole('button', { name: 'Descartar alterações' }));
+    expect(screen.getByRole('searchbox')).toBe(search);
+    expect(search).toHaveValue('DEMO'); expect(search).toHaveFocus();
+    if (kind === 'ats') expect(screen.getByRole('combobox', { name: 'Estado da AT' })).toHaveValue('');
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(route);
+    expect(screen.getByRole('navigation', { name: `Paginação da consulta de ${label}` })).toHaveTextContent('página 2 de 3');
+    expect(screen.getByRole('link', { name: code(kind, 11) })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Descartar alterações' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Há alterações nos filtros ainda não aplicadas.')).not.toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledTimes(calls);
+
+    await user.clear(search); await user.type(search, searchFor(kind, 12));
+    if (kind === 'ats') await user.selectOptions(screen.getByRole('combobox', { name: 'Estado da AT' }), 'SUSPENDED');
+    expect(api.get).toHaveBeenCalledTimes(calls);
+    await user.click(screen.getByRole('button', { name: 'Pesquisar' }));
+    expect(await screen.findByRole('link', { name: code(kind, 12) })).toBeVisible();
+    expect(api.get).toHaveBeenCalledTimes(calls + 1);
+    expect(api.get).toHaveBeenLastCalledWith(endpoint(kind), expect.objectContaining({ query: expect.objectContaining({ page: 1, q: searchFor(kind, 12), ...(kind === 'ats' ? { status: 'SUSPENDED' } : {}) }) }));
+    expect(screen.getByLabelText('Endereço atual')).not.toHaveTextContent('page=2');
+    expect(screen.queryByRole('button', { name: 'Descartar alterações' })).not.toBeInTheDocument();
   });
 
   it('conserva critérios entre páginas e não pagina novamente a resposta do servidor', async () => {

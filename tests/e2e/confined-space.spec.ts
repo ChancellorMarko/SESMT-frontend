@@ -121,5 +121,5 @@ test('PET preserva preenchimento em conflito e aplica permissões e unidade', as
   await logout(page); await page.getByRole('button', { name: 'Trabalhador', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/documentos/); await navigateWithinApp(page, path);
   await expect(page.getByRole('heading', { name: 'Esta área precisa de autorização.', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'PETs de espaços confinados', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Permissões de entrada e trabalho (PET)', exact: true })).toHaveCount(0);
 });

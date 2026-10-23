@@ -120,7 +120,7 @@ test('abas da consulta animam sem perder teclado e respeitam movimento reduzido 
   await openModule(page, 'Consulta central');
   const tabs = page.getByRole('tablist', { name: 'Abas de consulta', exact: true });
   const documents = tabs.getByRole('tab', { name: 'Documentos controlados', exact: true });
-  const permits = tabs.getByRole('tab', { name: 'Permissões de trabalho (PTs)', exact: true });
+  const permits = tabs.getByRole('tab', { name: 'Permissões de trabalho (PT)', exact: true });
   await expect(page.getByRole('tabpanel')).toContainText('Buscar título ou código');
   await tabs.evaluate(element => { (window as unknown as { __originalTabs: Element }).__originalTabs = element; });
   const id = (await permits.getAttribute('aria-controls'))!;

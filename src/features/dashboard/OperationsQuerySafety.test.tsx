@@ -38,7 +38,7 @@ describe.each(['resposta', 'cache'] as const)('dados operacionais conferidos na 
     vi.mocked(api.get).mockImplementation(async path => (path === '/permit-options' ? options : data) as never);
     show(client);
     expect(await screen.findByRole('alert')).toHaveTextContent('dados operacionais inválidos');
-    expect(screen.queryByRole('link', { name: /PTs em atendimento/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Permissões em atendimento/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Serviço conferido')).not.toBeInTheDocument();
     if (source === 'cache') expect(dashboardCalls()).toHaveLength(0);
   });
@@ -54,7 +54,7 @@ it('bloqueia período invertido e atualização sem apagar o preenchimento e rec
   expect(screen.getByRole('button', { name: 'Atualizar painel' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Pesquisar' })).toBeDisabled();
   expect(screen.queryByRole('link', { name: 'Consultar agenda' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /PTs em atendimento/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Permissões em atendimento/ })).not.toBeInTheDocument();
   expect(screen.getByLabelText('Período de início')).toHaveValue('2026-10-18');
   expect(dashboardCalls()).toHaveLength(before);
   vi.mocked(api.get).mockImplementation(async path => (path === '/permit-options' ? options : payload()) as never);
@@ -108,7 +108,7 @@ it('uma tentativa cancelada não restaura indicadores anteriores à negativa de 
   expect(client.getQueryData(denialKey)).not.toBeNull();
   expect(screen.queryByText('Serviço conferido')).not.toBeInTheDocument();
   expect(screen.queryByText('Detalhes internos que não devem aparecer')).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /PTs em atendimento/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Permissões em atendimento/ })).not.toBeInTheDocument();
   vi.mocked(api.get).mockResolvedValueOnce(payload() as never);
   fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
   await screen.findByText('Serviço conferido');
@@ -147,11 +147,11 @@ it('recuperar referências após 403 exige novo agregado antes de liberar dados 
   fireEvent.click(screen.getByRole('button', { name: 'Tentar carregar filtros' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   expect(screen.queryByText('Serviço conferido')).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /PTs em atendimento/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Permissões em atendimento/ })).not.toBeInTheDocument();
   expect(client.getQueryData(denialKey)).not.toBeNull();
 
   await act(async () => finish({ ...payload(), appointments: 0, nextAppointments: [] }));
-  await screen.findByRole('link', { name: /PTs em atendimento/ });
+  await screen.findByRole('link', { name: /Permissões em atendimento/ });
   expect(screen.queryByText('Serviço conferido')).not.toBeInTheDocument();
   expect(client.getQueryData(denialKey)).toBeNull();
   expect(client.getQueryState(key())?.dataUpdateCount).toBe(2);

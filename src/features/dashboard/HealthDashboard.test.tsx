@@ -36,13 +36,13 @@ describe('HealthDashboard', () => {
   });
   it('separa o acompanhamento administrativo de ASOs da matriz e do planejamento de capacitações', async () => {
     const user = userEvent.setup(); show();
-    const asopanel = screen.getByRole('tabpanel', { name: 'ASOs' });
-    expect(screen.getByRole('heading', { name: 'Acompanhamento de ASOs' })).toBeInTheDocument();
+    const asopanel = screen.getByRole('tabpanel', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' });
+    expect(screen.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Janelas de renovação' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fila de conferência documental' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Matriz de evidências por equipe' })).not.toBeInTheDocument();
     expect(screen.getByText('Cenário demonstrativo · dados sintéticos')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Capacitações e NRs' }));
+    await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     expect(screen.getByRole('heading', { name: 'Capacitações por equipe' })).toBeInTheDocument();
     expect(screen.getByRole('table')).toHaveAccessibleName(/Equipes fictícias/);
     expect(screen.getByRole('columnheader', { name: 'Trabalho em altura' })).toBeInTheDocument();
@@ -51,13 +51,13 @@ describe('HealthDashboard', () => {
     expect(screen.getByRole('heading', { name: 'Planejamento de capacitações' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Janelas de renovação' })).not.toBeInTheDocument();
     expect(asopanel).toHaveAttribute('hidden');
-    await user.click(screen.getByRole('tab', { name: 'ASOs' }));
-    expect(screen.getByRole('tabpanel', { name: 'ASOs' })).toBe(asopanel);
+    await user.click(screen.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' }));
+    expect(screen.getByRole('tabpanel', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' })).toBe(asopanel);
   });
 
   it('mantém área e filtros na URL, navega por teclado e restaura a seleção com voltar e avançar', async () => {
     const user = userEvent.setup(); show('/app/dashboard?area=saude&unitId=exemplo&keep=1');
-    const asos = screen.getByRole('tab', { name: 'ASOs' }), nrs = screen.getByRole('tab', { name: 'Capacitações e NRs' });
+    const asos = screen.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' }), nrs = screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' });
     asos.focus(); await user.keyboard('{ArrowRight}');
     expect(nrs).toHaveFocus(); expect(nrs).toHaveAttribute('aria-selected', 'true'); expect(asos).toHaveAttribute('tabindex', '-1');
     const selectedParams = new URLSearchParams(screen.getByTestId('location').textContent ?? '');
@@ -75,9 +75,9 @@ describe('HealthDashboard', () => {
 
   it('lê links diretos e usa ASOs como fallback para valor inválido', () => {
     const direct = show('/app/dashboard?area=saude&healthView=nrs');
-    expect(screen.getByRole('tab', { name: 'Capacitações e NRs' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' })).toHaveAttribute('aria-selected', 'true');
     direct.unmount(); show('/app/dashboard?area=saude&healthView=desconhecido');
-    expect(screen.getByRole('tab', { name: 'ASOs' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('permite acompanhar e desfazer o acompanhamento de um exemplo sem concluir sua conferência', async () => {
@@ -93,12 +93,12 @@ describe('HealthDashboard', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Fechar detalhe' }));
     expect(opener).toHaveFocus();
     expect(screen.getByText('1 exemplo em acompanhamento')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Capacitações e NRs' }));
+    await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     await user.click(screen.getByRole('button', { name: 'Ver detalhe: Planejar orientação da manutenção' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acompanhar exemplo' }));
     await user.keyboard('{Escape}');
     expect(screen.getByText('2 exemplos em acompanhamento')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'ASOs' }));
+    await user.click(screen.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' }));
     await user.click(opener);
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Retirar acompanhamento' }));
     expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('ainda não está');
@@ -115,7 +115,7 @@ describe('HealthDashboard', () => {
     expect(screen.getByRole('link', { name: 'Buscar documentos de ASO' })).toHaveAttribute('href', '/app/documentos?q=ASO');
     expect(screen.getByRole('link', { name: 'Consultar vencimentos de ASOs' })).toHaveAttribute('href', '/app/vencimentos?q=ASO');
     expect(screen.queryByRole('link', { name: 'Conferir requisitos documentais' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Capacitações e NRs' }));
+    await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     expect(screen.getByRole('link', { name: 'Buscar comprovantes de treinamento' })).toHaveAttribute('href', '/app/documentos?q=treinamento');
   });
 
@@ -127,7 +127,7 @@ describe('HealthDashboard', () => {
     expect(screen.queryByRole('button', { name: /Ver detalhe/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Buscar documentos de ASO' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Conferir requisitos documentais' })).toHaveAttribute('href', '/app/pendencias');
-    await user.click(screen.getByRole('tab', { name: 'Capacitações e NRs' }));
+    await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     expect(screen.getByRole('heading', { name: 'Integração de capacitações ainda não conectada' })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Capacitações por equipe' })).not.toBeInTheDocument();

@@ -1,0 +1,78 @@
+import { expect, test } from '@playwright/test';
+import { loginDemo, openModule } from './helpers';
+
+test('guia explica siglas, busca nomes sem acento e devolve foco ao fechar', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await loginDemo(page, 'Engenheiro');
+  const menuTrigger = page.getByRole('button', { name: 'Buscar módulos', exact: true });
+  await menuTrigger.click();
+  await page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('button', { name: 'Guia de siglas', exact: true }).click();
+  const guide = page.getByRole('dialog', { name: 'Guia de siglas', exact: true });
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const search = guide.getByRole('searchbox', { name: 'Buscar sigla ou significado' });
+  await expect(search).toBeFocused();
+  await expect(guide.getByRole('article')).toHaveCount(9);
+  await search.fill('ATs');
+  await expect(guide.getByRole('article')).toHaveCount(1);
+  await expect(guide.getByRole('heading', { name: 'Autorização de Trabalho', exact: true })).toBeVisible();
+  await expect(guide.getByText(/Autorizar uma AT não libera uma PT/)).toBeVisible();
+  await search.fill('protecao individual');
+  await expect(guide.getByRole('heading', { name: 'Equipamento de Proteção Individual', exact: true })).toBeVisible();
+  await search.fill('sigla inexistente');
+  await expect(guide.getByText('Nenhuma sigla encontrada', { exact: true })).toBeVisible();
+  await guide.getByRole('button', { name: 'Limpar busca de siglas' }).click();
+  await expect(search).toBeFocused();
+  await expect(guide.getByRole('article')).toHaveCount(9);
+  await page.screenshot({ path: testInfo.outputPath('terminology-desktop.png') });
+  await page.keyboard.press('Escape');
+  await expect(menuTrigger).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test('guia permanece legível e pesquisável a 320px e na troca de diálogos', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await loginDemo(page, 'Engenheiro');
+  const launcher = page.getByRole('button', { name: 'Abrir Guia Ampara', exact: true });
+  await launcher.click();
+  await page.getByRole('dialog', { name: 'Guia Ampara', exact: true }).getByRole('button', { name: /Entender as siglas/ }).click();
+  const guide = page.getByRole('dialog', { name: 'Guia de siglas', exact: true });
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const search = guide.getByRole('searchbox', { name: 'Buscar sigla ou significado' });
+  await expect(search).toBeFocused();
+  const results = guide.getByRole('region', { name: 'Significados das siglas' });
+  await results.focus();
+  await page.keyboard.press('End');
+  await expect.poll(() => results.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await expect(search).toBeInViewport();
+  await search.fill('SESMT');
+  await expect(guide.getByRole('heading', { name: 'Serviços Especializados em Segurança e Medicina do Trabalho', exact: true })).toBeVisible();
+  expect(await guide.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('terminology-mobile-320.png') });
+  await guide.getByRole('button', { name: 'Fechar janela', exact: true }).click();
+  await expect(launcher).toBeFocused();
+  await launcher.click();
+  await expect(page.getByRole('dialog', { name: 'Guia Ampara', exact: true })).toBeVisible();
+});
+
+test('consulta apresenta nomes funcionais e prioriza PT, AT e PET no guia contextual', async ({ page }) => {
+  await loginDemo(page, 'Engenheiro');
+  await openModule(page, 'Consulta central');
+  const tabs = page.getByRole('tablist', { name: 'Abas de consulta' });
+  await expect(tabs.getByRole('tab', { name: 'Permissões de trabalho (PT)', exact: true })).toContainText('Permissões');
+  await expect(tabs.getByRole('tab', { name: 'Autorizações de trabalho (AT)', exact: true })).toContainText('Autorizações');
+  await tabs.getByRole('tab', { name: 'Permissões de entrada e trabalho (PET)', exact: true }).click();
+  await expect(page.getByText(/A entrada não está autorizada/)).toBeVisible();
+  const trigger = page.getByRole('button', { name: 'Entenda PT, AT e PET', exact: true });
+  await trigger.click();
+  const guide = page.getByRole('dialog', { name: 'Guia de siglas', exact: true });
+  await expect(guide.getByRole('article').first()).toHaveAccessibleName('Permissão de Trabalho');
+  await expect(guide.getByRole('article').nth(1)).toHaveAccessibleName('Autorização de Trabalho');
+  await expect(guide.getByRole('article').nth(2)).toHaveAccessibleName('Permissão de Entrada e Trabalho');
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await expect(tabs.getByRole('tab', { name: 'Permissões de entrada e trabalho (PET)', exact: true })).toHaveAttribute('aria-selected', 'true');
+});

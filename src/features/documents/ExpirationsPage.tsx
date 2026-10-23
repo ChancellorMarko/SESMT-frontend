@@ -1,17 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router';
-import { CalendarClock, ArrowUpRight, RefreshCw, Search } from 'lucide-react';
+import { CalendarClock, ArrowUpRight, FileText, RefreshCw, Search } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { DocumentDto, PageDto } from '../../shared/contracts';
-import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { AppliedFilters, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { dateOnly, formatDate } from '../../shared/lib/format';
 import { checkedPage, isRecord, isSafePage, ScopedPageError, scopedQueryError, shortText } from '../../shared/lib/scoped-page';
 import { isCivilDate } from './validation';
 import { expiryCriteriaError, expiryQuery, expiryWindow, expiryWindows } from './expiry';
 import { ExpirationList } from './ExpirationList';
+import styles from './Expirations.module.css';
 
 const pageSize = 10;
 type Denial = { error: unknown; revisions: Record<string, number> };
@@ -103,29 +104,36 @@ function ExpirationsContextPage() {
     ...(params.has('view') ? [{ key: 'view', label: 'Consulta', value: expired ? 'Vencidos' : 'A vencer' }] : []),
     ...(!expired && params.has('days') ? [{ key: 'days', label: 'Antecedência', value: `Próximos ${days} dias` }] : []),
   ];
-  return <div className="stack">
-    <PageHeader eyebrow="PLANEJAMENTO DOCUMENTAL" title="Vencimentos" description="Antecipe renovações e acompanhe documentos vencidos da unidade selecionada." actions={enabled && !failed && <Link className="button button--secondary" to={documentsLink}>Abrir no repositório <ArrowUpRight size={16} aria-hidden="true" /></Link>} />
-    <section className="grid min-w-0 gap-4 rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 [&_.field]:min-w-0 [&_select]:w-full" aria-label="Consulta de vencimentos">
-      <div className={`grid min-w-0 items-end gap-4 sm:grid-cols-2 ${expired ? 'xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]' : 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]'}`}>
+  return <div className={`stack ${styles.workspace}`}>
+    <header className={styles.pageHeader}>
+      <div className={styles.headerCopy}>
+        <p className={styles.eyebrow}><span aria-hidden="true"><CalendarClock size={15} /></span>Planejamento documental</p>
+        <h1>Vencimentos</h1>
+        <p className={styles.description}>Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.</p>
+      </div>
+      {enabled && !failed && <Link className="button button--secondary" to={documentsLink}>Abrir no repositório <ArrowUpRight size={16} aria-hidden="true" /></Link>}
+    </header>
+    <section className={styles.filterPanel} aria-label="Consulta de vencimentos">
+      <div className={`${styles.filterGrid} ${expired ? styles.expiredGrid : ''}`}>
         <Field label="Consultar"><select value={expired ? 'expired' : 'upcoming'} disabled={disabled} onChange={event => change('view', event.target.value)}><option value="upcoming">A vencer</option><option value="expired">Vencidos</option></select></Field>
         {!expired && <Field label="Antecedência"><select value={days} disabled={disabled} onChange={event => change('days', event.target.value)}>{expiryWindows.map(value => <option key={value} value={value}>Próximos {value} dias</option>)}</select></Field>}
-        <form className="flex min-w-0 items-end gap-2 sm:col-span-2 xl:col-span-1 [&_.field]:flex-1" onSubmit={event => { event.preventDefault(); change('q', search.trim()); }}><Field label="Buscar por título ou código"><div className="relative"><Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input ref={searchInput} type="search" className="!pl-9" value={search} onChange={event => setSearch(event.target.value)} maxLength={200} placeholder="Ex.: PGR, relatório, DOC-001" aria-describedby={pendingSearch ? 'expiration-search-hint' : undefined} /></div></Field><Button type="submit" className="!min-h-11 !shrink-0" disabled={disabled}>Buscar</Button></form>
+        <form className={styles.searchForm} onSubmit={event => { event.preventDefault(); change('q', search.trim()); }}><Field label="Buscar por título ou código"><div className="relative"><Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input ref={searchInput} type="search" className="!pl-9" value={search} onChange={event => setSearch(event.target.value)} maxLength={200} placeholder="Ex.: PGR, relatório, DOC-001" aria-describedby={pendingSearch ? 'expiration-search-hint' : undefined} /></div></Field><Button type="submit" disabled={disabled}>Buscar</Button></form>
       </div>
-      {pendingSearch && <p id="expiration-search-hint" role="status" className="!m-0 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2 text-[11px] leading-5 text-[#315884]"><strong className="font-semibold">Busca ainda não aplicada.</strong> Selecione Buscar para atualizar os resultados.</p>}
-      {(!disabled && appliedFilters.length > 0 || q || params.has('view') || params.has('days') || params.has('page') || filterError) && <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+      {pendingSearch && <p id="expiration-search-hint" role="status" className={styles.searchHint}><strong>Busca ainda não aplicada.</strong> Selecione Buscar para atualizar os resultados.</p>}
+      {(!disabled && appliedFilters.length > 0 || q || params.has('view') || params.has('days') || params.has('page') || filterError) && <div className={styles.appliedFilters}>
         {!disabled && <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />}
         <Button variant="ghost"  onClick={clear}>Limpar filtros</Button>
       </div>}
     </section>
     {filterError && <Feedback tone="warning">{filterError} {!isSafePage(params.get('page'), pageSize) && <Button variant="ghost" onClick={() => setPage(1)}>Voltar à primeira página</Button>}</Feedback>}
     {!filterError && !unitMatches && <Feedback>Conferindo a unidade da consulta antes de carregar os vencimentos.</Feedback>}
-    {enabled && <section aria-label="Período da consulta" className={`flex min-w-0 flex-wrap items-center gap-4 rounded-2xl border px-4 py-4 sm:px-5 ${expired ? 'border-rose-100 bg-rose-50/45' : 'border-blue-100 bg-white/70'}`}><span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${expired ? 'bg-rose-100/70 text-rose-700' : 'bg-blue-50 text-[#315884]'}`} aria-hidden="true"><CalendarClock size={20} /></span><div className="min-w-0 flex-1 basis-52"><strong className="text-[13px] font-semibold leading-6 text-[#244a77]">{expired ? 'Documentos com situação vencida' : `Vencimentos de ${formatDate(today)} a ${formatDate('validUntilTo' in filters ? filters.validUntilTo : undefined)}`}</strong><p className="mt-1 !mb-0 text-[11px] leading-5 text-slate-500">{expired ? 'A situação exibida é a informada pelo serviço documental.' : 'A consulta reúne documentos vigentes com uma data de vencimento no período.'}</p></div><Button variant="secondary" className="!min-h-11 max-sm:!w-full" disabled={list.isFetching} onClick={refresh}><RefreshCw size={15} aria-hidden="true" className="shrink-0" />Atualizar</Button></section>}
+    {enabled && <section aria-label="Período da consulta" className={`${styles.period} ${expired ? styles.expiredPeriod : ''}`}><span className={styles.periodIcon} aria-hidden="true"><CalendarClock size={20} /></span><div className={styles.periodCopy}><strong>{expired ? 'Documentos com situação vencida' : `Vencimentos de ${formatDate(today)} a ${formatDate('validUntilTo' in filters ? filters.validUntilTo : undefined)}`}</strong><p>{expired ? 'A situação exibida é a informada pelo serviço documental.' : 'A consulta reúne documentos vigentes com uma data de vencimento no período.'}</p></div><Button variant="secondary" disabled={list.isFetching} onClick={refresh}><RefreshCw size={15} aria-hidden="true" className={list.isFetching ? styles.refreshing : undefined} />Atualizar</Button></section>}
     {enabled && list.isPending && !failed && <Spinner />}
     {failed && <div className="panel stack"><Feedback tone="danger">{scopedQueryError(list.error ?? verified.error ?? denial.data?.error, 'vencimentos')}</Feedback><Button variant="secondary" disabled={list.isFetching} onClick={() => void retry()}>Tentar novamente</Button></div>}
-    {data && <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white" aria-label="Resultado da consulta">
-      <header className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-5 sm:px-5"><div className="min-w-0"><h2 className="!m-0 !text-[15px] font-semibold leading-6 text-[#244a77]">{expired ? 'Documentos vencidos' : 'Documentos a vencer'}</h2><p className="mt-1 !mb-0 text-[11px] leading-5 text-slate-500">{data.items.length ? data.total === 1 ? 'Exibindo 1 documento' : `Exibindo ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + data.items.length} de ${resultCount}` : 'Nenhum documento nesta página'}</p></div><Badge tone={expired ? 'danger' : 'warning'}>{resultCount}</Badge></header>
+    {data && <section className={styles.results} aria-label="Resultado da consulta" aria-busy={list.isFetching}>
+      <header className={styles.resultsHeading}><div className={styles.resultsTitle}><span className={styles.resultsIcon} aria-hidden="true"><FileText size={17} /></span><div><h2>{expired ? 'Documentos vencidos' : 'Documentos a vencer'}</h2><p>{data.items.length ? data.total === 1 ? 'Exibindo 1 documento' : `Exibindo ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + data.items.length} de ${resultCount}` : 'Nenhum documento nesta página'}</p></div></div><Badge tone={expired ? 'danger' : 'warning'}>{resultCount}</Badge></header>
       {!data.items.length ? <EmptyState title={page > 1 ? 'Esta página não possui documentos' : 'Nenhum vencimento encontrado'} description={page > 1 ? 'Volte à primeira página para consultar o resultado atualizado.' : 'Altere o período ou a busca para consultar outros documentos.'} /> : <ExpirationList documents={data.items} today={today} documentState={{ expirationReturnTo: { unitId, search: location.search } }} />}
-      <nav className="pagination !m-0 border-t border-slate-100 px-4 py-4 text-xs sm:px-5" aria-label="Paginação de vencimentos"><span>Página {page} de {Math.max(1, Math.ceil(data.total / pageSize))}</span><div className="actions [&_.button]:min-h-11">{page > 1 && !data.items.length && <Button variant="secondary" disabled={list.isFetching} onClick={() => setPage(1)}>Primeira página</Button>}<Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * pageSize >= data.total || list.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
+      <nav className={`pagination ${styles.pagination}`} aria-label="Paginação de vencimentos"><span>Página {page} de {Math.max(1, Math.ceil(data.total / pageSize))}</span><div className="actions">{page > 1 && !data.items.length && <Button variant="secondary" disabled={list.isFetching} onClick={() => setPage(1)}>Primeira página</Button>}<Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * pageSize >= data.total || list.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
     </section>}
   </div>;
 }

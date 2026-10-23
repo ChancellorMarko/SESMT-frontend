@@ -29,7 +29,7 @@ async function applyContext() {
   fireEvent.change(screen.getByLabelText('Equipe operacional'), { target: { value: 'team-a' } });
   fireEvent.change(screen.getByLabelText('Tipo de serviço'), { target: { value: 'service-a' } });
   fireEvent.change(screen.getByLabelText('Local / Área'), { target: { value: '  Pátio & Silo  ' } });
-  await screen.findByRole('link', { name: /PTs em atendimento/ });
+  await screen.findByRole('link', { name: /Permissões em atendimento/ });
 }
 
 function target(name: RegExp | string) {
@@ -69,7 +69,7 @@ describe('atalhos contextuais do painel operacional', () => {
 
   it('leva às PTs e pendências somente os critérios aceitos por cada destino', async () => {
     show(); await applyContext();
-    expect(Object.fromEntries(target(/PTs em atendimento/).searchParams)).toEqual({ unitId: 'unit-a', teamId: 'team-a' });
+    expect(Object.fromEntries(target(/Permissões em atendimento/).searchParams)).toEqual({ unitId: 'unit-a', teamId: 'team-a' });
     expect(Object.fromEntries(target('Ver PTs →').searchParams)).toEqual({ unitId: 'unit-a', teamId: 'team-a' });
     expect(Object.fromEntries(target(/Encerramentos para revisão/).searchParams)).toEqual({ unitId: 'unit-a', teamId: 'team-a', reviewStatus: 'PENDING_REVIEW' });
     expect(target(/Pendências documentais/).pathname).toBe('/app/agenda');
@@ -94,7 +94,7 @@ describe('atalhos contextuais do painel operacional', () => {
     show(); await applyContext();
     fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
     expect(target('Consultar agenda').search).toBe('');
-    expect(Object.fromEntries(target(/PTs em atendimento/).searchParams)).toEqual({ unitId: 'unit-a' });
+    expect(Object.fromEntries(target(/Permissões em atendimento/).searchParams)).toEqual({ unitId: 'unit-a' });
     expect(Object.fromEntries(target(/Pendências documentais/).searchParams)).toEqual({ eligibility: 'blocked' });
     expect(Object.fromEntries(target('Conferir requisitos por participante').searchParams)).toEqual({ unitId: 'unit-a', status: 'pending' });
     expect(Object.fromEntries(target(/Encerramentos para revisão/).searchParams)).toEqual({ unitId: 'unit-a', reviewStatus: 'PENDING_REVIEW' });
@@ -117,8 +117,8 @@ describe('atalhos contextuais do painel operacional', () => {
     })).toBe(true);
     const teamSelect = await screen.findByLabelText('Equipe operacional');
     expect(teamSelect).toHaveValue('');
-    await screen.findByRole('link', { name: /PTs em atendimento/ });
-    expect(Object.fromEntries(target(/PTs em atendimento/).searchParams)).toEqual({ unitId: session.unitId });
+    await screen.findByRole('link', { name: /Permissões em atendimento/ });
+    expect(Object.fromEntries(target(/Permissões em atendimento/).searchParams)).toEqual({ unitId: session.unitId });
     expect(Object.fromEntries(target(/Encerramentos para revisão/).searchParams)).toEqual({ unitId: session.unitId, reviewStatus: 'PENDING_REVIEW' });
     expect(Object.fromEntries(target(/Pendências documentais/).searchParams)).toEqual({ from: '2026-10-01', to: '2026-10-31', serviceTypeId: 'service-a', location: 'Pátio & Silo', eligibility: 'blocked' });
     expect(Object.fromEntries(target('Conferir requisitos por participante').searchParams)).toEqual({ unitId: session.unitId, serviceTypeId: 'service-a', status: 'pending' });

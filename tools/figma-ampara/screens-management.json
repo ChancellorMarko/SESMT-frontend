@@ -1,0 +1,1982 @@
+[
+  {
+    "id": "documents",
+    "title": "Documentos",
+    "eyebrow": "REPOSITÓRIO CONTROLADO",
+    "description": "Consulte vigências, acompanhe versões e encontre as evidências da sua unidade.",
+    "family": "Documentos",
+    "path": "/app/documentos",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Filtros de documentos",
+        "fields": [
+          {
+            "label": "Buscar por título ou código",
+            "value": "Ex.: PGR, relatório, DOC-001",
+            "type": "search"
+          },
+          {
+            "label": "Tipo documental",
+            "value": "Todos os tipos",
+            "type": "select"
+          },
+          {
+            "label": "Situação",
+            "value": "Todas as situações",
+            "type": "select"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Buscar",
+            "variant": "primary",
+            "icon": "Search"
+          },
+          {
+            "label": "Limpar filtros",
+            "variant": "ghost"
+          },
+          {
+            "label": "Mais filtros",
+            "variant": "ghost"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Acervo da unidade",
+        "columns": [
+          "Documento",
+          "Tipo",
+          "Situação",
+          "Validade",
+          "Versões vigentes"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Inventário de riscos · Matriz (demo)",
+                "sub": "PGR-2026-001"
+              },
+              "Programa de Gerenciamento de Riscos",
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "10/11/2026",
+              "1"
+            ],
+            "to": "document-detail"
+          },
+          {
+            "cells": [
+              {
+                "text": "Procedimento de trabalho seguro (demo)",
+                "sub": "PROC-2026-001"
+              },
+              "Procedimento operacional",
+              {
+                "text": "Em revisão",
+                "badge": "Em revisão",
+                "tone": "warning"
+              },
+              "18/02/2027",
+              "0"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Orientação de segurança · Produção (demo)",
+                "sub": "PROC-2026-002"
+              },
+              "Procedimento operacional",
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "25/12/2026",
+              "1"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Evidência de treinamento introdutório (demo)",
+                "sub": "CERT-2026-001"
+              },
+              "Certificado e comprovante",
+              {
+                "text": "Vencido",
+                "badge": "Vencido",
+                "tone": "danger"
+              },
+              "09/10/2026",
+              "0"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Plano de prevenção · Matriz (demo)",
+                "sub": "PROC-2026-003"
+              },
+              "Procedimento operacional",
+              {
+                "text": "Rascunho",
+                "badge": "Rascunho",
+                "tone": "neutral"
+              },
+              "19/01/2027",
+              "0"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Procedimento de movimentação interna (demo)",
+                "sub": "PROC-2026-004"
+              },
+              "Procedimento operacional",
+              {
+                "text": "Aprovado",
+                "badge": "Aprovado",
+                "tone": "info"
+              },
+              "19/04/2027",
+              "0"
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "documents",
+    "actions": [
+      {
+        "label": "Novo documento",
+        "variant": "primary",
+        "icon": "Plus"
+      },
+      {
+        "label": "Consultar vencimentos",
+        "variant": "secondary",
+        "to": "expirations"
+      }
+    ]
+  },
+  {
+    "id": "document-detail",
+    "title": "Inventário de riscos · Matriz (demo)",
+    "eyebrow": "PGR-2026-001",
+    "description": "Metadados, vigência e histórico de um documento controlado.",
+    "family": "Documentos",
+    "path": "/app/documentos/00000000-0000-4000-8000-000000000080",
+    "sections": [
+      {
+        "type": "details",
+        "title": "Dados do documento",
+        "items": [
+          {
+            "label": "Situação",
+            "value": "Vigente · Interno"
+          },
+          {
+            "label": "Tipo documental",
+            "value": "Programa de Gerenciamento de Riscos"
+          },
+          {
+            "label": "Unidade",
+            "value": "Unidade Matriz"
+          },
+          {
+            "label": "Setor",
+            "value": "Produção"
+          },
+          {
+            "label": "Proprietário",
+            "value": "Marina Demo"
+          },
+          {
+            "label": "Emissão",
+            "value": "24/04/2026"
+          },
+          {
+            "label": "Vigência",
+            "value": "24/05/2026 a 10/11/2026"
+          },
+          {
+            "label": "Trabalhadores vinculados",
+            "value": "0"
+          },
+          {
+            "label": "Responsáveis",
+            "value": "1"
+          },
+          {
+            "label": "Palavras-chave",
+            "value": "demonstração"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Nova versão",
+            "variant": "primary",
+            "icon": "Plus"
+          },
+          {
+            "label": "Arquivar",
+            "variant": "danger",
+            "icon": "Archive"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Versões",
+        "columns": [
+          "Versão",
+          "Arquivo",
+          "Situação",
+          "Verificação",
+          "Criada em",
+          "Consulta"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "v1",
+                "sub": "Versão vigente · Também em trabalho"
+              },
+              "PGR-2026-001-demo.pdf",
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              {
+                "text": "Liberado",
+                "badge": "Liberado",
+                "tone": "success"
+              },
+              "21/10/2026",
+              "Consultar v1"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "details",
+        "title": "Versão 1",
+        "items": [
+          {
+            "label": "Arquivo",
+            "value": "PGR-2026-001-demo.pdf · 1 KB"
+          },
+          {
+            "label": "Justificativa",
+            "value": "Versão sintética para desenvolvimento da interface."
+          },
+          {
+            "label": "Emissão da versão",
+            "value": "24/04/2026"
+          },
+          {
+            "label": "Validade da versão",
+            "value": "24/05/2026 a 10/11/2026"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Visualizar arquivo",
+            "variant": "secondary",
+            "icon": "Eye"
+          },
+          {
+            "label": "Solicitar download",
+            "variant": "secondary",
+            "icon": "Download"
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Revisão: aceita. Revisão simulada."
+      },
+      {
+        "type": "timeline",
+        "title": "Histórico",
+        "items": [
+          {
+            "title": "Documento cadastrado",
+            "detail": "Marina Demo · Dados sintéticos de demonstração.",
+            "date": "21/10/2026"
+          }
+        ]
+      }
+    ],
+    "navId": "documents",
+    "actions": [
+      {
+        "label": "Voltar à central",
+        "variant": "secondary",
+        "to": "documents",
+        "icon": "ArrowLeft"
+      }
+    ]
+  },
+  {
+    "id": "expirations",
+    "title": "Vencimentos",
+    "eyebrow": "PLANEJAMENTO DOCUMENTAL",
+    "description": "Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.",
+    "family": "Vencimentos",
+    "path": "/app/vencimentos?days=90",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Consulta de vencimentos",
+        "fields": [
+          {
+            "label": "Consultar",
+            "value": "A vencer",
+            "type": "select"
+          },
+          {
+            "label": "Antecedência",
+            "value": "Próximos 90 dias",
+            "type": "select"
+          },
+          {
+            "label": "Buscar por título ou código",
+            "value": "Ex.: PGR, relatório, DOC-001",
+            "type": "search"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Buscar",
+            "variant": "primary",
+            "icon": "Search"
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Vencimentos de 21/10/2026 a 19/01/2027. A consulta reúne documentos vigentes com uma data de vencimento no período."
+      },
+      {
+        "type": "table",
+        "title": "Documentos a vencer",
+        "columns": [
+          "Documento",
+          "Situação",
+          "Vencimento",
+          "Prazo"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Inventário de riscos · Matriz (demo)",
+                "sub": "PGR-2026-001"
+              },
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "10/11/2026",
+              "Em 20 dias"
+            ],
+            "to": "document-detail"
+          },
+          {
+            "cells": [
+              {
+                "text": "Orientação de segurança · Produção (demo)",
+                "sub": "PROC-2026-002"
+              },
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "25/12/2026",
+              "Em 65 dias"
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "documents",
+    "actions": [
+      {
+        "label": "Abrir no repositório",
+        "variant": "secondary",
+        "to": "documents",
+        "icon": "ArrowUpRight"
+      }
+    ],
+    "tabs": [
+      {
+        "label": "A vencer",
+        "selected": true,
+        "to": "expirations"
+      },
+      {
+        "label": "Vencidos",
+        "selected": false,
+        "to": "expirations-expired"
+      }
+    ]
+  },
+  {
+    "id": "expirations-expired",
+    "title": "Vencimentos",
+    "eyebrow": "PLANEJAMENTO DOCUMENTAL",
+    "description": "Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.",
+    "family": "Vencimentos",
+    "path": "/app/vencimentos?view=expired",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Consulta de vencimentos",
+        "fields": [
+          {
+            "label": "Consultar",
+            "value": "Vencidos",
+            "type": "select"
+          },
+          {
+            "label": "Buscar por título ou código",
+            "value": "Ex.: PGR, relatório, DOC-001",
+            "type": "search"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Buscar",
+            "variant": "primary",
+            "icon": "Search"
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "warning",
+        "text": "Documentos com situação vencida. A situação exibida é a informada pelo serviço documental."
+      },
+      {
+        "type": "table",
+        "title": "Documentos vencidos",
+        "columns": [
+          "Documento",
+          "Situação",
+          "Vencimento",
+          "Prazo"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Evidência de treinamento introdutório (demo)",
+                "sub": "CERT-2026-001"
+              },
+              {
+                "text": "Vencido",
+                "badge": "Vencido",
+                "tone": "danger"
+              },
+              "09/10/2026",
+              "Vencido há 12 dias"
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "documents",
+    "actions": [
+      {
+        "label": "Abrir no repositório",
+        "variant": "secondary",
+        "to": "documents"
+      }
+    ],
+    "tabs": [
+      {
+        "label": "A vencer",
+        "selected": false,
+        "to": "expirations"
+      },
+      {
+        "label": "Vencidos",
+        "selected": true,
+        "to": "expirations-expired"
+      }
+    ]
+  },
+  {
+    "id": "consultation",
+    "title": "Central de consulta unificada",
+    "eyebrow": "BUSCA E AUDITORIA OPERACIONAL",
+    "description": "Consulte documentos controlados, PTs, ATs e preparações de PET com filtros, paginação e histórico.",
+    "family": "Consulta",
+    "path": "/app/consulta?tab=documents",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Consulta de documentos controlados",
+        "fields": [
+          {
+            "label": "Buscar título ou código",
+            "value": "Ex.: Relatório, PGR, ASO, DOC-001…",
+            "type": "search"
+          },
+          {
+            "label": "Tipo documental",
+            "value": "Todos os tipos",
+            "type": "select"
+          },
+          {
+            "label": "Situação",
+            "value": "Todas as situações",
+            "type": "select"
+          },
+          {
+            "label": "Trabalhador vinculado",
+            "value": "Todos os trabalhadores",
+            "type": "select"
+          },
+          {
+            "label": "Vencimento a partir de",
+            "value": "dd/mm/aaaa",
+            "type": "date"
+          },
+          {
+            "label": "Vencimento até",
+            "value": "dd/mm/aaaa",
+            "type": "date"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Pesquisar",
+            "variant": "secondary",
+            "icon": "Search"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Resultados da consulta documental",
+        "columns": [
+          "Documento",
+          "Tipo",
+          "Situação",
+          "Validade"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Inventário de riscos · Matriz (demo)",
+                "sub": "PGR-2026-001"
+              },
+              "Programa de Gerenciamento de Riscos",
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "10/11/2026"
+            ],
+            "to": "document-detail"
+          },
+          {
+            "cells": [
+              {
+                "text": "Procedimento de trabalho seguro (demo)",
+                "sub": "PROC-2026-001"
+              },
+              "Procedimento operacional",
+              {
+                "text": "Em revisão",
+                "badge": "Em revisão",
+                "tone": "warning"
+              },
+              "18/02/2027"
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "documents",
+    "tabs": [
+      {
+        "label": "Documentos controlados",
+        "selected": true,
+        "to": "consultation"
+      },
+      {
+        "label": "Permissões de trabalho (PTs)",
+        "selected": false,
+        "to": "pt-list"
+      },
+      {
+        "label": "Autorizações de trabalho (ATs)",
+        "selected": false,
+        "to": "at-list"
+      },
+      {
+        "label": "PETs de espaços confinados",
+        "selected": false,
+        "to": "pet-list"
+      }
+    ]
+  },
+  {
+    "id": "workers",
+    "title": "Trabalhadores",
+    "eyebrow": "PESSOAS E VÍNCULOS",
+    "description": "Encontre cadastros, situação de integração, equipes operacionais e documentos permitidos.",
+    "family": "Trabalhadores",
+    "path": "/app/trabalhadores",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Filtros de trabalhadores",
+        "fields": [
+          {
+            "label": "Buscar nome ou matrícula",
+            "value": "Digite um nome ou matrícula",
+            "type": "search"
+          },
+          {
+            "label": "Integração administrativa",
+            "value": "Todas as integrações",
+            "type": "select"
+          },
+          {
+            "label": "Situação cadastral",
+            "value": "Todas as situações",
+            "type": "select"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Pesquisar",
+            "variant": "primary",
+            "icon": "Search"
+          },
+          {
+            "label": "Empresa e equipe",
+            "variant": "ghost"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Pessoas da unidade",
+        "columns": [
+          "Trabalhador",
+          "Unidade / setor",
+          "Situação cadastral",
+          "Integração"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Camila Demo",
+                "sub": "DEMO-001"
+              },
+              "Unidade Matriz · Produção",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              },
+              {
+                "text": "Integrado",
+                "badge": "Integrado",
+                "tone": "success"
+              }
+            ],
+            "to": "worker-detail"
+          },
+          {
+            "cells": [
+              {
+                "text": "Bruno Demo",
+                "sub": "DEMO-002"
+              },
+              "Unidade Matriz · Produção",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              },
+              {
+                "text": "Integrado",
+                "badge": "Integrado",
+                "tone": "success"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Julia Demo",
+                "sub": "DEMO-003"
+              },
+              "Unidade Matriz · Produção",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              },
+              {
+                "text": "Pendente",
+                "badge": "Pendente",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Pedro Demo",
+                "sub": "DEMO-004"
+              },
+              "Unidade Matriz · Produção",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              },
+              {
+                "text": "Vencida",
+                "badge": "Vencida",
+                "tone": "danger"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Sofia Demo",
+                "sub": "DEMO-005"
+              },
+              "Unidade Matriz · Administrativo",
+              {
+                "text": "Afastado",
+                "badge": "Afastado",
+                "tone": "warning"
+              },
+              {
+                "text": "Não aplicável",
+                "badge": "Não aplicável",
+                "tone": "neutral"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Gabriel Demo",
+                "sub": "DEMO-006"
+              },
+              "Unidade Matriz · Administrativo",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              },
+              {
+                "text": "Integrado",
+                "badge": "Integrado",
+                "tone": "success"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "A integração exibida é administrativa. A liberação do trabalho depende da conferência dos requisitos e da autorização operacional."
+      }
+    ],
+    "navId": "workers",
+    "actions": [
+      {
+        "label": "Novo trabalhador",
+        "variant": "primary",
+        "icon": "Plus"
+      }
+    ]
+  },
+  {
+    "id": "worker-detail",
+    "title": "Camila Demo",
+    "eyebrow": "TRABALHADOR 360° · MATRÍCULA DEMO-001",
+    "description": "Vínculo, documentos permitidos, integração administrativa e histórico.",
+    "family": "Trabalhadores",
+    "path": "/app/trabalhadores/00000000-0000-4000-8000-000000000040",
+    "sections": [
+      {
+        "type": "details",
+        "title": "Vínculo atual",
+        "items": [
+          {
+            "label": "Empresa",
+            "value": "Organização Exemplo"
+          },
+          {
+            "label": "Unidade / setor",
+            "value": "Unidade Matriz / Produção"
+          },
+          {
+            "label": "Cargo / função",
+            "value": "Operador / Operação de produção"
+          },
+          {
+            "label": "Tipo de vínculo",
+            "value": "CLT"
+          },
+          {
+            "label": "Admissão",
+            "value": "10/03/2025"
+          },
+          {
+            "label": "Situação cadastral",
+            "value": "Ativo"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "details",
+        "title": "Integração administrativa",
+        "items": [
+          {
+            "label": "Situação",
+            "value": "Integrado"
+          },
+          {
+            "label": "Data realizada",
+            "value": "12/03/2025"
+          },
+          {
+            "label": "Validade",
+            "value": "12/03/2027"
+          },
+          {
+            "label": "Responsável",
+            "value": "Marina Demo"
+          },
+          {
+            "label": "Evidência",
+            "value": "integracao-001.pdf"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "cards",
+        "title": "Equipes operacionais",
+        "items": [
+          {
+            "title": "Equipe de manutenção · demonstração",
+            "subtitle": "Executante",
+            "description": "Chefe da equipe: Bruno Demo",
+            "action": {
+              "label": "Consultar equipes",
+              "to": "teams"
+            }
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Documentos vinculados",
+        "columns": [
+          "Documento",
+          "Situação",
+          "Validade"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Comprovante de orientação individual (demo)",
+                "sub": "CERT-2026-002"
+              },
+              {
+                "text": "Vigente",
+                "badge": "Vigente",
+                "tone": "success"
+              },
+              "18/06/2027"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "timeline",
+        "title": "Histórico",
+        "items": [
+          {
+            "title": "Admissão",
+            "detail": "Registro sintético de admissão.",
+            "date": "10/03/2025"
+          },
+          {
+            "title": "Integração registrada",
+            "detail": "Integração de segurança e procedimentos da unidade.",
+            "date": "12/03/2025"
+          }
+        ]
+      }
+    ],
+    "navId": "workers",
+    "actions": [
+      {
+        "label": "Voltar à lista",
+        "variant": "secondary",
+        "to": "workers",
+        "icon": "ArrowLeft"
+      },
+      {
+        "label": "Editar cadastro",
+        "variant": "secondary"
+      },
+      {
+        "label": "Registrar movimentação",
+        "variant": "primary"
+      }
+    ],
+    "tabs": [
+      {
+        "label": "Vínculo",
+        "selected": true
+      },
+      {
+        "label": "Integração",
+        "selected": false
+      },
+      {
+        "label": "Equipes",
+        "selected": false
+      },
+      {
+        "label": "Documentos",
+        "selected": false
+      },
+      {
+        "label": "Histórico",
+        "selected": false
+      }
+    ]
+  },
+  {
+    "id": "teams",
+    "title": "Equipes de trabalho",
+    "eyebrow": "PESSOAS E SERVIÇO",
+    "description": "Consulte o chefe, os participantes e a situação das equipes disponíveis na unidade.",
+    "family": "Equipes",
+    "path": "/app/equipes",
+    "sections": [
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "As funções da equipe servem como referência. Ao agendar, confirme a função que cada pessoa exercerá naquele serviço para aplicar os requisitos corretos."
+      },
+      {
+        "type": "form",
+        "title": "Filtros de equipes",
+        "fields": [
+          {
+            "label": "Buscar equipes",
+            "value": "Nome, participante ou função",
+            "type": "search"
+          },
+          {
+            "label": "Situação",
+            "value": "Todas as situações",
+            "type": "select"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "cards",
+        "title": "Equipes disponíveis",
+        "items": [
+          {
+            "title": "Equipe de manutenção · demonstração",
+            "subtitle": "3 participante(s) · Revisão 1",
+            "status": "Ativa",
+            "tone": "success",
+            "meta": [
+              {
+                "label": "Camila Demo",
+                "value": "Executante"
+              },
+              {
+                "label": "Bruno Demo",
+                "value": "Executante · Chefe da equipe"
+              },
+              {
+                "label": "Julia Demo",
+                "value": "Apoio"
+              }
+            ],
+            "action": {
+              "label": "Consultar agenda desta equipe",
+              "to": "agenda"
+            }
+          }
+        ]
+      }
+    ],
+    "navId": "workers",
+    "actions": [
+      {
+        "label": "Nova equipe",
+        "variant": "primary",
+        "icon": "Plus"
+      },
+      {
+        "label": "Agendar serviço",
+        "variant": "secondary",
+        "to": "agenda"
+      }
+    ]
+  },
+  {
+    "id": "organization",
+    "title": "Estrutura da organização",
+    "eyebrow": "BASE ORGANIZACIONAL",
+    "description": "Organize unidades, setores e vínculos para manter cada registro no contexto correto.",
+    "family": "Organização",
+    "path": "/app/organizacao",
+    "sections": [
+      {
+        "type": "cards",
+        "title": "Empresas e unidades",
+        "items": [
+          {
+            "title": "Organização Exemplo",
+            "subtitle": "Estabelecimento: Estabelecimento Sul",
+            "status": "Interna",
+            "tone": "info",
+            "meta": [
+              {
+                "label": "Unidade Matriz",
+                "value": "Produção · Administrativo"
+              },
+              {
+                "label": "Unidade Operacional",
+                "value": "Logística"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "form",
+        "title": "Cadastros organizacionais",
+        "fields": [
+          {
+            "label": "Buscar",
+            "value": "Nome ou código",
+            "type": "search"
+          },
+          {
+            "label": "Situação",
+            "value": "Somente ativos",
+            "type": "select"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "table",
+        "title": "Unidades",
+        "columns": [
+          "Nome",
+          "Código",
+          "Vínculo",
+          "Situação"
+        ],
+        "rows": [
+          {
+            "cells": [
+              "Unidade Matriz",
+              "MATRIZ",
+              "Organização Exemplo",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              }
+            ]
+          },
+          {
+            "cells": [
+              "Unidade Operacional",
+              "OPER",
+              "Organização Exemplo",
+              {
+                "text": "Ativo",
+                "badge": "Ativo",
+                "tone": "success"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "workers",
+    "actions": [
+      {
+        "label": "Cadastrar unidade",
+        "variant": "primary",
+        "icon": "Plus"
+      }
+    ],
+    "tabs": [
+      {
+        "label": "Empresas",
+        "selected": false
+      },
+      {
+        "label": "Estabelecimentos",
+        "selected": false
+      },
+      {
+        "label": "Unidades",
+        "selected": true
+      },
+      {
+        "label": "Setores",
+        "selected": false
+      },
+      {
+        "label": "Cargos",
+        "selected": false
+      },
+      {
+        "label": "Funções",
+        "selected": false
+      },
+      {
+        "label": "Centros de trabalho",
+        "selected": false
+      }
+    ]
+  },
+  {
+    "id": "designations",
+    "title": "Designações operacionais",
+    "eyebrow": "OPERAÇÃO",
+    "description": "Vincule responsáveis aos serviços, locais e períodos de vigência para a operação de PTs.",
+    "family": "Designações",
+    "path": "/app/designacoes",
+    "sections": [
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "A cobertura por designação é conferida na abertura, liberação, início e retomada da PT. Designações expiradas ou revogadas bloqueiam a operação."
+      },
+      {
+        "type": "form",
+        "title": "Filtros de designações",
+        "fields": [
+          {
+            "label": "Buscar",
+            "value": "Nome, serviço ou local…",
+            "type": "search"
+          },
+          {
+            "label": "Situação",
+            "value": "Todas as situações",
+            "type": "select"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "cards",
+        "title": "Designações da unidade",
+        "items": [
+          {
+            "title": "Diego Demo · técnico",
+            "subtitle": "Unidade Matriz",
+            "status": "Vigente",
+            "tone": "success",
+            "meta": [
+              {
+                "label": "Serviços",
+                "value": "Manutenção programada · Inspeção de área e serviços de PT"
+              },
+              {
+                "label": "Local",
+                "value": "Todos os locais"
+              },
+              {
+                "label": "Vigência",
+                "value": "21/09/2026 a 19/04/2027"
+              }
+            ]
+          },
+          {
+            "title": "Felipe Demo · bombeiro",
+            "subtitle": "Unidade Matriz",
+            "status": "Vigente",
+            "tone": "success",
+            "meta": [
+              {
+                "label": "Serviços",
+                "value": "Inspeção de área"
+              },
+              {
+                "label": "Local",
+                "value": "Todos os locais"
+              },
+              {
+                "label": "Vigência",
+                "value": "11/10/2026 a 19/01/2027"
+              }
+            ]
+          },
+          {
+            "title": "Diego Demo · técnico",
+            "subtitle": "Registro histórico",
+            "status": "Revogada",
+            "tone": "neutral",
+            "meta": [
+              {
+                "label": "Serviços",
+                "value": "Manutenção programada"
+              },
+              {
+                "label": "Local",
+                "value": "Área restrita"
+              },
+              {
+                "label": "Motivo",
+                "value": "Demonstração de revogação."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "agenda",
+    "actions": [
+      {
+        "label": "Nova designação",
+        "variant": "primary",
+        "icon": "Plus"
+      }
+    ]
+  },
+  {
+    "id": "notifications",
+    "title": "Notificações",
+    "eyebrow": "ACOMPANHAMENTO",
+    "description": "Avisos do seu escopo. Marcar como lido registra a leitura e mantém a pendência do documento.",
+    "family": "Controle",
+    "path": "/app/notificacoes",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Filtros de notificações",
+        "fields": [
+          {
+            "label": "Leitura",
+            "value": "Todas",
+            "type": "select"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Atualizar",
+            "variant": "secondary",
+            "icon": "RefreshCw"
+          }
+        ]
+      },
+      {
+        "type": "stats",
+        "items": [
+          {
+            "label": "Na consulta",
+            "value": "3",
+            "detail": "No filtro selecionado",
+            "icon": "Bell"
+          },
+          {
+            "label": "Nesta página",
+            "value": "3",
+            "detail": "Avisos exibidos abaixo",
+            "icon": "ListChecks"
+          }
+        ]
+      },
+      {
+        "type": "cards",
+        "title": "Lista de notificações",
+        "items": [
+          {
+            "title": "Documento próximo da validade",
+            "subtitle": "Inventário de riscos · Matriz (demo)",
+            "status": "Não lida",
+            "tone": "info",
+            "meta": [
+              {
+                "label": "Vencimento",
+                "value": "10/11/2026"
+              }
+            ],
+            "action": {
+              "label": "Consultar documento",
+              "to": "document-detail"
+            }
+          },
+          {
+            "title": "Documento aguardando revisão",
+            "subtitle": "Procedimento de trabalho seguro (demo)",
+            "status": "Não lida",
+            "tone": "warning",
+            "meta": [
+              {
+                "label": "Validade",
+                "value": "18/02/2027"
+              }
+            ],
+            "action": {
+              "label": "Consultar documentos",
+              "to": "documents"
+            }
+          },
+          {
+            "title": "Validade documental encerrada",
+            "subtitle": "Evidência de treinamento introdutório (demo)",
+            "status": "Não lida",
+            "tone": "danger",
+            "meta": [
+              {
+                "label": "Vencimento",
+                "value": "09/10/2026"
+              }
+            ],
+            "action": {
+              "label": "Consultar vencidos",
+              "to": "expirations-expired"
+            }
+          }
+        ]
+      }
+    ],
+    "navId": "notifications"
+  },
+  {
+    "id": "audit",
+    "title": "Auditoria",
+    "eyebrow": "RASTREABILIDADE",
+    "description": "Acompanhe as ações registradas na unidade, com horário, autoria e rastreio.",
+    "family": "Controle",
+    "path": "/app/auditoria",
+    "sections": [
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Somente leitura. Horários de Brasília."
+      },
+      {
+        "type": "form",
+        "title": "Filtros da auditoria",
+        "fields": [
+          {
+            "label": "Ação",
+            "value": "Todas",
+            "type": "select"
+          },
+          {
+            "label": "De",
+            "value": "dd/mm/aaaa",
+            "type": "date"
+          },
+          {
+            "label": "Até",
+            "value": "dd/mm/aaaa",
+            "type": "date"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Filtrar eventos",
+            "variant": "primary",
+            "icon": "Search"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Trilha de eventos",
+        "columns": [
+          "Data e hora",
+          "Ação",
+          "Recurso",
+          "Ator",
+          "Resultado",
+          "Rastreio"
+        ],
+        "rows": [
+          {
+            "cells": [
+              "21/10/2026",
+              "Documento cadastrado",
+              {
+                "text": "DOCUMENT",
+                "sub": "00000000-0000-4000-8000-000000000080"
+              },
+              "00000000-0000-4000-8000-000000000020",
+              {
+                "text": "Demonstração",
+                "badge": "Demonstração",
+                "tone": "info"
+              },
+              "Gerado na demonstração"
+            ]
+          },
+          {
+            "cells": [
+              "21/10/2026",
+              "Documento cadastrado",
+              {
+                "text": "DOCUMENT",
+                "sub": "00000000-0000-4000-8000-000000000081"
+              },
+              "00000000-0000-4000-8000-000000000020",
+              {
+                "text": "Demonstração",
+                "badge": "Demonstração",
+                "tone": "info"
+              },
+              "Gerado na demonstração"
+            ]
+          },
+          {
+            "cells": [
+              "21/10/2026",
+              "Documento cadastrado",
+              {
+                "text": "DOCUMENT",
+                "sub": "00000000-0000-4000-8000-000000000082"
+              },
+              "00000000-0000-4000-8000-000000000020",
+              {
+                "text": "Demonstração",
+                "badge": "Demonstração",
+                "tone": "info"
+              },
+              "Gerado na demonstração"
+            ]
+          }
+        ]
+      }
+    ],
+    "navId": "audit",
+    "actions": [
+      {
+        "label": "Atualizar",
+        "variant": "secondary",
+        "icon": "RefreshCw"
+      }
+    ]
+  },
+  {
+    "id": "requirement-matrix",
+    "title": "Matriz de requisitos documentais",
+    "eyebrow": "CONFIGURAÇÕES",
+    "description": "Configure requisitos por serviço, função e local, mantendo a publicação e os registros anteriores separados do rascunho.",
+    "family": "Configurações",
+    "path": "/app/configuracoes/requisitos",
+    "sections": [
+      {
+        "type": "details",
+        "title": "Matriz publicada",
+        "items": [
+          {
+            "label": "Versão",
+            "value": "DEMO-MATRIZ-1"
+          },
+          {
+            "label": "Unidade",
+            "value": "Unidade Matriz"
+          },
+          {
+            "label": "Rascunho salvo",
+            "value": "Nenhum"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "cards",
+        "title": "Requisitos publicados",
+        "items": [
+          {
+            "title": "Evidência de capacitação aplicável (demo)",
+            "description": "Conferência didática do participante e do período planejado; a validade é um critério da matriz de exemplo, não um prazo legal de NR.",
+            "meta": [
+              {
+                "label": "Serviço",
+                "value": "Manutenção programada"
+              },
+              {
+                "label": "Função no serviço",
+                "value": "Todas as funções"
+              },
+              {
+                "label": "Local",
+                "value": "Todos os locais"
+              }
+            ]
+          },
+          {
+            "title": "Conferência ocupacional restrita (demo)",
+            "status": "Conferência restrita",
+            "tone": "info",
+            "description": "Somente a situação administrativa do requisito é exibida nos atendimentos. Arquivos, datas e detalhes clínicos não são apresentados nesta consulta.",
+            "meta": [
+              {
+                "label": "Serviço",
+                "value": "Manutenção programada"
+              },
+              {
+                "label": "Função no serviço",
+                "value": "Todas as funções"
+              }
+            ]
+          },
+          {
+            "title": "Orientação do atendimento (demo)",
+            "description": "Evidência ilustrativa vinculada à inspeção; não substitui capacitação regulamentar.",
+            "meta": [
+              {
+                "label": "Serviço",
+                "value": "Inspeção de área"
+              },
+              {
+                "label": "Função no serviço",
+                "value": "Todas as funções"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Salvar o rascunho mantém a publicação atual em uso. A publicação exige conferência e motivo."
+      }
+    ],
+    "navId": "settings",
+    "actions": [
+      {
+        "label": "Consultar agenda",
+        "variant": "secondary",
+        "to": "agenda"
+      },
+      {
+        "label": "Salvar rascunho",
+        "variant": "primary"
+      }
+    ]
+  },
+  {
+    "id": "document-types",
+    "title": "Tipos documentais",
+    "eyebrow": "CONFIGURAÇÕES",
+    "description": "Categorias, formatos, fluxo e referências de políticas para cada tipo.",
+    "family": "Configurações",
+    "path": "/app/configuracoes/tipos-documentais",
+    "sections": [
+      {
+        "type": "table",
+        "title": "Tipos cadastrados",
+        "columns": [
+          "Tipo",
+          "Categoria",
+          "Acesso",
+          "Arquivo",
+          "Fluxo"
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "Programa de Gerenciamento de Riscos",
+                "sub": "PGR"
+              },
+              "Programas de SST",
+              "Interno",
+              "10 MB · PDF, PNG, JPEG",
+              "Com revisão · Exige assinatura"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Procedimento operacional",
+                "sub": "PROCED"
+              },
+              "Procedimentos",
+              "Interno",
+              "10 MB · PDF, PNG, JPEG",
+              "Com revisão · Assinatura conforme necessidade"
+            ]
+          },
+          {
+            "cells": [
+              {
+                "text": "Certificado e comprovante",
+                "sub": "CERT"
+              },
+              "Evidências",
+              "Restrito",
+              "5 MB · PDF, PNG, JPEG",
+              "Revisão facultativa · Assinatura conforme necessidade"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Referências de políticas de demonstração. Fontes e parâmetros dependem de validação dos responsáveis técnicos."
+      }
+    ],
+    "navId": "settings",
+    "actions": [
+      {
+        "label": "Novo tipo",
+        "variant": "primary",
+        "icon": "Plus"
+      },
+      {
+        "label": "Consultar parâmetros",
+        "variant": "secondary",
+        "to": "parameters"
+      }
+    ]
+  },
+  {
+    "id": "service-templates",
+    "title": "Serviços e templates de PT",
+    "eyebrow": "CONFIGURAÇÕES",
+    "description": "Configure perguntas por serviço e unidade, com rascunhos e versões publicadas.",
+    "family": "Configurações",
+    "path": "/app/configuracoes/servicos",
+    "sections": [
+      {
+        "type": "cards",
+        "title": "Selecionar serviço",
+        "items": [
+          {
+            "title": "Manutenção programada",
+            "subtitle": "DEMO-PT-1",
+            "status": "Publicado",
+            "tone": "success"
+          },
+          {
+            "title": "Inspeção de área",
+            "subtitle": "DEMO-INSPECAO-1",
+            "status": "Publicado",
+            "tone": "success"
+          }
+        ]
+      },
+      {
+        "type": "details",
+        "title": "Template publicado",
+        "items": [
+          {
+            "label": "Serviço",
+            "value": "Manutenção programada"
+          },
+          {
+            "label": "Versão",
+            "value": "DEMO-PT-1"
+          },
+          {
+            "label": "Perguntas",
+            "value": "2"
+          },
+          {
+            "label": "Rascunho salvo",
+            "value": "Nenhum"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "cards",
+        "title": "Consultar perguntas em uso",
+        "items": [
+          {
+            "title": "Contexto de manutenção programada conferido (demonstração)",
+            "description": "Obrigatória · Bloqueia ao responder Não"
+          },
+          {
+            "title": "Orientações da equipe para manutenção programada registradas (demonstração)",
+            "description": "Obrigatória · Bloqueia ao responder Não"
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Salvar o rascunho mantém a publicação atual em uso. PTs já abertas preservam o template registrado."
+      }
+    ],
+    "navId": "settings",
+    "actions": [
+      {
+        "label": "Consultar agenda",
+        "variant": "secondary",
+        "to": "agenda"
+      },
+      {
+        "label": "Salvar rascunho",
+        "variant": "primary"
+      }
+    ]
+  },
+  {
+    "id": "parameters",
+    "title": "Parâmetros documentais",
+    "eyebrow": "CONFIGURAÇÕES",
+    "description": "Consulta das políticas retornadas pelos tipos documentais. Não existe gravação de parâmetros globais nesta etapa.",
+    "family": "Configurações",
+    "path": "/app/configuracoes/parametros",
+    "sections": [
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Alertas, renovação e limites de arquivo pertencem ao contrato de tipos documentais. Retenção, fonte e versão devem ser validadas pelos responsáveis técnicos."
+      },
+      {
+        "type": "form",
+        "title": "Buscar políticas documentais",
+        "fields": [
+          {
+            "label": "Buscar política por nome ou código",
+            "value": "Ex.: procedimento, PGR",
+            "type": "search"
+          }
+        ],
+        "actions": [
+          {
+            "label": "Buscar políticas",
+            "variant": "primary",
+            "icon": "Search"
+          }
+        ]
+      },
+      {
+        "type": "details",
+        "title": "Programa de Gerenciamento de Riscos · PGR",
+        "items": [
+          {
+            "label": "Renovação",
+            "value": "12 meses"
+          },
+          {
+            "label": "Aviso antecipado",
+            "value": "30 dias — parâmetro do tipo"
+          },
+          {
+            "label": "Limite por arquivo",
+            "value": "10 MB"
+          },
+          {
+            "label": "Formatos permitidos",
+            "value": "application/pdf, image/png, image/jpeg"
+          },
+          {
+            "label": "Política de guarda",
+            "value": "DEMO-PGR · versão 1"
+          },
+          {
+            "label": "Fonte",
+            "value": "Política ilustrativa; validar com responsável técnico."
+          },
+          {
+            "label": "Fluxo",
+            "value": "Revisão exigida; assinatura exigida; sem autoaprovação"
+          },
+          {
+            "label": "Versões vigentes",
+            "value": "Uma vigente por escopo"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "type": "details",
+        "title": "Certificado e comprovante · CERT",
+        "items": [
+          {
+            "label": "Renovação",
+            "value": "Sem periodicidade automática"
+          },
+          {
+            "label": "Aviso antecipado",
+            "value": "15 dias — parâmetro do tipo"
+          },
+          {
+            "label": "Limite por arquivo",
+            "value": "5 MB"
+          },
+          {
+            "label": "Política de guarda",
+            "value": "DEMO-EVID · versão 1"
+          },
+          {
+            "label": "Fonte",
+            "value": "Parâmetros ilustrativos; não são prazos legais."
+          }
+        ],
+        "actions": []
+      }
+    ],
+    "navId": "settings",
+    "actions": [
+      {
+        "label": "Gerenciar políticas nos tipos documentais",
+        "variant": "secondary",
+        "to": "document-types"
+      }
+    ]
+  },
+  {
+    "id": "login",
+    "title": "Entrar na sua conta",
+    "eyebrow": "ACESSO AO SISTEMA",
+    "description": "Use suas credenciais para acessar o ambiente de trabalho.",
+    "family": "Acesso",
+    "path": "/login",
+    "sections": [
+      {
+        "type": "form",
+        "title": "Acesso à plataforma",
+        "fields": [
+          {
+            "label": "E-mail",
+            "value": "seu.nome@empresa.com",
+            "type": "text",
+            "required": true
+          },
+          {
+            "label": "Senha",
+            "value": "Informe sua senha",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "actions": [
+          {
+            "label": "Entrar na plataforma",
+            "variant": "primary",
+            "to": "overview",
+            "icon": "ArrowRight"
+          },
+          {
+            "label": "Esqueci minha senha",
+            "variant": "ghost"
+          }
+        ]
+      },
+      {
+        "type": "notice",
+        "tone": "info",
+        "text": "Ambiente de demonstração. Explore com dados fictícios. As alterações duram até recarregar a página."
+      },
+      {
+        "type": "cards",
+        "title": "Escolha um perfil para explorar",
+        "items": [
+          {
+            "title": "Técnico de segurança",
+            "action": {
+              "label": "Entrar como Técnico de segurança",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Bombeiro",
+            "action": {
+              "label": "Entrar como Bombeiro",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Engenheiro",
+            "action": {
+              "label": "Entrar como Engenheiro",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Gestor SESMT",
+            "action": {
+              "label": "Entrar como Gestor SESMT",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "RH",
+            "action": {
+              "label": "Entrar como RH",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Auditor",
+            "action": {
+              "label": "Entrar como Auditor",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Administrador",
+            "action": {
+              "label": "Entrar como Administrador",
+              "to": "overview"
+            }
+          },
+          {
+            "title": "Trabalhador",
+            "action": {
+              "label": "Entrar como Trabalhador",
+              "to": "documents"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

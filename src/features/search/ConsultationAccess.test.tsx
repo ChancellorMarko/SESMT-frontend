@@ -51,7 +51,7 @@ describe('acesso e contexto das quatro consultas', () => {
     session.permissions = ['documents.read', 'permits.read', 'at.read', 'pet.read'];
     const user = userEvent.setup(); show('/app/consulta?tab=ats&unitId=unit-a&status=CANCELED&page=3&q=AT');
     await screen.findByRole('heading', { name: 'Nenhuma AT encontrada' });
-    const at = screen.getByRole('tab', { name: 'Autorizações de trabalho (ATs)' }), pet = screen.getByRole('tab', { name: 'PETs de espaços confinados' });
+    const at = screen.getByRole('tab', { name: 'Autorizações de trabalho (AT)' }), pet = screen.getByRole('tab', { name: 'Permissões de entrada e trabalho (PET)' });
     at.focus(); await user.keyboard('{ArrowRight}');
     expect(pet).toHaveFocus(); expect(pet).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', pet.id);

@@ -8,6 +8,7 @@ import type { WorkAuthorizationDto } from '../../shared/contracts/work-authoriza
 import { formatDate } from '../../shared/lib/format';
 import { preparationNavigation } from '../../shared/lib/preparation-navigation';
 import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 import { authorizationError, authorizationLabels, authorizationTones, useAuthorizationClock } from './support';
 import { authorizationWindowNotice } from './print-record';
 import styles from './authorizations.module.css';
@@ -68,7 +69,7 @@ export function WorkAuthorizationsPage() {
   const items = list.data?.items || [];
   const total = list.data?.total || 0;
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  return <div className="stack"><PageHeader eyebrow="MODELOS SST" title="Autorizações de Trabalho" description="ATs do modelo RI-S-36002 vinculadas aos atendimentos da unidade." actions={can('at.write') && <Link className="button button--primary" to="/app/ats/nova" state={listNavigation}>Criar AT</Link>} />
+  return <div className="stack"><PageHeader eyebrow="MODELO RI-S-36002" title="Autorizações de trabalho (AT)" description="No Ampara, AT identifica a Autorização de Trabalho. Consulte os registros vinculados aos atendimentos da unidade." actions={<div className="actions"><TerminologyHelp related={['PT', 'AT', 'PET']}>Entenda PT, AT e PET</TerminologyHelp>{can('at.write') && <Link className="button button--primary" to="/app/ats/nova" state={listNavigation}>Criar AT</Link>}</div>} />
     <Feedback tone="info">Demonstração em memória, sem validade operacional. A AT possui seu próprio registro e não libera a execução de uma PT.</Feedback>
     <form className="panel form-grid" aria-label="Filtros de AT" onSubmit={event => event.preventDefault()}><Field label="Pesquisar AT"><input type="search" maxLength={200} value={search} onChange={event => filter('q', event.target.value)} placeholder="Código, atendimento, equipe, serviço ou local" /></Field><Field label="Estado da AT"><select value={status} onChange={event => filter('status', event.target.value)}><option value="">Todos</option>{invalidStatus && <option value={status}>Estado inválido</option>}{Object.entries(authorizationLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field></form>
     {invalid ? <Feedback tone="warning">{invalidStatus ? <>O endereço contém um estado de AT inválido. Selecione um estado disponível ou <Button variant="ghost" onClick={() => filter('status', '')}>Limpar estado</Button>.</> : invalidPage ? <>O endereço contém uma página de AT inválida. <Button variant="ghost" onClick={() => setPage(1)}>Voltar à primeira página</Button>.</> : <>O endereço contém critérios de AT repetidos ou uma pesquisa muito longa. <Button variant="ghost" onClick={() => writeParams(new URLSearchParams({ unitId }), true)}>Limpar filtros</Button>.</>}</Feedback>

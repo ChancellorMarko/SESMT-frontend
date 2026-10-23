@@ -8,23 +8,23 @@ test('busca do menu encontra áreas por assunto e abre a aba correta por teclado
   await page.keyboard.press('Control+k');
   const menu = page.getByRole('dialog', { name: 'Navegação', exact: true });
   await menu.getByRole('textbox', { name: 'Buscar módulos de navegação' }).fill('certificados NR');
-  const training = menu.getByRole('link', { name: 'Capacitações e NRs', exact: true });
+  const training = menu.getByRole('link', { name: 'Capacitações', exact: true });
   await training.focus();
   await page.keyboard.press('Enter');
   await expect(menu).toHaveCount(0);
   await expect(page).toHaveURL(/area=saude&healthView=nrs/);
-  await expect(page.getByRole('tab', { name: 'Capacitações e NRs', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('heading', { name: 'ASOs e NRs', exact: true })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Saúde ocupacional e capacitações', exact: true })).toBeFocused();
   await page.getByRole('heading', { name: 'Planejamento de capacitações', exact: true }).scrollIntoViewIfNeeded();
   await page.keyboard.press('Control+k');
   await menu.getByRole('textbox', { name: 'Buscar módulos de navegação' }).fill('ASO');
-  await menu.getByRole('link', { name: 'ASOs', exact: true }).click();
-  await expect(page.getByRole('tab', { name: 'ASOs', exact: true })).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'ASOs', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await menu.getByRole('link', { name: 'Saúde ocupacional', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)', exact: true })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await page.keyboard.press('Control+k');
   await menu.getByRole('textbox', { name: 'Buscar módulos de navegação' }).fill('capacetes');
-  await menu.getByRole('link', { name: 'EPIs', exact: true }).click();
+  await menu.getByRole('link', { name: 'Proteção individual', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Equipamentos de proteção', exact: true })).toBeFocused();
 });
 
@@ -35,7 +35,7 @@ test('fila de EPIs filtra acompanhamento, recupera estado vazio e mantém foco a
   page.on('request', request => {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) && new URL(request.url()).pathname.startsWith('/api/v1/')) writes.push(request.url());
   });
-  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'EPIs', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Equipamentos de proteção individual (EPI)', exact: true }).click();
   const queue = page.getByRole('region', { name: 'Conferências de EPIs', exact: true });
   const filters = queue.getByRole('group', { name: 'Filtrar lotes de EPIs', exact: true });
   const following = filters.getByRole('button', { name: 'Em acompanhamento', exact: true });
@@ -72,8 +72,8 @@ for (const width of [320, 1440]) {
     for (const area of [
       { link: 'Dashboard', title: 'Visão geral', action: 'Agendar serviço' },
       { link: 'Inspeções', title: 'Inspeções de segurança', action: 'Consultar agenda de inspeções' },
-      { link: 'ASOs e NRs', title: 'ASOs e NRs', action: 'Consultar vencimentos' },
-      { link: 'EPIs', title: 'Equipamentos de proteção', action: 'Consultar documentos de EPIs' },
+      { link: 'Saúde e capacitações', title: 'Saúde ocupacional e capacitações', action: 'Consultar vencimentos' },
+      { link: 'Equipamentos de proteção individual (EPI)', title: 'Equipamentos de proteção', action: 'Consultar documentos de EPIs' },
     ]) {
       await shortcuts.getByRole('link', { name: area.link, exact: true }).click();
       await expect(page.getByRole('heading', { name: area.title, level: 1, exact: true })).toBeVisible();

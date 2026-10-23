@@ -2,16 +2,19 @@
 .table { min-width: 750px; }
 .table td { max-width: 320px; overflow-wrap: anywhere; }
 .table small { display: block; margin-top: 5px; color: #526179; font-size: 11px; line-height: 1.6; }
-.table tbody .selected, .table tbody .selected:hover { background: #eef2ff; }
+.table tbody .selected, .table tbody .selected:hover { background: #edf3fc; }
+.table th { color: #5b7492; font-size: 11px; }
+.table tbody td { border-bottom-color: #e3eaf2; }
+.table button { min-height: 44px; }
 .mobileLabel { display: none; }
 .identity strong { color: #315884; }
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .wrap { overflow: visible; }
   .table { display: block; min-width: 0; }
   .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .table tbody { display: grid; gap: 12px; }
-  .table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 6px; border: 1px solid #e2e8f0; border-radius: 18px; }
-  .table tbody .selected { border-color: #a5b4fc; }
+  .table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 6px; border: 1px solid #dfe7f1; border-radius: 18px; background: #fffefa; }
+  .table tbody .selected { border-color: #a9c1e6; }
   .table tbody td { min-width: 0; max-width: none; padding: 10px; border: 0; }
   .identity, .file, .action { grid-column: 1 / -1; }
   .mobileLabel { display: block; margin-bottom: 6px; color: #526179; font-size: 11px; }

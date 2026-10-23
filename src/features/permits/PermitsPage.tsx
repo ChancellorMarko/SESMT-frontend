@@ -8,6 +8,7 @@ import type { PageDto } from '../../shared/contracts';
 import type { FinalReviewStatus, OperationStatus, WorkPermitDto } from '../../shared/contracts/work-permits';
 import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner, type Tone } from '../../shared/ui';
 import { AppliedFilters, type AppliedFilter } from '../../shared/ui/filter-controls';
+import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 import { formatDate } from '../../shared/lib/format';
 import { checkedPage, isRecord, isSafePage, ScopedPageError, scopedQueryError, shortText } from '../../shared/lib/scoped-page';
 import { operationLabels, reviewLabels } from './PermitStatus';
@@ -149,7 +150,7 @@ function PermitsPageContent() {
     ...(reviewStatus ? [{ key: 'reviewStatus', label: 'Revisão do encerramento', value: Object.hasOwn(reviewLabels, reviewStatus) ? reviewLabels[reviewStatus as FinalReviewStatus] : 'Situação inválida' }] : []),
   ];
   return <div className="stack">
-    <PageHeader eyebrow="ATENDIMENTOS EM CAMPO" title="Permissões de trabalho" description="Acompanhe a verificação, a execução e a revisão de cada atendimento." actions={can('appointments.read') && <Link to="/app/agenda" className="button button--primary">Abrir agenda</Link>} />
+    <PageHeader eyebrow="ATENDIMENTOS EM CAMPO" title="Permissões de trabalho (PT)" description="A permissão de trabalho reúne a verificação, a liberação, a execução e a revisão de cada atendimento." actions={<div className="actions"><TerminologyHelp related={['PT', 'AT', 'PET']}>Entenda PT, AT e PET</TerminologyHelp>{can('appointments.read') && <Link to="/app/agenda" className="button button--primary">Abrir agenda</Link>}</div>} />
     <section className="stack" aria-label="Busca de permissões de trabalho">
       <form className="panel stack" aria-label="Filtros de permissões de trabalho" onSubmit={event => { event.preventDefault(); if (!unitMatches || invalidFilters) return; filter('q', search.trim()); }}>
         <div className={styles.filters}>

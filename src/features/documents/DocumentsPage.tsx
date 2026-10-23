@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router';
-import { FileText, Plus, Search } from 'lucide-react';
+import { FileText, FolderOpen, Plus, Search } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { DocumentDto, DocumentTypeDto, PageDto, WorkerDto } from '../../shared/contracts';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
-import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { PagedSelect } from '../../shared/ui/PagedSelect';
 import { AppliedFilters, FilterDisclosure, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { DocumentList } from './DocumentList';
 import { documentStatuses, errorMessage, formatDate, isCivilDate, statusLabels } from './validation';
 import { positivePage } from './expiry';
 import { documentNavigation } from './document-navigation';
+import styles from './DocumentWorkspace.module.css';
 
 const filterKeys = ['q', 'typeId', 'status', 'workerId', 'responsibleId', 'validUntilFrom', 'validUntilTo', 'issueDateFrom', 'issueDateTo'] as const;
 type Filters = Record<typeof filterKeys[number], string>;
@@ -118,18 +119,25 @@ function DocumentsPageContent() {
   }));
   const advancedCount = advancedKeys.filter(key => filters[key]).length;
   const hasDraftChanges = search.trim() !== filters.q || filterKeys.some(key => key !== 'q' && draftFilters[key] !== filters[key]);
-  return <div className="stack">
-    <PageHeader eyebrow="REPOSITÓRIO CONTROLADO" title="Documentos" description="Consulte vigências, acompanhe versões e encontre as evidências da sua unidade." actions={<>
+  return <div className={`stack ${styles.workspace}`}>
+    <header className={styles.pageHeader}>
+      <div className={styles.headerCopy}>
+        <p className={styles.eyebrow}><span><FolderOpen size={15} aria-hidden="true" /></span>REPOSITÓRIO CONTROLADO</p>
+        <h1>Documentos</h1>
+        <p className={styles.description}>Consulte vigências, acompanhe versões e encontre as evidências da sua unidade.</p>
+      </div>
+      <div className={styles.headerActions}>
       {dashboardReturnTo && <Link className="button button--secondary" to={`/app/painel-documental${dashboardReturnTo.search}`}>Voltar ao painel documental</Link>}
       {can('documents.write') && <Link className="button button--primary" to="/app/documentos/novo" state={documentOrigin}><Plus size={16} aria-hidden="true" />Novo documento</Link>}
-    </>} />
-    <form className="panel flex flex-col gap-4" onSubmit={searchDocuments} aria-label="Filtros de documentos">
+      </div>
+    </header>
+    <form className={`panel flex flex-col gap-4 ${styles.filterPanel}`} onSubmit={searchDocuments} aria-label="Filtros de documentos">
       <div className="grid items-end gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Field label="Buscar por título ou código"><div className="relative"><Search size={16} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" aria-hidden="true" /><input ref={searchRef} className="!pl-10" value={search} onChange={event => setSearch(event.target.value)} placeholder="Ex.: PGR, relatório, DOC-001" maxLength={200} /></div></Field>
         <PagedSelect lookup={types} label="Tipo documental" noun="tipos documentais" value={draftFilters.typeId} onChange={value => setDraftFilters(current => ({ ...current, typeId: String(value) }))} getLabel={type => type.name} emptyLabel="Todos os tipos" />
         <Field label="Situação"><select value={draftFilters.status} onChange={event => setDraftFilters(current => ({ ...current, status: event.target.value }))}><option value="">Todas as situações</option>{draftFilters.status && !documentStatuses.some(status => status === draftFilters.status) && <option value={draftFilters.status}>Situação inválida</option>}{documentStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
       </div>
-      <div className="flex flex-wrap items-center gap-2"><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className="text-[11px] leading-5 text-amber-700">Alterações ainda não aplicadas à lista.</span>}</div>
+      <div className={styles.filterActions}><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className={styles.draftNotice}>Alterações ainda não aplicadas à lista.</span>}</div>
       <FilterDisclosure open={advancedOpen} onOpenChange={setAdvancedOpen} count={advancedCount}>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {can('workers.read') && <PagedSelect lookup={workers} label="Trabalhador" noun="trabalhadores" value={draftFilters.workerId} onChange={value => setDraftFilters(current => ({ ...current, workerId: String(value) }))} getLabel={worker => `${worker.fullName} · ${worker.registration}`} emptyLabel="Todos os trabalhadores" />}
@@ -143,14 +151,14 @@ function DocumentsPageContent() {
       <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />
       {(failure || appliedError) && <Feedback tone="danger">{failure || `O endereço contém filtros inválidos. ${appliedError} Corrija os critérios e aplique a busca.`}</Feedback>}
     </form>
-    {appliedError ? <EmptyState title="Corrija os filtros da consulta" description="A busca será realizada depois de aplicar critérios válidos." /> : list.isPending || !contextReady ? <Spinner /> : list.isError ? <div className="panel stack"><Feedback tone="danger">{errorMessage(list.error)}</Feedback><Button variant="secondary" onClick={() => void list.refetch()}>Tentar novamente</Button></div> : <section aria-label="Resultados de documentos" aria-busy={list.isFetching} className="overflow-hidden rounded-3xl border border-white/90 bg-white/85 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-2.5"><FileText size={16} className="text-[#6582b0]" aria-hidden="true" /><h2 className="!m-0 !text-[14px] text-[#315884]">Acervo da unidade</h2></div>
-        <p role="status" className="!m-0 text-[11px] text-slate-500">{list.isFetching ? 'Atualizando lista…' : `${new Intl.NumberFormat('pt-BR').format(list.data?.total ?? 0)} documento(s) encontrado(s)`}</p>
+    {appliedError ? <EmptyState title="Corrija os filtros da consulta" description="A busca será realizada depois de aplicar critérios válidos." /> : list.isPending || !contextReady ? <Spinner /> : list.isError ? <div className="panel stack"><Feedback tone="danger">{errorMessage(list.error)}</Feedback><Button variant="secondary" onClick={() => void list.refetch()}>Tentar novamente</Button></div> : <section aria-label="Resultados de documentos" aria-busy={list.isFetching} className={styles.resultsPanel}>
+      <div className={styles.resultsHeading}>
+        <div><span className={styles.resultsIcon}><FileText size={17} aria-hidden="true" /></span><h2>Acervo da unidade</h2></div>
+        <p role="status">{list.isFetching ? 'Atualizando lista…' : `${new Intl.NumberFormat('pt-BR').format(list.data?.total ?? 0)} documento(s) encontrado(s)`}</p>
       </div>
       {!list.data?.items.length ? <div><EmptyState title="Nenhum documento encontrado" description={page > 1 ? 'Esta página não possui resultados. Volte à primeira página para consultar os documentos.' : 'Ajuste os filtros ou cadastre o primeiro documento autorizado para esta unidade.'} />{page > 1 && <div className="px-5 pb-5"><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div>}</div> : <>
         <DocumentList documents={list.data.items} typeNames={typeNames} origin={documentOrigin} />
-        <nav aria-label="Paginação de documentos" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:px-6"><span className="text-[11px] text-slate-500">Página {page} de {Math.max(1, Math.ceil(list.data.total / 10))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * 10 >= list.data.total || list.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
+        <nav aria-label="Paginação de documentos" className={styles.pagination}><span>Página {page} de {Math.max(1, Math.ceil(list.data.total / 10))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * 10 >= list.data.total || list.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
       </>}
     </section>}
   </div>;

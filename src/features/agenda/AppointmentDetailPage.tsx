@@ -2,15 +2,17 @@ import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { ArrowLeft, CalendarClock } from 'lucide-react';
 import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { AppointmentDto, PermitOptionsDto, WorkPermitDto } from '../../shared/contracts/work-permits';
-import { Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, Modal, Spinner } from '../../shared/ui';
 import { appointmentInstant, appointmentLocal, errorMessage } from './support';
 import { EligibilityPanel } from './EligibilityPanel';
 import { AppointmentHistory, AppointmentSummary } from './AppointmentOverview';
 import { readinessReturnPath } from '../requirements/readiness-navigation';
 import { agendaReturnSearch, permitAgendaNavigation } from './permit-agenda-navigation';
+import styles from './AppointmentDetail.module.css';
 
 type Action = 'CONFIRM' | 'RESCHEDULE' | 'CANCEL' | 'OPEN_PERMIT';
 const actionTitles: Record<Action, string> = { CONFIRM: 'Confirmar agendamento', RESCHEDULE: 'Reagendar serviço', CANCEL: 'Cancelar agendamento', OPEN_PERMIT: 'Abrir atendimento em campo' };
@@ -137,11 +139,19 @@ export function AppointmentDetailPage() {
   if (appointment.isError) return <div className="panel stack"><Feedback tone="danger">{errorMessage(appointment.error)}</Feedback><Button variant="secondary" onClick={() => void appointment.refetch()}>Tentar novamente</Button><Link to={backTarget}>{backLabel}</Link></div>;
   if (!appointment.data || appointment.data.unitId !== unitId) return <div className="panel stack"><EmptyState title="Atendimento indisponível nesta unidade" description="Consulte a agenda da unidade selecionada." /><Link to={backTarget}>{backLabel}</Link></div>;
   const data = appointment.data;
-  return <div className="stack [&_.page-header_h1]:[overflow-wrap:anywhere] [&_.page-description]:[overflow-wrap:anywhere]">
-    <PageHeader eyebrow={data.code} title={data.serviceLabel} description={`${data.teamName} · ${data.location}`} actions={<Link className="button button--secondary" to={backTarget}>{backLabel}</Link>} />
+  return <div className={`stack ${styles.workspace}`}>
+    <header className={styles.header}>
+      <div className={styles.headerCopy}>
+        <p className={styles.eyebrow}><span><CalendarClock size={16} aria-hidden="true" /></span><span>{data.code}</span></p>
+        <h1>{data.serviceLabel}</h1>
+        <p className={styles.description}>{data.teamName} · {data.location}</p>
+      </div>
+      <Link className={`button button--secondary ${styles.backLink}`} to={backTarget}><ArrowLeft size={16} aria-hidden="true" />{backLabel}</Link>
+    </header>
       {success && <Feedback tone="success">{success}</Feedback>}
-      <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex min-w-0 flex-col gap-5">
+      <div className={styles.columns}>
+        <div className={styles.mainColumn}>
+          <div className={styles.summary}>
           <AppointmentSummary appointment={data} actions={[
             hasAction('CONFIRM') && <Button key="confirm" disabled={busy} onClick={() => select('CONFIRM')}>Confirmar agendamento</Button>,
             hasAction('RESCHEDULE') && <Button key="reschedule" disabled={busy} variant="secondary" onClick={() => select('RESCHEDULE')}>Reagendar</Button>,
@@ -151,9 +161,12 @@ export function AppointmentDetailPage() {
             can('at.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link key="at" className="button button--secondary" to={`/app/ats/nova?appointmentId=${encodeURIComponent(data.id)}`}>Preparar AT</Link>,
             can('pet.write') && ['CONFIRMED', 'ATTENDANCE_OPENED'].includes(data.status) && <Link key="pet" className="button button--secondary" to={`/app/pets/nova?appointmentId=${encodeURIComponent(data.id)}`}>Preparar PET</Link>,
           ]} />
+          </div>
           <EligibilityPanel appointmentId={data.id} readOnly={data.status === 'CANCELED'} />
         </div>
-        <AppointmentHistory history={data.history} />
+        <div className={styles.history}>
+          <AppointmentHistory history={data.history} />
+        </div>
       </div>
       <Modal open={Boolean(action)} title={action ? actionTitles[action] : ''} onClose={close}>
         {action && <form className="stack" onSubmit={event => { event.preventDefault(); void submit(); }}>

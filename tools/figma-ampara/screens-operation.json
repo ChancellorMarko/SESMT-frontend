@@ -1,0 +1,387 @@
+[
+  {
+    "id": "overview",
+    "title": "Visão geral",
+    "eyebrow": "AMPARA SESMT",
+    "description": "Olá, Marina. Vamos cuidar de quem faz a operação acontecer.",
+    "family": "Painéis",
+    "path": "/app/dashboard",
+    "navId": "overview",
+    "hero": "overview",
+    "actions": [{ "label": "Agendar serviço", "variant": "primary", "to": "agenda", "icon": "CalendarDays" }],
+    "tabs": [
+      { "label": "Visão geral", "selected": true, "to": "overview" },
+      { "label": "Inspeções", "selected": false, "to": "inspections" },
+      { "label": "ASOs e NRs", "selected": false, "to": "asos" },
+      { "label": "EPIs", "selected": false, "to": "epis" }
+    ],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Cenário ilustrativo de SST · Números sintéticos para explorar a interface. Os exemplos não refletem a unidade selecionada." },
+      { "type": "stats", "items": [
+        { "label": "Dias sem acidentes", "value": "128", "detail": "Dias no exemplo", "icon": "ShieldCheck" },
+        { "label": "Índice de entrega de EPIs", "value": "92%", "detail": "92 de 100 entregas previstas · exemplo", "icon": "HardHat" },
+        { "label": "ASOs e treinamentos", "value": "7", "detail": "A vencer · janela ilustrativa de 30 dias", "icon": "HeartPulse" },
+        { "label": "Inspeções de risco pendentes", "value": "3", "detail": "Registros do cenário", "icon": "ClipboardCheck", "tone": "warning" }
+      ] },
+      { "type": "cards", "title": "Ocorrências e vistorias", "items": [
+        { "title": "Proteção de máquina a conferir", "subtitle": "Vistoria preventiva · CEN-01", "description": "Uma vistoria preventiva identificou um ponto para avaliação da equipe de segurança.", "status": "Prioridade alta", "tone": "danger", "meta": [{ "label": "Equipe", "value": "Vistorias de segurança" }, { "label": "Local", "value": "Área de manutenção" }], "action": { "label": "Ver inspeções", "to": "inspections" } },
+        { "title": "Próximo ciclo de renovações", "subtitle": "ASO e treinamentos · CEN-02", "description": "ASOs e capacitações entram na janela de acompanhamento do cenário.", "status": "Acompanhar prazo", "tone": "warning", "meta": [{ "label": "Equipe", "value": "Saúde ocupacional" }, { "label": "Local", "value": "Planejamento ocupacional" }], "action": { "label": "Consultar ASOs", "to": "asos" } },
+        { "title": "Conferência de entrega de EPIs", "subtitle": "Controle de EPIs · CEN-03", "description": "O lote ilustrativo está pronto para acompanhamento de entrega e registro.", "status": "Rotina preventiva", "tone": "info", "meta": [{ "label": "Equipe", "value": "Equipe de proteção" }, { "label": "Local", "value": "Almoxarifado" }], "action": { "label": "Conferir EPIs", "to": "epis" } }
+      ] },
+      { "type": "cards", "title": "Próximos serviços", "items": [
+        { "title": "Manutenção programada", "subtitle": "AG-DEMO-220 · Amanhã, 09h às 10h", "status": "Confirmado", "tone": "success", "description": "Área A · local fictício · Equipe de manutenção · demonstração", "action": { "label": "Consultar atendimento", "to": "appointment" } },
+        { "title": "Manutenção programada", "subtitle": "AG-DEMO-221 · Em 2 dias, 09h às 10h", "status": "Confirmado", "tone": "success", "description": "Diego Demo · técnico · 1 participante", "action": { "label": "Ver agenda", "to": "agenda" } },
+        { "title": "Inspeção de área", "subtitle": "AG-DEMO-222 · Em 3 dias, 09h às 10h", "status": "Solicitado", "tone": "warning", "description": "Felipe Demo · bombeiro · 1 participante", "action": { "label": "Ver agenda", "to": "agenda" } }
+      ] },
+      { "type": "cards", "title": "Revisão e correções", "items": [
+        { "title": "PT-DEMO-230", "subtitle": "Manutenção programada · versão 1", "description": "Operação concluída · Área A · local fictício", "status": "Aguardando revisão", "tone": "info", "action": { "label": "Consultar PT", "to": "pt-detail" } }
+      ] }
+    ]
+  },
+  {
+    "id": "inspections",
+    "title": "Inspeções de segurança",
+    "eyebrow": "PREVENÇÃO EM CAMPO",
+    "description": "Dos achados em campo à verificação das correções. Organize o próximo passo de cada vistoria.",
+    "family": "Painéis",
+    "path": "/app/dashboard?area=inspecoes",
+    "navId": "inspections",
+    "hero": "inspecoes",
+    "actions": [{ "label": "Consultar agenda de inspeções", "variant": "secondary", "to": "agenda", "icon": "CalendarDays" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Cenário ilustrativo de inspeções. Dados sintéticos para explorar vistorias, achados e ações; não representam a unidade selecionada." },
+      { "type": "stats", "items": [
+        { "label": "Vistorias no ciclo", "value": "4", "detail": "Roteiro demonstrativo", "icon": "SearchCheck" },
+        { "label": "Achados em aberto", "value": "5", "detail": "Com ação a acompanhar", "icon": "Flag" },
+        { "label": "Ações em andamento", "value": "2", "detail": "Dentro do plano de ação", "icon": "ClipboardCheck" },
+        { "label": "Reinspeções previstas", "value": "2", "detail": "Visitas de retorno no roteiro", "icon": "RotateCcw" }
+      ] },
+      { "type": "table", "title": "Onde estão os achados", "columns": ["Área", "Achados em aberto", "Próximo retorno"], "rows": [
+        { "cells": ["Manutenção", "2", "Em 3 dias · 10h"] },
+        { "cells": ["Logística", "1", "Amanhã · 08h30"] },
+        { "cells": ["Produção", "1", "Vistoria em andamento"] },
+        { "cells": ["Utilidades", "1", "Ronda concluída no exemplo"] }
+      ] },
+      { "type": "table", "title": "Plano de ação das inspeções", "columns": ["Achado", "Área", "Prioridade", "Situação", "Prazo"], "rows": [
+        { "cells": [{ "text": "Proteção de transmissão", "sub": "ACH-DEMO-01 · Bancada de manutenção" }, "Manutenção", { "text": "Alta", "badge": "Prioridade alta", "tone": "danger" }, { "text": "Em andamento", "badge": "Em andamento", "tone": "info" }, "Hoje"] },
+        { "cells": [{ "text": "Identificação de ferramentas", "sub": "ACH-DEMO-02 · Armário de ferramentas" }, "Manutenção", { "text": "Média", "badge": "Prioridade média", "tone": "warning" }, "A programar", "Em 3 dias"] },
+        { "cells": [{ "text": "Passagem entre prateleiras", "sub": "ACH-DEMO-03 · Corredor de expedição" }, "Logística", { "text": "Alta", "badge": "Prioridade alta", "tone": "danger" }, { "text": "Em andamento", "badge": "Em andamento", "tone": "info" }, "Amanhã"] },
+        { "cells": [{ "text": "Ajuste do posto de embalagem", "sub": "ACH-DEMO-05 · Linha de embalagem" }, "Produção", { "text": "Média", "badge": "Prioridade média", "tone": "warning" }, "A programar", "Em 5 dias"] },
+        { "cells": [{ "text": "Identificação do painel de apoio", "sub": "ACH-DEMO-06 · Sala de apoio" }, "Utilidades", "Baixa", "A programar", "Em 7 dias"] }
+      ] },
+      { "type": "cards", "title": "Roteiro de vistorias", "items": [
+        { "title": "Ronda de máquinas e equipamentos", "subtitle": "VIS-DEMO-01 · Manutenção", "description": "Equipe de manutenção · Hoje, 09h30", "status": "18 de 18 itens conferidos", "tone": "success", "meta": [{ "label": "Reinspeção", "value": "Em 3 dias · 10h" }] },
+        { "title": "Circulação e armazenamento", "subtitle": "VIS-DEMO-02 · Logística", "description": "Equipe de logística · Ontem, 14h", "status": "14 de 14 itens conferidos", "tone": "success", "meta": [{ "label": "Reinspeção", "value": "Amanhã · 08h30" }] },
+        { "title": "Verificação dos postos de trabalho", "subtitle": "VIS-DEMO-03 · Produção", "description": "Equipe de segurança · Hoje, 14h", "status": "8 de 16 itens conferidos", "tone": "warning" },
+        { "title": "Ronda de apoio e utilidades", "subtitle": "VIS-DEMO-04 · Utilidades", "description": "Equipe de infraestrutura · Hoje, 08h", "status": "12 de 12 itens conferidos", "tone": "success" }
+      ] }
+    ]
+  },
+  {
+    "id": "asos",
+    "title": "ASOs e NRs",
+    "eyebrow": "DOCUMENTAÇÃO E PLANEJAMENTO",
+    "description": "Acompanhe documentos ocupacionais e capacitações em espaços próprios para cada rotina.",
+    "family": "Painéis",
+    "path": "/app/dashboard?area=saude&healthView=asos",
+    "navId": "asos",
+    "hero": "saude",
+    "actions": [{ "label": "Consultar vencimentos", "variant": "secondary", "to": "expirations", "icon": "CalendarClock" }],
+    "tabs": [{ "label": "ASOs", "selected": true, "to": "asos" }, { "label": "Capacitações e NRs", "selected": false, "to": "nrs" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Cenário demonstrativo · Equipes e quantidades fictícias. As ações de acompanhamento são locais e não alteram cadastros." },
+      { "type": "stats", "items": [
+        { "label": "ASOs a renovar", "value": "6", "detail": "Soma das três janelas do cenário", "icon": "FileClock" },
+        { "label": "Conferências documentais", "value": "3", "detail": "Arquivos na fila administrativa", "icon": "FileCheck2" },
+        { "label": "Exames a organizar", "value": "4", "detail": "Solicitações fictícias, sem reserva", "icon": "CalendarDays" },
+        { "label": "Agendamentos a confirmar", "value": "2", "detail": "Datas aguardando confirmação no exemplo", "icon": "CalendarClock" }
+      ] },
+      { "type": "table", "title": "Janelas de renovação", "columns": ["Janela do cenário", "Documentos", "Próximo cuidado"], "rows": [
+        { "cells": ["Data cadastrada ultrapassada", "2", "Conferir renovação"] },
+        { "cells": ["Nos próximos 30 dias", "3", "Preparar o próximo ciclo"] },
+        { "cells": ["Entre 31 e 60 dias", "1", "Reservar no planejamento"] }
+      ] },
+      { "type": "cards", "title": "Fila de conferência documental", "items": [
+        { "title": "Conferir identificação do documento", "subtitle": "Produção · equipe fictícia", "description": "1 arquivo cujo cadastro ainda precisa de conferência administrativa.", "status": "A conferir", "tone": "warning", "action": { "label": "Consultar documentos", "to": "documents" } },
+        { "title": "Vincular versão de renovação", "subtitle": "Manutenção · equipe fictícia", "description": "1 arquivo de renovação ilustrativa aguarda associação à versão anterior.", "status": "Versão a vincular", "tone": "info", "action": { "label": "Consultar documentos", "to": "documents" } },
+        { "title": "Confirmar recebimento do arquivo", "subtitle": "Apoio · equipe fictícia", "description": "1 solicitação fictícia de documento aguarda confirmação de recebimento.", "status": "Recebimento pendente", "tone": "warning", "action": { "label": "Consultar documentos", "to": "documents" } }
+      ] },
+      { "type": "cards", "title": "Organização do atendimento", "items": [
+        { "title": "Organizar solicitações de exames", "subtitle": "Produção e manutenção · equipes fictícias", "description": "4 solicitações sintéticas: três da produção e uma da manutenção.", "status": "A organizar", "tone": "warning" },
+        { "title": "Confirmar datas com o atendimento", "subtitle": "Apoio · equipe fictícia", "description": "2 agendamentos fictícios aguardam confirmação administrativa de data.", "status": "A confirmar", "tone": "info" }
+      ] },
+      { "type": "notice", "tone": "neutral", "text": "Janelas de planejamento da demonstração. Não definem periodicidade legal ou conclusão de avaliação ocupacional. Esta tela não contém informações clínicas." }
+    ]
+  },
+  {
+    "id": "nrs",
+    "title": "ASOs e NRs",
+    "eyebrow": "EVIDÊNCIAS E DESENVOLVIMENTO",
+    "description": "Acompanhe documentos ocupacionais e capacitações em espaços próprios para cada rotina.",
+    "family": "Painéis",
+    "path": "/app/dashboard?area=saude&healthView=nrs",
+    "navId": "nrs",
+    "hero": "saude",
+    "actions": [{ "label": "Consultar vencimentos", "variant": "secondary", "to": "expirations", "icon": "CalendarClock" }],
+    "tabs": [{ "label": "ASOs", "selected": false, "to": "asos" }, { "label": "Capacitações e NRs", "selected": true, "to": "nrs" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Cenário demonstrativo de capacitações · Arquivos disponíveis, lacunas de registro e preparação de turmas com equipes fictícias." },
+      { "type": "stats", "items": [
+        { "label": "Comprovantes disponíveis", "value": "32", "detail": "De 39 posições da matriz fictícia", "icon": "BookOpen" },
+        { "label": "Lacunas de registro", "value": "7", "detail": "Posições ainda sem arquivo no cenário", "icon": "Layers3" },
+        { "label": "Turmas a planejar", "value": "2", "detail": "Grupos com organização pendente", "icon": "Users" },
+        { "label": "Renovações a programar", "value": "3", "detail": "Comprovantes disponíveis a acompanhar", "icon": "CalendarClock" }
+      ] },
+      { "type": "table", "title": "Matriz de evidências por equipe", "columns": ["Equipe", "Pessoas", "Trabalho em altura", "Espaço confinado", "Eletricidade"], "rows": [
+        { "cells": ["Manutenção", "6", "6 de 6 arquivos", "4 de 6 arquivos", "5 de 6 arquivos"] },
+        { "cells": ["Operação", "4", "3 de 4 arquivos", "3 de 4 arquivos", "4 de 4 arquivos"] },
+        { "cells": ["Apoio", "3", "1 de 3 arquivos", "3 de 3 arquivos", "3 de 3 arquivos"] }
+      ] },
+      { "type": "cards", "title": "Planejamento de capacitações", "items": [
+        { "title": "Planejar orientação da manutenção", "subtitle": "Espaço confinado · Manutenção", "description": "2 vagas a planejar. Conferir o escopo aplicável com o responsável e organizar disponibilidade e documentação esperada.", "status": "Turma a organizar", "tone": "warning" },
+        { "title": "Organizar capacitação da equipe de apoio", "subtitle": "Trabalho em altura · Apoio", "description": "2 vagas a planejar. Conferir os critérios na matriz aplicável antes de organizar a turma.", "status": "Escopo a conferir", "tone": "info" },
+        { "title": "Planejar renovação dos comprovantes", "subtitle": "Manutenção e operação · equipes fictícias", "description": "3 dos 32 comprovantes entram na janela de planejamento definida apenas para esta demonstração.", "status": "Renovação a programar", "tone": "warning", "action": { "label": "Consultar vencimentos", "to": "expirations" } }
+      ] },
+      { "type": "notice", "tone": "neutral", "text": "Temas ilustrativos do sistema. A associação a NRs específicas e seus critérios depende da matriz homologada; nenhum prazo normativo é definido aqui." }
+    ]
+  },
+  {
+    "id": "epis",
+    "title": "Equipamentos de proteção",
+    "eyebrow": "DO REGISTRO AO CUIDADO",
+    "description": "Planeje entregas, confira comprovantes e acompanhe o que ainda precisa de atenção.",
+    "family": "Painéis",
+    "path": "/app/dashboard?area=epis",
+    "navId": "epis",
+    "hero": "epis",
+    "actions": [{ "label": "Consultar documentos de EPIs", "variant": "secondary", "to": "documents", "icon": "FileCheck2" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Cenário ilustrativo de EPIs · Um ciclo sintético de entregas e conferência documental." },
+      { "type": "stats", "items": [
+        { "label": "Entregas previstas", "value": "100", "detail": "Registros no ciclo de exemplo", "icon": "HardHat" },
+        { "label": "Comprovantes conferidos", "value": "92", "detail": "92% dos registros previstos", "icon": "FileCheck2" },
+        { "label": "Registros a conferir", "value": "8", "detail": "Distribuídos nas três categorias", "icon": "ClipboardCheck", "tone": "warning" },
+        { "label": "Categorias do ciclo", "value": "3", "detail": "Capacetes, luvas e óculos", "icon": "PackageCheck" }
+      ] },
+      { "type": "table", "title": "Entregas e comprovantes", "columns": ["Categoria", "Conferidos", "Previstos", "A conferir"], "rows": [
+        { "cells": ["Capacetes", "40", "43", { "text": "3", "badge": "3 a conferir", "tone": "warning" }] },
+        { "cells": ["Luvas de proteção", "30", "33", { "text": "3", "badge": "3 a conferir", "tone": "warning" }] },
+        { "cells": ["Óculos de proteção", "22", "24", { "text": "2", "badge": "2 a conferir", "tone": "warning" }] }
+      ] },
+      { "type": "cards", "title": "Conferências de EPIs", "items": [
+        { "title": "Conferir comprovantes de entrega", "subtitle": "EPI-01 · Capacetes", "description": "Compare o recebimento e o comprovante correspondente para os três registros pendentes deste lote de exemplo.", "status": "3 a conferir", "tone": "warning", "meta": [{ "label": "Equipe", "value": "Equipe de manutenção" }, { "label": "Acompanhamento", "value": "Conferência pendente" }] },
+        { "title": "Revisar registros de substituição", "subtitle": "EPI-02 · Luvas de proteção", "description": "Confira a documentação de substituição dos três registros pendentes deste lote de exemplo.", "status": "3 a conferir", "tone": "warning", "meta": [{ "label": "Equipe", "value": "Equipe operacional" }, { "label": "Acompanhamento", "value": "Conferência pendente" }] },
+        { "title": "Conferir identificação dos comprovantes", "subtitle": "EPI-03 · Óculos de proteção", "description": "Confira a identificação dos dois registros pendentes deste lote de exemplo.", "status": "2 a conferir", "tone": "warning", "meta": [{ "label": "Equipe", "value": "Equipe de apoio" }, { "label": "Acompanhamento", "value": "Conferência pendente" }] }
+      ] },
+      { "type": "notice", "tone": "neutral", "text": "Cada comprovante é contado uma vez. Uma conferência documental não comprova adequação do equipamento à atividade." }
+    ]
+  },
+  {
+    "id": "agenda",
+    "title": "Agenda de serviços",
+    "eyebrow": "PLANEJAMENTO E ATENDIMENTO",
+    "description": "Organize a equipe, o horário e os participantes de cada serviço. A liberação para executar acontece na PT em campo.",
+    "family": "Agenda",
+    "path": "/app/agenda",
+    "navId": "agenda",
+    "actions": [{ "label": "Agendar serviço", "variant": "primary", "icon": "Plus" }],
+    "tabs": [{ "label": "Lista", "selected": true, "to": "agenda" }, { "label": "Calendário", "selected": false, "to": "agenda-calendar" }],
+    "sections": [
+      { "type": "form", "title": "Filtros da agenda", "fields": [
+        { "label": "Buscar atendimento", "value": "Código, serviço, local ou equipe", "type": "search" },
+        { "label": "Situação do agendamento", "value": "Todas as situações", "type": "select" },
+        { "label": "Documentação dos participantes", "value": "Todos os atendimentos", "type": "select" },
+        { "label": "Período rápido", "value": "Sem limite de período", "type": "select" },
+        { "label": "Ordenar atendimentos", "value": "Início: mais cedo", "type": "select" }
+      ], "actions": [{ "label": "Pesquisar", "variant": "primary" }, { "label": "Filtros avançados", "variant": "ghost" }] },
+      { "type": "notice", "tone": "neutral", "text": "Horários de Brasília (America/Sao_Paulo). Datas relativas representam a programação sintética da demonstração." },
+      { "type": "table", "title": "Atendimentos da unidade", "columns": ["Serviço e equipe", "Período do atendimento", "Local e responsável", "Situação", "Participantes"], "rows": [
+        { "cells": [{ "text": "Manutenção programada", "sub": "AG-DEMO-224 · Equipe de manutenção · demonstração" }, "Hoje · 09h às 10h", { "text": "Área A · local fictício", "sub": "Diego Demo · técnico" }, { "text": "Atendimento aberto", "badge": "Atendimento aberto", "tone": "success" }, "1 pessoa"], "to": "pt-detail" },
+        { "cells": [{ "text": "Manutenção programada", "sub": "AG-DEMO-220 · Equipe de manutenção · demonstração" }, "Amanhã · 09h às 10h", { "text": "Área A · local fictício", "sub": "Diego Demo · técnico" }, { "text": "Confirmado", "badge": "Confirmado", "tone": "success" }, "2 pessoas"], "to": "appointment" },
+        { "cells": [{ "text": "Manutenção programada", "sub": "AG-DEMO-221 · Equipe de manutenção · demonstração" }, "Em 2 dias · 09h às 10h", { "text": "Área A · local fictício", "sub": "Diego Demo · técnico" }, { "text": "Confirmado", "badge": "Confirmado", "tone": "success" }, "1 pessoa"] },
+        { "cells": [{ "text": "Inspeção de área", "sub": "AG-DEMO-222 · Equipe de manutenção · demonstração" }, "Em 3 dias · 09h às 10h", { "text": "Área A · local fictício", "sub": "Felipe Demo · bombeiro" }, { "text": "Solicitado", "badge": "Solicitado", "tone": "warning" }, "1 pessoa"] }
+      ] }
+    ]
+  },
+  {
+    "id": "agenda-calendar",
+    "title": "Agenda de serviços",
+    "eyebrow": "PLANEJAMENTO E ATENDIMENTO",
+    "description": "Consulte a programação em calendário e abra os atendimentos para conferir equipe, horário e documentação.",
+    "family": "Agenda",
+    "path": "/app/agenda?view=calendar",
+    "navId": "agenda",
+    "actions": [{ "label": "Agendar serviço", "variant": "primary", "icon": "Plus" }],
+    "tabs": [{ "label": "Lista", "selected": false, "to": "agenda" }, { "label": "Calendário", "selected": true, "to": "agenda-calendar" }],
+    "sections": [
+      { "type": "form", "title": "Visualização do calendário", "fields": [
+        { "label": "Período", "value": "Mês", "type": "select" },
+        { "label": "Situação do agendamento", "value": "Todas as situações", "type": "select" }
+      ], "actions": [{ "label": "Mês anterior", "variant": "secondary" }, { "label": "Hoje", "variant": "secondary" }, { "label": "Próximo mês", "variant": "secondary" }] },
+      { "type": "cards", "title": "Programação do calendário · demonstração", "items": [
+        { "title": "Manutenção programada", "subtitle": "Hoje · 09h às 10h", "description": "AG-DEMO-224 · Equipe de manutenção · demonstração", "status": "Atendimento aberto", "tone": "success", "action": { "label": "Ver PT", "to": "pt-detail" } },
+        { "title": "Manutenção programada", "subtitle": "Amanhã · 09h às 10h", "description": "AG-DEMO-220 · Área A · local fictício", "status": "Confirmado", "tone": "success", "action": { "label": "Consultar atendimento", "to": "appointment" } },
+        { "title": "Manutenção programada", "subtitle": "Em 2 dias · 09h às 10h", "description": "AG-DEMO-221 · Diego Demo · técnico", "status": "Confirmado", "tone": "success" },
+        { "title": "Inspeção de área", "subtitle": "Em 3 dias · 09h às 10h", "description": "AG-DEMO-222 · Felipe Demo · bombeiro", "status": "Solicitado", "tone": "warning" }
+      ] },
+      { "type": "notice", "tone": "neutral", "text": "Esta prancha resume os eventos do calendário em cartões editáveis. O calendário mensal/semanal interativo completo permanece na aplicação. Horários de Brasília." }
+    ]
+  },
+  {
+    "id": "appointment",
+    "title": "Manutenção programada",
+    "eyebrow": "AG-DEMO-220",
+    "description": "Equipe de manutenção · demonstração · Área A · local fictício",
+    "family": "Agenda",
+    "path": "/app/agenda/00000000-0000-4000-8000-000000000220",
+    "navId": "agenda",
+    "actions": [{ "label": "Voltar à agenda", "variant": "secondary", "to": "agenda", "icon": "ArrowLeft" }],
+    "sections": [
+      { "type": "details", "title": "Dados do atendimento", "items": [
+        { "label": "Situação", "value": "Confirmado" },
+        { "label": "Horário solicitado pela equipe", "value": "Amanhã · 09h às 10h · Brasília" },
+        { "label": "Horário operacional confirmado", "value": "Amanhã · 09h às 10h · Brasília" },
+        { "label": "Equipe", "value": "Equipe de manutenção · demonstração" },
+        { "label": "Responsável pelo atendimento", "value": "Diego Demo · técnico" },
+        { "label": "Local do serviço", "value": "Área A · local fictício" },
+        { "label": "Participantes", "value": "2 pessoas" },
+        { "label": "Observações", "value": "Dados sintéticos para demonstração acadêmica." }
+      ], "actions": [{ "label": "Reagendar", "variant": "secondary" }, { "label": "Cancelar agendamento", "variant": "danger" }, { "label": "Preparar AT", "variant": "secondary", "to": "at-list" }, { "label": "Preparar PET", "variant": "secondary", "to": "pet-list" }] },
+      { "type": "notice", "tone": "info", "text": "Abrir o atendimento inicia a verificação em campo. A execução exige liberação explícita na PT pelo responsável designado." },
+      { "type": "table", "title": "Requisitos por participante", "columns": ["Participante", "Função no serviço", "Situação documental", "Próximo cuidado"], "rows": [
+        { "cells": ["Camila Demo", "Executante", { "text": "Documentação conferida", "badge": "Documentação conferida", "tone": "success" }, "Conferência conforme a matriz demonstrativa"], "to": "worker-detail" },
+        { "cells": ["Bruno Demo", "Executante", { "text": "Pendência documental", "badge": "Pendência documental", "tone": "warning" }, "Evidência de capacitação aplicável (demo) · Aguardando conferência"], "to": "readiness" }
+      ] },
+      { "type": "timeline", "title": "Histórico do agendamento", "items": [
+        { "title": "Agendamento solicitado", "detail": "Diego Demo · técnico · Manutenção programada. Horário solicitado: amanhã, 09h às 10h." },
+        { "title": "Agendamento confirmado", "detail": "Diego Demo · técnico · Horário confirmado: amanhã, 09h às 10h." }
+      ] }
+    ]
+  },
+  {
+    "id": "readiness",
+    "title": "Pendências documentais",
+    "eyebrow": "DOCUMENTOS POR PESSOA E SERVIÇO",
+    "description": "Organize a conferência dos próximos serviços e dos atendimentos em aberto.",
+    "family": "Pendências",
+    "path": "/app/pendencias?unitId=00000000-0000-4000-8000-000000000002",
+    "navId": "readiness",
+    "actions": [{ "label": "Consultar matriz", "variant": "secondary", "to": "requirement-matrix" }, { "label": "Atualizar pendências", "variant": "secondary", "icon": "RefreshCw" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "A situação é documental e considera a função, o local e o período de cada serviço. A execução exige a liberação explícita na PT, com checklist e ciências conferidos." },
+      { "type": "form", "title": "Filtros de pendências", "fields": [
+        { "label": "Buscar pessoa ou atendimento", "value": "Nome, código, local ou requisito", "type": "search" },
+        { "label": "Equipe", "value": "Todas as equipes", "type": "select" },
+        { "label": "Serviço", "value": "Todos os serviços", "type": "select" },
+        { "label": "Situação documental", "value": "Com pendências", "type": "select" }
+      ], "actions": [{ "label": "Limpar filtros", "variant": "ghost" }] },
+      { "type": "cards", "title": "Atendimentos com pendências", "items": [
+        { "title": "Manutenção programada", "subtitle": "AG-DEMO-220 · Amanhã, 09h às 10h", "description": "Equipe de manutenção · demonstração · Área A · local fictício", "status": "Pendência documental", "tone": "warning", "meta": [{ "label": "Participante", "value": "Bruno Demo · Executante" }, { "label": "Requisito", "value": "Evidência de capacitação aplicável (demo)" }, { "label": "Situação", "value": "Aguardando conferência" }], "action": { "label": "Abrir conferência", "to": "appointment" } },
+        { "title": "Inspeção de área", "subtitle": "AG-DEMO-222 · Em 3 dias, 09h às 10h", "description": "Equipe de manutenção · demonstração · Área A · local fictício", "status": "Pendência documental", "tone": "warning", "meta": [{ "label": "Participante", "value": "Julia Demo · Apoio" }, { "label": "Requisito", "value": "Comprovação da integração administrativa" }, { "label": "Situação", "value": "Integração pendente no cadastro demonstrativo" }], "action": { "label": "Consultar trabalhadores", "to": "workers" } }
+      ] },
+      { "type": "notice", "tone": "neutral", "text": "Matriz DEMO-MATRIZ-1. Receber um arquivo não significa conferi-lo nem liberar uma atividade." }
+    ]
+  },
+  {
+    "id": "pt-list",
+    "title": "Permissões de trabalho",
+    "eyebrow": "ATENDIMENTOS EM CAMPO",
+    "description": "Acompanhe a verificação, a execução e a revisão de cada atendimento.",
+    "family": "Permissões de trabalho",
+    "path": "/app/pts",
+    "navId": "pt-list",
+    "actions": [{ "label": "Abrir agenda", "variant": "primary", "to": "agenda", "icon": "CalendarDays" }],
+    "sections": [
+      { "type": "form", "title": "Consulta de permissões", "fields": [
+        { "label": "Buscar PT", "value": "Número, serviço, local ou equipe", "type": "search" },
+        { "label": "Situação operacional", "value": "Todas", "type": "select" },
+        { "label": "Revisão do encerramento", "value": "Todas", "type": "select" },
+        { "label": "Equipe", "value": "Todas as equipes", "type": "select" }
+      ], "actions": [{ "label": "Pesquisar", "variant": "primary" }, { "label": "Limpar filtros", "variant": "ghost" }] },
+      { "type": "table", "title": "Permissões da unidade", "columns": ["Código / versão", "Serviço e local", "Equipe", "Responsável", "Operação", "Revisão"], "rows": [
+        { "cells": [{ "text": "PT-DEMO-230", "sub": "Versão 1" }, { "text": "Manutenção programada", "sub": "Área A · local fictício" }, "Equipe de manutenção · demonstração", "Diego Demo · técnico", { "text": "Concluída", "badge": "Concluída", "tone": "success" }, { "text": "Aguardando revisão", "badge": "Aguardando revisão", "tone": "warning" }], "to": "pt-detail" }
+      ] },
+      { "type": "notice", "tone": "info", "text": "O atendimento aberto inicia a conferência. A execução depende da liberação por responsável designado e dos requisitos atendidos." }
+    ]
+  },
+  {
+    "id": "pt-detail",
+    "title": "Manutenção programada",
+    "eyebrow": "PT-DEMO-230 · VERSÃO 1",
+    "description": "Atendimento digital, da conferência em campo à revisão do encerramento.",
+    "family": "Permissões de trabalho",
+    "path": "/app/pts/00000000-0000-4000-8000-000000000230",
+    "navId": "pt-list",
+    "actions": [{ "label": "Visualizar / imprimir PT", "variant": "secondary" }, { "label": "Voltar às PTs", "variant": "ghost", "to": "pt-list" }],
+    "sections": [
+      { "type": "details", "title": "Contexto da permissão de trabalho", "items": [
+        { "label": "Operação", "value": "Concluída" },
+        { "label": "Revisão", "value": "Aguardando revisão" },
+        { "label": "Local", "value": "Área A · local fictício" },
+        { "label": "Equipe", "value": "Equipe de manutenção · demonstração" },
+        { "label": "Responsável operacional", "value": "Diego Demo · técnico" },
+        { "label": "Período agendado", "value": "Hoje · 09h às 10h · Brasília" },
+        { "label": "Modelo utilizado", "value": "DEMO-PT-1" },
+        { "label": "Agendamento de origem", "value": "AG-DEMO-224" }
+      ] },
+      { "type": "notice", "tone": "warning", "text": "Modelo escolar ilustrativo. Os requisitos, o checklist e as designações da demonstração precisam ser substituídos pelos procedimentos aprovados do SESMT antes do uso real." },
+      { "type": "table", "title": "Conferência do atendimento", "columns": ["Item ilustrativo", "Resposta preservada"], "rows": [
+        { "cells": ["Contexto, local e participantes conferidos (exemplo didático)", { "text": "Sim", "badge": "Sim", "tone": "success" }] },
+        { "cells": ["Medidas do procedimento aplicável conferidas (exemplo didático)", { "text": "Sim", "badge": "Sim", "tone": "success" }] },
+        { "cells": ["Comunicação da equipe registrada (exemplo didático)", { "text": "Sim", "badge": "Sim", "tone": "success" }] }
+      ] },
+      { "type": "details", "title": "Ciência dos participantes", "items": [
+        { "label": "Participante", "value": "Camila Demo · Executante" },
+        { "label": "Ciência", "value": "1 de 1 registrada · versão 1" },
+        { "label": "Representação", "value": "Camila Demo · digitada" },
+        { "label": "Coletada por", "value": "Diego Demo" }
+      ] },
+      { "type": "details", "title": "Encerramento do atendimento", "items": [
+        { "label": "Resumo preservado", "value": "Exemplo sintético concluído para demonstrar a fila de revisão do engenheiro." },
+        { "label": "Versão enviada", "value": "1 · operação concluída" }
+      ] },
+      { "type": "details", "title": "Revisão final e versões", "items": [
+        { "label": "Situação", "value": "Aguardando revisão" },
+        { "label": "Próximo passo", "value": "Consulte a versão enviada antes de aprovar ou devolver." }
+      ], "actions": [{ "label": "Revisar encerramento da versão 1", "variant": "primary" }] },
+      { "type": "notice", "tone": "neutral", "text": "A revisão é uma decisão sobre o registro do encerramento. Não inicia novamente a atividade nem autoriza retroativamente sua execução." }
+    ]
+  },
+  {
+    "id": "at-list",
+    "title": "Autorizações de Trabalho",
+    "eyebrow": "MODELOS SST",
+    "description": "ATs do modelo RI-S-36002 vinculadas aos atendimentos da unidade.",
+    "family": "Autorizações de trabalho",
+    "path": "/app/ats",
+    "navId": "at-list",
+    "actions": [{ "label": "Criar AT", "variant": "primary", "icon": "Plus" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Demonstração em memória, sem validade operacional. A AT possui seu próprio registro e não libera a execução de uma PT." },
+      { "type": "form", "title": "Filtros de AT", "fields": [
+        { "label": "Pesquisar AT", "value": "Código, atendimento, equipe, serviço ou local", "type": "search" },
+        { "label": "Estado da AT", "value": "Todos", "type": "select" }
+      ] },
+      { "type": "empty", "title": "Nenhuma AT encontrada", "text": "Ajuste a pesquisa ou crie uma AT para um atendimento confirmado." },
+      { "type": "details", "title": "Consulta da demonstração", "items": [{ "label": "Resultados", "value": "0 ATs · página 1 de 1" }] }
+    ]
+  },
+  {
+    "id": "pet-list",
+    "title": "PETs de espaços confinados",
+    "eyebrow": "PREPARAÇÃO DOCUMENTAL",
+    "description": "Prepare a identificação do espaço, as funções previstas, os controles e os registros atmosféricos.",
+    "family": "PETs de espaços confinados",
+    "path": "/app/pets",
+    "navId": "pet-list",
+    "actions": [{ "label": "Nova PET", "variant": "primary", "icon": "Plus" }],
+    "sections": [
+      { "type": "notice", "tone": "info", "text": "Esta etapa organiza rascunhos. A emissão da PET e o controle de entrada ainda não estão disponíveis." },
+      { "type": "form", "title": "Consulta de preparações", "fields": [
+        { "label": "Buscar PET por código, espaço ou tarefa", "value": "Ex.: PET, tanque, inspeção", "type": "search" }
+      ], "actions": [{ "label": "Buscar", "variant": "primary" }] },
+      { "type": "empty", "title": "Nenhuma preparação de PET encontrada", "text": "Crie um rascunho a partir de um atendimento da unidade ou ajuste a busca." },
+      { "type": "details", "title": "Consulta da demonstração", "items": [{ "label": "Resultados", "value": "0 preparações · página 1" }] }
+    ]
+  }
+]

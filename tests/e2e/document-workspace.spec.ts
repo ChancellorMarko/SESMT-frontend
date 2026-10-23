@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { loginDemo, openModule } from './helpers';
 
+test('atalho de conteúdo aparece ao receber foco e permite pular a navegação', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginDemo(page, 'Engenheiro');
+  await openModule(page, 'Documentos');
+  const skip = page.getByRole('link', { name: 'Pular para o conteúdo', exact: true });
+  await skip.focus();
+  await expect(skip).toBeInViewport({ ratio: 1 });
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toBeFocused();
+});
+
 test('consulta compacta remove um filtro e Voltar restaura os critérios anteriores', async ({ page }) => {
   await loginDemo(page, 'Engenheiro');
   await openModule(page, 'Documentos');
@@ -26,8 +37,8 @@ test('consulta compacta remove um filtro e Voltar restaura os critérios anterio
   await expect(page.getByLabel('Vencimento a partir de', { exact: true })).toBeHidden();
 });
 
-for (const width of [320, 390]) {
-  test(`documentos ficam legíveis sem rolagem horizontal a ${width}px`, async ({ page }) => {
+for (const width of [320, 390, 768, 1440]) {
+  test(`documentos ficam legíveis sem rolagem horizontal a ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const errors: string[] = [];
@@ -43,8 +54,20 @@ for (const width of [320, 390]) {
     const dimensions = await table.evaluate(element => ({ width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth, viewport: innerWidth }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`documentos-${width}.png`), fullPage: true });
     await first.click();
     await expect(page.getByRole('region', { name: 'Metadados do documento', exact: true })).toBeVisible();
+    const versions = page.getByRole('table', { name: 'Versões disponíveis', exact: true });
+    await expect(versions).toBeVisible();
+    const versionDimensions = await versions.evaluate(element => ({ width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth }));
+    expect(versionDimensions.scrollWidth).toBeLessThanOrEqual(versionDimensions.width + 1);
+    const selected = page.getByRole('region', { name: 'Versão selecionada', exact: true });
+    await versions.getByRole('button', { name: 'Consultar v1', exact: true }).click();
+    await expect(selected).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`documento-detalhe-${width}.png`), fullPage: true });
+    await page.getByRole('link', { name: 'Voltar à central', exact: true }).click();
+    await expect(table).toBeVisible();
     expect(errors).toEqual([]);
   });
 }

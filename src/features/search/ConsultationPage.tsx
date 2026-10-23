@@ -1,7 +1,7 @@
-import { useEffect, useId, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, ClipboardCheck, Search, MapPin, FileCheck, HardHat } from 'lucide-react';
+import { FolderOpen, ClipboardCheck, Search, MapPin, FileCheck, HardHat, ArrowUpRight } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type {
@@ -31,12 +31,14 @@ import { consultationResults } from './consultation-results';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { PagedSelect } from '../../shared/ui/PagedSelect';
 import { PreparationSearchTab } from './PreparationSearchTab';
+import { ConsultationSearchHeading, PendingSearchChanges } from './ConsultationSearchTools';
+import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 
 const consultationTabs = {
-  documents: { permission: 'documents.read', label: 'Documentos controlados', icon: FolderOpen },
-  permits: { permission: 'permits.read', label: 'Permissões de trabalho (PTs)', icon: ClipboardCheck },
-  ats: { permission: 'at.read', label: 'Autorizações de trabalho (ATs)', icon: FileCheck },
-  pets: { permission: 'pet.read', label: 'PETs de espaços confinados', icon: HardHat },
+  documents: { permission: 'documents.read', label: 'Documentos controlados', shortLabel: 'Documentos', description: 'Arquivos e vigências', icon: FolderOpen },
+  permits: { permission: 'permits.read', label: 'Permissões de trabalho (PT)', shortLabel: 'Permissões', description: 'Trabalho · PT', icon: ClipboardCheck },
+  ats: { permission: 'at.read', label: 'Autorizações de trabalho (AT)', shortLabel: 'Autorizações', description: 'Trabalho · AT', icon: FileCheck },
+  pets: { permission: 'pet.read', label: 'Permissões de entrada e trabalho (PET)', shortLabel: 'Entrada e trabalho', description: 'Espaços confinados · PET', icon: HardHat },
 };
 type ActiveTab = keyof typeof consultationTabs;
 
@@ -77,6 +79,7 @@ export function ConsultationPage() {
   }, [activeTab, invalidContext, params, requestedTab, setParams, unitId]);
 
   function switchTab(nextTab: ActiveTab) {
+    if (nextTab === activeTab && contextReady) return;
     // Each resource has its own filter vocabulary; changing tabs starts a new search.
     setParams(new URLSearchParams({ tab: nextTab, ...(unitId ? { unitId } : {}) }));
   }
@@ -96,21 +99,23 @@ export function ConsultationPage() {
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha a unidade de trabalho para consultar os registros." />;
 
   return (
-    <div className="stack">
+    <div className={`stack ${styles.page}`}>
       <PageHeader
         eyebrow="BUSCA E AUDITORIA OPERACIONAL"
         title="Central de consulta unificada"
-        description="Consulte documentos controlados, PTs, ATs e preparações de PET com filtros, paginação e histórico."
+        description="Encontre documentos, permissões e autorizações de trabalho em consultas próprias para cada registro."
+        actions={<TerminologyHelp related={['PT', 'AT', 'PET']}>Entenda PT, AT e PET</TerminologyHelp>}
       />
 
       <div className={styles.tabBar} role="tablist" aria-label="Abas de consulta">
         {allowedTabs.map(tab => {
-          const { icon: Icon, label } = consultationTabs[tab];
+          const { icon: Icon, label, shortLabel, description } = consultationTabs[tab];
           return (
           <button
             key={tab}
             type="button"
             role="tab"
+            aria-label={label}
             id={`${tabsId}-${tab}`}
             aria-controls={`${tabsId}-${tab}-panel`}
             tabIndex={activeTab === tab ? 0 : -1}
@@ -119,8 +124,9 @@ export function ConsultationPage() {
             onClick={() => switchTab(tab)}
             onKeyDown={navigateTabs}
           >
-            <Icon size={17} aria-hidden="true" />
-            <span>{label}</span>
+            <span className={styles.tabIcon}><Icon size={19} aria-hidden="true" /></span>
+            <span className={styles.tabText}><strong>{shortLabel}</strong><small>{description}</small></span>
+            <span className={styles.tabMarker} aria-hidden="true" />
           </button>
           );
         })}
@@ -154,6 +160,7 @@ function DocumentsSearchTab() {
   const [draftValidFrom, setDraftValidFrom] = useState(validUntilFrom);
   const [draftValidTo, setDraftValidTo] = useState(validUntilTo);
   const [validationError, setValidationError] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSearch(q);
@@ -162,9 +169,12 @@ function DocumentsSearchTab() {
     setDraftWorker(workerId);
     setDraftValidFrom(validUntilFrom);
     setDraftValidTo(validUntilTo);
-  }, [q, typeId, status, workerId, validUntilFrom, validUntilTo]);
+    setValidationError('');
+  }, [q, typeId, status, workerId, validUntilFrom, validUntilTo, location.search]);
 
   const hasFilters = Boolean(q || typeId || status || workerId || validUntilFrom || validUntilTo);
+  const hasDraftFilters = Boolean(search || draftType || draftStatus || draftWorker || draftValidFrom || draftValidTo);
+  const draftChanged = search !== q || draftType !== typeId || draftStatus !== status || draftWorker !== workerId || draftValidFrom !== validUntilFrom || draftValidTo !== validUntilTo;
   const appliedError = documentFilterError(status, validUntilFrom, validUntilTo);
 
   const documents = useQuery({
@@ -239,25 +249,34 @@ function DocumentsSearchTab() {
     setDraftValidFrom('');
     setDraftValidTo('');
     setValidationError('');
-    setParams(new URLSearchParams({ tab: 'documents' }));
+    setParams(new URLSearchParams({ tab: 'documents', ...(unitId ? { unitId } : {}) }));
+    searchInput.current?.focus({ preventScroll: true });
+  }
+
+  function discardDraft() {
+    setSearch(q); setDraftType(typeId); setDraftStatus(status); setDraftWorker(workerId);
+    setDraftValidFrom(validUntilFrom); setDraftValidTo(validUntilTo); setValidationError('');
+    searchInput.current?.focus({ preventScroll: true });
   }
 
   return (
-    <section className="panel stack" aria-label="Consulta de documentos controlados">
-      <form onSubmit={handleSearch} className="stack">
-        <div className="toolbar">
+    <section className={`panel stack ${styles.searchPanel}`} aria-label="Consulta de documentos controlados">
+      <form onSubmit={handleSearch} className={`stack ${styles.searchForm}`}>
+        <ConsultationSearchHeading title="Pesquisar documentos" description="Título, código e critérios de vigência." />
+        <div className={`toolbar ${styles.searchToolbar}`}>
           <Field label="Buscar título ou código">
             <input
+              ref={searchInput}
               type="search"
               placeholder="Ex.: Relatório, PGR, ASO, DOC-001…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </Field>
-          <Button type="submit" variant="secondary">
+          <Button type="submit">
             <Search size={15} /> Pesquisar
           </Button>
-          {hasFilters && (
+          {(hasFilters || hasDraftFilters) && (
             <Button type="button" variant="ghost" onClick={handleClear}>
               Limpar filtros
             </Button>
@@ -304,6 +323,8 @@ function DocumentsSearchTab() {
         </div>
       </form>
 
+      {draftChanged && <PendingSearchChanges onDiscard={discardDraft} />}
+
       {appliedError && <Feedback tone="danger">Filtros da consulta inválidos. {appliedError} Corrija os campos e pesquise novamente ou limpe os filtros.</Feedback>}
       {!appliedError && documents.isPending && <Spinner />}
       {!appliedError && documents.isError && <Feedback tone="danger">
@@ -314,7 +335,7 @@ function DocumentsSearchTab() {
       {documents.data && !documents.isError && !appliedError && (
         documents.data.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabela de documentos controlados" tabIndex={0}>
               <table className="data-table">
                 <caption className="sr-only">Resultados da consulta documental</caption>
                 <thead>
@@ -352,8 +373,9 @@ function DocumentsSearchTab() {
                             to={`/app/documentos/${doc.id}`}
                             state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                             aria-label={`Abrir ${doc.title}`}
+                            className={styles.resultAction}
                           >
-                            Consultar →
+                            Consultar <ArrowUpRight size={14} aria-hidden="true" />
                           </Link>
                         </td>
                       </tr>
@@ -394,15 +416,19 @@ function PermitsSearchTab() {
   const [draftReview, setDraftReview] = useState(reviewStatus);
   const [draftTeam, setDraftTeam] = useState(teamId);
   const [validationError, setValidationError] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSearch(q);
     setDraftOp(operationStatus);
     setDraftReview(reviewStatus);
     setDraftTeam(teamId);
-  }, [q, operationStatus, reviewStatus, teamId]);
+    setValidationError('');
+  }, [q, operationStatus, reviewStatus, teamId, location.search]);
 
   const hasFilters = Boolean(q || operationStatus || reviewStatus || teamId);
+  const hasDraftFilters = Boolean(search || draftOp || draftReview || draftTeam);
+  const draftChanged = search !== q || draftOp !== operationStatus || draftReview !== reviewStatus || draftTeam !== teamId;
   const appliedError = permitFilterError(operationStatus, reviewStatus);
 
   const options = useQuery({
@@ -459,25 +485,33 @@ function PermitsSearchTab() {
     setDraftReview('');
     setDraftTeam('');
     setValidationError('');
-    setParams(new URLSearchParams({ tab: 'permits' }));
+    setParams(new URLSearchParams({ tab: 'permits', ...(unitId ? { unitId } : {}) }));
+    searchInput.current?.focus({ preventScroll: true });
+  }
+
+  function discardDraft() {
+    setSearch(q); setDraftOp(operationStatus); setDraftReview(reviewStatus); setDraftTeam(teamId); setValidationError('');
+    searchInput.current?.focus({ preventScroll: true });
   }
 
   return (
-    <section className="panel stack" aria-label="Consulta de permissões de trabalho">
-      <form onSubmit={handleSearch} className="stack">
-        <div className="toolbar">
+    <section className={`panel stack ${styles.searchPanel}`} aria-label="Consulta de permissões de trabalho">
+      <form onSubmit={handleSearch} className={`stack ${styles.searchForm}`}>
+        <ConsultationSearchHeading title="Pesquisar permissões de trabalho" description="Código, serviço, local e situação operacional." />
+        <div className={`toolbar ${styles.searchToolbar}`}>
           <Field label="Buscar PT">
             <input
+              ref={searchInput}
               type="search"
               placeholder="Número, serviço, local ou equipe…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </Field>
-          <Button type="submit" variant="secondary">
+          <Button type="submit">
             <Search size={15} /> Pesquisar
           </Button>
-          {hasFilters && (
+          {(hasFilters || hasDraftFilters) && (
             <Button type="button" variant="ghost" onClick={handleClear}>
               Limpar filtros
             </Button>
@@ -519,6 +553,8 @@ function PermitsSearchTab() {
         </div>
       </form>
 
+      {draftChanged && <PendingSearchChanges onDiscard={discardDraft} />}
+
       {options.isError && <Feedback tone="danger">
         <p>Não foi possível carregar as equipes do filtro. {permitErrorMessage(options.error)}</p>
         <Button variant="secondary" disabled={options.isFetching} onClick={() => void options.refetch()}>Tentar carregar equipes novamente</Button>
@@ -533,7 +569,7 @@ function PermitsSearchTab() {
       {permits.data && !permits.isError && !appliedError && (
         permitItems.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabela de permissões de trabalho" tabIndex={0}>
               <table className="data-table">
                 <caption className="sr-only">Resultados da consulta de PTs</caption>
                 <thead>
@@ -582,8 +618,9 @@ function PermitsSearchTab() {
                           to={`/app/pts/${permit.id}`}
                           state={{ fromSearch: location.search, fromConsulta: true, fromUnitId: unitId }}
                           aria-label={`Abrir ${permit.code}`}
+                          className={styles.resultAction}
                         >
-                          Consultar →
+                          Consultar <ArrowUpRight size={14} aria-hidden="true" />
                         </Link>
                       </td>
                     </tr>

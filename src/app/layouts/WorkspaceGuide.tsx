@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ArrowUpRight, CalendarDays, ClipboardCheck, FolderOpen, Search, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowUpRight, BookOpen, CalendarDays, ClipboardCheck, FolderOpen, Search, Sparkles, UsersRound } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui';
 import styles from './WorkspaceGuide.module.css';
 
@@ -10,11 +10,12 @@ const shortcuts = [
   { to: '/app/equipes', label: 'Consultar minhas equipes', description: 'Pessoas e composição', icon: UsersRound, permission: 'teams.read' },
 ];
 
-export function WorkspaceGuide({ can, displayName, role, onSearch, open, onOpen, onClose }: {
+export function WorkspaceGuide({ can, displayName, role, onSearch, onTerminology, open, onOpen, onClose }: {
   can: (permission: string) => boolean;
   displayName: string;
   role: string;
   onSearch: () => void;
+  onTerminology: () => void;
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -34,6 +35,7 @@ export function WorkspaceGuide({ can, displayName, role, onSearch, open, onOpen,
       <nav className={styles.shortcuts} aria-label="Atalhos do Guia Ampara">{shortcuts.filter(item => can(item.permission)).map(item => <Link key={item.to} to={item.to} onClick={onClose} className={styles.shortcut}>
         <span className={styles.shortcutIcon}><item.icon size={17} aria-hidden="true" /></span><span><strong>{item.label}</strong><small>{item.description}</small></span><ArrowUpRight size={14} aria-hidden="true" />
       </Link>)}</nav>
+      <button type="button" className={`${styles.shortcut} ${styles.terminology}`} onClick={onTerminology}><span className={styles.shortcutIcon}><BookOpen size={17} aria-hidden="true" /></span><span><strong>Entender as siglas</strong><small>ASO, PT, PET e outros termos, por extenso</small></span><ArrowUpRight size={14} aria-hidden="true" /></button>
       <div className={styles.profile}><span aria-hidden="true">{displayName.split(' ').slice(0, 2).map(part => part[0]).join('')}</span><div><strong>{displayName}</strong><small>{role}</small></div><span className={styles.connected}>Seu acesso</span></div>
       <div className={styles.search}><p>Precisando de outro módulo?</p><Button variant="secondary" onClick={() => { onClose(); onSearch(); }}><Search size={16} aria-hidden="true" />Buscar módulos no guia<ArrowUpRight size={14} aria-hidden="true" /></Button></div>
     </Modal>

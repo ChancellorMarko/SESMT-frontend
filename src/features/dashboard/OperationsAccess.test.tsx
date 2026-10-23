@@ -41,7 +41,7 @@ describe('destinos do painel conforme as capacidades do usuário', () => {
     expect(screen.getByRole('link', { name: /Serviços na agenda/ })).toHaveAttribute('href', '/app/agenda');
     expect(screen.getByLabelText('Pesquisar em')).toHaveValue('agenda');
     expect(screen.getAllByRole('option')).toHaveLength(1);
-    expect(screen.queryByRole('link', { name: /PTs em atendimento|Pendências documentais|Encerramentos para revisão/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Permissões em atendimento|Pendências documentais|Encerramentos para revisão/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Revisão e correções')).not.toBeInTheDocument();
     expect(screen.queryByText('PT-PARA-REVISAO')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link').every(link => link.getAttribute('href')?.startsWith('/app/agenda'))).toBe(true);

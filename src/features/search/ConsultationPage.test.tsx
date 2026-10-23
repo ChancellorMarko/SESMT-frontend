@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import { makeFixtures } from '../../mocks/fixtures';
@@ -20,10 +20,14 @@ function lookupPage<T extends { id: string }>(items: T[], options: Parameters<ty
   const pageSize = Number(options?.query?.pageSize || 20);
   return { items: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, pageSize };
 }
-function Where() { return <output aria-label="Endereço atual">{useLocation().search}</output>; }
-function show(path = '/app/consulta') {
+function Where({ withHistory = false }: { withHistory?: boolean }) {
+  const location = useLocation(), navigate = useNavigate();
+  return <><output aria-label="Endereço atual">{location.search}</output>{withHistory && <button onClick={() => navigate(-1)}>Retornar histórico da consulta</button>}</>;
+}
+function show(path: string | string[] = '/app/consulta') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><ConsultationPage /><Where /></MemoryRouter></QueryClientProvider>);
+  const entries = Array.isArray(path) ? path : [path];
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}><ConsultationPage /><Where withHistory={Array.isArray(path)} /></MemoryRouter></QueryClientProvider>);
   return client;
 }
 beforeEach(() => {
@@ -52,6 +56,16 @@ describe('Central de consulta', () => {
     expect(screen.getByRole('tab', { name: /Permissões de trabalho/ })).toHaveAttribute('aria-selected', 'true');
     expect(vi.mocked(api.get).mock.calls.some(([path]) => path === '/documents')).toBe(false);
   });
+  it.each([
+    { tab: 'ats', permission: 'at.read', label: 'Autorizações de trabalho (AT)', heading: 'Pesquisar autorizações de trabalho (AT)' },
+    { tab: 'pets', permission: 'pet.read', label: 'Permissões de entrada e trabalho (PET)', heading: 'Pesquisar preparações de entrada e trabalho (PET)' },
+  ])('identifica $tab pelo significado completo e mostra a pesquisa correspondente', async ({ tab, permission, label, heading }) => {
+    session.permissions = [permission]; show(`/app/consulta?tab=${tab}`);
+    expect(screen.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('heading', { name: heading })).toBeVisible();
+    expect(screen.queryByRole('tab', { name: 'Documentos controlados' })).not.toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([path]) => path === '/documents')).toBe(false);
+  });
   it('não consulta registros sem permissão ou unidade', () => {
     session.permissions = []; show();
     expect(screen.getByRole('heading', { name: 'Acesso restrito' })).toBeVisible();
@@ -73,6 +87,118 @@ describe('Central de consulta', () => {
     await user.keyboard('{Home}'); expect(docs).toHaveFocus();
     await user.keyboard('{End}'); expect(permits).toHaveFocus();
     await user.keyboard('{ArrowRight}'); expect(docs).toHaveFocus();
+  });
+
+  it.each([
+    { tab: 'documents', permission: 'documents.read', label: 'Documentos controlados', searchLabel: 'Buscar título ou código', resource: '/documents' },
+    { tab: 'permits', permission: 'permits.read', label: 'Permissões de trabalho (PT)', searchLabel: 'Buscar PT', resource: '/work-permits' },
+  ])('preserva os critérios ao clicar ou navegar para a única aba atual de $tab', async ({ tab, permission, label, searchLabel, resource }) => {
+    session.permissions = [permission];
+    const user = userEvent.setup();
+    const query = `?tab=${tab}&unitId=unit-a&q=aplicada&page=2`;
+    show(`/app/consulta${query}`);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(resource, expect.objectContaining({ query: expect.objectContaining({ page: 2, q: 'aplicada' }) })));
+    const search = screen.getByRole('searchbox', { name: searchLabel });
+    await user.clear(search); await user.type(search, 'rascunho preservado');
+    const calls = vi.mocked(api.get).mock.calls.filter(([path]) => path === resource).length;
+    const current = screen.getByRole('tab', { name: label });
+    await user.click(current);
+    expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(query);
+    expect(search).toHaveValue('rascunho preservado');
+    for (const key of ['{Home}', '{End}', '{ArrowLeft}', '{ArrowRight}']) {
+      await user.keyboard(key);
+      expect(current).toHaveFocus();
+      expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(query);
+      expect(screen.getByRole('searchbox', { name: searchLabel })).toBe(search);
+      expect(search).toHaveValue('rascunho preservado');
+    }
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === resource)).toHaveLength(calls);
+  });
+
+  it.each([
+    { tab: 'documents', searchLabel: 'Buscar título ou código', resource: '/documents', filter: 'status=ACTIVE' },
+    { tab: 'permits', searchLabel: 'Buscar PT', resource: '/work-permits', filter: 'operationStatus=VERIFICATION' },
+  ])('limpa a consulta de $tab mantendo unidade, campo montado e foco na busca', async ({ tab, searchLabel, resource, filter }) => {
+    const user = userEvent.setup(); show(`/app/consulta?tab=${tab}&unitId=unit-a&q=aplicada&${filter}`);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(resource, expect.objectContaining({ query: expect.objectContaining({ q: 'aplicada' }) })));
+    const search = screen.getByRole('searchbox', { name: searchLabel });
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await waitFor(() => expect(screen.getByLabelText('Endereço atual').textContent).toBe(`?tab=${tab}&unitId=unit-a`));
+    expect(screen.getByRole('searchbox', { name: searchLabel })).toBe(search);
+    expect(search).toHaveValue(''); expect(search).toHaveFocus();
+    expect(api.get).toHaveBeenCalledWith(resource, expect.objectContaining({ query: expect.objectContaining({ unitId: 'unit-a', page: 1, q: undefined }) }));
+  });
+
+  it.each([
+    { tab: 'documents', searchLabel: 'Buscar título ou código', resource: '/documents', statusLabel: 'Situação', draftStatus: 'ACTIVE' },
+    { tab: 'permits', searchLabel: 'Buscar PT', resource: '/work-permits', statusLabel: 'Situação operacional', draftStatus: 'VERIFICATION' },
+  ])('oferece limpeza para o rascunho inicial de $tab sem pesquisar durante o preenchimento', async ({ tab, searchLabel, resource, statusLabel, draftStatus }) => {
+    const user = userEvent.setup(); const query = `?tab=${tab}&unitId=unit-a`;
+    show(`/app/consulta${query}`);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(resource, expect.objectContaining({ query: expect.objectContaining({ unitId: 'unit-a' }) })));
+    const calls = vi.mocked(api.get).mock.calls.filter(([path]) => path === resource).length;
+    const search = screen.getByRole('searchbox', { name: searchLabel });
+    await user.type(search, 'ainda não aplicada');
+    await user.selectOptions(screen.getByRole('combobox', { name: statusLabel }), draftStatus);
+    expect(screen.getAllByRole('status').some(node => node.textContent?.includes('Há alterações nos filtros ainda não aplicadas.'))).toBe(true);
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(query);
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === resource)).toHaveLength(calls);
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(search).toHaveValue(''); expect(search).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: statusLabel })).toHaveValue('');
+    expect(screen.queryByText('Há alterações nos filtros ainda não aplicadas.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(query);
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === resource)).toHaveLength(calls);
+  });
+
+  it.each([
+    { tab: 'documents', searchLabel: 'Buscar título ou código', resource: '/documents', statusLabel: 'Situação', filter: 'status=ACTIVE', appliedStatus: 'ACTIVE', draftStatus: 'ARCHIVED' },
+    { tab: 'permits', searchLabel: 'Buscar PT', resource: '/work-permits', statusLabel: 'Situação operacional', filter: 'operationStatus=VERIFICATION', appliedStatus: 'VERIFICATION', draftStatus: 'SUSPENDED' },
+  ])('descarta somente o rascunho de $tab e mantém pesquisa e página aplicadas', async ({ tab, searchLabel, resource, statusLabel, filter, appliedStatus, draftStatus }) => {
+    const user = userEvent.setup(); const query = `?tab=${tab}&unitId=unit-a&q=aplicada&${filter}&page=2`;
+    show(`/app/consulta${query}`);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(resource, expect.objectContaining({ query: expect.objectContaining({ page: 2, q: 'aplicada' }) })));
+    const calls = vi.mocked(api.get).mock.calls.filter(([path]) => path === resource).length;
+    const search = screen.getByRole('searchbox', { name: searchLabel });
+    await user.clear(search); await user.type(search, 'rascunho');
+    await user.selectOptions(screen.getByRole('combobox', { name: statusLabel }), draftStatus);
+    await user.click(screen.getByRole('button', { name: 'Descartar alterações' }));
+    expect(search).toHaveValue('aplicada'); expect(search).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: statusLabel })).toHaveValue(appliedStatus);
+    expect(screen.queryByText('Há alterações nos filtros ainda não aplicadas.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descartar alterações' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(query);
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === resource)).toHaveLength(calls);
+  });
+
+  it('remove erro local de datas ao restaurar critérios válidos pelo histórico', async () => {
+    const user = userEvent.setup();
+    const previous = '?tab=documents&unitId=unit-a&q=anterior&status=ACTIVE';
+    show([`/app/consulta${previous}`, '/app/consulta?tab=documents&unitId=unit-a&q=atual&status=ACTIVE']);
+    await screen.findByRole('table');
+    await user.type(screen.getByLabelText('Vencimento a partir de'), '2030-12-31');
+    await user.type(screen.getByLabelText('Vencimento até'), '2030-01-01');
+    await user.click(screen.getByRole('button', { name: 'Pesquisar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('A data final deve ser igual ou posterior à data inicial.');
+    await user.click(screen.getByRole('button', { name: 'Retornar histórico da consulta' }));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Buscar título ou código' })).toHaveValue('anterior'));
+    expect(screen.getByLabelText('Vencimento a partir de')).toHaveValue('');
+    expect(screen.getByLabelText('Vencimento até')).toHaveValue('');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(previous);
+  });
+
+  it('remove erro local da PT ao restaurar uma situação válida pelo histórico', async () => {
+    const user = userEvent.setup();
+    const previous = '?tab=permits&unitId=unit-a&q=anterior&operationStatus=VERIFICATION';
+    show([`/app/consulta${previous}`, '/app/consulta?tab=permits&unitId=unit-a&q=atual&operationStatus=INVALID']);
+    await user.click(screen.getByRole('button', { name: 'Pesquisar' }));
+    expect(screen.getAllByRole('alert').some(node => node.textContent?.includes('Selecione uma situação operacional válida.'))).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Retornar histórico da consulta' }));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Buscar PT' })).toHaveValue('anterior'));
+    expect(screen.getByRole('combobox', { name: 'Situação operacional' })).toHaveValue('VERIFICATION');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe(previous);
   });
   it('permite voltar de uma página vazia e mantém os filtros na URL', async () => {
     const user = userEvent.setup(); show('/app/consulta?tab=documents&q=Invent%C3%A1rio&status=ACTIVE&page=99');

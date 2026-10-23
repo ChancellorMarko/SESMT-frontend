@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ampara SESMT · Telas editáveis</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; color: #24364f; background: #f3f2ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 22px; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 19px; }
+    .mark { display: grid; width: 40px; height: 40px; flex-shrink: 0; place-items: center; border-radius: 13px; background: #183b68; color: #fffefa; font-size: 14px; font-weight: 700; }
+    .brand { color: #183b68; font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
+    .subtitle { margin-top: 3px; color: #526e91; font-size: 11px; }
+    h1 { margin: 0 0 9px; color: #183b68; font-size: 22px; font-weight: 600; letter-spacing: -.035em; line-height: 1.25; }
+    p { margin: 0; font-size: 12px; line-height: 1.7; }
+    .description { color: #526e91; }
+    fieldset { margin: 19px 0 16px; padding: 14px; border: 1px solid #dfe6f0; border-radius: 17px; background: #fffefa; }
+    legend { padding: 0 5px; color: #385a83; font-size: 11px; font-weight: 600; }
+    label { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 6px 9px; border-radius: 10px; cursor: pointer; font-size: 12px; }
+    label:has(input:checked) { background: #edf3fc; color: #183b68; }
+    input { accent-color: #4679ee; }
+    button { min-height: 44px; border: 1px solid #dfe6f0; border-radius: 12px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .actions { display: flex; gap: 9px; }
+    .primary { flex: 1; padding: 10px 16px; color: #fffefa; background: #183b68; border-color: #183b68; }
+    .secondary { padding: 10px 17px; color: #385a83; background: #fffefa; }
+    button:disabled, input:disabled { cursor: wait; opacity: .6; }
+    :is(button,input):focus-visible { outline: 3px solid #4679ee; outline-offset: 3px; }
+    .status { min-height: 40px; margin-top: 15px; color: #526e91; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+    .status[data-tone="danger"] { color: #a22d47; }
+    .status[data-tone="success"] { color: #087a58; }
+    progress { display: block; width: 100%; height: 7px; margin-top: 8px; accent-color: #4679ee; }
+    progress[hidden] { display: none; }
+    .note { margin-top: 15px; padding-top: 13px; border-top: 1px solid #dfe6f0; color: #5a6f89; font-size: 10px; line-height: 1.6; }
+    .counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .counts span { padding: 4px 7px; border: 1px solid #dfe6f0; border-radius: 7px; color: #385a83; background: #fffefa; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <header><span class="mark" aria-hidden="true">AM</span><div><div class="brand">ampara</div><div class="subtitle">SESMT · Pacote de design</div></div></header>
+  <h1>Crie as telas editáveis</h1>
+  <p class="description">Gere a base visual do projeto neste arquivo, com a identidade Ampara, componentes e estilos reutilizáveis.</p>
+  <form id="form">
+    <fieldset id="modes">
+      <legend>Versões das telas</legend>
+      <label><input type="radio" name="mode" value="both" checked> Desktop e mobile</label>
+      <label><input type="radio" name="mode" value="desktop"> Apenas desktop</label>
+      <label><input type="radio" name="mode" value="mobile"> Apenas mobile</label>
+    </fieldset>
+    <div class="actions"><button class="primary" id="generate" type="submit">Gerar telas no arquivo</button><button class="secondary" id="close" type="button">Fechar</button></div>
+  </form>
+  <div class="status" id="status" role="status" aria-live="polite">Pronto para gerar. Abra um arquivo de design vazio para começar.</div>
+  <progress id="progress" max="1" value="0" aria-label="Progresso da geração" hidden></progress>
+  <div class="counts" id="counts" aria-label="Resumo da geração"></div>
+  <p class="note">Recriação editável baseada na interface e nos dados fictícios do projeto. A execução no Figma ainda precisa ser verificada; este painel informa o resultado ao terminar. Revise os layouts e as interações no arquivo gerado.</p>
+  <script>
+    const form = document.getElementById('form');
+    const modes = document.getElementById('modes');
+    const generate = document.getElementById('generate');
+    const close = document.getElementById('close');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const counts = document.getElementById('counts');
+    let busy = false;
+
+    function message(type, extra) {
+      parent.postMessage({ pluginMessage: { type, ...(extra || {}) } }, '*');
+    }
+    function setBusy(value) {
+      busy = value;
+      modes.disabled = value;
+      generate.disabled = value;
+      close.disabled = value;
+      generate.textContent = value ? 'Gerando telas…' : 'Gerar telas no arquivo';
+    }
+    function showStatus(text, tone) {
+      status.textContent = text;
+      status.dataset.tone = tone || '';
+    }
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (busy) return;
+      const mode = new FormData(form).get('mode');
+      if (!['both', 'desktop', 'mobile'].includes(mode)) return;
+      setBusy(true);
+      counts.replaceChildren();
+      progress.hidden = false;
+      progress.removeAttribute('value');
+      showStatus('Preparando fontes, estilos e telas…');
+      message('generate', { mode });
+    });
+    close.addEventListener('click', () => { if (!busy) message('close'); });
+    window.addEventListener('message', event => {
+      if (event.source !== parent) return;
+      const data = event.data && event.data.pluginMessage;
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'progress') {
+        if (typeof data.text === 'string') showStatus(data.text);
+        if (Number.isFinite(data.total) && data.total > 0 && Number.isFinite(data.completed)) {
+          progress.max = data.total;
+          progress.value = Math.max(0, Math.min(data.total, data.completed));
+        }
+      } else if (data.type === 'done') {
+        setBusy(false);
+        progress.hidden = true;
+        showStatus('Geração concluída. Revise as telas editáveis no arquivo.', 'success');
+        counts.replaceChildren();
+        const labels = { screens: 'telas', frames: 'frames', components: 'componentes', instances: 'instâncias', variables: 'variáveis', textStyles: 'estilos de texto', pages: 'páginas', links: 'links de protótipo' };
+        if (data.summary && typeof data.summary === 'object') {
+          Object.entries(data.summary).forEach(([key, value]) => {
+            if (!Number.isFinite(value) || value < 0) return;
+            const item = document.createElement('span');
+            item.textContent = `${value} ${labels[key] || key}`;
+            counts.appendChild(item);
+          });
+        }
+      } else if (data.type === 'error') {
+        setBusy(false);
+        progress.hidden = true;
+        showStatus(typeof data.text === 'string' ? data.text : 'A geração não foi concluída. Confira o arquivo antes de tentar novamente.', 'danger');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -31,7 +31,7 @@ describe('cenário visual de segurança', () => {
 
   it('filtra a área pela URL, preserva outros parâmetros e mantém a operação separada', () => {
     show('?area=epis&keep=1');
-    expect(screen.getByRole('heading', { name: 'EPIs' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Equipamentos de proteção' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver detalhes: Conferência de entrega de EPIs' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver detalhes: Proteção de máquina a conferir' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Inspeções' }));

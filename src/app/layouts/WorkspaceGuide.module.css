@@ -16,6 +16,7 @@
 .intro h3{max-width:100%;margin:10px 0 8px;color:#183b68;font-size:24px;font-weight:550;letter-spacing:-.04em;overflow-wrap:anywhere}
 .intro p{max-width:270px;margin:0;color:#657b96;font-size:12px;line-height:1.8}
 .shortcuts{display:flex;flex-direction:column;gap:8px}
+.terminology{width:100%;margin-top:8px;text-align:left;cursor:pointer}
 .shortcut{display:flex;min-height:64px;align-items:center;gap:11px;padding:11px;border:1px solid #dfe7f0;border-radius:15px;background:#fffefa;color:#52719b;box-shadow:0 4px 10px -10px #183b6855;transition:background .2s,border-color .2s,transform .2s}
 .shortcut:focus-visible{border-color:#c4d5f3;background:#eff4ff}
 .shortcut:active{transform:scale(.99)}

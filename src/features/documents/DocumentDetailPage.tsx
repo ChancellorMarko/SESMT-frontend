@@ -2,7 +2,7 @@ import { isDownloadUrlAllowed } from '../../shared/lib/downloads';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router';
-import { Archive, ArrowLeft, Check, ClipboardCheck, Download, Eye, FileCheck, Pencil, Plus, Send, Signature } from 'lucide-react';
+import { Archive, ArrowLeft, Check, ClipboardCheck, Download, Eye, FileCheck, FileText, History, Layers3, Pencil, Plus, Send, Signature } from 'lucide-react';
 import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { invalidateConsultation } from '../../shared/lib/consultation-cache';
@@ -168,7 +168,7 @@ export function DocumentDetailPage() {
     {notice && <Feedback tone="success">{notice}</Feedback>}
     {types.isError ? <Feedback tone="danger">Não foi possível conferir a política documental. <Button variant="secondary" onClick={() => void types.refetch()}>Conferir política novamente</Button></Feedback> : types.isPending || types.isFetching ? <p role="status">Conferindo política documental…</p> : !types.verified && <Feedback tone="warning">O tipo documental desta referência não está disponível. Confira a política antes de confirmar ações da versão. <Button variant="secondary" onClick={() => void types.refetch()}>Conferir política novamente</Button></Feedback>}
     <section className="panel stack" aria-label="Metadados do documento">
-      <div className={styles.metadataHeader}><div className={styles.documentStatus}><DocumentStatus status={doc.status} /><span className="muted">{accessLabels[doc.accessClass]}</span></div><div className={`actions ${styles.documentActions}`}>
+      <div className={styles.metadataHeader}><div className={styles.documentIdentity}><h2 className={styles.sectionTitle}><FileText size={18} aria-hidden="true" />Dados do documento</h2><div className={styles.documentStatus}><DocumentStatus status={doc.status} /><span className="muted">{accessLabels[doc.accessClass]}</span></div></div><div className={`actions ${styles.documentActions}`}>
         {hasDocumentAction('documents.write', 'EDIT_METADATA') && <Link className="button button--secondary" to={`/app/documentos/${id}/editar`} state={documentOrigin}><Pencil size={16} aria-hidden="true" />Editar metadados</Link>}
         {hasDocumentAction('documents.write', 'CREATE_VERSION') && <Link className="button button--primary" to={`/app/documentos/${id}/versoes/nova`} state={documentOrigin}><Plus size={16} aria-hidden="true" />Nova versão</Link>}
         {hasDocumentAction('documents.archive', 'ARCHIVE') && <Button variant="danger" onClick={() => openCommand('archive')}><Archive size={16} aria-hidden="true" />Arquivar</Button>}
@@ -182,14 +182,14 @@ export function DocumentDetailPage() {
       {doc.activeVersionIds.length > 1 && <Feedback tone="info">A política deste documento autoriza {doc.activeVersionIds.length} versões vigentes. Selecione a versão desejada para consultar seu arquivo.</Feedback>}
       {doc.currentVersionId && !doc.activeVersionIds.includes(doc.currentVersionId) && doc.activeVersionIds.length > 0 && <Feedback tone="info">A versão em trabalho ainda não substituiu a versão vigente.</Feedback>}
     </section>
-    <section className="panel stack" aria-label="Versões do documento"><h2>Versões</h2>
+    <section className="panel stack" aria-label="Versões do documento"><h2 className={styles.sectionTitle}><Layers3 size={18} aria-hidden="true" />Versões</h2>
       {versions.isPending ? <Spinner /> : versions.isError ? <Feedback tone="danger">{errorMessage(versions.error)} <Button variant="secondary" disabled={versions.isFetching} onClick={() => void versions.refetch()}>Tentar carregar versões novamente</Button></Feedback> : !versions.data?.items.length ? <><EmptyState title="Nenhum arquivo anexado" description="Crie a primeira versão para iniciar a revisão deste documento." />{hasDocumentAction('documents.write', 'CREATE_VERSION') && <div className="actions"><Link className="button button--primary" to={`/app/documentos/${id}/versoes/nova`} state={documentOrigin}><Plus size={16} aria-hidden="true" />Anexar primeiro arquivo</Link></div>}</> : <>
         <DocumentVersionList versions={versions.data.items} selectedId={selectedId} currentVersionId={doc.currentVersionId} activeVersionIds={doc.activeVersionIds} onSelect={selectVersion} />
         <nav className="toolbar" aria-label="Paginação de versões"><span className="muted">Página {versionPage} · {versions.data.total} versão(ões)</span><div className="actions"><Button variant="secondary" disabled={versionPage <= 1 || versions.isFetching} onClick={() => setVersionPage(versionPage - 1)}>Versões anteriores</Button><Button variant="secondary" disabled={versionPage * 10 >= versions.data.total || versions.isFetching} onClick={() => setVersionPage(versionPage + 1)}>Próximas versões</Button></div></nav>
       </>}
     </section>
     {selectedId && <section ref={versionPanel} tabIndex={-1} className={`panel stack ${styles.selectedVersion}`} aria-label="Versão selecionada" aria-busy={version.isFetching}>{version.isPending ? <Spinner /> : version.isError ? <Feedback tone="danger">{errorMessage(version.error)} <Button variant="secondary" disabled={version.isFetching} onClick={() => void version.refetch()}>Tentar carregar versão selecionada novamente</Button></Feedback> : current && <>
-      <div className="toolbar"><h2>Versão {current.versionNumber}</h2><DocumentStatus status={current.status} /></div><p>{current.reason}</p>
+      <div className="toolbar"><h2 className={styles.sectionTitle}><FileCheck size={18} aria-hidden="true" />Versão {current.versionNumber}</h2><DocumentStatus status={current.status} /></div><p>{current.reason}</p>
       <div className="muted">{current.file.name} · {formatBytes(current.file.sizeBytes)} · <DocumentStatus status={current.file.scanStatus} /></div>
       <dl className={styles.metadata}><div><dt>Emissão da versão</dt><dd>{formatDate(current.metadataSnapshot.issueDate)}</dd></div><div><dt>Validade da versão</dt><dd>{formatDate(current.metadataSnapshot.validFrom)} a {formatDate(current.metadataSnapshot.validUntil)}</dd></div></dl>
       {!currentIsClean && <Feedback tone={current.file.scanStatus === 'REJECTED' ? 'danger' : 'warning'}>{current.file.scanStatus === 'REJECTED' ? 'O arquivo foi rejeitado na verificação. Envie uma nova versão permitida.' : 'O arquivo está em verificação. Prévia, download e avanços de aprovação aguardam a liberação.'}</Feedback>}
@@ -211,7 +211,7 @@ export function DocumentDetailPage() {
       <small className="muted">Evidências registradas e conferidas pelo responsável. A interface não declara validação jurídica ou criptográfica da assinatura.</small>
     </>}</section>}
     {downloadError && <Feedback tone="danger">{downloadError}</Feedback>}
-    <section className="panel stack" aria-label="Histórico do documento"><h2>Histórico</h2>{history.isPending ? <Spinner /> : history.isError ? <Feedback tone="danger">{errorMessage(history.error)} <Button variant="secondary" disabled={history.isFetching} onClick={() => void history.refetch()}>Tentar carregar histórico novamente</Button></Feedback> : !history.data?.items.length ? <p className="muted">Nenhum evento disponível para consulta.</p> : <>
+    <section className="panel stack" aria-label="Histórico do documento"><h2 className={styles.sectionTitle}><History size={18} aria-hidden="true" />Histórico</h2>{history.isPending ? <Spinner /> : history.isError ? <Feedback tone="danger">{errorMessage(history.error)} <Button variant="secondary" disabled={history.isFetching} onClick={() => void history.refetch()}>Tentar carregar histórico novamente</Button></Feedback> : !history.data?.items.length ? <p className="muted">Nenhum evento disponível para consulta.</p> : <>
       <ol className={styles.history}>{history.data.items.map((item) => <li key={item.id}><strong>{historyLabels[item.action] ?? item.action}</strong><span>{item.actor.displayName} · {formatDate(item.occurredAt)}</span>{item.reason && <p>{item.reason}</p>}</li>)}</ol>
       <div className="toolbar"><span className="muted">Página {historyPage} · {history.data.total} evento(s)</span><div className="actions"><Button variant="secondary" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>Histórico anterior</Button><Button variant="secondary" disabled={historyPage * 10 >= history.data.total} onClick={() => setHistoryPage(historyPage + 1)}>Próximos eventos</Button></div></div>
     </>}</section>

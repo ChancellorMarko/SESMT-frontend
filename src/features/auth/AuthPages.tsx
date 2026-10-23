@@ -1,17 +1,19 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
-import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, Flame, HardHat, HeartPulse, LockKeyhole, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, Flame, HardHat, HeartPulse, KeyRound, LoaderCircle, LockKeyhole, Mail, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { API_MODE, api } from '../../shared/api/client';
 import { Feedback, Field, Spinner } from '../../shared/ui';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
+import { LoginPreloader, useLoginArrival, type LoginArrivalPhase } from './LoginArrival';
+import styles from './AuthPages.module.css';
 
-const inputClass = 'h-[48px] rounded-2xl border-slate-200 bg-white/85 px-4 text-[13px] text-slate-800 shadow-none transition-colors placeholder:text-slate-400 focus:border-blue-400 focus:outline-2 focus:outline-blue-200 focus:outline-offset-0';
-const formClass = 'mt-2 grid gap-4 [&_.field]:gap-2 [&_.field]:text-xs [&_.field]:font-medium [&_.field]:text-slate-600';
+const inputClass = styles.input;
+const formClass = styles.form;
 const profiles: { role: string; label: string; icon: LucideIcon }[] = [
   { role: 'tecnico', label: 'Técnico de segurança', icon: HardHat },
   { role: 'bombeiro', label: 'Bombeiro', icon: Flame },
@@ -23,55 +25,61 @@ const profiles: { role: string; label: string; icon: LucideIcon }[] = [
   { role: 'trabalhador', label: 'Trabalhador', icon: UserRound },
 ];
 
-function AuthButton({ children, variant = 'primary', className = '', ...props }: HTMLMotionProps<'button'> & { variant?: 'primary' | 'ghost' }) {
+function AuthButton({ children, variant = 'primary', busy = false, className = '', ...props }: Omit<HTMLMotionProps<'button'>, 'children'> & { children: ReactNode; variant?: 'primary' | 'ghost'; busy?: boolean }) {
   const reducedMotion = useAppReducedMotion();
   return <motion.button
     type="button"
     whileHover={reducedMotion || props.disabled ? undefined : { y: -1 }}
     whileTap={reducedMotion || props.disabled ? undefined : { scale: .985 }}
     {...props}
-    className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-[13px] font-semibold leading-5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variant === 'primary' ? 'border-blue-600 bg-blue-600 text-white shadow-[0_8px_22px_-9px_rgba(70,121,238,.65)] hover:border-blue-700 hover:bg-blue-700' : 'border-transparent bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800'} ${className}`}
-  >{children}</motion.button>;
+    aria-busy={busy || undefined}
+    className={`${styles.button} ${variant === 'primary' ? styles.primary : styles.ghost} ${className}`}
+  >{busy && <LoaderCircle size={16} className={styles.buttonSpinner} aria-hidden="true" />}{children}</motion.button>;
 }
 
-function AuthCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return <section className="px-6 pb-7 sm:px-9 sm:pb-9">
-    <div className="mb-6 text-center">
-      <p className="mb-2 text-[10px] font-semibold tracking-[.15em] text-blue-600">ACESSO AO SISTEMA</p>
-      <h1 className="mb-2 text-[25px] font-semibold tracking-[-.04em] text-slate-900 sm:text-[28px]">{title}</h1>
-      {description && <p className="m-0 text-[13px] leading-6 text-slate-500">{description}</p>}
+function PasswordVisibility({ shown, onToggle, label = 'senha' }: { shown: boolean; onToggle: () => void; label?: string }) {
+  return <button className={styles.showPassword} type="button" onClick={onToggle} aria-label={`${shown ? 'Ocultar' : 'Mostrar'} ${label}`} aria-pressed={shown}>{shown ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button>;
+}
+
+function AuthCard({ title, description, eyebrow = 'ACESSO AO SISTEMA', icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
+  return <section className={styles.card}>
+    <div className={styles.cardHeader}>
+      <p className={styles.cardEyebrow}><Icon size={12} aria-hidden="true" /> {eyebrow}</p>
+      <h1 className={styles.title}>{title}</h1>
+      {description && <p className={styles.description}>{description}</p>}
     </div>
-    <div className="grid gap-3 [&_.feedback]:rounded-2xl">{children}</div>
+    <div className={styles.content}>{children}</div>
   </section>;
 }
 
-export function AuthLayout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  const reducedMotion = useAppReducedMotion();
-  return <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-[#eff2f8] text-slate-800">
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute -left-40 -top-28 size-[560px] rounded-full bg-blue-200/40 blur-[110px]" />
-      <div className="absolute -right-48 top-1/3 size-[560px] rounded-full bg-indigo-200/40 blur-[110px]" />
-      <div className="absolute bottom-0 left-1/3 size-96 rounded-full bg-sky-100/70 blur-[100px]" />
+export function AuthLayout({ children, showcase = false, arrival = 'ready' }: { children: ReactNode; showcase?: boolean; arrival?: LoginArrivalPhase }) {
+  const entering = arrival !== 'ready';
+  return <div className={styles.root}>
+    <div className={styles.ambient} aria-hidden="true" />
+    {entering && <LoginPreloader leaving={arrival === 'leaving'} />}
+    <div className={styles.scene} data-auth-scene data-arrival={arrival} inert={entering} aria-hidden={entering || undefined}>
+      <header className={styles.masthead}>
+        <Link to="/login" className={styles.brandLink} aria-label="Ampara SESMT — início"><BrandLogo className={styles.brand} /></Link>
+        <span className={styles.mastheadNote}>Segurança que acompanha você.</span>
+      </header>
+      <main className={`${styles.main} ${showcase ? styles.showcaseLayout : ''}`}>
+        {showcase && <aside className={styles.story} aria-label="Tecnologia que cuida de pessoas">
+          <p className={styles.eyebrow}>SEU ESPAÇO DE SEGURANÇA</p>
+          <h2 className={styles.storyTitle}>Segurança começa<br />com <span>cuidado.</span></h2>
+          <p className={styles.storyDescription}>Pessoas, documentos e rotinas.<br />Tudo mais próximo, em um só lugar.</p>
+          <div className={styles.sculpture} aria-hidden="true">
+            <div className={styles.sculptureHalo} /><div className={styles.sculptureOrbit} /><div className={styles.sculptureShadow} />
+            <div className={styles.sculpturePlate} data-auth-artwork><BrandLogo compact className={styles.sculptureMark} /></div>
+          </div>
+          <p className={styles.storySignature}>TECNOLOGIA QUE CUIDA DE PESSOAS</p>
+        </aside>}
+        <div className={styles.surface} data-auth-surface>{children}</div>
+      </main>
+      <footer className={styles.footer}>
+        <LockKeyhole size={12} aria-hidden="true" />
+        <p>Acesso conforme perfil e unidade. Dados de saúde exigem autorização específica.</p>
+      </footer>
     </div>
-    <main className="flex w-full flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-      <motion.div
-        initial={reducedMotion ? false : { opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: .4, ease: [.22, 1, .36, 1] }}
-        className={`w-full rounded-[28px] border border-white/80 bg-white/75 shadow-[0_24px_80px_-30px_rgba(63,91,170,.3)] backdrop-blur-md ${wide ? 'max-w-[860px]' : 'max-w-[484px]'}`}
-      >
-        <header className="flex flex-col items-center px-6 pb-6 pt-7 sm:px-9 sm:pt-8">
-          <Link to="/login" className="flex rounded-xl" aria-label="Ampara SESMT — início"><BrandLogo className="w-[170px] rounded-none" /></Link>
-          <span className="mt-2 text-center text-[11px] tracking-[.02em] text-slate-500">Segurança e saúde no trabalho</span>
-          <div className="mt-5 h-px w-full bg-slate-200/75" />
-        </header>
-        {children}
-      </motion.div>
-    </main>
-    <footer className="mx-auto flex max-w-[600px] items-start justify-center gap-2 px-6 pb-7 text-center text-[10px] leading-5 text-slate-500">
-      <LockKeyhole size={13} className="mt-1 shrink-0 text-slate-400" aria-hidden="true" />
-      <p className="m-0">Acesso conforme perfil e unidade. Dados de saúde exigem autorização específica.</p>
-    </footer>
   </div>;
 }
 
@@ -79,74 +87,110 @@ export function LoginPage() {
   const session = useSession();
   const navigate = useNavigate();
   const reducedMotion = useAppReducedMotion();
+  const arrival = useLoginArrival();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  const [returningToLogin, setReturningToLogin] = useState(false);
+  const pending = useRef(false);
+  const codeHintId = useId();
   const [challenge, setChallenge] = useState<MfaChallengeDto | null>(null);
   const form = useForm<{ email: string; password: string }>({ defaultValues: { email: '', password: '' } });
-  const mfa = useForm<{ code: string }>();
-  if (session.status === 'restoring') return <AuthLayout><Spinner /></AuthLayout>;
+  const mfa = useForm<{ code: string }>({ defaultValues: { code: '' } });
+  if (session.status === 'restoring') return <AuthLayout showcase arrival={arrival}><AuthCard title="Entrar na sua conta" description="Preparando seu acesso."><Spinner /></AuthCard></AuthLayout>;
   if (session.me) return <Navigate to="/app" replace />;
 
   async function signIn(email: string, password: string) {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
       const nextChallenge = await session.login(email, password);
-      if (nextChallenge) setChallenge(nextChallenge);
+      if (nextChallenge) { mfa.reset({ code: '' }); setChallenge(nextChallenge); }
       else navigate('/app', { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível entrar.');
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
 
-  return <AuthLayout wide={API_MODE === 'demo' && !challenge}><AuthCard
+  function returnToLogin() {
+    if (pending.current) return;
+    mfa.reset({ code: '' });
+    setError('');
+    setShow(false);
+    setReturningToLogin(true);
+    setChallenge(null);
+  }
+
+  return <AuthLayout showcase arrival={arrival}><AuthCard
     title={challenge ? 'Verifique seu acesso' : 'Entrar na sua conta'}
-    description={challenge ? 'Informe o código do seu autenticador para continuar.' : 'Use suas credenciais para acessar o ambiente de trabalho.'}
+    description={challenge ? 'Informe o código do seu autenticador para continuar.' : 'Entre para acompanhar sua operação.'}
+    eyebrow={challenge ? 'VERIFICAÇÃO EM DUAS ETAPAS' : undefined}
+    icon={challenge ? ShieldCheck : LockKeyhole}
   >
     {session.sessionError && <Feedback tone="warning">{session.sessionError}</Feedback>}
     {error && <Feedback tone="danger">{error}</Feedback>}
-    {challenge ? <form className={formClass} onSubmit={mfa.handleSubmit(async ({ code }) => {
+    {challenge ? <form key="verification" className={`${formClass} ${styles.step}`} onSubmit={mfa.handleSubmit(async ({ code }) => {
+      if (pending.current) return;
+      pending.current = true;
       setBusy(true); setError('');
       try { await session.verifyMfa(challenge.challengeId, code); navigate('/app', { replace: true }); }
       catch (e) { setError(e instanceof Error ? e.message : 'Código inválido.'); }
-      finally { setBusy(false); }
+      finally { pending.current = false; setBusy(false); }
     })}>
+      <ol className={styles.accessSteps} aria-label="Etapas do acesso">
+        <li><span><Check size={12} aria-hidden="true" /></span>Sua conta<span className="sr-only">: concluída</span></li>
+        <li aria-current="step"><span>2</span>Verificação</li>
+      </ol>
       <Field required label="Código de verificação" error={mfa.formState.errors.code?.message}>
-        <input className={`${inputClass} text-center tracking-[.4em]`} autoComplete="one-time-code" inputMode="numeric" {...mfa.register('code', { required: 'Informe o código.', pattern: { value: /^\d{6}$/, message: 'Use os seis números do código.' } })} />
+        <input className={`${inputClass} ${styles.codeInput}`} autoFocus autoComplete="one-time-code" inputMode="numeric" placeholder="000000" spellCheck={false} readOnly={busy} aria-describedby={codeHintId}
+          {...mfa.register('code', { required: 'Informe o código.', pattern: { value: /^\d{6}$/, message: 'Use os seis números do código.' }, onChange: event => {
+            const normalized = String(event.target.value).replace(/\D/g, '').slice(0, 6);
+            mfa.setValue('code', normalized, { shouldValidate: mfa.formState.isSubmitted });
+          } })}
+          onPaste={event => {
+            if (pending.current) return;
+            const code = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+            if (!code) return;
+            event.preventDefault();
+            mfa.setValue('code', code, { shouldDirty: true, shouldValidate: mfa.formState.isSubmitted });
+          }} />
       </Field>
-      {API_MODE === 'demo' && <Feedback>Na demonstração, use o código 123456. A validação real pertence ao serviço de identidade.</Feedback>}
-      <AuthButton type="submit" disabled={busy}>{busy ? 'Verificando…' : 'Verificar e entrar'}<ArrowRight size={17} aria-hidden="true" /></AuthButton>
-      <AuthButton variant="ghost" onClick={() => setChallenge(null)}>Voltar ao login</AuthButton>
-    </form> : <div className={API_MODE === 'demo' ? 'grid gap-7 md:grid-cols-2 md:gap-8' : ''}>
+      <p id={codeHintId} className={styles.fieldHint}>Digite os 6 números do aplicativo autenticador.</p>
+      {API_MODE === 'demo' && <Feedback>Ambiente de demonstração: use o código <strong>123456</strong> para continuar.</Feedback>}
+      <AuthButton type="submit" disabled={busy} busy={busy}>{busy ? 'Verificando…' : <>Verificar e entrar<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      <AuthButton variant="ghost" disabled={busy} onClick={returnToLogin}>Voltar ao login</AuthButton>
+    </form> : <div key="credentials" className={`${styles.loginContent} ${styles.step}`}>
       <form className={formClass} onSubmit={form.handleSubmit(v => signIn(v.email, v.password))}>
         <Field required label="E-mail" error={form.formState.errors.email?.message}>
           <input className={inputClass} type="email" autoComplete="username" placeholder="seu.nome@empresa.com" {...form.register('email', { required: 'Informe seu e-mail.' })} />
         </Field>
         <Field required label="Senha" error={form.formState.errors.password?.message}>
-          <span className="relative flex">
-            <input className={`${inputClass} pr-12`} type={show ? 'text' : 'password'} autoComplete="current-password" placeholder="Informe sua senha" {...form.register('password', { required: 'Informe sua senha.' })} />
-            <button className="absolute right-0 top-0 grid size-[48px] place-items-center rounded-2xl border-0 bg-transparent p-0 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600" type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={show}>{show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button>
+          <span className={styles.password}>
+            <input className={`${inputClass} ${styles.passwordInput}`} type={show ? 'text' : 'password'} autoFocus={returningToLogin} autoComplete="current-password" placeholder="Informe sua senha" {...form.register('password', { required: 'Informe sua senha.' })} />
+            <PasswordVisibility shown={show} onToggle={() => setShow(!show)} />
           </span>
         </Field>
-        <Link className="mb-1 justify-self-end text-xs font-medium text-blue-600 no-underline hover:text-blue-800 hover:underline" to="/recuperar-acesso">Esqueci minha senha</Link>
-        <AuthButton type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar na plataforma'}<ArrowRight size={17} aria-hidden="true" /></AuthButton>
+        <Link className={styles.recoveryLink} to="/recuperar-acesso">Esqueci minha senha</Link>
+        <AuthButton type="submit" disabled={busy} busy={busy}>{busy ? 'Entrando…' : <>Entrar na plataforma<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
       </form>
-      {API_MODE === 'demo' && <div className="border-t border-slate-200/80 pt-6 md:border-l md:border-t-0 md:pl-8 md:pt-2">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600"><ShieldCheck size={16} aria-hidden="true" /></span>
+      {API_MODE === 'demo' && <div className={styles.demo}>
+        <div className={styles.demoHeader}>
+          <span className={styles.demoIcon}><ShieldCheck size={15} aria-hidden="true" /></span>
           <div>
-            <span className="block text-[10px] font-semibold tracking-[.08em] text-slate-600">AMBIENTE DE DEMONSTRAÇÃO</span>
-            <p className="mb-0 mt-1 text-[11px] leading-[1.6] text-slate-500">Explore com dados fictícios. As alterações duram até recarregar a página.</p>
+            <span className={styles.demoTitle}>AMBIENTE DE DEMONSTRAÇÃO</span>
+            <p className={styles.demoDescription}>Explore com dados fictícios. As alterações duram até recarregar a página.</p>
           </div>
         </div>
         <motion.div
           initial={reducedMotion ? false : 'hidden'}
-          animate="visible"
+          animate={arrival === 'ready' ? 'visible' : 'hidden'}
           variants={{ hidden: {}, visible: { transition: { staggerChildren: .035 } } }}
-          className="grid grid-cols-2 gap-2"
+          className={styles.profiles}
         >
           {profiles.map(({ role, label, icon: Icon }) => <motion.button
             key={label}
@@ -156,8 +200,8 @@ export function LoginPage() {
             whileHover={reducedMotion || busy ? undefined : { y: -2 }}
             whileTap={reducedMotion || busy ? undefined : { scale: .98 }}
             onClick={() => signIn(`${role}@demo.sesmt.local`, 'Demo123!')}
-            className="group flex min-h-[48px] min-w-0 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-2 text-left text-[11px] font-medium leading-[1.5] text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          ><Icon size={15} className="shrink-0 text-slate-400 transition-colors group-hover:text-blue-500" aria-hidden="true" /><span>{label}</span></motion.button>)}
+            className={styles.profile}
+          ><Icon size={15} aria-hidden="true" /><span>{label}</span></motion.button>)}
         </motion.div>
       </div>}
     </div>}
@@ -165,46 +209,69 @@ export function LoginPage() {
 }
 
 export function RecoveryPage() {
+  const restoring = useSession().status === 'restoring';
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const form = useForm<{ email: string }>();
-  return <AuthLayout><AuthCard title="Recuperar acesso" description="Informe o e-mail associado à sua conta.">
+  return <AuthLayout><AuthCard title="Recuperar acesso" eyebrow="VAMOS AJUDAR VOCÊ" icon={Mail} description="Informe o e-mail associado à sua conta para solicitar as instruções de recuperação.">
     {message && <Feedback tone="success">{message}</Feedback>}
     {error && <Feedback tone="danger">{error}</Feedback>}
     <form className={formClass} onSubmit={form.handleSubmit(async v => {
-      setBusy(true); setError('');
+      if (pending.current || restoring) return;
+      pending.current = true;
+      setBusy(true); setError(''); setMessage('');
       try { const result = await api.post<{ message: string }>('/auth/password/forgot', v); setMessage(result.message); }
       catch (e) { setError(e instanceof Error ? e.message : 'Falha no envio.'); }
-      finally { setBusy(false); }
+      finally { pending.current = false; setBusy(false); }
     })}>
-      <Field required label="E-mail" error={form.formState.errors.email?.message}><input className={inputClass} type="email" autoComplete="email" {...form.register('email', { required: 'Informe seu e-mail.' })} /></Field>
-      <AuthButton type="submit" disabled={busy}>{busy ? 'Enviando…' : 'Solicitar recuperação'}<ArrowRight size={17} aria-hidden="true" /></AuthButton>
-      <Link className="justify-self-center py-2 text-xs font-medium text-blue-600 no-underline hover:underline" to="/login">Voltar ao login</Link>
+      <Field required label="E-mail" error={form.formState.errors.email?.message}><input className={inputClass} type="email" autoComplete="email" placeholder="seu.nome@empresa.com" readOnly={busy} {...form.register('email', { required: 'Informe seu e-mail.' })} /></Field>
+      <AuthButton type="submit" disabled={busy || restoring} busy={busy || restoring}>{restoring ? 'Preparando acesso…' : busy ? 'Enviando…' : <>Solicitar recuperação<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>
-    {API_MODE === 'demo' && <p className="mb-0 mt-2 text-xs leading-6 text-slate-500">Demonstração: nenhuma mensagem é enviada. <Link className="text-blue-600" to="/redefinir-senha">Experimentar redefinição</Link>.</p>}
+    {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: nenhuma mensagem é enviada. <Link to="/redefinir-senha">Experimentar redefinição</Link>.</p>}
   </AuthCard></AuthLayout>;
 }
 
 export function ResetPasswordPage() {
+  const restoring = useSession().status === 'restoring';
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const pending = useRef(false);
+  const successAction = useRef<HTMLAnchorElement>(null);
   const form = useForm<{ token: string; password: string; confirm: string }>({ defaultValues: { token: API_MODE === 'demo' ? 'demo-reset' : '', password: '', confirm: '' } });
-  return <AuthLayout><AuthCard title="Definir nova senha" description="Use o código recebido pelo serviço de identidade. Ele não será salvo no navegador.">
+  useEffect(() => { if (done) successAction.current?.focus({ preventScroll: true }); }, [done]);
+  return <AuthLayout><AuthCard title={done ? 'Tudo pronto.' : 'Definir nova senha'} eyebrow={done ? 'ACESSO RECUPERADO' : 'UM NOVO COMEÇO'} icon={done ? ShieldCheck : KeyRound} description={done ? 'Sua senha foi atualizada. Você já pode acessar sua conta.' : 'Use seu código de recuperação e escolha a nova senha de acesso.'}>
     {error && <Feedback tone="danger">{error}</Feedback>}
-    {done ? <Feedback tone="success">Senha redefinida. <Link to="/login">Voltar ao login</Link></Feedback> : <form className={formClass} onSubmit={form.handleSubmit(async v => {
+    {done ? <div className={`${styles.successState} ${styles.step}`}>
+      <span className={styles.successMark} aria-hidden="true"><Check size={27} strokeWidth={1.8} /></span>
+      <Feedback tone="success">Senha redefinida.</Feedback>
+      <Link ref={successAction} className={`${styles.button} ${styles.primary}`} to="/login">Voltar ao login<ArrowRight size={17} aria-hidden="true" /></Link>
+    </div> : <form className={formClass} onSubmit={form.handleSubmit(async v => {
+      if (pending.current || restoring) return;
       if (v.password !== v.confirm) { form.setError('confirm', { message: 'As senhas devem ser iguais.' }); return; }
+      pending.current = true;
       setBusy(true); setError('');
       try { await api.post('/auth/password/reset', { token: v.token, newPassword: v.password }); form.reset(); setDone(true); }
       catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível redefinir.'); }
-      finally { setBusy(false); }
+      finally { pending.current = false; setBusy(false); }
     })}>
-      <Field required label="Código de recuperação" error={form.formState.errors.token?.message}><input className={inputClass} autoComplete="off" {...form.register('token', { required: 'Informe o código recebido.' })} /></Field>
-      <Field required label="Nova senha" error={form.formState.errors.password?.message}><input className={inputClass} type="password" autoComplete="new-password" {...form.register('password', { required: 'Informe uma senha.' })} /></Field>
-      <Field required label="Confirmar nova senha" error={form.formState.errors.confirm?.message}><input className={inputClass} type="password" autoComplete="new-password" {...form.register('confirm', { required: 'Confirme a senha.' })} /></Field>
-      <AuthButton type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Redefinir senha'}<ArrowRight size={17} aria-hidden="true" /></AuthButton>
-      <Link className="justify-self-center py-2 text-xs font-medium text-blue-600 no-underline hover:underline" to="/login">Voltar ao login</Link>
+      <Field required label="Código de recuperação" error={form.formState.errors.token?.message}><input className={inputClass} autoComplete="off" readOnly={busy} {...form.register('token', { required: 'Informe o código recebido.' })} /></Field>
+      <Field required label="Nova senha" error={form.formState.errors.password?.message}><span className={styles.password}>
+        <input className={`${inputClass} ${styles.passwordInput}`} type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="Digite a nova senha" readOnly={busy} {...form.register('password', { required: 'Informe uma senha.' })} />
+        <PasswordVisibility shown={show} onToggle={() => setShow(!show)} label="nova senha" />
+      </span></Field>
+      <Field required label="Confirmar nova senha" error={form.formState.errors.confirm?.message}><span className={styles.password}>
+        <input className={`${inputClass} ${styles.passwordInput}`} type={showConfirm ? 'text' : 'password'} autoComplete="new-password" placeholder="Repita a nova senha" readOnly={busy} {...form.register('confirm', { required: 'Confirme a senha.' })} />
+        <PasswordVisibility shown={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} label="confirmação da senha" />
+      </span></Field>
+      <AuthButton type="submit" disabled={busy || restoring} busy={busy || restoring}>{restoring ? 'Preparando acesso…' : busy ? 'Salvando…' : <>Redefinir senha<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>}
+    {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: esta alteração é simulada e não muda a senha dos perfis de teste.</p>}
   </AuthCard></AuthLayout>;
 }

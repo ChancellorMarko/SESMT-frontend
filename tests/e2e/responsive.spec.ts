@@ -32,7 +32,7 @@ test('painel desktop e agenda móvel mantêm navegação e conteúdo dentro da t
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
   await page.getByRole('dialog').getByRole('link', { name: 'Permissões de trabalho', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Permissões de trabalho', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Permissões de trabalho (PT)', exact: true })).toBeVisible();
   await navigateWithinApp(page, '/app/agenda?q=AG-DEMO-220');
   await expect(page.getByText('AG-DEMO-220', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

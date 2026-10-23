@@ -11,9 +11,9 @@ import styles from './HealthDashboard.module.css';
 
 type HealthView = 'asos' | 'nrs';
 type Access = (permission: string) => boolean;
-const views: { id: HealthView; label: string; icon: typeof HeartPulse }[] = [
-  { id: 'asos', label: 'ASOs', icon: HeartPulse },
-  { id: 'nrs', label: 'Capacitações e NRs', icon: GraduationCap },
+const views: { id: HealthView; label: string; accessibleLabel: string; icon: typeof HeartPulse }[] = [
+  { id: 'asos', label: 'Saúde ocupacional', accessibleLabel: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)', icon: HeartPulse },
+  { id: 'nrs', label: 'Capacitações', accessibleLabel: 'Capacitações e normas regulamentadoras (NR)', icon: GraduationCap },
 ];
 
 function Metric({ title, value, note, icon, featured = false }: { title: string; value: number; note: string; icon: ReactNode; featured?: boolean }) {
@@ -114,12 +114,12 @@ export function HealthDashboard({ can }: { can: Access }) {
   return <div className={styles.dashboard} data-health-dashboard data-motion-managed>
     <div className={styles.topline}><span><HeartPulse size={15} aria-hidden="true" />Documentação e planejamento</span>{isDemo && <span className={styles.demoLabel}><Sparkles size={13} aria-hidden="true" />Cenário demonstrativo · dados sintéticos</span>}</div>
     <div className={styles.tabs} role="tablist" aria-label="Saúde e capacitações">
-      {views.map((item, index) => <button key={item.id} ref={node => { tabs.current[index] = node; }} type="button" role="tab" id={`${prefix}-tab-${item.id}`} aria-controls={`${prefix}-panel-${item.id}`} aria-selected={view === item.id} tabIndex={view === item.id ? 0 : -1} onClick={() => select(item.id)} onKeyDown={event => handleTabKey(event, index)}><item.icon size={17} aria-hidden="true" />{item.label}</button>)}
+      {views.map((item, index) => <button key={item.id} ref={node => { tabs.current[index] = node; }} type="button" role="tab" aria-label={item.accessibleLabel} id={`${prefix}-tab-${item.id}`} aria-controls={`${prefix}-panel-${item.id}`} aria-selected={view === item.id} tabIndex={view === item.id ? 0 : -1} onClick={() => select(item.id)} onKeyDown={event => handleTabKey(event, index)}><item.icon size={17} aria-hidden="true" />{item.label}</button>)}
     </div>
     {isDemo && <p className={styles.scenarioNote}>Equipes e quantidades fictícias para explorar a interface. As ações de acompanhamento ficam nesta página e não alteram cadastros.{localCount > 0 && <span className={styles.localCount}><CheckCheck size={13} aria-hidden="true" />{localCount} {localCount === 1 ? 'exemplo em acompanhamento' : 'exemplos em acompanhamento'}</span>}</p>}
 
     <motion.section id={`${prefix}-panel-asos`} role="tabpanel" aria-labelledby={`${prefix}-tab-asos`} tabIndex={0} hidden={view !== 'asos'} className={styles.tabPanel} initial={false} animate={{ opacity: view === 'asos' ? 1 : 0, y: view === 'asos' || reduce ? 0 : 14 }} transition={{ duration: reduce ? 0 : .38 }}>
-      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Saúde ocupacional</span><h2>Acompanhamento de ASOs</h2><p>Renovações, conferências de arquivos e organização do atendimento.</p></div><span className={styles.sectionIcon}><HeartPulse size={26} strokeWidth={1.5} aria-hidden="true" /></span></header>
+      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Saúde ocupacional</span><h2>Atestados de saúde ocupacional (ASO)</h2><p>Acompanhe renovações, conferências de arquivos e a organização do atendimento.</p></div><span className={styles.sectionIcon}><HeartPulse size={26} strokeWidth={1.5} aria-hidden="true" /></span></header>
       {!isDemo ? <Disconnected view="asos" can={can} /> : <>
         <div className={styles.metrics}>
           <Metric title="ASOs a renovar" value={healthScenario.asoRenewals} note="Soma das três janelas do cenário" icon={<FileClock size={18} />} featured />
@@ -149,7 +149,7 @@ export function HealthDashboard({ can }: { can: Access }) {
     </motion.section>
 
     <motion.section id={`${prefix}-panel-nrs`} role="tabpanel" aria-labelledby={`${prefix}-tab-nrs`} tabIndex={0} hidden={view !== 'nrs'} className={styles.tabPanel} initial={false} animate={{ opacity: view === 'nrs' ? 1 : 0, y: view === 'nrs' || reduce ? 0 : 14 }} transition={{ duration: reduce ? 0 : .38 }}>
-      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Evidências e desenvolvimento</span><h2>Capacitações por equipe</h2><p>Comprovantes disponíveis, lacunas de registro e preparação de turmas.</p></div><span className={styles.sectionIcon}><GraduationCap size={28} strokeWidth={1.5} aria-hidden="true" /></span></header>
+      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Evidências e desenvolvimento</span><h2>Capacitações por equipe</h2><p>Organize comprovantes, lacunas de registro e turmas. A associação às normas regulamentadoras (NR) depende da matriz homologada.</p></div><span className={styles.sectionIcon}><GraduationCap size={28} strokeWidth={1.5} aria-hidden="true" /></span></header>
       {!isDemo ? <Disconnected view="nrs" can={can} /> : <>
         <div className={styles.metrics}>
           <Metric title="Comprovantes disponíveis" value={healthScenario.trainingEvidence} note={`De ${healthScenario.trainingExpected} posições da matriz fictícia`} icon={<BookOpen size={18} />} featured />

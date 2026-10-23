@@ -156,7 +156,7 @@
   .modal-header h2 { margin: 0; font-size: 20px; }
   .pagination { @apply mt-5 flex items-center justify-between gap-4 text-xs text-slate-500; }
   .skip-link { @apply fixed left-2 top-2 z-[100] -translate-y-[180%] rounded-xl bg-white p-3; }
-  .skip-link:focus { transform: translateY(0); }
+  .skip-link:focus { translate: 0 0; transform: none; }
   .error-page { @apply px-5 py-20 text-center; }
   .error-page h1 { font-size: 32px; }
   .error-page p { max-width: 450px; margin: 20px auto; color: var(--muted); }

@@ -5,6 +5,7 @@ import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import { ArrowUpRight, CalendarDays, CalendarClock, FileSearch, Layers3, SlidersHorizontal } from 'lucide-react';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
+import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 import { SafetyOverview, getSafetyArea } from './SafetyOverview';
 import { InspectionDashboard } from './InspectionDashboard';
 import { HealthDashboard } from './HealthDashboard';
@@ -21,8 +22,8 @@ const appointmentLabels = {
 };
 const areaContent = {
   inspecoes: { title: 'Inspeções de segurança', description: 'Dos achados em campo à verificação das correções. Organize o próximo passo de cada vistoria.', action: 'Consultar agenda de inspeções', to: '/app/agenda?q=Inspeção', permission: 'appointments.read' },
-  saude: { title: 'ASOs e NRs', description: 'Acompanhe documentos ocupacionais e capacitações em espaços próprios para cada rotina.', action: 'Consultar vencimentos', to: '/app/vencimentos', permission: 'documents.read' },
-  epis: { title: 'Equipamentos de proteção', description: 'Planeje entregas, confira comprovantes e acompanhe o que ainda precisa de atenção.', action: 'Consultar documentos de EPIs', to: '/app/documentos?q=EPI', permission: 'documents.read' },
+  saude: { title: 'Saúde ocupacional e capacitações', description: 'Atestados de saúde ocupacional (ASO) e capacitações: espaços próprios para acompanhar documentos e planejar cada rotina.', action: 'Consultar vencimentos', to: '/app/vencimentos', permission: 'documents.read' },
+  epis: { title: 'Equipamentos de proteção', description: 'Equipamentos de proteção individual (EPI): planeje entregas, confira comprovantes e acompanhe o que precisa de atenção.', action: 'Consultar documentos de EPIs', to: '/app/documentos?q=EPI', permission: 'documents.read' },
 };
 
 function dateTime(value: string) {
@@ -47,6 +48,8 @@ export function OperationsDashboardPage() {
   const content = areaContent[area];
   return <div className={styles.page} key={`${s.sessionKey}:${s.unitId}:${area}`}>
     <DashboardHero variant={area} title={content.title} description={content.description} back action={s.can(content.permission) ? { label: content.action, to: content.to } : undefined} />
+    {area === 'saude' && <div className="actions"><TerminologyHelp related={['ASO', 'NR']}>Entenda ASO e NR</TerminologyHelp></div>}
+    {area === 'epis' && <div className="actions"><TerminologyHelp related={['EPI']}>O que significa EPI?</TerminologyHelp></div>}
     {area === 'inspecoes' ? <InspectionDashboard can={s.can} /> : area === 'saude' ? <HealthDashboard can={s.can} /> : <EquipmentDashboard can={s.can} />}
   </div>;
 }
@@ -137,7 +140,7 @@ function GeneralOperationsDashboard() {
       {dashboard.data && !dashboard.isError && <div className={styles.metrics}>
         {[
           { label: 'Serviços na agenda', value: dashboard.data.appointments, help: 'Não cancelados · abrir agenda completa', to: agendaPath, visible: true, icon: CalendarDays },
-          { label: 'PTs em atendimento', value: dashboard.data.activePermits, help: 'Em atendimento · abrir lista completa da unidade e equipe', to: permitsPath, visible: s.can('permits.read'), icon: FileSearch },
+          { label: 'Permissões em atendimento', value: dashboard.data.activePermits, help: 'Permissões de trabalho (PT) · unidade e equipe selecionadas', to: permitsPath, visible: s.can('permits.read'), icon: FileSearch },
           { label: 'Pendências documentais', value: dashboard.data.blockedAppointments, help: 'Solicitados ou confirmados com requisito pendente', to: blockedAgendaPath, visible: s.can('eligibility.read'), icon: Layers3 },
           { label: 'Encerramentos para revisão', value: dashboard.data.pendingReviews, help: 'PTs aguardando validação final', to: pendingReviewsPath, visible: s.can('permits.read'), icon: CalendarClock },
         ].filter(metric => metric.visible).map((metric, index) => <motion.div {...reveal(index * .08)} whileHover={reduce ? undefined : { y: -7, scale: 1.015 }} className={styles.metricSlot} key={metric.label}>
