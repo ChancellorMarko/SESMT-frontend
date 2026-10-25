@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { loginDemo, navigateWithinApp } from './helpers';
+import { loginDemo, navigateWithinApp, openModule } from './helpers';
 
 test('vencimentos combinam antecedência, busca, repositório e unidade', async ({ page }) => {
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await loginDemo(page);
-  await page.getByRole('link',{name:'Vencimentos',exact:true}).click();
+  await openModule(page, 'Vencimentos');
   await expect(page.getByRole('heading',{name:'Vencimentos',exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:'Inventário de riscos · Matriz (demo)',exact:true})).toBeVisible();
   await page.getByLabel('Antecedência',{exact:true}).selectOption('7');

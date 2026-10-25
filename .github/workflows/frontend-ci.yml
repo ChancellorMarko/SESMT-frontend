@@ -90,5 +90,6 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            test-results-connection-ui/
           if-no-files-found: ignore
           retention-days: 7

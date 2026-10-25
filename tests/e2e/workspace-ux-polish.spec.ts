@@ -49,7 +49,7 @@ test('guia fica fora do conteúdo e pode ser aberto pelo menu sem sobrepor modai
   expect(launcher!.y).toBeGreaterThanOrEqual(main!.y + main!.height - 1);
   const trigger = page.getByRole('button', { name: 'Abrir navegação', exact: true });
   await trigger.click();
-  await page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('button', { name: 'Consultar Guia Ampara', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('button', { name: 'Guia Ampara', exact: true }).click();
   const guide = page.getByRole('dialog', { name: 'Guia Ampara', exact: true });
   await expect(guide).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(1);
