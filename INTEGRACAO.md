@@ -1,6 +1,6 @@
 # Ampara · integração frontend e backend
 
-Estado em 24/10/2026, branch **Teste**. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A branch já existia e foi reutilizada, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. A integração é versionada nesta branch; o envio ao remoto é uma etapa separada.
+Estado em 25/10/2026. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A integração foi iniciada na branch **Teste** e reunida na **main**, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. Arquivos de compilação e configurações locais permanecem fora do versionamento.
 
 ## O que está conectado
 
@@ -88,4 +88,4 @@ Endpoints de navegador ainda ausentes retornam erro JSON `INTEGRATION_PENDING` c
 
 ## Histórico e versionamento
 
-A pasta recebida era um repositório Git próprio. Seu histórico foi preservado localmente em `.git/integration-backups/SESMT-backend-5b42993.git`, antes de incorporar os fontes como arquivos normais no repositório principal. A origem e o commit estão em `SESMT-backend/ORIGEM.md`. O backup não é enviado ao remoto; o histórico original permanece no repositório de origem. Os commits da integração pertencem à branch `Teste` do repositório principal.
+A pasta recebida era um repositório Git próprio. Seu histórico foi preservado localmente em `.git/integration-backups/SESMT-backend-5b42993.git`, antes de incorporar os fontes como arquivos normais no repositório principal. A origem e o commit estão em `SESMT-backend/ORIGEM.md`. O backup não é enviado ao remoto; o histórico original permanece no repositório de origem. Os commits da integração foram criados na branch `Teste` e incorporados à `main` do repositório principal.

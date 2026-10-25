@@ -20,6 +20,8 @@ vi.mock('../features/dashboard/OperationsDashboardPage', () => ({ OperationsDash
 vi.mock('../features/agenda', () => ({ AgendaPage: () => <h1>Agenda de teste</h1> }));
 vi.mock('../features/documents', () => ({ DocumentsPage: () => <h1>Documentos de teste</h1> }));
 vi.mock('../features/notifications', () => ({ NotificationsPage: () => <h1>Notificações de teste</h1> }));
+vi.mock('../features/teams', () => ({ TeamsPage: () => <h1>Equipes de teste</h1> }));
+vi.mock('../features/administration', () => ({ UsersPage: () => <h1>Usuários de teste</h1> }));
 vi.mock('../features/auth/ConnectedAccountPage', () => ({ ConnectedAccountPage: () => <h1>Conta conectada de teste</h1> }));
 vi.mock('./layouts/HeaderNotifications', () => ({ HeaderNotifications: () => null }));
 
@@ -218,6 +220,8 @@ describe('navegação inicial conforme permissões independentes', () => {
     { permissions: ['documents.read'], path: '/app/documentos', heading: 'Documentos de teste' },
     { permissions: ['documents.read', 'appointments.read'], path: '/app/documentos', heading: 'Documentos de teste' },
     { permissions: ['notifications.read'], path: '/app/notificacoes', heading: 'Notificações de teste' },
+    { permissions: ['users.manage'], path: '/app/configuracoes/usuarios', heading: 'Usuários de teste' },
+    { permissions: ['teams.read'], path: '/app/equipes', heading: 'Equipes de teste' },
   ])('abre $path com $permissions', async ({ permissions, path, heading }) => {
     session.permissions = permissions;
     show();
@@ -272,5 +276,130 @@ describe('navegação inicial conforme permissões independentes', () => {
     const modules = within(screen.getByRole('navigation', { name: 'Menu principal' }));
     expect(modules.getByRole('link', { name: 'Agenda' })).toHaveAttribute('href', '/app/agenda');
     expect(modules.queryByRole('link', { name: 'Visão geral' })).not.toBeInTheDocument();
+  });
+});
+
+describe('busca e navegação por teclado no menu', () => {
+  async function openMenu(permissions = ['documents.read', 'appointments.read', 'permits.read', 'teams.read']) {
+    session.permissions = permissions;
+    const view = show('/app/documentos');
+    await screen.findByRole('heading', { name: 'Documentos de teste' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir navegação' }));
+    const dialog = screen.getByRole('dialog', { name: 'Navegação' });
+    const menu = within(dialog);
+    const search = menu.getByRole('textbox', { name: 'Buscar módulos de navegação' });
+    const results = dialog.querySelector('[data-navigation-results]')!;
+    return { ...view, dialog, menu, search, results };
+  }
+
+  it('percorre a ordem visual dos destinos, alcança os extremos e retorna ao início sem sair do diálogo', async () => {
+    const { menu, search, results } = await openMenu();
+    const links = Array.from(results.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    expect(links.length).toBeGreaterThan(2);
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(links[0]).toHaveFocus();
+    fireEvent.keyDown(links[0], { key: 'ArrowDown' });
+    expect(links[1]).toHaveFocus();
+    fireEvent.keyDown(links[1], { key: 'ArrowUp' });
+    expect(links[0]).toHaveFocus();
+    fireEvent.keyDown(links[0], { key: 'ArrowUp' });
+    expect(links.at(-1)).toHaveFocus();
+    fireEvent.keyDown(links.at(-1)!, { key: 'ArrowDown' });
+    expect(links[0]).toHaveFocus();
+    fireEvent.keyDown(links[0], { key: 'End' });
+    expect(links.at(-1)).toHaveFocus();
+    fireEvent.keyDown(links.at(-1)!, { key: 'Home' });
+    expect(links[0]).toHaveFocus();
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowUp' });
+    expect(links.at(-1)).toHaveFocus();
+    expect(menu.getByRole('textbox', { name: 'Buscar módulos de navegação' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/documentos');
+  });
+
+  it('abre a busca única com Enter e preserva uma busca ambígua para escolha explícita', async () => {
+    const { dialog, menu, search, results } = await openMenu();
+    fireEvent.change(search, { target: { value: 'PT' } });
+    expect(results.querySelectorAll('a[href]').length).toBeGreaterThan(1);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/documentos');
+    fireEvent.change(search, { target: { value: 'Agenda' } });
+    expect(menu.getByRole('link', { name: 'Agenda' })).toHaveAttribute('href', '/app/agenda');
+    expect(results.querySelectorAll('a[href]')).toHaveLength(1);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(await screen.findByRole('heading', { name: 'Agenda de teste' })).toBeVisible();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/agenda');
+    expect(screen.queryByRole('dialog', { name: 'Navegação' })).not.toBeInTheDocument();
+  });
+
+  it('não captura modificadores ou composição ao percorrer e abrir resultados', async () => {
+    const { search, results, dialog } = await openMenu();
+    const first = results.querySelector<HTMLAnchorElement>('a[href]')!;
+    for (const modifier of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey']) {
+      search.focus();
+      fireEvent.keyDown(search, { key: 'ArrowDown', [modifier]: true });
+      expect(search).toHaveFocus();
+      first.focus();
+      fireEvent.keyDown(first, { key: 'End', [modifier]: true });
+      expect(first).toHaveFocus();
+    }
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown', isComposing: true });
+    expect(search).toHaveFocus();
+    fireEvent.change(search, { target: { value: 'Agenda' } });
+    for (const modifier of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey']) {
+      fireEvent.keyDown(search, { key: 'Enter', [modifier]: true });
+      expect(dialog).toBeInTheDocument();
+    }
+    fireEvent.keyDown(search, { key: 'Enter', isComposing: true });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/documentos');
+  });
+
+  it('não abre automaticamente um único destino quando a busca contém somente pontuação', async () => {
+    session.permissions = ['notifications.read'];
+    show('/app/notificacoes');
+    await screen.findByRole('heading', { name: 'Notificações de teste' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir navegação' }));
+    const dialog = screen.getByRole('dialog', { name: 'Navegação' });
+    const search = within(dialog).getByRole('textbox', { name: 'Buscar módulos de navegação' });
+    fireEvent.change(search, { target: { value: '?! --' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/notificacoes');
+  });
+
+  it('sugere apenas módulos autorizados e recupera a busca sem navegar ou perder o foco', async () => {
+    const { update, menu, search } = await openMenu();
+    fireEvent.change(search, { target: { value: 'modulo inexistente xyz' } });
+    let suggestions = within(menu.getByRole('group', { name: 'Buscar em módulos disponíveis' }));
+    for (const name of ['Agenda', 'Documentos', 'PT', 'Equipes']) expect(suggestions.getByRole('button', { name })).toBeVisible();
+    session.permissions = ['documents.read'];
+    update();
+    suggestions = within(menu.getByRole('group', { name: 'Buscar em módulos disponíveis' }));
+    expect(suggestions.getAllByRole('button')).toHaveLength(1);
+    expect(suggestions.queryByRole('button', { name: 'Agenda' })).not.toBeInTheDocument();
+    expect(suggestions.queryByRole('button', { name: 'PT' })).not.toBeInTheDocument();
+    expect(suggestions.queryByRole('button', { name: 'Equipes' })).not.toBeInTheDocument();
+    fireEvent.click(suggestions.getByRole('button', { name: 'Documentos' }));
+    expect(search).toHaveFocus();
+    expect(search).not.toHaveValue('modulo inexistente xyz');
+    expect(menu.getByRole('link', { name: 'Documentos' })).toHaveAttribute('href', '/app/documentos');
+    expect(menu.queryByText('Nenhum módulo encontrado. Tente outro termo.')).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/documentos');
+  });
+
+  it.each([
+    { query: 'NR35', name: 'Capacitações', to: '/app/dashboard?area=saude&healthView=nrs' },
+    { query: 'NR-35', name: 'Capacitações', to: '/app/dashboard?area=saude&healthView=nrs' },
+    { query: 'renovar, ASO', name: 'Saúde ocupacional', to: '/app/dashboard?area=saude&healthView=asos' },
+    { query: 'inspeção/segurança', name: 'Inspeções de segurança', to: '/app/dashboard?area=inspecoes' },
+    { query: 'PTs!', name: 'Permissões de trabalho', to: '/app/pts' },
+  ])('entende $query como busca de módulo e mantém seu destino específico', async ({ query, name, to }) => {
+    const { menu, search } = await openMenu(['documents.read', 'appointments.read', 'dashboard.read', 'permits.read']);
+    fireEvent.change(search, { target: { value: query } });
+    expect(menu.getByRole('link', { name })).toHaveAttribute('href', to);
   });
 });
