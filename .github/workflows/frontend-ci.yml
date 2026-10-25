@@ -76,8 +76,8 @@ jobs:
 
       - name: Run browser tests against the demonstration
         id: e2e
-        # Stop the suite before the job limit so Playwright can finish its report.
-        run: npm run test:e2e -- --project=chromium --workers=1 --forbid-only --reporter=line,html --global-timeout=1500000
+        # Browser contexts isolate the demo; two workers keep all scenarios within the job limit.
+        run: npm run test:e2e -- --project=chromium --workers=2 --forbid-only --reporter=line,html --global-timeout=1500000
 
       - name: Verify API-mode connection UI using controlled HTTP responses
         run: npm run test:connection-ui -- --forbid-only

@@ -5,6 +5,7 @@ test('atalho de conteúdo aparece ao receber foco e permite pular a navegação'
   await page.setViewportSize({ width: 390, height: 844 });
   await loginDemo(page, 'Engenheiro');
   await openModule(page, 'Documentos');
+  await expect(page.getByRole('heading', { name: 'Documentos', exact: true })).toBeFocused();
   const skip = page.getByRole('link', { name: 'Pular para o conteúdo', exact: true });
   await skip.focus();
   await expect(skip).toBeInViewport({ ratio: 1 });

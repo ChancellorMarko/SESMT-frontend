@@ -28,7 +28,7 @@ test('trocar a unidade do painel não reaplica a equipe anterior nas consultas e
   // The application layout remounts protected pages when the unit changes.
   await expect(page.getByLabel('Período de início', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('Período até', { exact: true })).toHaveValue('');
-  const permits = page.getByRole('link', { name: /PTs em atendimento/ });
+  const permits = page.getByRole('link', { name: /Permissões em atendimento/ });
   await expect(permits).toBeVisible();
   const permitLink = new URL((await permits.getAttribute('href'))!, page.url());
   expect(permitLink.searchParams.get('unitId')).toBe(unitB);
