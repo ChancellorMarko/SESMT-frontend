@@ -4,10 +4,14 @@ import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 
-const session = vi.hoisted(() => ({ permissions: [] as string[] }));
+const session = vi.hoisted(() => ({ permissions: [] as string[], mode: 'demo' }));
+vi.mock('../shared/api/client', async original => ({
+  ...await original<typeof import('../shared/api/client')>(),
+  get API_MODE() { return session.mode; },
+}));
 vi.mock('../shared/auth/SessionProvider', () => ({ useSession: () => ({
   sessionKey: 'navigation-session', unitId: 'unit', status: 'authenticated',
-  me: { user: { displayName: 'Marina Demo' }, roles: [], scope: { unitIds: ['unit'] } },
+  me: { user: { displayName: 'Marina Demo' }, roles: [], permissions: session.permissions, scope: { unitIds: ['unit'] } },
   can: (permission: string) => session.permissions.includes(permission),
 }) }));
 vi.mock('../features/auth/AuthPages', () => ({ LoginPage: () => null, RecoveryPage: () => null, ResetPasswordPage: () => null }));
@@ -16,6 +20,7 @@ vi.mock('../features/dashboard/OperationsDashboardPage', () => ({ OperationsDash
 vi.mock('../features/agenda', () => ({ AgendaPage: () => <h1>Agenda de teste</h1> }));
 vi.mock('../features/documents', () => ({ DocumentsPage: () => <h1>Documentos de teste</h1> }));
 vi.mock('../features/notifications', () => ({ NotificationsPage: () => <h1>Notificações de teste</h1> }));
+vi.mock('../features/auth/ConnectedAccountPage', () => ({ ConnectedAccountPage: () => <h1>Conta conectada de teste</h1> }));
 vi.mock('./layouts/HeaderNotifications', () => ({ HeaderNotifications: () => null }));
 
 function Location() {
@@ -33,10 +38,28 @@ function show(path = '/app') {
 beforeEach(() => {
   vi.restoreAllMocks();
   session.permissions = [];
+  session.mode = 'demo';
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
 
 describe('navegação inicial conforme permissões independentes', () => {
+  it('leva a API sem módulos concedidos à conta conectada', async () => {
+    session.mode = 'api'; show();
+    expect(await screen.findByRole('heading', { name: 'Conta conectada de teste' })).toBeVisible();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/conexao');
+  });
+
+  it('mantém os módulos já concedidos como destino inicial na API', async () => {
+    session.mode = 'api'; session.permissions = ['documents.read']; show();
+    expect(await screen.findByRole('heading', { name: 'Documentos de teste' })).toBeVisible();
+    expect(screen.getByTestId('location')).toHaveTextContent('/app/documentos');
+  });
+
+  it('não apresenta a conta conectada ao backend no modo demonstrativo', async () => {
+    session.permissions = ['notifications.read']; show('/app/conexao');
+    expect(await screen.findByRole('heading', { name: 'Notificações de teste' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Conta conectada de teste' })).not.toBeInTheDocument();
+  });
   it.each([
     { query: 'PT', name: 'Permissões de trabalho', to: '/app/pts', permission: 'permits.read' },
     { query: 'AT', name: 'Autorizações de trabalho', to: '/app/ats', permission: 'at.read' },

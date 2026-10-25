@@ -2,7 +2,9 @@
 
 Aplicação React e TypeScript para agenda de serviços, gestão documental, equipes e Permissões de Trabalho (PT), Autorizações de Trabalho (AT) e preparação de PETs de espaços confinados. Versão: **0.5.0**.
 
-O backend e o banco de dados pertencem a outro repositório. O modo padrão usa dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão.
+Na branch `Teste`, o backend .NET recebido foi incorporado em `SESMT-backend/`. A integração começa por login e sessão; os módulos operacionais ainda precisam de adaptação dos contratos. Consulte [INTEGRACAO.md](INTEGRACAO.md) para executar os dois projetos e verificar o que está conectado.
+
+O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 
 ## Executar
 
@@ -14,6 +16,8 @@ npm.cmd run dev
 ```
 
 Abra http://127.0.0.1:5173 e escolha um perfil de demonstração no login. As contas fictícias usam `Demo123!`; o administrador tem MFA ilustrativo com o código `123456`. Os botões `Engenheiro` e `Gestor SESMT` usam a mesma conta de demonstração.
+
+Para explorar o primeiro acesso de uma conta nova, entre como Administrador, abra **Usuários e acesso**, convide uma pessoa e use **Consultar convite → Explorar primeiro acesso**. A tela pede para sair da conta atual antes de conferir o convite e definir a senha. O aceite é simulado em memória e não envia e-mail. Uma conta nova sem pendências pode entrar com a senha definida até recarregar a página; os sete perfis de teste continuam usando a senha acima. Novos administradores aguardam configuração de MFA, e contas novas limitadas aos dados próprios aguardam associação ao trabalhador antes de acessar o sistema.
 
 ## Funcionalidades
 
@@ -50,6 +54,7 @@ Abra http://127.0.0.1:5173 e escolha um perfil de demonstração no login. As co
 - Vencimentos preservam buscas ainda não aplicadas ao atualizar ou alterar a antecedência, validam os filtros do endereço e conferem a unidade das respostas antes de exibir documentos ou abrir a mesma consulta no repositório.
 - PET: preparação de rascunhos, pessoas e papéis previstos, verificações, controles, leituras atmosféricas, histórico e impressão por revisão.
 - Notificações, auditoria demonstrativa, políticas documentais e administração de acessos com empresas, unidades e equipes vinculadas, confirmação de desativação e proteção contra ampliação de autoridade. Prazos de concessão usam São Paulo; trocas de contexto cancelam edições pendentes e respostas antigas.
+- Primeiro acesso por convite de conta com código manual ou token no fragmento de `/ativar-acesso`, contexto mínimo, política de senha, confirmação, consulta de situação/validade e recibo sem autenticação automática. Requisições antigas são descartadas ao mudar o contexto. Convites expirados/revogados/usados são recusados; o mock impede ativação manual de conta sem credencial. A consulta pública de equipe permanece um fluxo distinto.
 - Notificações e auditoria consultam a unidade selecionada, conservam filtros válidos e bloqueiam endereços ambíguos ou páginas inválidas antes de buscar resultados. Negativas de acesso ocultam o conteúdo anterior até uma nova consulta válida. Marcar uma notificação como lida registra somente a leitura; não resolve a pendência documental. A operação é vinculada ao contexto atual, evita cliques duplicados e descarta respostas tardias de outra sessão/unidade.
 - Identidade Ampara, fontes locais, navegação responsiva e proteção de formulários contra descarte acidental.
 - As páginas recebem títulos próprios na aba, sem copiar nomes pessoais, filtros ou tokens do endereço. Ao mudar de tela, o foco chega ao título visível após o carregamento, ou à região principal quando a consulta termina sem título. Filtros, âncoras, campos em uso e diálogos conservam seu foco; a troca de unidade preserva o seletor. Impressões mantêm os títulos específicos do registro e da revisão, e sair delas restaura o título da página de destino.
@@ -77,9 +82,13 @@ Na liberação da PT, uma cópia preserva responsável, horário, agendamento, p
 
 ## Integração com a API
 
+Para o backend incluído nesta branch, use `npm run integration:setup`, prepare o PostgreSQL e execute `npm run integration:migrate` e `npm run dev:integrated`. O frontend integrado abre em `http://127.0.0.1:5175`; a demonstração mantém seu comando habitual. Instruções completas e limitações: [INTEGRACAO.md](INTEGRACAO.md).
+
 Copie `.env.example` para `.env.local`, selecione `VITE_API_MODE=api` e configure `VITE_API_BASE_URL`. Para desenvolvimento com proxy, configure `API_PROXY_TARGET`. Reinicie o Vite após alterar variáveis.
 
 O frontend usa token em memória, CSRF, permissões, contexto por unidade e controle de revisão nas alterações. Endpoints, cookies, autenticação, regras e persistência precisam de homologação com o backend real. A demonstração não emite JWT real nem realiza antivírus ou auditoria persistente.
+
+Os contratos novos de conta estão em `src/shared/contracts/account-invitations.ts`: `POST /auth/invitations/inspect`, `POST /auth/invitations/accept` e `GET /users/{id}/invitation`. No modo API, ficam desabilitados por padrão; habilitar `VITE_ACCOUNT_INVITATIONS_ENABLED=true` somente após homologação. O resumo administrativo não deve devolver `demoActivationPath` na API real. O enrolamento MFA, o vínculo User→Worker, bootstrap, envio, reenvio/revogação de convites e persistência real continuam dependentes do backend e de fluxos próprios. As senhas novas em memória no MSW são apenas simulação, sem armazenamento de credenciais de produção.
 
 Os contratos consumidos estão em [`src/shared/contracts`](src/shared/contracts), incluindo os DTOs de [PT](src/shared/contracts/work-permits.ts), [AT](src/shared/contracts/work-authorizations.ts) e [PET](src/shared/contracts/confined-space-permits.ts).
 

@@ -25,7 +25,7 @@ const profiles: { role: string; label: string; icon: LucideIcon }[] = [
   { role: 'trabalhador', label: 'Trabalhador', icon: UserRound },
 ];
 
-function AuthButton({ children, variant = 'primary', busy = false, className = '', ...props }: Omit<HTMLMotionProps<'button'>, 'children'> & { children: ReactNode; variant?: 'primary' | 'ghost'; busy?: boolean }) {
+export function AuthButton({ children, variant = 'primary', busy = false, className = '', ...props }: Omit<HTMLMotionProps<'button'>, 'children'> & { children: ReactNode; variant?: 'primary' | 'ghost'; busy?: boolean }) {
   const reducedMotion = useAppReducedMotion();
   return <motion.button
     type="button"
@@ -37,11 +37,11 @@ function AuthButton({ children, variant = 'primary', busy = false, className = '
   >{busy && <LoaderCircle size={16} className={styles.buttonSpinner} aria-hidden="true" />}{children}</motion.button>;
 }
 
-function PasswordVisibility({ shown, onToggle, label = 'senha' }: { shown: boolean; onToggle: () => void; label?: string }) {
+export function PasswordVisibility({ shown, onToggle, label = 'senha' }: { shown: boolean; onToggle: () => void; label?: string }) {
   return <button className={styles.showPassword} type="button" onClick={onToggle} aria-label={`${shown ? 'Ocultar' : 'Mostrar'} ${label}`} aria-pressed={shown}>{shown ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button>;
 }
 
-function AuthCard({ title, description, eyebrow = 'ACESSO AO SISTEMA', icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
+export function AuthCard({ title, description, eyebrow = 'ACESSO AO SISTEMA', icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
   return <section className={styles.card}>
     <div className={styles.cardHeader}>
       <p className={styles.cardEyebrow}><Icon size={12} aria-hidden="true" /> {eyebrow}</p>

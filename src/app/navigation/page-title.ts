@@ -4,10 +4,12 @@ import { matchRoutes } from 'react-router';
 const routes = [
   { path: '/', title: 'Início' },
   { path: '/app', title: 'Início' },
+  { path: '/app/conexao', title: 'Conta conectada' },
   { path: '/login', title: 'Entrar' },
   { path: '/mfa', title: 'Verificar acesso' },
   { path: '/recuperar-acesso', title: 'Recuperar acesso' },
   { path: '/redefinir-senha', title: 'Definir nova senha' },
+  { path: '/ativar-acesso', title: 'Ativar minha conta' },
   { path: '/convite/:token', title: 'Convite de equipe' },
   { path: '/app/consulta', title: 'Central de consulta' },
   { path: '/app/minha-representacao', title: 'Minha representação' },

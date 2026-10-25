@@ -11,7 +11,9 @@ import { workerCreatePayload, workerPatchPayload, workerMovementPayload, workerI
 import { organizationResourceKeys, prepareOrganizationMutation, OrganizationMutationError } from './organization';
 import { userAccessManageable, userAccessPayload, UserAccessError } from './user-access';
 import { makeWorkerIntegrationDemo, IntegrationEvidenceError, type IntegrationEvidenceContext } from './worker-integration';
+import { makeAccountInvitationDemo, AccountInvitationError } from './account-invitations';
 let data=makeFixtures();
+let accountInvitationDemo=createAccountInvitationDemo();
 let integrationDemo=createIntegrationDemo();
 let permitDemo=makePermitDemo(() => data.organization, () => data.workers,(w,start,end)=>integrationDemo.operationalState(w,start,end));
 let petDemo=makePetDemo();
@@ -33,11 +35,13 @@ function check(condition:unknown,status:number,code:string,message:string,field?
 function permissions(){return roles.filter(r=>currentUser?.roles.includes(r.code)).flatMap(r=>r.permissions);}
 function can(p:string){return permissions().includes(p);}
 function requirePermission(p:string){check(can(p),403,'FORBIDDEN','Seu perfil não permite esta operação.');}
+function requireIdentitySetup(user:UserDto){check(!accountInvitationDemo.requiresMfaSetup(user),403,'MFA_SETUP_REQUIRED','Sua senha foi definida. A configuração do autenticador ainda depende da integração de identidade; o acesso administrativo permanece bloqueado nesta demonstração.');check(!accountInvitationDemo.requiresWorkerLink(user),403,'WORKER_LINK_REQUIRED','Sua senha foi definida. O vínculo desta conta aos seus próprios dados ainda precisa ser configurado; o acesso permanece bloqueado nesta demonstração.');}
 function requireSession(request:Request){
  check(currentUser,401,'UNAUTHENTICATED','Entre na plataforma para continuar.');
  check(request.headers.get('Authorization')===`Bearer ${currentToken}`,401,'TOKEN_EXPIRED','A sessão precisa ser renovada.');
  check(currentUser.status==='ACTIVE',401,'SESSION_REVOKED','Acesso desabilitado.');
  check(!currentUser.scope.expiresAt||Date.parse(currentUser.scope.expiresAt)>Date.now(),403,'FORBIDDEN','A concessão de acesso expirou.');
+ requireIdentitySetup(currentUser);
 }
 function allowedUnit(unitId?:string){return !unitId || !!currentUser?.scope.unitIds.includes(unitId);}
 function checkUnit(unitId:string){check(allowedUnit(unitId),404,'NOT_FOUND','Registro indisponível no seu escopo.');}
@@ -119,17 +123,24 @@ async function storeFile(file:FormDataEntryValue|null,type:DocumentTypeDto){chec
 function demoPdf(){const stream='BT /F1 19 Tf 55 750 Td (DOCUMENTO DE DEMONSTRACAO) Tj 0 -35 Td /F1 11 Tf (Arquivo sintetico. Nenhuma validade documental real.) Tj ET';const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];let text='%PDF-1.4\n';const offsets=[0];objects.forEach((o,i)=>{offsets.push(text.length);text+=`${i+1} 0 obj\n${o}\nendobj\n`;});const xref=text.length;text+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;return new Blob([text],{type:'application/pdf'});}
 function download(file:{id:string;name:string;mimeType:string;scanStatus:string}){check(file.scanStatus==='CLEAN',409,'FILE_NOT_READY','O arquivo ainda não foi liberado.');const blob=blobs.get(file.id)||demoPdf();const url=URL.createObjectURL(blob);urls.add(url);return{url,expiresAt:new Date(Date.now()+60000).toISOString(),fileName:file.name,mimeType:file.mimeType};}
 function createIntegrationDemo(){return makeWorkerIntegrationDemo({documents:()=>data.documents,versions:()=>data.versions,documentVisible:docVisible,storeFile,download,audit:(action,workerId)=>audit(action,'WORKER',workerId)});}
+function createAccountInvitationDemo(){return makeAccountInvitationDemo({users:()=>data.users,onActivated:user=>data.audit.unshift({id:crypto.randomUUID(),actorId:user.id,action:'USER_ACTIVATED','resourceType':'USER',resourceId:user.id,occurredAt:time(),requestId:crypto.randomUUID(),outcome:'DEMO'})});}
 function integrationContext(request:Request,w:WorkerDto):IntegrationEvidenceContext{return{worker:w,userId:currentUser!.id,userName:currentUser!.displayName,can,recheck:()=>{requireSession(request);check(workerById(w.id)===w,404,'NOT_FOUND','Registro indisponível.');}};}
-export function resetDemo(){data=makeFixtures();integrationDemo=createIntegrationDemo();permitDemo.dispose();permitDemo=makePermitDemo(() => data.organization, () => data.workers,(w,start,end)=>integrationDemo.operationalState(w,start,end));petDemo=makePetDemo();currentUser=undefined;currentToken='';challengeUser=undefined;blobs.clear();pendingScans.clear();idempotent.clear();for(const url of urls)URL.revokeObjectURL(url);urls.clear();}
+export function resetDemo(){data=makeFixtures();accountInvitationDemo=createAccountInvitationDemo();integrationDemo=createIntegrationDemo();permitDemo.dispose();permitDemo=makePermitDemo(() => data.organization, () => data.workers,(w,start,end)=>integrationDemo.operationalState(w,start,end));petDemo=makePetDemo();currentUser=undefined;currentToken='';challengeUser=undefined;blobs.clear();pendingScans.clear();idempotent.clear();for(const url of urls)URL.revokeObjectURL(url);urls.clear();}
 
 async function route(request:Request,url:URL,path:string){
  const method=request.method;const parts=path.split('/').filter(Boolean);const read=async<T,>()=>{try{return await request.json()as T;}catch{fail(422,'INVALID_JSON','Envie um corpo JSON válido.');}};
  if(path==='/auth/csrf')return{csrfToken};
- if(path==='/auth/login'&&method==='POST'){const body=await read<{email:string;password:string}>();check(request.headers.get('X-CSRF-Token')===csrfToken,403,'CSRF_INVALID','Recarregue a sessão antes de entrar.');const user=data.users.find(u=>u.email===body.email&&u.status==='ACTIVE');check(user&&body.password==='Demo123!',401,'INVALID_CREDENTIALS','Credenciais inválidas. Use um perfil de demonstração ou confira seu acesso.');if(user.mfaRequired){challengeUser=user;return{status:'MFA_REQUIRED',challengeId:'demo-challenge',expiresAt:new Date(Date.now()+300000).toISOString(),methods:['TOTP']};}currentUser=user;return makeSession();}
+ if(path==='/auth/login'&&method==='POST'){const body=await read<{email:string;password:string}>();check(request.headers.get('X-CSRF-Token')===csrfToken,403,'CSRF_INVALID','Recarregue a sessão antes de entrar.');const user=data.users.find(u=>u.email===body.email&&u.status==='ACTIVE');check(user&&accountInvitationDemo.matchesPassword(user,body.password),401,'INVALID_CREDENTIALS','Credenciais inválidas. Use um perfil de demonstração ou confira seu acesso.');requireIdentitySetup(user);if(user.mfaRequired){challengeUser=user;return{status:'MFA_REQUIRED',challengeId:'demo-challenge',expiresAt:new Date(Date.now()+300000).toISOString(),methods:['TOTP']};}currentUser=user;return makeSession();}
+ if(path==='/auth/invitations/inspect'||path==='/auth/invitations/accept'){
+  check(method==='POST',405,'METHOD_NOT_ALLOWED','Use o formulário de ativação para consultar este convite.');
+  check(request.headers.get('X-CSRF-Token')===csrfToken,403,'CSRF_INVALID','Recarregue a proteção de acesso antes de continuar.');
+  const body=await read<unknown>();check(!request.signal.aborted,409,'REQUEST_CANCELED','A solicitação foi cancelada. Confira o resultado antes de continuar.');
+  return path.endsWith('/inspect')?accountInvitationDemo.inspect(body):accountInvitationDemo.accept(body,request.headers.get('Idempotency-Key')||undefined);
+ }
  if(path==='/auth/mfa/verify'){const b=await read<{challengeId:string;code:string}>();check(challengeUser&&b.challengeId==='demo-challenge'&&b.code==='123456',401,'MFA_INVALID','Código inválido para a demonstração.');currentUser=challengeUser;challengeUser=undefined;return makeSession();}
  if(path==='/auth/password/forgot')return{message:'Se houver uma conta associada a este e-mail, as instruções serão enviadas. Na demonstração, não há envio de mensagens.'};
  if(path==='/auth/password/reset'){const b=await read<{token:string;newPassword:string}>();check(b.token==='demo-reset',410,'RESET_EXPIRED','Código inválido ou expirado.');check(b.newPassword.length>=8,422,'PASSWORD_POLICY','Na demonstração, utilize no mínimo oito caracteres.','newPassword');return undefined;}
- if(path==='/auth/refresh'){check(currentUser,401,'SESSION_EXPIRED','Sessão ausente.');check(request.headers.get('X-CSRF-Token')===csrfToken,403,'CSRF_INVALID','Proteção de sessão inválida.');return makeSession();}
+ if(path==='/auth/refresh'){check(currentUser,401,'SESSION_EXPIRED','Sessão ausente.');check(currentUser.status==='ACTIVE',401,'SESSION_REVOKED','Acesso desabilitado.');check(!currentUser.scope.expiresAt||Date.parse(currentUser.scope.expiresAt)>Date.now(),403,'FORBIDDEN','A concessão de acesso expirou.');requireIdentitySetup(currentUser);check(request.headers.get('X-CSRF-Token')===csrfToken,403,'CSRF_INVALID','Proteção de sessão inválida.');return makeSession();}
  if(path==='/auth/logout'){currentUser=undefined;currentToken='';challengeUser=undefined;permitDemo.dispose();for(const u of urls)URL.revokeObjectURL(u);urls.clear();return undefined;}
  if(/^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path))return permitDemo.route(request,url,path);
  check(currentUser,401,'UNAUTHENTICATED','Entre na plataforma para continuar.');
@@ -305,14 +316,15 @@ async function route(request:Request,url:URL,path:string){
  if(parts[0]==='users'){
   requirePermission('users.manage');const unit=queryScope(url);
   if(method==='GET'&&parts.length===1){const q=(url.searchParams.get('q')||'').trim().toLocaleLowerCase('pt-BR');return paginate(data.users.filter(u=>manageableUser(u)&&(!unit||u.scope.unitIds.includes(unit))&&(!q||`${u.displayName} ${u.email}`.toLocaleLowerCase('pt-BR').includes(q))),url);}
+  if(method==='GET'&&parts.length===3&&parts[2]==='invitation'){const user=data.users.find(user=>user.id===parts[1]&&manageableUser(user)&&(!unit||user.scope.unitIds.includes(unit)));check(user,404,'NOT_FOUND','Usuário indisponível.');return accountInvitationDemo.summary(user);}
   check(method==='POST'&&parts.length===1||method==='PATCH'&&parts.length===3&&parts[2]==='access',405,'METHOD_NOT_ALLOWED','Operação indisponível para a gestão de acessos.');
   const u=method==='PATCH'?data.users.find(u=>u.id===parts[1]&&manageableUser(u)):undefined;
   if(method==='PATCH'){check(u,404,'NOT_FOUND','Usuário indisponível.');etag(request,u);}
   const raw=await read<unknown>();requireSession(request);requirePermission('users.manage');
   if(u){check(data.users.includes(u)&&manageableUser(u),404,'NOT_FOUND','Usuário indisponível.');etag(request,u);}
   const b=userAccessPayload(raw,{actor:{scope:currentUser!.scope,permissions:permissions()},roles,organization:data.organization,teams:permitDemo.teamsList(),original:u});
-  if(method==='POST'){check(!data.users.some(value=>value.email.toLocaleLowerCase('pt-BR')===b.email),409,'EMAIL_IN_USE','E-mail já utilizado.','email');const created={...b,id:crypto.randomUUID(),status:'INVITED',mfaRequired:b.roles.includes('ADMIN'),revision:1}as UserDto;data.users.push(created);audit('USER_INVITED','USER',created.id);return created;}
-  check(u,404,'NOT_FOUND','Usuário indisponível.');check(u.id!==currentUser!.id||b.status==='ACTIVE'&&b.roles.includes('ADMIN'),409,'LAST_ADMIN','Nesta demonstração, o administrador atual deve manter seu acesso.');Object.assign(u,{roles:b.roles,scope:b.scope,status:b.status});u.mfaRequired=u.roles.includes('ADMIN');u.revision++;audit('USER_ACCESS_UPDATED','USER',u.id);return u;
+  if(method==='POST'){check(!data.users.some(value=>value.email.toLocaleLowerCase('pt-BR')===b.email),409,'EMAIL_IN_USE','E-mail já utilizado.','email');const created={...b,id:crypto.randomUUID(),status:'INVITED',mfaRequired:b.roles.includes('ADMIN'),revision:1}as UserDto;data.users.push(created);accountInvitationDemo.issue(created);audit('USER_INVITED','USER',created.id);return created;}
+  check(u,404,'NOT_FOUND','Usuário indisponível.');check(b.status!=='ACTIVE'||accountInvitationDemo.hasCredential(u),409,'ACCOUNT_ACTIVATION_REQUIRED','A pessoa precisa aceitar o convite e definir a própria senha antes de ativar este acesso.');check(u.id!==currentUser!.id||b.status==='ACTIVE'&&b.roles.includes('ADMIN'),409,'LAST_ADMIN','Nesta demonstração, o administrador atual deve manter seu acesso.');Object.assign(u,{roles:b.roles,scope:b.scope,status:b.status});u.mfaRequired=u.roles.includes('ADMIN');u.revision++;if(u.status==='DISABLED')accountInvitationDemo.revoke(u.id);audit('USER_ACCESS_UPDATED','USER',u.id);return u;
  }
  fail(404,'NOT_IMPLEMENTED_IN_DEMO','Este recurso não está disponível nesta versão de demonstração.');
 }
@@ -347,5 +359,5 @@ export const handlers=[http.all('*/api/v1/*',async({request})=>{
   }
   const result=await route(request,url,path);const status=result===undefined?204:request.method==='POST'&&['/documents','/workers','/users','/document-types','/appointments','/confined-space-permits','/team-invites'].includes(path)?201:200;if(cacheKey)idempotent.set(cacheKey,{body:structuredClone(result),status});const revision=(result as {revision?:number}|undefined)?.revision;return status===204?new HttpResponse(null,{status}):new HttpResponse(JSON.stringify(result),{status,headers:{'Content-Type':'application/json',...(revision?{ETag:`"${revision}"`}:{})}});
  }
- catch(error){const e=error instanceof MockError||error instanceof PermitDemoError||error instanceof PetDemoError||error instanceof WorkerMutationError||error instanceof OrganizationMutationError||error instanceof UserAccessError||error instanceof IntegrationEvidenceError?error:new MockError(500,'DEMO_ERROR','Não foi possível processar a demonstração. Confira os campos e tente novamente.');return HttpResponse.json({code:e.code,message:e.message,fieldErrors:e.field?[{field:e.field,code:e.code,message:e.message}]:undefined,requestId:crypto.randomUUID()},{status:e.status});}
+ catch(error){const e=error instanceof MockError||error instanceof PermitDemoError||error instanceof PetDemoError||error instanceof WorkerMutationError||error instanceof OrganizationMutationError||error instanceof UserAccessError||error instanceof IntegrationEvidenceError||error instanceof AccountInvitationError?error:new MockError(500,'DEMO_ERROR','Não foi possível processar a demonstração. Confira os campos e tente novamente.');return HttpResponse.json({code:e.code,message:e.message,fieldErrors:e.field?[{field:e.field,code:e.code,message:e.message}]:undefined,requestId:crypto.randomUUID()},{status:e.status});}
 })];
