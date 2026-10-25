@@ -1,26 +1,62 @@
 # Prompt de alinhamento e implementação do backend — Ampara SESMT
 
-Referência: frontend 0.5.0, atualizado em 24/10/2026. Este texto pode ser encaminhado à equipe de backend ou usado como prompt de trabalho no repositório da API.
+Referência: frontend 0.5.0 e backend incorporado à branch `Teste`, commit de partida `0246846`; atualizado em 24/10/2026. Este texto pode ser encaminhado à equipe de backend ou usado como prompt de trabalho no checkout da API. Confira alterações posteriores antes de implementar.
 
 ---
 
 Você é responsável pelo backend do **Ampara SESMT**, um sistema de gestão de segurança e saúde no trabalho. Sua missão é compreender o frontend existente, fechar o ciclo real de contas e acessos, alinhar os contratos e implementar os fluxos com persistência e validações no servidor.
 
-Use as informações abaixo como contexto de produto e integração. Primeiro confira o que já existe no repositório do backend; preserve as implementações compatíveis e registre as diferenças. O backend não foi inspecionado na elaboração deste documento. Não presuma que um recurso está ausente ou concluído apenas por aparecer aqui.
+Use as informações abaixo como contexto de produto e integração. O frontend e os fontes do backend foram inspecionados para este alinhamento; a execução com PostgreSQL ainda não foi homologada. Primeiro confira o checkout recebido, preserve as implementações compatíveis e registre as diferenças. Não presuma que um recurso está concluído por compilar, ter teste com serviços substituídos ou aparecer em uma tela demonstrativa.
+
+Trabalhe no backend e em seus contratos, migrations, testes e documentação. Preserve o layout, os componentes e os fluxos já existentes do frontend. Quando uma mudança de contrato exigir interface nova, entregue a especificação e identifique a dependência; não altere a experiência unilateralmente. Não substitua dados reais por fixtures para apresentar uma integração como concluída.
+
+## 0. Ponto de partida e primeira entrega
+
+### O que já existe e precisa ser aproveitado
+
+| Item | Situação verificada no código / limite da evidência |
+| --- | --- |
+| Checkout | Frontend na raiz e backend em `SESMT-backend/`, incorporados na branch `Teste`. Isso não significa que todos os módulos estejam integrados. |
+| Stack backend | .NET 10, camadas API/Application/Domain/Infrastructure, EF Core e PostgreSQL. Preservar a estrutura existente. |
+| API nativa | Já existem autenticação, recuperação de senha e controllers de usuários, organização, trabalhadores, equipes, documentos, auditoria e PT. Suas rotas e DTOs não são automaticamente compatíveis com o frontend. |
+| Ponte de sessão | `BrowserSessionController` já expõe `GET /api/v1/auth/csrf`, `POST /api/v1/auth/login`, `/refresh`, `/logout` e `GET /api/v1/me`, reutilizando os serviços existentes. Não reimplementar essa base do zero. |
+| Cookies e CSRF | O refresh do navegador está em cookie HttpOnly `ampara.refresh`, caminho `/api/v1/auth`, SameSite Strict e Secure fora de Development ou quando HTTPS. O token CSRF é obtido pelo cliente e enviado em `X-CSRF-Token`. O bearer continua em memória. |
+| `/me` atual | Consulta a identidade, devolve os perfis nativos e as referências diretas de empresa/unidade/setor. Retorna `permissions: []` deliberadamente; não expande empresa em todas as unidades e não fornece restrição de equipes/vigência completa. |
+| Navegação integrada | Com API e nenhuma capacidade de módulo concedida, o frontend encaminha para `/app/conexao`. Não preencher permissões fictícias só para abrir o menu. |
+| Recursos pendentes | Rotas de navegador ainda não adaptadas respondem `501 INTEGRATION_PENDING`. Não remover esse bloqueio sem implementar e autorizar o recurso correspondente. |
+| MFA | O navegador recebe bloqueio `403 MFA_REQUIRED` quando a conta tem `MfaEnabled`. Isso ainda não é um desafio MFA verificável: faltam verificação, primeiro enrolamento e recuperação. O seed atual não impõe MFA automaticamente a todo ADMIN. |
+| Administrador inicial atual | O seed usa identidade/senha configuradas, cria ADMIN com atribuição global `CompanyId: null` e não cria convite ou escopos organizacionais explícitos. Não confundir esse mecanismo local com o bootstrap-alvo por ativação descrito abaixo. |
+| Usuários nativos | `CreateUserRequest` usa `name`, `email`, `roles`, `scopeIds`; a resposta usa `name`, `scopeIds`, `active`, sem os estados/revisões do `UserDto`. A listagem é array. A criação grava uma senha aleatória não entregue e remete à recuperação; isso não implementa o convite de conta do frontend. |
+| Primeiro acesso | `/ativar-acesso` e a consulta administrativa do convite existem com MSW. No modo API, `VITE_ACCOUNT_INVITATIONS_ENABLED` permanece `false` até homologação dos contratos persistentes. |
+| Evidência disponível | Na etapa anterior foram aprovados build do frontend, 82 testes backend, incluindo 12 HTTP com serviços substituídos, e testes do frontend/navegador. O modelo EF não tinha diferença para o snapshot. Isso não comprova migrations aplicadas, SMTP, persistência ou isolamento em PostgreSQL. Reexecutar conforme as alterações desta entrega. |
+
+### Sequência concreta para começar
+
+1. **Reproduzir o ambiente real.** Ler `INTEGRACAO.md`, verificar o destino do banco e usar `integration:setup`, `integration:db` quando Docker estiver disponível, `integration:migrate`, `dev:integrated` e `integration:smoke`. No último teste local documentado, PostgreSQL estava inacessível e não havia Docker disponível. Revalidar o ambiente recebido; não assumir que esse bloqueio continua nem declarar integração validada sem executar o fluxo real.
+2. **Fechar o contrato de identidade.** Entregar a matriz de equivalência entre perfis/permissões/escopos nativos e os DTOs consumidos. Resolver a autoridade global do seed versus os IDs explícitos esperados pela interface, o vínculo User→Worker e as concessões temporárias. Aplicar as regras no domínio/serviços compartilhados, inclusive nas rotas nativas: a fachada de navegador não pode ser a única barreira.
+3. **Entregar a primeira fatia funcional de administração.** Compatibilizar `/api/v1/organization`, `/roles`, `/users`, `/users/{id}/access` e os seletores necessários, com paginação, revisão e autorização. Só devolver `users.manage` ou outra capacidade em `/me` quando todos os endpoints usados por essa tela estiverem implementados e verificados. O formulário exige empresas e unidades autorizadas; conceder `users.manage` isoladamente não basta.
+4. **Persistir o primeiro acesso completo.** Criar estados de conta/convite e entrega, inspeção, aceite atômico e idempotente, definição de senha, orientação de MFA/vínculo pendente e login explícito. Reutilizar os serviços de sessão. Recuperação de senha não deve substituir silenciosamente o aceite de convite.
+5. **Fechar os fluxos complementares de autenticação.** Adaptar a recuperação nativa ao contrato do navegador e implementar MFA conforme política adotada. Entregar contratos de primeiro enrolamento/recuperação à equipe de frontend, pois essas telas ainda precisam de evolução. Não desativar MFA ou emitir sessão plena para esconder a dependência.
+6. **Validar e ampliar por módulo.** Executar a primeira jornada com banco e serviço de e-mail de homologação, provar revogação/isolamento/concorrência, registrar lacunas e depois avançar na sequência da seção 17. O inventário de todos os módulos não exige implementá-los simultaneamente.
+
+**Primeira entrega demonstrável esperada:** administrador provisionado com autoridade organizacional definida → autenticação conforme sua política → lista paginada de usuários reais → convite de uma nova conta → entrega registrada → inspeção e definição de senha → recibo sem sessão → login explícito ou bloqueio explicado de MFA/vínculo → `/me` com autoridade efetiva e apenas módulos homologados → logout e revogação comprovados. A configuração inicial de MFA que depender de interface nova deve ter contrato e teste backend, com a dependência de frontend explicitada.
+
+Não considerar essa entrega concluída se o usuário existe no banco, mas não consegue ativar, obter o fator exigido, resolver o vínculo necessário ou compreender o próximo passo.
 
 ## 1. Como interpretar este handoff
 
-Existem três classificações:
+As classificações usadas neste handoff são:
 
 - **CONFIRMADO PELO SOLICITANTE:** haverá **um administrador inicial, que poderá cadastrar outros administradores**. Portanto, não existe requisito de limitar o sistema a uma única conta administradora para sempre.
 - **EXISTENTE NO FRONTEND:** tela, contrato consumido ou comportamento demonstrativo verificado no código. Isso não comprova que exista implementação equivalente na API real.
+- **EXISTENTE NO BACKEND:** implementação verificada nos fontes recebidos. Distinguir teste unitário/HTTP com doubles de validação com PostgreSQL e serviços reais.
 - **PROPOSTA PARA FECHAR O FLUXO:** recomendação de implementação para lacunas atuais. Deve constar no registro de decisões; não apresentar como funcionalidade já implementada ou regra aprovada pela PO.
 
-O frontend e o backend ficam em **repositórios separados**. O frontend usa React, TypeScript, Vite e uma demonstração MSW com dados sintéticos em memória. Há modo de integração com API externa, mas autenticação, envio de e-mails, armazenamento, antivírus, auditoria e persistência reais precisam ser homologados com o servidor.
+O frontend e o backend tiveram origens em repositórios separados. Na branch `Teste`, os fontes do backend foram incorporados como arquivos normais em `SESMT-backend/`, com origem registrada em `SESMT-backend/ORIGEM.md`. O frontend usa React, TypeScript, Vite e uma demonstração MSW com dados sintéticos em memória. A execução integrada usa a ponte `/api/v1`, sem MSW; banco, envio de e-mails, armazenamento, antivírus, auditoria persistente e fluxos completos ainda precisam de homologação.
 
 Use o código atual, os DTOs e o README atual como referência de compatibilidade. Documentos antigos podem descrever uma etapa anterior. Nenhuma regra demonstrativa deve ser tratada automaticamente como requisito legal de SST.
 
-**Atualização de 24/10:** o frontend agora possui `/ativar-acesso`, consulta administrativa de convite e simulação de definição de senha/login para novas contas. São contratos propostos em `src/shared/contracts/account-invitations.ts`, habilitados no modo API somente com `VITE_ACCOUNT_INVITATIONS_ENABLED=true` após homologação. O aceite não cria sessão. Novos administradores ficam bloqueados até enrolar MFA; novas contas de dados próprios aguardam vínculo User→Worker, evitando herdar a pessoa fictícia dos exemplos. Bootstrap, e-mail, persistência, reenvio/revogação de convite, enrolamento MFA e associação real com trabalhador continuam dependentes de evolução/integração.
+**Atualização de 24/10:** o frontend possui `/ativar-acesso`, consulta administrativa de convite e simulação de definição de senha/login para novas contas. São contratos propostos em `src/shared/contracts/account-invitations.ts`, habilitados no modo API somente com `VITE_ACCOUNT_INVITATIONS_ENABLED=true` após homologação. O aceite não cria sessão. Na demonstração, novos administradores ficam bloqueados até enrolar MFA e novas contas de dados próprios aguardam vínculo User→Worker. Isso não comprova imposição equivalente a todo administrador do backend atual. Bootstrap de produção, e-mail, persistência de convites, reenvio/revogação, enrolamento MFA e associação real com trabalhador continuam dependentes de evolução/integração.
 
 ## 2. Respostas diretas sobre contas e primeiro acesso
 
@@ -43,7 +79,9 @@ Use o código atual, os DTOs e o README atual como referência de compatibilidad
 
 **Requisito confirmado:** começar com um administrador inicial e permitir outros posteriormente.
 
-**Implementação proposta:**
+**O que o backend já faz:** `DatabaseSeeder.SeedAdminUserAsync` cria ADMIN com a senha configurada, não redefine a conta encontrada pelo e-mail e atribui uma role global. Isso não prova proteção contra concorrência, recuperação de provisionamento parcial, escopos explícitos ou obrigatoriedade/enrolamento de MFA. Avaliar migrations/constraints e evolução do mecanismo existente, sem descartar dados nem criar outro administrador em cada deploy.
+
+**Fluxo-alvo proposto para produção:**
 
 1. Usar comando de provisionamento ou job de implantação restrito à operação do ambiente. Não disponibilizar uma rota pública permanente de criação de administrador.
 2. Receber identidade/e-mail por configuração segura. Não incluir credenciais reais no Git, imagens de container, exemplos públicos ou logs.
@@ -63,6 +101,22 @@ Não copiar as contas, senhas ou códigos fixos da demonstração para produçã
 **Disponível no frontend/MSW:** consulta do convite, tela de definição da senha, aceite de uso único, recibo sem sessão e login demonstrativo posterior quando não existem pendências de MFA/vínculo.
 
 **Falta completar na integração real:** bootstrap, entrega de e-mail, persistência de convite/credencial, endpoints homologados, reenvio/revogação, associação User→Worker e configuração de MFA.
+
+**Diferença do backend recebido:** `UsersController.Create` gera uma senha aleatória que não é entregue e seu comentário remete à recuperação. O domínio atual não representa o ciclo `INVITED`/convite do frontend. Criar um token de recuperação para essa conta ou usar `active: true` como equivalente de conta ativada não fecha a lacuna. Persistir a ativação e aplicar a regra nas rotas nativas e de navegador.
+
+Fluxo-alvo de conta adicional; MFA e vínculo são condicionais à política/perfil:
+
+```mermaid
+flowchart TD
+  A[Administrador autorizado cadastra a conta] --> B[Conta convidada e envio registrado]
+  B --> C[Pessoa confere o convite e define a senha]
+  C --> D[Convite consumido e recibo sem sessão]
+  D --> E{Existe pendência de MFA ou vínculo?}
+  E -->|Sim| F[Concluir configuração pelo fluxo autorizado]
+  F --> G[Login explícito e verificação dos fatores exigidos]
+  E -->|Não| G
+  G --> H[Sessão e capacidades efetivas em /me]
+```
 
 Implemente ou alinhe o seguinte fluxo:
 
@@ -96,7 +150,7 @@ O `UserDto` atual usa somente:
 
 Não acrescentar novos valores ao DTO sem alinhar o frontend. Estados detalhados de convite, entrega, credenciais e enrolamento MFA podem existir em recursos próprios.
 
-A interface atual consegue solicitar alteração para `ACTIVE` por `PATCH /users/{id}/access`. **O backend não pode interpretar isso como definição de senha, aceite de convite ou dispensa de MFA.** Rejeitar uma transição incompleta e devolver erro compreensível; alinhar a interface com a máquina de estados real.
+A interface usa `PATCH /users/{id}/access` para alterar o acesso, mas já impede substituir o aceite de um `INVITED` por ativação manual. **O backend não pode interpretar `ACTIVE` como definição de senha, aceite de convite ou dispensa de MFA.** Impor a máquina de estados também para chamadas diretas. Esse endpoint de navegador ainda precisa ser adaptado; as rotas nativas de perfil/escopo/desativação não têm o mesmo contrato.
 
 Proteger transacionalmente a permanência de pelo menos um administrador habilitado e com concessão válida no contexto de gestão adotado. Aplicar a regra à desativação, retirada do perfil e redução/expiração de autoridade relevante, inclusive em alterações concorrentes. Documentar a verificação de expiração e o procedimento de recuperação do ambiente. Não desabilitar silenciosamente um controle de segurança para resolver uma conta inacessível.
 
@@ -106,20 +160,26 @@ Desativação ou redução de acesso devem revogar/inutilizar as sessões afetad
 
 ## 6. Senhas, recuperação e MFA
 
-Para o fluxo proposto, o usuário define a própria senha. Não enviar a senha por e-mail e não armazená-la em texto puro ou de forma recuperável pelo administrador. Usar biblioteca mantida de hashing de credenciais, preferencialmente Argon2id ou alternativa justificada. [Referência OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+Para o fluxo proposto, o usuário define a própria senha. Não enviar a senha por e-mail e não armazená-la em texto puro ou de forma recuperável pelo administrador. Usar biblioteca mantida de hashing de credenciais e configuração revisada. O backend já possui `PasswordHashService` com `Microsoft.AspNetCore.Identity.PasswordHasher<object>`; avaliar parâmetros, compatibilidade e atualização de hashes antes de propor uma substituição. Se houver migração de algoritmo, justificar e preservar a autenticação das contas existentes. [Referência OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 
-Política de senha é responsabilidade da API. A interface atual exige preenchimento e confirmação igual; o mínimo de oito caracteres do mock não deve virar política definitiva por cópia. Definir limites, bloqueio de senhas comuns/comprometidas e política compatível com MFA; preservar a senha digitada sem `trim` ou truncamento silencioso. [Referência OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
+Política de senha é responsabilidade da API. A ativação atual recebe `passwordPolicy` da inspeção e valida os limites, além da confirmação. O MSW de contas novas usa 15–128 caracteres; a recuperação nativa exige mínimo 12; as telas de recuperação atuais não possuem a mesma validação dinâmica. São diferenças a resolver, não uma política de produção já homologada. Definir uma política coerente para ativação, recuperação e troca autenticada, com limites e proteção contra senhas comuns/comprometidas. Preservar a senha digitada sem `trim` ou truncamento silencioso. [Referência OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
 
 Recuperação já tem telas e os contratos:
 
 - `POST /auth/password/forgot {email}` → resposta genérica `{message}`; a especificação propõe `202`.
 - `POST /auth/password/reset {token,newPassword}` → `204`.
 
+Essas rotas são relativas à base `/api/v1`. Os serviços nativos já existem em `POST /auth/forgot-password` e `POST /auth/reset-password`. Reutilizá-los por uma adaptação que preserve respostas, proteção e DTOs do navegador; não duplicar o domínio de recuperação.
+
 Implementar token de recuperação com finalidade distinta do convite, uso único, expiração e proteção contra abuso. A resposta pública não deve revelar se existe conta para o e-mail. Após redefinição, revogar sessões conforme política acordada, avisar a pessoa e retornar ao login normal. Recuperar senha não elimina o segundo fator. [Referência OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
 
-**Estado atual da interface:** o código de recuperação é digitado manualmente; a tela não lê um token recebido pela URL. A mensagem do mock é ilustrativa e a redefinição não altera a senha dos perfis demonstrativos.
+**Estado atual da interface:** a redefinição aceita código manual ou link `/redefinir-senha#token=...`. O frontend lê somente o fragmento, rejeita valores vazios/ambíguos ou fora do formato base64url e não lê token da query. O código fica protegido no campo; a validade e o uso único continuam sendo responsabilidade da API. “Usar outro código” limpa o código e as senhas. A confirmação da solicitação usa mensagem pública genérica após validar o formato da resposta. A redefinição demonstrativa não altera a senha dos perfis de teste.
+
+**Preparação de sessão já corrigida no frontend:** recuperação e redefinição chamam `obtainCsrf()` antes de cada POST, inclusive após uma restauração anônima que limpou as credenciais. Falha nessa preparação impede a escrita; sair da tela ou trocar o contexto de sessão invalida a tentativa pendente. Na redefinição, uma repetição da mesma tentativa preserva a chave de idempotência; mudar código/senha inicia outra tentativa. Os endpoints de navegador continuam pendentes no backend: implementar e homologar essas proteções sem remover CSRF para contornar incompatibilidades.
 
 MFA de login já tem interface de código de seis números e `MfaChallengeDto`. A demonstração o exige para `ADMIN`. Configuração do autenticador, proteção dos segredos, recuperação e códigos de contingência ainda precisam de contratos e telas próprios. MFA para outros perfis sensíveis deve ser fechado na política de acesso, sem inventar um domínio clínico pronto.
+
+No adaptador backend atual, `MFA_REQUIRED` é um **erro 403**, sem `challengeId`, e não o sucesso `200 MfaChallengeDto` consumido pela tela de verificação. Ao implementar o desafio verificável, entregar essa mudança explicitamente e testar os dois casos: fator já configurado e primeiro enrolamento pendente. Ter o campo `MfaEnabled` não significa que a política obriga todo ADMIN a configurar MFA.
 
 **Primeiro enrolamento MFA — proposta necessária:** uma conta administrativa nova ainda não possui autenticador. Depois de validar a credencial/ativação, conceder um ticket de curta duração, específico para configurar e verificar o primeiro fator adicional. Esse ticket não é uma sessão administrativa e não autoriza recursos de negócio ou `/me` como identidade plenamente autenticada. Somente após verificar o fator cadastrado e a concessão vigente permitir concluir a autenticação. O contrato atual de login suporta apenas sessão ou desafio de um fator já configurado; portanto, esse novo estado e a tela de configuração precisam ser alinhados com o frontend. Não retornar `MFA_REQUIRED` com um código impossível de obter e considerar o enrolamento resolvido.
 
@@ -127,7 +187,7 @@ Troca autenticada de senha, confirmação da senha atual e revogação de outras
 
 ## 7. Login, sessão e navegação já consumidos pelo frontend
 
-O fluxo atual é:
+O protocolo consumido é o seguinte; desafio/verificação MFA ainda só funcionam na demonstração, enquanto a ponte backend já implementa os demais endpoints de sessão:
 
 1. Obter CSRF em `GET /auth/csrf`.
 2. Enviar `POST /auth/login {email,password}`.
@@ -140,9 +200,13 @@ Na restauração de sessão: obter CSRF → `POST /auth/refresh` → `GET /me`. 
 
 O cliente envia bearer e cookies nas rotas internas, `X-CSRF-Token` nas escritas quando obtido, `If-Match` nas alterações versionadas e `Idempotency-Key` em comandos. Em `401 TOKEN_EXPIRED`, compartilha uma renovação e repete a requisição elegível no máximo uma vez. `403` não dispara refresh.
 
-A API deve implementar a sessão real, expiração, rotação, revogação, proteção de origem e cookies. A especificação propõe refresh em cookie `HttpOnly`, `Secure`, com `SameSite` e escopo restrito; o refresh token não aparece no JSON. Validar a configuração conforme as origens de frontend/API e testar cookies em homologação. Tratar concorrência de múltiplas abas, não apenas dentro de uma aba. [Referência OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+A ponte já adapta login, refresh e logout para os serviços existentes, com cookie HttpOnly e CSRF. Preservar essa implementação e homologar a persistência, expiração, rotação, revogação e proteção de origem com banco/infraestrutura reais. O refresh token não aparece no JSON de navegador; as rotas nativas antigas têm contrato próprio, que também precisa de revisão quando compartilharem as mesmas contas. Validar cookies conforme a implantação e tratar concorrência de múltiplas abas, não apenas dentro de uma aba. [Referência OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+
+O CSRF atual é vinculado ao par protegido cookie/token, com identidade anônima temporária durante emissão/validação. Isso permite renovar após o bearer expirar e usar o token obtido antes do login. Não alterar essa estratégia sem testar restauração, login, expiração e logout com o cliente existente.
 
 `POST /auth/logout` deve ser idempotente e revogar a sessão no servidor. A interface limpa o estado local imediatamente; se houver falha de rede, informa que a revogação remota não foi confirmada. Não confundir limpeza do navegador com revogação do backend.
+
+Comprovar também a invalidação da autoridade de um access token já emitido depois de desativação/redução de acesso. Revogar somente o refresh não prova que um JWT ainda válido deixou de autorizar comandos. Definir e testar a estratégia de sessão/concessão vigente adotada pelo backend; não usar o prazo do token ou a limpeza de cache da interface como substituto dessa regra.
 
 ## 8. Perfis, permissões, escopo e responsabilidade técnica
 
@@ -159,6 +223,10 @@ Catálogo demonstrativo atual; a matriz de produção deve ser homologada:
 | `WORKER` | Acesso limitado, com restrição aos dados próprios e vínculo verificado pelo servidor quando aplicável. |
 
 “Engenheiro” e “Gestor SESMT” são entradas da mesma conta no login de demonstração; isso não exige contas compartilhadas na produção.
+
+O catálogo nativo recebido usa códigos como `GESTOR`, `TECNICO`, `MEDICO`, `RH`, `LIDER` e `TRABALHADOR`, além dos códigos específicos de operação/configuração de PT. Existe diferença em relação a `SESMT_MANAGER`, `TECHNICIAN`, `FIREFIGHTER`, `HR` e `WORKER`. Entregar uma matriz `perfil nativo → capacidades efetivas → apresentação/contrato no frontend`. Não traduzir apenas pelo nome: bombeiro, médico, líder, designação e autoridade de revisão não são equivalentes automáticos.
+
+O `/me` atual não projeta toda a autoridade organizacional: a atribuição global do seed não resulta automaticamente em `companyIds`/`unitIds` preenchidos, e o modelo nativo de escopo não representa todos os campos e prazos do `ScopeDto`. Resolver essa projeção e, quando necessário, evoluir a persistência. Lista vazia não deve virar curinga de acesso no cliente. Revalidar o contexto por requisição e a identidade atual quando uma concessão for alterada.
 
 O frontend usa `permissions` de `/me`, não apenas o nome do papel. A API deve conferir permissão, escopo, vínculo e estado em cada requisição, inclusive busca, totais, opções de seleção, exportação e download. Aplicar negação por padrão e menor privilégio. [Referência OWASP Authorization](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
 
@@ -222,7 +290,7 @@ type MeDto = {
 };
 ```
 
-| Método e rota atuais | Entrada / retorno consumidos |
+| Contrato consumido pelo frontend | Entrada / retorno esperados; a existência no servidor varia conforme a seção 0 |
 | --- | --- |
 | `GET /roles` | `RoleDto[]`: `code`, `label`, `permissions`. |
 | `GET /users` | `unitId`, `page`, `pageSize`, `q`; retorna `PageDto<UserDto>`. A UI usa 20 por página. |
@@ -255,6 +323,8 @@ Nome/e-mail ficam somente leitura na edição atual de usuários. Alteração de
 Não substituir contratos existentes unilateralmente. Se o backend já usa outro desenho, entregar o mapeamento, as diferenças de segurança/semântica e os ajustes necessários no frontend.
 
 Os três contratos consumidos acima permanecem propostos até homologação. Reenvio, revogação administrativa, troca autenticada de senha, política consultável e enrolamento/recuperação MFA ainda não possuem interface concluída. A simulação usa senha de 15–128 caracteres para contas novas, não altera os sete perfis de demonstração e não define a política de produção. Um recibo `WORKER_LINK_REQUIRED` comunica a pendência; não inventa uma associação com outro trabalhador.
+
+No resumo real, `SIMULATED` é exclusivo da demonstração e não é um resultado de entrega de produção. Não retornar `demoActivationPath`, token de ativação ou senha para a administração. Documentar os códigos de erro de convite inválido, expirado, usado, revogado/substituído, política de senha, conflito de revisão e limite de tentativas, com os respectivos status HTTP e exemplos no formato `ErrorDto`.
 
 ## 10. Trabalhador, equipe e convite público são fluxos distintos
 
@@ -366,7 +436,7 @@ Homologar códigos de autenticação, acesso, convite, validação, conflito, id
 
 ## 15. Modelagem e infraestrutura a entregar no backend
 
-Sem impor um framework ou banco não informado, apresentar entidades, relações e migrações para:
+Evoluir a stack já recebida (.NET 10, EF Core e PostgreSQL), apresentando entidades, relações e migrations incrementais para as lacunas encontradas. Não recriar uma `InitialCreate`, apagar banco ou trocar o framework como atalho de integração. Aproveitar as entidades e serviços existentes e registrar mudanças incompatíveis:
 
 - Usuários/identidades, credenciais, perfis, permissões, concessões e vínculos com trabalhadores.
 - Convites de conta, tentativas/entrega, tokens de ativação/recuperação, MFA e sessões revogáveis.
@@ -394,15 +464,16 @@ Listar explicitamente os trabalhos de interface/integração necessários, recon
 5. Troca autenticada de senha, se incluída na entrega.
 6. Eventual acesso limitado de troca obrigatória, somente se senha temporária for escolhida.
 7. Homologar os estados e ações: o formulário atual já impede ativar manualmente um `INVITED` como substituto do aceite; o servidor precisa impor essa regra.
-8. Leitura de token por link no fluxo de recuperação, caso o canal escolhido dependa disso; hoje o código é manual.
+8. Homologação dos links de recuperação: o frontend já lê `/redefinir-senha#token=...`, com base64url sem padding, e permite código manual. Se o provedor exigir outro formato/canal, entregar a diferença antes de trocar o link de e-mail; não enviar tokens pela query como adaptação silenciosa.
 
 Não anunciar esses fluxos como concluídos só porque o backend criou os endpoints. Não alterar unilateralmente o repositório do frontend; entregar os contratos e combinar a integração.
 
 ## 17. Ordem de implementação sugerida
 
-Adaptar ao que já existe no backend, conservando dependências:
+Aplicar em entregas pequenas, com uma jornada verificável por etapa. A seção 0 detalha a primeira fatia; a sequência de produto é:
 
-1. Identidade, sessão, bootstrap do administrador inicial, concessões e ciclo real de convite/ativação/recuperação/MFA.
+0. Ambiente PostgreSQL, migrations existentes, smoke da ponte de sessão e matriz de compatibilidade dos contratos atuais.
+1. Concessões e projeção de escopo/capacidades, bootstrap, administração compatível e ciclo persistente de convite/ativação. Adaptar recuperação e implementar MFA com as dependências de interface documentadas. Preservar a sessão já construída e habilitar capacidades somente junto dos endpoints homologados.
 2. Organização, trabalhadores, vínculos e equipes; acesso e seletores dentro do escopo.
 3. Documentos e arquivos, integração administrativa, matriz e elegibilidade.
 4. Agenda, convite operacional, confirmação interna e designações.
@@ -415,15 +486,20 @@ Adaptar ao que já existe no backend, conservando dependências:
 
 Testar API/banco/serviços, inclusive sem passar pela interface:
 
+- A jornada da seção 0 funciona em PostgreSQL com reinício do processo: usuários, convites, credenciais, sessões e auditoria permanecem consistentes. O smoke passa pelo proxy Vite e API real, sem MSW nem substituição dos repositórios.
+- Listagem/DTOs de administração e seletores respeitam o contrato real consumido, com autoridade e contagens corretas; o frontend não precisa remover guardas para abrir uma tela.
+- `/me` devolve somente capacidades homologadas e escopos autorizados, inclusive depois de redução de acesso. Quando nenhuma área foi habilitada, `/app/conexao` continua sendo um estado esperado, não motivo para inventar permissões.
 - Implantação repetida/concorrente cria apenas o administrador inicial previsto, sem redefinir acesso existente.
 - Administrador inicial ativa a conta, configura e verifica o primeiro MFA com autoridade limitada e cadastra outra conta administradora após concluir a autenticação.
 - Nenhuma conta recebe acesso pleno antes das etapas obrigatórias; `INVITED` não autentica como usuário ativo.
+- O bloqueio também vale pelas rotas nativas de login, recuperação, edição de usuário e demais comandos, impedindo contornar a ativação ou a autoridade da fachada de navegador.
 - Cadastrar trabalhador/equipe não cria usuário e convite público de equipe não cria sessão interna.
 - Convite de conta não permite alterar perfis/escopo; expirado/revogado/substituído/usado não ativa conta.
 - Duas tentativas simultâneas de aceite não reutilizam um token. Reenvio não deixa o token anterior válido.
 - Falha de e-mail não é apresentada como entrega confirmada e pode ser recuperada sem duplicar usuários.
 - Recuperação não revela existência de conta, não ativa convidado e não reativa desabilitado.
 - Desativação/redução/expiração de concessão impedem acesso e revogam/inutilizam as sessões afetadas, inclusive em outras abas.
+- Token expirado permite apenas a renovação válida pelo cookie/CSRF; token inválido, cookie revogado, CSRF ausente/forjado e reuso de refresh têm resultados definidos. Requisições concorrentes e recibos idempotentes não ampliam autoridade.
 - Alterações concorrentes não deixam o ambiente sem administrador habilitado.
 - Usuário não concede perfil, empresa, unidade, equipe ou dados próprios além da autoridade de delegação.
 - Administrador sem permissão/designação técnica não opera/revisa PT e não acessa dados médicos.
@@ -440,12 +516,15 @@ Os testes existentes do frontend/MSW não substituem esses testes de integraçã
 
 ## 19. Fontes do frontend e divergências conhecidas
 
-Se tiver acesso ao repositório do frontend, consultar:
+No checkout completo desta branch, consultar:
 
 - `README.md` e `.env.example`: execução, fronteira da demonstração e integração.
+- `INTEGRACAO.md`, `scripts/integration*.mjs`, `compose.integration.yml` e `.config/dotnet-tools.json`: execução conjunta e verificação do ambiente. Não copiar `.env.integration.local` ou `appsettings.Development.json` com credenciais para o prompt, logs ou entregáveis.
 - `src/shared/contracts/`: DTOs e estados dos domínios.
 - `src/shared/api/client.ts` e `src/shared/auth/SessionProvider.tsx`: protocolo consumido de HTTP/sessão.
 - `src/features/auth/AuthPages.tsx`: login, desafio MFA e recuperação atuais.
+- `src/features/auth/password-recovery.ts` e seus testes: formato do fragmento de recuperação, limites sintáticos do código e confirmação pública genérica.
+- `src/features/auth/AccountActivationPage.tsx`, `account-invitations.ts` e `src/features/administration/AccountInvitationPanel.tsx`: consumo dos contratos de primeiro acesso, validações de retorno e limitação por feature flag.
 - `src/features/administration/UsersPage.tsx` e `schemas.ts`: convites e concessões.
 - `src/features/teams/TeamInvitePage.tsx`: fluxo público sem login.
 - `src/features/agenda/AppointmentDetailPage.tsx`: comandos e payload atual de confirmação.
@@ -453,10 +532,25 @@ Se tiver acesso ao repositório do frontend, consultar:
 - `docs/segunda-entrega/03-integracao-e-seguranca.md`: especificação proposta de integração e segurança.
 - `docs/escopo/Escopo_Produto_SESMT_PT_Digital.md`: fluxo de produto e decisões técnicas/normativas ainda não homologadas.
 
+Fontes do backend recebido, relativas a `SESMT-backend/`:
+
+- `SESMT.API/Controllers/BrowserSessionController.cs`, `Contracts/Browser/BrowserSessionContracts.cs` e `Services/BrowserIdentityReader.cs`: ponte atual de sessão/identidade e seus limites.
+- `SESMT.API/Program.cs` e `Middleware/ExceptionHandlingMiddleware.cs`: registro, autenticação, CSRF, erros e bloqueio 501 dos recursos pendentes.
+- `SESMT.API/Controllers/AuthController.cs`, `UsersController.cs` e `Contracts/Users/UserRequests.cs`: contratos nativos e diferenças da administração.
+- `SESMT.Application/Modules/IdentityAccess/Services/`: login, refresh, logout e recuperação já existentes.
+- `SESMT.Domain/Modules/IdentityAccess/Entities/` e `SESMT.Infrastructure/Persistence/Seeding/DataBaseSeeder.cs`: identidade, concessões e bootstrap atuais.
+- `SESMT.Infrastructure/Identity/PasswordHashService.cs` e `Persistence/Migrations/`: hashing e evolução do schema existentes.
+- `SESMT.Tests/Integration/API/BrowserSessionHttpTests.cs`: testes HTTP do contrato de navegador com serviços substituídos. Não tratá-los como evidência de SMTP ou PostgreSQL real.
+
 Alguns arquivos em `docs/` são referências locais excluídas pelo `.gitignore`; se não estiverem no checkout recebido, solicitar somente os trechos necessários. Os contratos e fontes da aplicação devem acompanhar a integração.
 
 Divergências já identificadas:
 
+- As rotas de sessão do navegador já estão em `/api/v1`; a API nativa usa rotas próprias. Reescrever somente a URL no proxy não compatibiliza DTOs, autorização, cookies, paginação ou estados.
+- O `UserResponse` nativo não é `UserDto`, e a lista nativa não é `PageDto<UserDto>`. Campos `active` e senha aleatória inacessível não representam o ciclo de convite persistente.
+- Os perfis nativos e o catálogo demonstrativo têm códigos/autoridades diferentes; o escopo global do seed, equipes e vigências ainda precisam de mapeamento explícito para `/me`.
+- Recuperação nativa usa `/auth/forgot-password` e `/auth/reset-password`, enquanto o navegador consome `/api/v1/auth/password/forgot` e `/reset`. MFA nativo pendente retorna erro 403 e não um `MfaChallengeDto` verificável.
+- PT nativa utiliza estados como `EM_VERIFICACAO`, `LIBERADA` e `EM_EXECUCAO`, participantes por usuário e seu próprio controle de versão. O frontend utiliza os contratos de operação/revisão, participantes por trabalhador e revisões descritos neste documento. Entregar a matriz de transições/IDs, preservando a revisão final e a elegibilidade; não fazer tradução mecânica de enums.
 - Textos antigos de `Integracao_PT.md` descrevem listas como arrays, mas as consultas explicitamente paginadas de PT/AT/PET atuais retornam `PageDto`.
 - A confirmação atual de atendimento envia `confirmedStartsAt`, `confirmedEndsAt`, `note` e, quando necessário, `responsibleId`; não presumir payload vazio de documentação antiga.
 - O link público de equipe já existe no frontend, embora `README-local.md` antigo o trate como incremento futuro.
@@ -481,3 +575,18 @@ Ao concluir cada etapa, devolver:
 As decisões que ainda exigem definição incluem provedor de identidade/e-mail, modelo de instalação/isolamento, política final de senhas/sessões/MFA, responsáveis clínicos/técnicos, retenção e emissão/custódia de documentos. Sugerir opções e uma recomendação concreta, sem chamar uma hipótese de decisão aprovada.
 
 O resultado esperado é um backend que acompanha o fluxo do produto: contas criadas por quem tem autoridade, primeiro acesso seguro, permissões e escopo conferidos no servidor, histórico preservado e operações de SST separadas da administração de usuários.
+
+## 21. Como começar o trabalho e reportar cada entrega
+
+Comece com um diagnóstico curto do checkout recebido: o que já é compatível, as diferenças de contrato, as dependências externas e a primeira jornada que será concluída. Em seguida, execute o trabalho independente de decisões pendentes. Não ficar apenas no inventário nem aguardar uma definição de todos os módulos para fechar a primeira fatia.
+
+Para cada entrega, apresente:
+
+1. **Jornada entregue:** o que a pessoa consegue fazer agora, do início ao resultado persistido.
+2. **Contrato:** métodos/rotas, DTOs, exemplos de sucesso/erro, capacidades exigidas e regras de escopo/revisão/idempotência.
+3. **Persistência:** migrations incrementais, dados de configuração e efeitos de reinício/concorrência.
+4. **Validação executada:** comandos e resultados, identificando uso de mocks/doubles e o que realmente passou por PostgreSQL/e-mail/armazenamento.
+5. **Impacto no frontend:** arquivo/consumidor afetado, compatibilidade preservada, eventual interface nova e feature flag que poderá ser habilitada somente após homologação.
+6. **Pendências reais:** decisão necessária, recomendação concreta, consequência e próxima etapa. Não confundir uma proposta técnica com aprovação da PO ou de um responsável de SST.
+
+Não publicar credenciais, tokens, dados pessoais reais ou configurações privadas como exemplos. Não fazer deploy, push ou alteração destrutiva de dados como efeito implícito deste handoff; seguir a autorização e o ambiente de trabalho da equipe que receber o prompt.

@@ -1,16 +1,17 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, Flame, HardHat, HeartPulse, KeyRound, LoaderCircle, LockKeyhole, Mail, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { API_MODE, api } from '../../shared/api/client';
+import { API_MODE, api, obtainCsrf } from '../../shared/api/client';
 import { Feedback, Field, Spinner } from '../../shared/ui';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { LoginPreloader, useLoginArrival, type LoginArrivalPhase } from './LoginArrival';
 import styles from './AuthPages.module.css';
+import { checkedRecoveryMessage, passwordResetTokenFromHash, validPasswordResetToken } from './password-recovery';
 
 const inputClass = styles.input;
 const formClass = styles.form;
@@ -208,26 +209,80 @@ export function LoginPage() {
   </AuthCard></AuthLayout>;
 }
 
+function RecoverySteps({ current }: { current: number }) {
+  return <ol className={styles.recoverySteps} aria-label="Etapas da recuperação de acesso">{['E-mail', 'Nova senha', 'Entrar'].map((label, index) => <li key={label} aria-current={current === index ? 'step' : undefined} data-complete={index < current}><span aria-hidden="true">{index < current ? <Check size={12} /> : index + 1}</span>{label}</li>)}</ol>;
+}
+
+/** Cancel a write if this screen or its access context changes while CSRF is loading. */
+function useRecoveryCommand() {
+  const session = useSession(), location = useLocation();
+  const context = `${session.sessionKey}:${location.key}:${location.hash}`;
+  const contextRef = useRef(context); contextRef.current = context;
+  const mounted = useRef(true);
+  type Operation = { context: string; controller: AbortController; running: boolean };
+  const operation = useRef<Operation | null>(null);
+  const [busyContext, setBusyContext] = useState<string | null>(null);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; operation.current?.controller.abort(); }; }, []);
+  useEffect(() => () => { if (operation.current?.context === context) operation.current.controller.abort(); }, [context]);
+  const current = (value: Operation) => mounted.current && operation.current === value && contextRef.current === value.context && !value.controller.signal.aborted;
+  async function post<T>(path: string, body: unknown, idempotencyKey?: string): Promise<T> {
+    operation.current?.controller.abort();
+    const value: Operation = { context, controller: new AbortController(), running: true };
+    operation.current = value; setBusyContext(context);
+    try {
+      await obtainCsrf();
+      if (!current(value)) throw new DOMException('Contexto de recuperação alterado.', 'AbortError');
+      const result = await api.post<T>(path, body, { signal: value.controller.signal, ...(idempotencyKey ? { idempotencyKey } : {}) });
+      if (!current(value)) throw new DOMException('Contexto de recuperação alterado.', 'AbortError');
+      return result;
+    } catch (error) {
+      if (!current(value)) throw new DOMException('Contexto de recuperação alterado.', 'AbortError');
+      throw error;
+    } finally {
+      value.running = false;
+      if (current(value)) setBusyContext(null);
+    }
+  }
+  return { post, busy: busyContext === context, pending: () => !!operation.current && operation.current.running && current(operation.current) };
+}
+const recoveryCanceled = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
+
 export function RecoveryPage() {
-  const restoring = useSession().status === 'restoring';
+  const session = useSession();
+  const restoring = session.status === 'restoring';
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const pending = useRef(false);
-  const form = useForm<{ email: string }>();
-  return <AuthLayout><AuthCard title="Recuperar acesso" eyebrow="VAMOS AJUDAR VOCÊ" icon={Mail} description="Informe o e-mail associado à sua conta para solicitar as instruções de recuperação.">
-    {message && <Feedback tone="success">{message}</Feedback>}
+  const [address, setAddress] = useState('');
+  const command = useRecoveryCommand();
+  const { busy } = command;
+  const editRequested = useRef(false), successAction = useRef<HTMLAnchorElement>(null);
+  const form = useForm<{ email: string }>({ defaultValues: { email: '' } });
+  useEffect(() => {
+    if (message) successAction.current?.focus({ preventScroll: true });
+    else if (editRequested.current) { editRequested.current = false; form.setFocus('email'); }
+  }, [message, form.setFocus]);
+  if (session.me) return <Navigate to="/app" replace />;
+  return <AuthLayout><AuthCard title={message ? 'Confira seu e-mail' : 'Recuperar acesso'} eyebrow={message ? 'PRÓXIMO PASSO' : 'VAMOS AJUDAR VOCÊ'} icon={Mail} description={message ? 'Acompanhe sua caixa de entrada e a pasta de spam para continuar.' : 'Informe o e-mail associado à sua conta para solicitar as instruções de recuperação.'}>
+    <RecoverySteps current={message ? 1 : 0} />
     {error && <Feedback tone="danger">{error}</Feedback>}
-    <form className={formClass} onSubmit={form.handleSubmit(async v => {
-      if (pending.current || restoring) return;
-      pending.current = true;
-      setBusy(true); setError(''); setMessage('');
-      try { const result = await api.post<{ message: string }>('/auth/password/forgot', v); setMessage(result.message); }
-      catch (e) { setError(e instanceof Error ? e.message : 'Falha no envio.'); }
-      finally { pending.current = false; setBusy(false); }
+    <form className={formClass} noValidate aria-busy={busy} onSubmit={form.handleSubmit(async v => {
+      if (command.pending() || restoring) return;
+      setError(''); setMessage('');
+      const email = v.email.trim();
+      try {
+        const result = await command.post<unknown>('/auth/password/forgot', { email });
+        setAddress(email); setMessage(checkedRecoveryMessage(result));
+      } catch (e) { if (!recoveryCanceled(e)) setError(e instanceof Error ? e.message : 'Não foi possível solicitar a recuperação. Tente novamente.'); }
     })}>
-      <Field required label="E-mail" error={form.formState.errors.email?.message}><input className={inputClass} type="email" autoComplete="email" placeholder="seu.nome@empresa.com" readOnly={busy} {...form.register('email', { required: 'Informe seu e-mail.' })} /></Field>
-      <AuthButton type="submit" disabled={busy || restoring} busy={busy || restoring}>{restoring ? 'Preparando acesso…' : busy ? 'Enviando…' : <>Solicitar recuperação<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      {message ? <div className={`${styles.successState} ${styles.step}`}>
+        <span className={styles.successMark} aria-hidden="true"><Mail size={26} /></span>
+        <Feedback tone="success">{message}</Feedback>
+        <div className={styles.recoveryAddress}><span>Endereço informado</span><strong>{address}</strong></div>
+        <p className={styles.recoveryHint}>Se não receber as instruções, confira o endereço ou solicite novamente.</p>
+        <Link ref={successAction} className={`${styles.button} ${styles.primary}`} to="/redefinir-senha">Já tenho o código<ArrowRight size={17} aria-hidden="true" /></Link>
+      </div> : <Field required label="E-mail" error={form.formState.errors.email?.message}><input className={inputClass} type="email" autoComplete="email" maxLength={254} placeholder="seu.nome@empresa.com" readOnly={busy} {...form.register('email', { required: 'Informe seu e-mail.', validate: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) || 'Informe um e-mail válido.' })} /></Field>}
+      <AuthButton type="submit" variant={message ? 'ghost' : 'primary'} disabled={busy || restoring} busy={busy || restoring}>{restoring ? 'Preparando acesso…' : busy ? 'Enviando…' : <>Solicitar recuperação<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      {message && <AuthButton variant="ghost" onClick={() => { editRequested.current = true; setMessage(''); setError(''); }}>Usar outro e-mail</AuthButton>}
       <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>
     {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: nenhuma mensagem é enviada. <Link to="/redefinir-senha">Experimentar redefinição</Link>.</p>}
@@ -235,32 +290,49 @@ export function RecoveryPage() {
 }
 
 export function ResetPasswordPage() {
-  const restoring = useSession().status === 'restoring';
-  const [error, setError] = useState('');
+  const location = useLocation();
+  return <ResetPasswordContent key={`${location.key}:${location.hash}`} />;
+}
+
+function ResetPasswordContent() {
+  const session = useSession(), location = useLocation();
+  const restoring = session.status === 'restoring';
+  const initial = passwordResetTokenFromHash(location.hash);
+  const [fromLink, setFromLink] = useState(!!initial.token);
+  const [error, setError] = useState(initial.invalid ? 'O código no link está incompleto ou inválido. Informe outro código ou solicite uma nova recuperação.' : '');
   const [done, setDone] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const pending = useRef(false);
+  const [focusCode, setFocusCode] = useState(0);
+  const command = useRecoveryCommand();
+  const { busy } = command;
   const successAction = useRef<HTMLAnchorElement>(null);
-  const form = useForm<{ token: string; password: string; confirm: string }>({ defaultValues: { token: API_MODE === 'demo' ? 'demo-reset' : '', password: '', confirm: '' } });
+  const codeHintId = useId();
+  const attempted = useRef<{ token: string; password: string; key: string } | null>(null);
+  const form = useForm<{ token: string; password: string; confirm: string }>({ defaultValues: { token: initial.token || (!initial.invalid && API_MODE === 'demo' ? 'demo-reset' : ''), password: '', confirm: '' } });
+  const tokenProps = form.register('token', { required: 'Informe o código recebido.', validate: value => validPasswordResetToken(value) || 'Confira o código recebido ou solicite uma nova recuperação.' });
   useEffect(() => { if (done) successAction.current?.focus({ preventScroll: true }); }, [done]);
+  useEffect(() => { if (focusCode) form.setFocus('token'); }, [focusCode, form.setFocus]);
+  if (session.me) return <Navigate to="/app" replace />;
   return <AuthLayout><AuthCard title={done ? 'Tudo pronto.' : 'Definir nova senha'} eyebrow={done ? 'ACESSO RECUPERADO' : 'UM NOVO COMEÇO'} icon={done ? ShieldCheck : KeyRound} description={done ? 'Sua senha foi atualizada. Você já pode acessar sua conta.' : 'Use seu código de recuperação e escolha a nova senha de acesso.'}>
+    <RecoverySteps current={done ? 2 : 1} />
     {error && <Feedback tone="danger">{error}</Feedback>}
     {done ? <div className={`${styles.successState} ${styles.step}`}>
       <span className={styles.successMark} aria-hidden="true"><Check size={27} strokeWidth={1.8} /></span>
       <Feedback tone="success">Senha redefinida.</Feedback>
       <Link ref={successAction} className={`${styles.button} ${styles.primary}`} to="/login">Voltar ao login<ArrowRight size={17} aria-hidden="true" /></Link>
-    </div> : <form className={formClass} onSubmit={form.handleSubmit(async v => {
-      if (pending.current || restoring) return;
+    </div> : <form className={formClass} noValidate aria-busy={busy} onSubmit={form.handleSubmit(async v => {
+      if (command.pending() || restoring) return;
       if (v.password !== v.confirm) { form.setError('confirm', { message: 'As senhas devem ser iguais.' }); return; }
-      pending.current = true;
-      setBusy(true); setError('');
-      try { await api.post('/auth/password/reset', { token: v.token, newPassword: v.password }); form.reset(); setDone(true); }
-      catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível redefinir.'); }
-      finally { pending.current = false; setBusy(false); }
+      setError('');
+      if (!attempted.current || attempted.current.token !== v.token || attempted.current.password !== v.password) attempted.current = { token: v.token, password: v.password, key: crypto.randomUUID() };
+      try { await command.post('/auth/password/reset', { token: v.token, newPassword: v.password }, attempted.current.key); attempted.current = null; form.reset({ token: '', password: '', confirm: '' }); setShow(false); setShowConfirm(false); setDone(true); }
+      catch (e) { if (!recoveryCanceled(e)) setError(e instanceof Error ? e.message : 'Não foi possível redefinir a senha. Tente novamente.'); }
     })}>
-      <Field required label="Código de recuperação" error={form.formState.errors.token?.message}><input className={inputClass} autoComplete="off" readOnly={busy} {...form.register('token', { required: 'Informe o código recebido.' })} /></Field>
+      {fromLink && <div className={styles.recoveryLinkReady}><ShieldCheck size={17} aria-hidden="true" /><div><strong>Código do link preparado</strong><span>Defina sua nova senha para continuar. A validade será conferida ao enviar.</span></div></div>}
+      <Field required label="Código de recuperação" error={form.formState.errors.token?.message}><input className={inputClass} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={512} aria-describedby={codeHintId} readOnly={busy} {...tokenProps} onChange={event => { void tokenProps.onChange(event); setFromLink(false); setError(''); }} /></Field>
+      <p id={codeHintId} className={styles.fieldHint}>Use o código recebido. Não é a senha da sua conta.</p>
+      <AuthButton variant="ghost" disabled={busy || restoring} onClick={() => { attempted.current = null; form.reset({ token: '', password: '', confirm: '' }); setFromLink(false); setShow(false); setShowConfirm(false); setError(''); setFocusCode(value => value + 1); }}>Usar outro código</AuthButton>
       <Field required label="Nova senha" error={form.formState.errors.password?.message}><span className={styles.password}>
         <input className={`${inputClass} ${styles.passwordInput}`} type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="Digite a nova senha" readOnly={busy} {...form.register('password', { required: 'Informe uma senha.' })} />
         <PasswordVisibility shown={show} onToggle={() => setShow(!show)} label="nova senha" />
@@ -270,6 +342,7 @@ export function ResetPasswordPage() {
         <PasswordVisibility shown={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} label="confirmação da senha" />
       </span></Field>
       <AuthButton type="submit" disabled={busy || restoring} busy={busy || restoring}>{restoring ? 'Preparando acesso…' : busy ? 'Salvando…' : <>Redefinir senha<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
+      <Link className={styles.recoveryHelp} to="/recuperar-acesso">Precisa de um novo código? Solicitar recuperação</Link>
       <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>}
     {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: esta alteração é simulada e não muda a senha dos perfis de teste.</p>}

@@ -81,7 +81,7 @@ Na máquina desta implementação, o SDK .NET está disponível, mas não foi en
 | Agenda, equipes e PT | IDs, participantes, estados, revisão e rotas diferem; preservar a elegibilidade e validar cada transição no servidor |
 | ASO, AT e PET | Não habilitar telas por semelhança de nome; homologar os contratos e o tratamento dos dados sensíveis |
 | Primeiro acesso | Frontend demonstrativo recuperado; convites, entrega, aceite persistente e MFA ainda dependem do backend |
-| Recuperação de senha | Backend nativo existente; o contrato de navegador e o envio de e-mail ainda não foram adaptados |
+| Recuperação de senha | Frontend já renova CSRF, confirma a solicitação sem revelar existência de conta e aceita código manual ou `#token`. Backend nativo existente; contrato de navegador e entrega de e-mail ainda dependem de adaptação/homologação |
 | Escopo | `/me` apresenta referências diretas; expansão de empresa em unidades e equipes ainda precisa de contrato explícito |
 
 Endpoints de navegador ainda ausentes retornam erro JSON `INTEGRATION_PENDING` com status 501. As permissões devem ser habilitadas junto da implementação, autorização e validação de cada contrato. O upload isolado continua sem poder liberar um trabalhador.

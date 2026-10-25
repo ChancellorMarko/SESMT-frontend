@@ -19,6 +19,8 @@ Abra http://127.0.0.1:5173 e escolha um perfil de demonstração no login. As co
 
 Para explorar o primeiro acesso de uma conta nova, entre como Administrador, abra **Usuários e acesso**, convide uma pessoa e use **Consultar convite → Explorar primeiro acesso**. A tela pede para sair da conta atual antes de conferir o convite e definir a senha. O aceite é simulado em memória e não envia e-mail. Uma conta nova sem pendências pode entrar com a senha definida até recarregar a página; os sete perfis de teste continuam usando a senha acima. Novos administradores aguardam configuração de MFA, e contas novas limitadas aos dados próprios aguardam associação ao trabalhador antes de acessar o sistema.
 
+Em **Esqueci minha senha**, a solicitação confirma o próximo passo sem revelar se existe uma conta para o e-mail. É possível conferir o endereço, solicitar novamente ou seguir para o código. A redefinição aceita preenchimento manual ou `/redefinir-senha#token=...`; o token fica protegido no campo e pode ser substituído sem reaproveitar as senhas. As duas operações renovam CSRF antes do envio, preservam o preenchimento em falhas e cancelam a tentativa ao sair ou mudar o contexto de acesso. Na demonstração, use `demo-reset`; a alteração é simulada e não muda as senhas dos perfis. Os endpoints correspondentes no modo API ainda dependem de adaptação e homologação no backend.
+
 ## Funcionalidades
 
 - Painéis de agenda, indicadores documentais, vencimentos e pendências.
