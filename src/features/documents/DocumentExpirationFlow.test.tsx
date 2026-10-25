@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,6 +67,7 @@ async function openEditor(version: boolean) {
 
 describe('retorno aos vencimentos documentais', () => {
   it.each([false, true])('preserva consulta ao descartar e salvar, renovando somente o cache do contexto (versão=%s)', async version => {
+    const user = userEvent.setup();
     const client = await show({ ...origin, secret: 'não propagar', expirationReturnTo: { ...origin.expirationReturnTo, pathname: '/app/vencimentos', ignored: true } });
     const otherSession = ['documents', 'expirations', 'other-session', unitId, 2];
     const otherUnit = ['documents', 'expirations', sessionKey, 'other-unit', 2];
@@ -87,7 +89,8 @@ describe('retorno aos vencimentos documentais', () => {
     expect(client.getQueryState(queryKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(otherSession)?.isInvalidated).toBe(false);
     expect(client.getQueryState(otherUnit)?.isInvalidated).toBe(false);
-    fireEvent.click(screen.getByRole('link', { name: 'Voltar aos vencimentos' }));
+    await screen.findByRole('heading', { name: current.title });
+    await user.click(screen.getByRole('link', { name: 'Voltar aos vencimentos' }));
     await screen.findByRole('heading', { name: 'Resultado dos vencimentos' });
     expect(await screen.findByText(current.title)).toBeVisible();
     expect(screen.getByLabelText('Filtros restaurados')).toHaveTextContent(search);

@@ -2,7 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { loginDemo, openModule } from './helpers';
 
 type Appearance = { opacity: number; transform: string; translate: string; scale: string; filter: string };
-type Capture = { frames: Appearance[]; done: boolean };
+type CapturedAppearance = Appearance & { x: number; y: number; width: number; height: number; layoutHeight: number; hasControls: boolean };
+type Capture = { frames: CapturedAppearance[]; done: boolean };
 
 function observeErrors(page: Page) {
   const errors: string[] = [];
@@ -39,7 +40,10 @@ async function captureNext(page: Page, selector: string, path?: string, heading?
       if (!element) { capture.done = true; return; }
       if (!samplingSince) samplingSince = performance.now();
       const style = getComputedStyle(element);
-      capture.frames.push({ opacity: Number(style.opacity), transform: style.transform, translate: style.translate, scale: style.scale, filter: style.filter });
+      const bounds = element.getBoundingClientRect(), mainBounds = element.closest('main#conteudo')?.getBoundingClientRect();
+      capture.frames.push({ opacity: Number(style.opacity), transform: style.transform, translate: style.translate, scale: style.scale, filter: style.filter,
+        x: bounds.x - (mainBounds?.x || 0), y: bounds.y - (mainBounds?.y || 0), width: bounds.width, height: bounds.height, layoutHeight: element.offsetHeight,
+        hasControls: element.matches('a[href],button,input,select,textarea,summary,[role="button"],[role="link"]') || Boolean(element.querySelector('a[href],button,input,select,textarea,summary,[role="button"],[role="link"]')) });
       if (performance.now() - samplingSince < 1_600) requestAnimationFrame(sample);
       else capture.done = true;
     };
@@ -118,7 +122,16 @@ test('troca de módulo anima o conteúdo sem recriar a área principal', async (
   await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click();
   const panels = await capturedFrames(page);
   expect(Math.min(...panels.map(frame => frame.opacity))).toBeLessThan(.95);
-  expect(new Set(panels.map(movement)).size).toBeGreaterThan(1);
+  expect(panels.some(frame => frame.opacity > .15 && frame.opacity < .95)).toBe(true);
+  expect(panels.every(frame => frame.hasControls)).toBe(true);
+  expect(new Set(panels.map(movement)).size).toBe(1);
+  // The form fades without shifting controls; the main route may still move as a whole.
+  for (const dimension of ['x', 'y', 'width'] as const) {
+    const values = panels.map(frame => frame[dimension]);
+    expect(Math.max(...values) - Math.min(...values), `Interactive panel ${dimension}`).toBeLessThanOrEqual(1);
+  }
+  // Loading feedback may change intrinsic form height; its painted height must match layout.
+  expect(panels.every(frame => Math.abs(frame.height - frame.layoutHeight) <= 1)).toBe(true);
   expect(panels.at(-1)!.opacity).toBeGreaterThan(.99);
   await expect(page.getByLabel('Nome completo *', { exact: true })).toBeEditable();
   await expectNoOverflow(page);

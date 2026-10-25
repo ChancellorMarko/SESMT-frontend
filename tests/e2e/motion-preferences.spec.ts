@@ -4,7 +4,8 @@ import { loginDemo, openModule } from './helpers';
 test.setTimeout(30_000);
 
 type Appearance = { opacity: number; transform: string; translate: string; scale: string };
-type NavigationFrame = { main: Appearance; header: Appearance; panel: Appearance; headingFocused: boolean };
+type SurfaceAppearance = Appearance & { x: number; y: number; width: number; height: number; layoutHeight: number; hasControls: boolean };
+type NavigationFrame = { main: Appearance; header: SurfaceAppearance; panel: SurfaceAppearance; headingFocused: boolean };
 type NavigationCapture = { frames: NavigationFrame[]; done: boolean };
 
 function observeErrors(page: Page) {
@@ -46,14 +47,19 @@ async function captureWorkersNavigation(page: Page) {
       const style = getComputedStyle(element);
       return { opacity: Number(style.opacity), transform: style.transform, translate: style.translate, scale: style.scale };
     };
+    const surfaceOf = (element: HTMLElement, main: Element): SurfaceAppearance => {
+      const bounds = element.getBoundingClientRect(), parentBounds = main.getBoundingClientRect();
+      return { ...styleOf(element), x: bounds.x - parentBounds.x, y: bounds.y - parentBounds.y, width: bounds.width, height: bounds.height, layoutHeight: element.offsetHeight,
+        hasControls: Boolean(element.querySelector('a[href],button,input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="link"]')) };
+    };
     function sample() {
       const main = document.querySelector('main#conteudo');
       const heading = main?.querySelector('h1');
-      const header = main?.querySelector('.page-header');
-      const panel = main?.querySelector('.panel');
+      const header = main?.querySelector<HTMLElement>('.page-header');
+      const panel = main?.querySelector<HTMLElement>('.panel');
       if (location.pathname === '/app/trabalhadores' && heading?.textContent === 'Trabalhadores' && main && header && panel) {
         if (!started) started = performance.now();
-        capture.frames.push({ main: styleOf(main), header: styleOf(header), panel: styleOf(panel), headingFocused: document.activeElement === heading });
+        capture.frames.push({ main: styleOf(main), header: surfaceOf(header, main), panel: surfaceOf(panel, main), headingFocused: document.activeElement === heading });
       }
       if (started && performance.now() - started >= 1_600 || performance.now() >= deadline) capture.done = true;
       else requestAnimationFrame(sample);
@@ -69,10 +75,28 @@ async function navigationFrames(page: Page) {
   return result;
 }
 
-function expectVisibleEntrance(frames: Appearance[]) {
+function expectVisibleFade(frames: Appearance[]) {
   expect(Math.min(...frames.map(frame => frame.opacity))).toBeLessThan(.95);
-  expect(new Set(frames.map(position)).size).toBeGreaterThan(1);
+  expect(frames.some(frame => frame.opacity > .15 && frame.opacity < .95)).toBe(true);
   expect(frames.at(-1)!.opacity).toBeGreaterThan(.99);
+}
+
+function expectVisibleEntrance(frames: Appearance[]) {
+  expectVisibleFade(frames);
+  expect(new Set(frames.map(position)).size).toBeGreaterThan(1);
+}
+
+function expectStableInteractiveEntrance(frames: SurfaceAppearance[]) {
+  expect(frames.every(frame => frame.hasControls)).toBe(true);
+  expectVisibleFade(frames);
+  expect(new Set(frames.map(position)).size).toBe(1);
+  // Exclude the main route's entrance: controls must keep their geometry within it.
+  for (const dimension of ['x', 'y', 'width'] as const) {
+    const values = frames.map(frame => frame[dimension]);
+    expect(Math.max(...values) - Math.min(...values), `Interactive surface ${dimension}`).toBeLessThanOrEqual(1);
+  }
+  // Loading feedback may change intrinsic height; the fade must not distort its layout box.
+  expect(frames.every(frame => Math.abs(frame.height - frame.layoutHeight) <= 1)).toBe(true);
 }
 
 async function expectNoOverflow(page: Page) {
@@ -106,8 +130,8 @@ test('Completas reativa CSS, página e painéis mesmo quando o dispositivo reduz
   await openModule(page, 'Trabalhadores');
   const frames = await navigationFrames(page);
   expectVisibleEntrance(frames.map(frame => frame.main));
-  expectVisibleEntrance(frames.map(frame => frame.panel));
-  expectVisibleEntrance(frames.map(frame => frame.header));
+  expectStableInteractiveEntrance(frames.map(frame => frame.panel));
+  expectStableInteractiveEntrance(frames.map(frame => frame.header));
   expect(frames.some(frame => frame.headingFocused && frame.header.opacity < .99)).toBe(true);
   await expect(page.getByRole('heading', { name: 'Trabalhadores', exact: true })).toBeFocused();
   await expectNoOverflow(page);

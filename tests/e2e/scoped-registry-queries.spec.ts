@@ -44,11 +44,10 @@ test('pendências recusam filtros inválidos antes de consultar ou exportar e re
     expect(new URL(page.url()).searchParams.get('unitId')).toBe(unitA);
     expect(new URL(page.url()).searchParams.has('status')).toBe(false);
   }
-  // This URL must be replaced by the active unit; do not await the incoming URL.
-  await page.evaluate(target => {
-    window.history.pushState({}, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, `/app/pendencias?unitId=${unitB}&teamId=00000000-0000-4000-8000-000000000201&serviceTypeId=00000000-0000-4000-8000-000000000210&status=all`);
+  // Request the forged unit through the router and wait for its authorized replacement.
+  await navigateWithinApp(page,
+    `/app/pendencias?unitId=${unitB}&teamId=00000000-0000-4000-8000-000000000201&serviceTypeId=00000000-0000-4000-8000-000000000210&status=all`,
+    `/app/pendencias?unitId=${unitA}&status=all`);
   await expect.poll(() => new URL(page.url()).searchParams.get('unitId')).toBe(unitA);
   expect(new URL(page.url()).searchParams.has('teamId')).toBe(false);
   expect(new URL(page.url()).searchParams.has('serviceTypeId')).toBe(false);

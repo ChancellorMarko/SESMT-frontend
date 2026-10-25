@@ -23,14 +23,14 @@ export async function openModule(page: Page, name: string) {
   await expect(menu).toHaveCount(0);
 }
 
-export async function navigateWithinApp(page: Page, pathname: string) {
-  // A full reload intentionally resets the MSW demonstration. Simulate opening
-  // a route while retaining the current browser session for authorization QA.
-  await page.evaluate((target) => {
-    window.history.pushState({}, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+export async function navigateWithinApp(page: Page, pathname: string, expectedPath = pathname) {
+  // Keep the demo session and let the application router own history and blockers.
+  await page.evaluate(async (target) => {
+    const routerUrl = '/src/app/router.tsx';
+    const { getAppRouter } = await import(routerUrl);
+    await getAppRouter().navigate(target);
   }, pathname);
-  await expect(page).toHaveURL(pathname);
+  await expect(page).toHaveURL(expectedPath);
 }
 
 export function simplePdf(text = 'Documento sintetico para teste') {

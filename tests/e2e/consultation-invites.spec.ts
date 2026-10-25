@@ -104,11 +104,7 @@ test('consulta explica critérios inválidos recebidos por link e recupera ao li
 test('trabalhador não acessa PT pela aba forjada e só consulta o documento individual autorizado', async ({ page }) => {
   await loginDemo(page, 'Trabalhador');
   // Request the forbidden tab, then verify the route canonicalized by the access rules.
-  await page.evaluate(target => {
-    window.history.pushState({}, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, `/app/consulta?tab=permits&unitId=${unitId}`);
-  await expect(page).toHaveURL(`/app/consulta?tab=documents&unitId=${unitId}`);
+  await navigateWithinApp(page, `/app/consulta?tab=permits&unitId=${unitId}`, `/app/consulta?tab=documents&unitId=${unitId}`);
   await expect(page.getByRole('tab', { name: /Permissões de trabalho/ })).toHaveCount(0);
   await expect(page.getByRole('searchbox', { name: 'Buscar PT' })).toHaveCount(0);
   const table = page.getByRole('table', { name: 'Resultados da consulta documental' });
