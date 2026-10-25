@@ -30,7 +30,20 @@ export async function navigateWithinApp(page: Page, pathname: string, expectedPa
     const { getAppRouter } = await import(routerUrl);
     await getAppRouter().navigate(target);
   }, pathname);
-  await expect(page).toHaveURL(expectedPath);
+  const unit = page.getByRole('combobox', { name: 'Unidade de trabalho', exact: true });
+  const selectedUnit = await unit.count() === 1 ? await unit.inputValue() : undefined;
+  const expected = new URL(expectedPath, page.url());
+  expected.searchParams.sort();
+  await expect(page).toHaveURL(actual => {
+    const comparable = new URL(actual.href);
+    // Lists may append the selected unit; requested filters and duplicate values stay exact.
+    if (!expected.searchParams.has('unitId') && selectedUnit
+      && comparable.searchParams.getAll('unitId').length === 1 && comparable.searchParams.get('unitId') === selectedUnit) {
+      comparable.searchParams.delete('unitId');
+    }
+    comparable.searchParams.sort();
+    return comparable.href === expected.href;
+  });
 }
 
 export function simplePdf(text = 'Documento sintetico para teste') {

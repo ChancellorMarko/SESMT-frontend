@@ -23,9 +23,9 @@ export function WorkAuthorizationsPage() {
   // controls must merge with the last requested URL before its render commits.
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function writeParams(next: URLSearchParams, replace = false) {
+  function writeParams(next: URLSearchParams, replace = false, flushSync = false) {
     latestParams.current = new URLSearchParams(next);
-    setParams(next, { replace });
+    setParams(next, { replace, flushSync });
   }
   const search = (params.get('q') || '').slice(0, 200), status = params.get('status') || '';
   const rawPage = params.get('page');
@@ -46,12 +46,12 @@ export function WorkAuthorizationsPage() {
   function filter(name: 'q' | 'status', value: string) {
     const next = new URLSearchParams(latestParams.current); next.delete('page');
     if (value) next.set(name, value); else next.delete(name);
-    writeParams(next, true);
+    writeParams(next, true, true);
   }
   function setPage(value: number) {
     const next = new URLSearchParams(latestParams.current);
     if (value === 1) next.delete('page'); else next.set('page', String(value));
-    writeParams(next);
+    writeParams(next, false, true);
   }
   const listNavigation = preparationNavigation({ fromPreparationList: 'ats', fromSearch: location.search, fromUnitId: unitId }, unitId, 'ats');
   const list = useQuery({
@@ -72,7 +72,7 @@ export function WorkAuthorizationsPage() {
   return <div className="stack"><PageHeader eyebrow="MODELO RI-S-36002" title="Autorizações de trabalho (AT)" description="No Ampara, AT identifica a Autorização de Trabalho. Consulte os registros vinculados aos atendimentos da unidade." actions={<div className="actions"><TerminologyHelp related={['PT', 'AT', 'PET']}>Entenda PT, AT e PET</TerminologyHelp>{can('at.write') && <Link className="button button--primary" to="/app/ats/nova" state={listNavigation}>Criar AT</Link>}</div>} />
     <Feedback tone="info">Demonstração em memória, sem validade operacional. A AT possui seu próprio registro e não libera a execução de uma PT.</Feedback>
     <form className="panel form-grid" aria-label="Filtros de AT" onSubmit={event => event.preventDefault()}><Field label="Pesquisar AT"><input type="search" maxLength={200} value={search} onChange={event => filter('q', event.target.value)} placeholder="Código, atendimento, equipe, serviço ou local" /></Field><Field label="Estado da AT"><select value={status} onChange={event => filter('status', event.target.value)}><option value="">Todos</option>{invalidStatus && <option value={status}>Estado inválido</option>}{Object.entries(authorizationLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field></form>
-    {invalid ? <Feedback tone="warning">{invalidStatus ? <>O endereço contém um estado de AT inválido. Selecione um estado disponível ou <Button variant="ghost" onClick={() => filter('status', '')}>Limpar estado</Button>.</> : invalidPage ? <>O endereço contém uma página de AT inválida. <Button variant="ghost" onClick={() => setPage(1)}>Voltar à primeira página</Button>.</> : <>O endereço contém critérios de AT repetidos ou uma pesquisa muito longa. <Button variant="ghost" onClick={() => writeParams(new URLSearchParams({ unitId }), true)}>Limpar filtros</Button>.</>}</Feedback>
+    {invalid ? <Feedback tone="warning">{invalidStatus ? <>O endereço contém um estado de AT inválido. Selecione um estado disponível ou <Button variant="ghost" onClick={() => filter('status', '')}>Limpar estado</Button>.</> : invalidPage ? <>O endereço contém uma página de AT inválida. <Button variant="ghost" onClick={() => setPage(1)}>Voltar à primeira página</Button>.</> : <>O endereço contém critérios de AT repetidos ou uma pesquisa muito longa. <Button variant="ghost" onClick={() => writeParams(new URLSearchParams({ unitId }), true, true)}>Limpar filtros</Button>.</>}</Feedback>
       : list.isPending ? <Spinner /> : list.isError ? <div className="panel stack"><Feedback tone="danger">{authorizationError(list.error)}</Feedback><Button variant="secondary" onClick={() => void list.refetch()}>Tentar novamente</Button></div>
       : <section className="stack" aria-label="Resultados de ATs">
         {!items.length ? <EmptyState title="Nenhuma AT encontrada" description={page > 1 ? 'Volte à primeira página ou ajuste os filtros para consultar as ATs disponíveis.' : 'Ajuste a pesquisa ou crie uma AT para um atendimento confirmado.'} /> : <div className={styles.grid}>{items.map(item => <article className={`panel stack ${styles.card}`} key={item.id}><div className={styles.top}><h2>{item.code}</h2><Badge tone={authorizationTones[item.status]}>{authorizationLabels[item.status]}</Badge></div>{authorizationWindowNotice(item, now) && <p className="muted">{authorizationWindowNotice(item, now)}</p>}<p>{item.appointment.serviceLabel} · {item.appointment.teamName}</p><p className="muted">{item.appointment.location} · {formatDate(item.appointment.startsAt)}</p><p className="muted">Atendimento {item.appointment.code}{item.permitCode ? ` · PT ${item.permitCode}` : ' · Sem PT vinculada'}</p><Link className="button button--secondary" to={`/app/ats/${item.id}`} state={listNavigation}>Consultar {item.code}</Link></article>)}</div>}

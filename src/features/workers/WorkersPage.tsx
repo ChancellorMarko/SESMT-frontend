@@ -120,7 +120,15 @@ function WorkersPageContent() {
   return <div className={styles.workspace}>
     <PageHeader eyebrow="Pessoas e vínculos" title="Trabalhadores" description="Encontre cadastros, situação de integração, equipes operacionais e documentos permitidos." actions={can('workers.write') && <Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Novo trabalhador</Link>} />
     <section className={`panel ${styles.filters}`} aria-label="Pesquisa de trabalhadores">
-      <form className={styles.filters} aria-label="Filtros de trabalhadores" onSubmit={event => { event.preventDefault(); change('q', search.trim()); }}>
+      <form className={styles.filters} aria-label="Filtros de trabalhadores" onSubmit={event => {
+        event.preventDefault();
+        if (!unitMatches || filterError) return;
+        const nextQuery = search.trim();
+        // A delayed route commit must not overwrite a draft typed after this submission.
+        previousQuery.current = nextQuery;
+        setSearch(nextQuery);
+        change('q', nextQuery);
+      }}>
         <div className={styles.primaryFilters}>
         <Field label="Buscar nome ou matrícula"><div className={styles.search}><Search size={16} aria-hidden="true" /><input type="search" value={search} maxLength={200} onChange={event => setSearch(event.target.value)} placeholder="Digite um nome ou matrícula" aria-describedby={hasDraft ? 'worker-search-draft' : undefined} /></div></Field>
         <Field label="Integração administrativa"><select value={integrationStatus} disabled={disabledFilters} onChange={event => change('integrationStatus', event.target.value)}><option value="">Todas as integrações</option>{integrationStatus && !Object.hasOwn(integrationStatusLabels, integrationStatus) && <option value={integrationStatus}>Integração inválida</option>}{Object.entries(integrationStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>

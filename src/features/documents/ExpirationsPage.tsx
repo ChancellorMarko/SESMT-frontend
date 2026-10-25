@@ -35,7 +35,7 @@ function ExpirationsContextPage() {
   const [params, setParams] = useSearchParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function write(next: URLSearchParams, replace = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace }); }
+  function write(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }
   const q = params.get('q') ?? '', previousUnit = params.get('unitId');
   const [search, setSearch] = useState(q), [today, setToday] = useState(() => dateOnly());
   const active = useRef(true);
@@ -79,10 +79,10 @@ function ExpirationsContextPage() {
   const data = enabled && !failed ? verified.data : undefined;
   function change(key: string, value: string) {
     if (!unitMatches || filterError) return;
-    const next = new URLSearchParams(latestParams.current); next.delete('page'); if (value) next.set(key, value); else next.delete(key); write(next);
+    const next = new URLSearchParams(latestParams.current); next.delete('page'); if (value) next.set(key, value); else next.delete(key); write(next, false, true);
   }
-  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); next.set('page', String(value)); write(next); }
-  function clear() { setSearch(''); write(new URLSearchParams({ unitId: unitId! })); }
+  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); next.set('page', String(value)); write(next, false, true); }
+  function clear() { setSearch(''); write(new URLSearchParams({ unitId: unitId! }), false, true); }
   function removeFilter(key: string) {
     if (key === 'q') setSearch('');
     change(key, ''); searchInput.current?.focus();

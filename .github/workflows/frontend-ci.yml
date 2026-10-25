@@ -47,10 +47,14 @@ jobs:
         run: npm run build
 
   e2e:
-    name: Playwright Chromium demonstration
+    name: Playwright Chromium demonstration (${{ matrix.shard }}/3)
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       # An empty channel selects Playwright's managed Chromium in the local config.
       PLAYWRIGHT_CHANNEL: ''
@@ -76,17 +80,18 @@ jobs:
 
       - name: Run browser tests against the demonstration
         id: e2e
-        # Browser contexts isolate the demo; two workers keep all scenarios within the job limit.
-        run: npm run test:e2e -- --project=chromium --workers=2 --forbid-only --reporter=line,html --global-timeout=1500000
+        # Run every scenario across independent runners without shortening failure diagnostics.
+        run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/3 --workers=2 --forbid-only --reporter=line,html --global-timeout=1500000
 
       - name: Verify API-mode connection UI using controlled HTTP responses
+        if: ${{ matrix.shard == 1 }}
         run: npm run test:connection-ui -- --forbid-only
 
       - name: Save failure report, screenshots and traces
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: playwright-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-failure-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/

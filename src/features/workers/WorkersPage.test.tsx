@@ -7,6 +7,16 @@ import type { OrganizationDto, PageDto, WorkerDto } from '../../shared/contracts
 import { WorkersPage } from './WorkersPage';
 
 const state = vi.hoisted(() => ({ unitId: 'unit-1' as string | undefined, sessionKey: 'workers-list', permissions: ['workers.read', 'organization.read', 'teams.read'] }));
+const queryCommit = vi.hoisted(() => ({ deferred: false, pending: undefined as (() => void) | undefined }));
+vi.mock('react-router', async original => {
+  const router = await original<typeof import('react-router')>();
+  return { ...router, useSearchParams: (...args: Parameters<typeof router.useSearchParams>) => {
+    const result = router.useSearchParams(...args);
+    if (!queryCommit.deferred) return result;
+    const [params, setParams] = result;
+    return [params, (next, options) => { queryCommit.pending = () => setParams(next, options); }] as ReturnType<typeof router.useSearchParams>;
+  } };
+});
 vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(), api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() } }));
 vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ ...state, can: (permission: string) => state.permissions.includes(permission) }) }));
 const worker: WorkerDto = { id: 'worker-1', fullName: 'Carlos Mendes', registration: 'MAT-001', companyId: 'comp-1', unitId: 'unit-1', sectorId: 'sec-1', employmentType: 'CLT', admissionDate: '2025-01-15', status: 'ACTIVE', integrationStatus: 'INTEGRATED', integrationValidUntil: '2026-12-31', revision: 1 };
@@ -28,10 +38,31 @@ function show(query = '?unitId=unit-1', client = new QueryClient({ defaultOption
 }
 beforeEach(() => {
   vi.clearAllMocks(); state.unitId = 'unit-1'; state.sessionKey = 'workers-list'; state.permissions = ['workers.read', 'organization.read', 'teams.read'];
+  queryCommit.deferred = false; queryCommit.pending = undefined;
   vi.mocked(api.get).mockImplementation(async (path, options) => mockGet(path, options) as never);
 });
 
 describe('consulta segura de trabalhadores', () => {
+  it('preserva um novo rascunho digitado antes do commit da pesquisa e limpa ao remover o critério aplicado', async () => {
+    queryCommit.deferred = true;
+    show(); await screen.findByRole('link', { name: 'Carlos Mendes' });
+    const search = screen.getByLabelText('Buscar nome ou matrícula');
+    fireEvent.change(search, { target: { value: '  Carlos  ' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Filtros de trabalhadores' }));
+    expect(queryCommit.pending).toBeTypeOf('function');
+    expect(screen.getByLabelText('Endereço atual')).not.toHaveTextContent('q=');
+    fireEvent.change(search, { target: { value: 'Ainda não pesquisado' } });
+    await act(async () => { queryCommit.pending!(); });
+    expect(screen.getByLabelText('Endereço atual')).toHaveTextContent('q=Carlos');
+    expect(search).toHaveValue('Ainda não pesquisado');
+    expect(screen.getByText(/Busca digitada ainda não aplicada/)).toBeVisible();
+    expect(api.get).toHaveBeenCalledWith('/workers', expect.objectContaining({ query: expect.objectContaining({ q: 'Carlos' }) }));
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/workers').every(([, options]) => options?.query?.q !== 'Ainda não pesquisado')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro: Busca' }));
+    await act(async () => { queryCommit.pending!(); });
+    expect(search).toHaveValue('');
+    expect(screen.getByLabelText('Endereço atual')).not.toHaveTextContent('q=');
+  });
   it('sinaliza a busca não enviada, preserva o texto ao remover outro filtro e limpa o rascunho', async () => {
     show('?unitId=unit-1&status=ACTIVE'); await screen.findByRole('link', { name: 'Carlos Mendes' });
     const search = screen.getByLabelText('Buscar nome ou matrícula');

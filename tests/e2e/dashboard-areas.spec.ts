@@ -70,13 +70,14 @@ test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e hist
   await expect(asos).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toBeVisible();
 
-  // Seed an unrelated query parameter without replacing React Router's history
-  // state. The tab controls must retain it through real browser navigation.
-  await page.evaluate(() => {
+  // Let the application router replace the current entry, then retain the
+  // unrelated parameter through the tab controls and browser history.
+  await page.evaluate(async () => {
     const url = new URL(location.href);
     url.searchParams.set('context', 'consulta-preservada');
-    history.replaceState(history.state, '', url);
-    dispatchEvent(new PopStateEvent('popstate'));
+    const routerUrl = '/src/app/router.tsx';
+    const { getAppRouter } = await import(routerUrl);
+    await getAppRouter().navigate(`${url.pathname}${url.search}`, { replace: true });
   });
   await expect(page).toHaveURL(/context=consulta-preservada/);
   await asos.focus();
