@@ -1,7 +1,8 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import type { PageDto } from '../../shared/contracts';
@@ -11,6 +12,7 @@ import type { ConfinedSpacePermitDto } from '../../shared/contracts/confined-spa
 import { createAuthorizationPreparation } from '../authorizations/model';
 import { createPetPreparation } from '../confined-space/model';
 import { PreparationSearchTab } from './PreparationSearchTab';
+import { AppQueryNavigationProvider } from '../../shared/lib/app-query-params';
 
 type Kind = 'ats' | 'pets';
 type RecordDto = WorkAuthorizationDto | ConfinedSpacePermitDto;
@@ -70,6 +72,32 @@ beforeEach(() => {
 describe.each<Kind>(['ats', 'pets'])('consulta unificada de %s', kind => {
   const label = kind === 'ats' ? 'ATs' : 'PETs';
   const permission = kind === 'ats' ? 'at.read' : 'pet.read';
+
+  it('preserva a pesquisa ao abrir o resultado assim que a URL é aplicada', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    const q = searchFor(kind);
+    for (const query of ['', q]) {
+      client.setQueryData([prefix(kind), session.sessionKey, session.unitId, 1, query, ...(kind === 'ats' ? [''] : [])], response(kind, { query: { unitId: session.unitId, q: query, page: 1, pageSize: 10 } }));
+    }
+    const initial = `/app/consulta?tab=${kind}&unitId=unit-a`;
+    const router = createMemoryRouter([{ path: '*', element: <AppQueryNavigationProvider><Routes>
+      <Route path="/app/consulta" element={<PreparationSearchTab kind={kind} />} />
+      <Route path={`/app/${kind}/:id`} element={<Probe />} />
+    </Routes></AppQueryNavigationProvider> }], { initialEntries: [initial] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    let opened = false;
+    const unsubscribe = router.subscribe(next => {
+      if (opened || next.location.pathname !== '/app/consulta' || new URLSearchParams(next.location.search).get('q') !== q) return;
+      opened = true; screen.getByRole('link', { name: code(kind) }).click();
+    });
+    try {
+      await screen.findByRole('link', { name: code(kind) });
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } });
+      fireEvent.submit(screen.getByRole('form', { name: `Filtros de consulta de ${label}` }));
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/app/${kind}/${kind}-1`));
+      expect(JSON.parse(screen.getByLabelText('Origem atual').textContent!)).toEqual({ fromConsulta: true, fromSearch: `?tab=${kind}&unitId=unit-a&q=${q}`, fromUnitId: 'unit-a' });
+    } finally { unsubscribe(); view.unmount(); router.dispose(); client.clear(); }
+  });
 
   it('consulta somente o recurso permitido, apresenta tabela e transporta a origem completa para o detalhe', async () => {
     session.permissions = [permission]; const user = userEvent.setup(); const { route } = show(kind);

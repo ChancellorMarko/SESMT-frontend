@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { AssigneeDto, OrganizationDto, PageDto, UserDto } from '../../src/shared/contracts';
+import type { AccountInvitationAcceptDto, AccountInvitationSummaryDto } from '../../src/shared/contracts/account-invitations';
 import { loginDemo, navigateWithinApp } from './helpers';
 
 test('responsáveis organizacionais alcançam 125 pessoas, preservam vínculos e respeitam a unidade editada', async ({ page }, testInfo) => {
@@ -16,7 +17,7 @@ test('responsáveis organizacionais alcançam 125 pessoas, preservam vínculos e
     const unit = organization.units.find(item => item.id === unitId);
     const otherUnit = organization.units.find(item => item.id !== unitId);
     if (!unit || !otherUnit || !unit.responsibleIds?.length) throw new Error('Unidades e responsável original ausentes da demonstração.');
-    const people: UserDto[] = [], suffix = String(Date.now());
+    const people: Pick<UserDto, 'id' | 'displayName'>[] = [], suffix = String(Date.now());
     for (let start = 1; start <= 125; start += 15) {
       const batch = await Promise.all(Array.from({ length: Math.min(15, 126 - start) }, async (_, index) => {
         const sequence = String(start + index).padStart(3, '0');
@@ -24,7 +25,14 @@ test('responsáveis organizacionais alcançam 125 pessoas, preservam vínculos e
         // must retain an allowed sector rather than grant an unrestricted scope.
         const scope = { companyIds: [companyId], unitIds: [unitId], sectorIds: [sectorId], teamIds: [], ownOnly: false };
         const invited = await api.post('/users', { displayName: `ZZ Responsável Escala ${sequence}`, email: `responsavel-escala-${suffix}-${sequence}@example.invalid`, roles: ['HR'], scope }) as UserDto;
-        return await api.patch(`/users/${invited.id}/access`, { status: 'ACTIVE', roles: invited.roles, scope: invited.scope }, { etag: `"${invited.revision}"` }) as UserDto;
+        // Synthetic eligible people must complete first access, without administrative activation.
+        const invitation = await api.get(`/users/${invited.id}/invitation`) as AccountInvitationSummaryDto;
+        if (!invitation.demoActivationPath) throw new Error('Convite demonstrativo de primeiro acesso ausente.');
+        const token = new URLSearchParams(new URL(invitation.demoActivationPath, location.origin).hash.slice(1)).get('token');
+        if (!token) throw new Error('Código de primeiro acesso ausente do convite demonstrativo.');
+        const accepted = await api.post('/auth/invitations/accept', { token, newPassword: 'Senha sintética de escala 2026!' }) as AccountInvitationAcceptDto;
+        if (accepted.nextStep !== 'LOGIN') throw new Error('O primeiro acesso da pessoa sintética não foi concluído.');
+        return { id: invited.id, displayName: invited.displayName };
       }));
       people.push(...batch);
     }

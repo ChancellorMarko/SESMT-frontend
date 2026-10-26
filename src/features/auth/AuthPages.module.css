@@ -104,6 +104,18 @@
 .successState { display: grid; gap: 19px; }
 .successMark { display: grid; place-items: center; width: 62px; height: 62px; margin: 1px 0 5px; border: 1px solid #cfe2df; border-radius: 20px; background: linear-gradient(145deg, #f2fbf6, #e8f3f3); color: #3d8274; box-shadow: inset 0 1px 0 #fff, 0 8px 18px -13px #3d82746b; }
 .successState a { text-decoration: none; }
+.recoverySteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; list-style: none; margin: 0 0 8px; padding: 0 0 20px; border-bottom: 1px solid #e7ecf3; }
+.recoverySteps li { display: flex; align-items: center; gap: 7px; color: #7d8ba0; font-size: 10px; line-height: 1.4; }
+.recoverySteps li > span { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border: 1px solid #e1e8f1; border-radius: 50%; background: #f6f8fc; color: #8191a7; }
+.recoverySteps li[aria-current] { color: #183b68; font-weight: 600; }
+.recoverySteps li[aria-current] > span { border-color: #183b68; background: #183b68; color: #fffefa; }
+.recoverySteps li[data-complete=true] > span { border-color: #d5e7e1; background: #eff8f4; color: #3d8274; }
+.recoveryAddress { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #e5eaf2; border-radius: 13px; background: #f7f9fc; }
+.recoveryAddress span { color: #7d8ba0; font-size: 10px; }.recoveryAddress strong { color: #24364f; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.recoveryHint { margin: -3px 0 0; color: #7d8ba0; font-size: 11px; line-height: 1.8; }
+.recoveryLinkReady { display: flex; align-items: flex-start; gap: 10px; border: 1px solid #dce6f3; border-radius: 13px; padding: 14px; background: #f1f6fd; color: #426795; }
+.recoveryLinkReady > svg { flex-shrink: 0; margin-top: 2px; }.recoveryLinkReady > div { display: grid; gap: 5px; }.recoveryLinkReady strong { color: #294d7a; font-size: 11px; font-weight: 600; }.recoveryLinkReady span { color: #6d7f96; font-size: 10px; line-height: 1.7; }
+.recoveryHelp { color: #5b7395; font-size: 11px; line-height: 1.7; text-align: center; padding: 6px 0; text-underline-offset: 3px; }
 .demo { padding-top: 21px; border-top: 1px solid #e7ebf0; }
 .demoHeader { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
 .demoIcon { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px; background: #eef3fd; color: #4679ee; }

@@ -3,18 +3,24 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { api } from '../../shared/api/client';
+import { api, obtainCsrf } from '../../shared/api/client';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { LoginPage, RecoveryPage, ResetPasswordPage } from './AuthPages';
 
+const runtime = vi.hoisted(() => ({ mode: 'demo' }));
 vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: vi.fn() }));
-vi.mock('../../shared/api/client', () => ({ API_MODE: 'demo', api: { post: vi.fn() } }));
+vi.mock('../../shared/api/client', () => ({ get API_MODE() { return runtime.mode; }, obtainCsrf: vi.fn(), api: { post: vi.fn() } }));
 vi.mock('../../shared/motion/MotionPreferences', () => ({ useAppReducedMotion: () => true }));
 vi.mock('./LoginArrival', () => ({ useLoginArrival: () => 'ready', LoginPreloader: () => null }));
 
 const challenge: MfaChallengeDto = { status: 'MFA_REQUIRED', challengeId: 'challenge-1', methods: ['TOTP'], expiresAt: '2099-01-01T00:00:00Z' };
 const login = vi.fn<ReturnType<typeof useSession>['login']>();
 const verifyMfa = vi.fn<ReturnType<typeof useSession>['verifyMfa']>();
+const publicRecoveryMessage = 'Se houver uma conta para esse e-mail, enviaremos as instruções de recuperação.';
+const recoveryCases = [
+  { path: '/recuperar-acesso', action: 'Solicitar recuperação', endpoint: '/auth/password/forgot' },
+  { path: '/redefinir-senha', action: 'Redefinir senha', endpoint: '/auth/password/reset' },
+] as const;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -44,9 +50,19 @@ async function enterCredentials(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByLabelText('Código de verificação', { exact: true });
 }
 
+async function fillRecoveryForm(user: ReturnType<typeof userEvent.setup>, path: string) {
+  if (path === '/recuperar-acesso') await user.type(screen.getByLabelText('E-mail', { exact: true }), 'gestor@demo.sesmt.local');
+  else {
+    await user.type(screen.getByLabelText('Nova senha', { exact: true }), 'NovaSenha123!');
+    await user.type(screen.getByLabelText('Confirmar nova senha', { exact: true }), 'NovaSenha123!');
+  }
+}
+
 beforeEach(() => {
+  runtime.mode = 'demo';
   login.mockReset().mockResolvedValue(challenge);
   verifyMfa.mockReset().mockResolvedValue(undefined);
+  vi.mocked(obtainCsrf).mockReset().mockResolvedValue(undefined);
   vi.mocked(api.post).mockReset();
   vi.mocked(useSession).mockReturnValue({
     me: null, unitId: undefined, sessionKey: 'auth-test', status: 'anonymous', sessionError: null,
@@ -113,7 +129,7 @@ describe('continuidade do acesso', () => {
 
   it('remove o sucesso anterior durante um reenvio de recuperação e mantém somente a falha atual', async () => {
     const nextResponse = deferred<{ message: string }>();
-    const success = 'Se houver uma conta, enviaremos as instruções.';
+    const success = publicRecoveryMessage;
     vi.mocked(api.post).mockResolvedValueOnce({ message: success }).mockReturnValueOnce(nextResponse.promise);
     const user = show('/recuperar-acesso');
     await user.type(screen.getByLabelText('E-mail', { exact: true }), 'gestor@demo.sesmt.local');
@@ -162,10 +178,197 @@ describe('continuidade do acesso', () => {
     expect(submit).toBeEnabled();
     await user.click(submit);
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    expect(api.post).toHaveBeenCalledWith(endpoint, path === '/recuperar-acesso'
+    expect(vi.mocked(api.post).mock.calls[0].slice(0, 2)).toEqual([endpoint, path === '/recuperar-acesso'
       ? { email: 'gestor@demo.sesmt.local' }
-      : { token: 'demo-reset', newPassword: 'NovaSenha123!' });
+      : { token: 'demo-reset', newPassword: 'NovaSenha123!' }]);
     if (path === '/redefinir-senha') expect(await screen.findByRole('heading', { name: 'Tudo pronto.' })).toBeVisible();
-    else expect(await screen.findByRole('status')).toHaveTextContent('Solicitação recebida.');
+    else expect(await screen.findByRole('status')).toHaveTextContent(publicRecoveryMessage);
+  });
+
+  it.each(recoveryCases)('aguarda CSRF e não duplica escritas concorrentes em $path', async ({ path, action, endpoint }) => {
+    const csrf = deferred<void>();
+    const response = deferred<unknown>();
+    vi.mocked(obtainCsrf).mockReturnValueOnce(csrf.promise);
+    vi.mocked(api.post).mockReturnValueOnce(response.promise);
+    const user = show(path);
+    await fillRecoveryForm(user, path);
+    const form = screen.getByRole('button', { name: action }).closest('form')!;
+    await act(async () => { fireEvent.submit(form); fireEvent.submit(form); });
+    await waitFor(() => expect(obtainCsrf).toHaveBeenCalledOnce());
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: path === '/recuperar-acesso' ? 'Enviando…' : 'Salvando…' })).toBeDisabled();
+    await act(async () => { csrf.resolve(undefined); });
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.post).mock.calls[0][0]).toBe(endpoint);
+    expect(vi.mocked(obtainCsrf).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(api.post).mock.invocationCallOrder[0]);
+    await act(async () => { response.resolve(path === '/recuperar-acesso' ? { message: 'Recebido.' } : undefined); });
+    expect(await screen.findByRole('heading', { name: path === '/recuperar-acesso' ? 'Confira seu e-mail' : 'Tudo pronto.' })).toBeVisible();
+  });
+
+  it.each(recoveryCases)('não escreve sem CSRF e preserva o rascunho para tentar novamente em $path', async ({ path, action }) => {
+    vi.mocked(obtainCsrf).mockRejectedValueOnce(new Error('Não foi possível preparar sua solicitação.'));
+    vi.mocked(api.post).mockResolvedValue(path === '/recuperar-acesso' ? { message: 'Recebido.' } : undefined);
+    const user = show(path);
+    await fillRecoveryForm(user, path);
+    await user.click(screen.getByRole('button', { name: action }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível preparar sua solicitação.');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(path === '/recuperar-acesso' ? 'E-mail' : 'Nova senha', { exact: true })).toHaveValue(path === '/recuperar-acesso' ? 'gestor@demo.sesmt.local' : 'NovaSenha123!');
+    await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(obtainCsrf).toHaveBeenCalledTimes(2));
+    expect(api.post).toHaveBeenCalledOnce();
+    expect(await screen.findByRole('heading', { name: path === '/recuperar-acesso' ? 'Confira seu e-mail' : 'Tudo pronto.' })).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it.each(recoveryCases)('não inicia a escrita se sair da página durante a preparação em $path', async ({ path, action }) => {
+    const csrf = deferred<void>();
+    vi.mocked(obtainCsrf).mockReturnValueOnce(csrf.promise);
+    const view = render(authTree(path));
+    const user = userEvent.setup();
+    await fillRecoveryForm(user, path);
+    await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(obtainCsrf).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => { csrf.resolve(undefined); });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('reutiliza a chave de idempotência após falha de rede e cria outra quando a nova senha muda', async () => {
+    vi.mocked(api.post)
+      .mockRejectedValueOnce(new Error('A conexão caiu após enviar.'))
+      .mockRejectedValueOnce(new Error('A conexão continua indisponível.'))
+      .mockResolvedValueOnce(undefined);
+    const user = show('/redefinir-senha');
+    await fillRecoveryForm(user, '/redefinir-senha');
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('A conexão caiu após enviar.');
+    const firstKey = vi.mocked(api.post).mock.calls[0][2]?.idempotencyKey;
+    expect(firstKey).toEqual(expect.any(String));
+    expect(firstKey!.length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('A conexão continua indisponível.');
+    expect(vi.mocked(api.post).mock.calls[1][2]?.idempotencyKey).toBe(firstKey);
+    const password = screen.getByLabelText('Nova senha', { exact: true });
+    const confirm = screen.getByLabelText('Confirmar nova senha', { exact: true });
+    await user.clear(password); await user.type(password, 'Outra senha pessoal 2026');
+    await user.clear(confirm); await user.type(confirm, 'Outra senha pessoal 2026');
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    expect(await screen.findByRole('heading', { name: 'Tudo pronto.' })).toBeVisible();
+    const newKey = vi.mocked(api.post).mock.calls[2][2]?.idempotencyKey;
+    expect(newKey).toEqual(expect.any(String)); expect(newKey).not.toBe(firstKey);
+    expect(vi.mocked(api.post).mock.calls[2].slice(0, 2)).toEqual(['/auth/password/reset', { token: 'demo-reset', newPassword: 'Outra senha pessoal 2026' }]);
+  });
+
+  it.each(recoveryCases)('não envia a solicitação antiga após mudar o contexto de sessão em $path', async ({ path, action }) => {
+    const csrf = deferred<void>();
+    vi.mocked(obtainCsrf).mockReturnValueOnce(csrf.promise);
+    const originalSession = vi.mocked(useSession).getMockImplementation()!();
+    const view = render(authTree(path));
+    const user = userEvent.setup();
+    await fillRecoveryForm(user, path);
+    await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(obtainCsrf).toHaveBeenCalledOnce());
+    vi.mocked(useSession).mockReturnValue({ ...originalSession, sessionKey: 'changed-session' });
+    view.rerender(authTree(path));
+    await act(async () => { csrf.resolve(undefined); });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: /Confira seu e-mail|Tudo pronto/ })).not.toBeInTheDocument();
+  });
+
+  it.each(recoveryCases)('cancela a escrita em andamento e ignora sua resposta após mudar a sessão em $path', async ({ path, action }) => {
+    const response = deferred<unknown>();
+    vi.mocked(api.post).mockReturnValueOnce(response.promise);
+    const originalSession = vi.mocked(useSession).getMockImplementation()!();
+    const view = render(authTree(path));
+    const user = userEvent.setup();
+    await fillRecoveryForm(user, path);
+    await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    const signal = vi.mocked(api.post).mock.calls[0][2]?.signal;
+    expect(signal?.aborted).toBe(false);
+    vi.mocked(useSession).mockReturnValue({ ...originalSession, sessionKey: 'new-access-context' });
+    view.rerender(authTree(path));
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { response.resolve(path === '/recuperar-acesso' ? { message: 'Recebido.' } : undefined); });
+    expect(screen.queryByRole('heading', { name: /Confira seu e-mail|Tudo pronto/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: action })).toBeEnabled();
+  });
+
+  it('apresenta uma confirmação pública, sem repetir mensagens que revelem a existência da conta', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ message: 'Conta gestor@demo.sesmt.local encontrada e e-mail enviado.' });
+    const user = show('/recuperar-acesso');
+    await fillRecoveryForm(user, '/recuperar-acesso');
+    await user.click(screen.getByRole('button', { name: 'Solicitar recuperação' }));
+    expect(await screen.findByRole('heading', { name: 'Confira seu e-mail' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(publicRecoveryMessage);
+    expect(screen.queryByText(/Conta gestor@demo.sesmt.local encontrada/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Usar outro e-mail' }));
+    const email = screen.getByLabelText('E-mail', { exact: true });
+    expect(email).toHaveValue('gestor@demo.sesmt.local');
+    await waitFor(() => expect(email).toHaveFocus());
+    expect(screen.queryByRole('heading', { name: 'Confira seu e-mail' })).not.toBeInTheDocument();
+  });
+
+  it('não apresenta sucesso quando a resposta de recuperação não pode ser confirmada', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ message: '' });
+    const user = show('/recuperar-acesso');
+    await fillRecoveryForm(user, '/recuperar-acesso');
+    await user.click(screen.getByRole('button', { name: 'Solicitar recuperação' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível confirmar a solicitação.');
+    expect(screen.queryByRole('heading', { name: 'Confira seu e-mail' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail', { exact: true })).toHaveValue('gestor@demo.sesmt.local');
+  });
+
+  it('prepara o código do fragmento e envia seus bytes preservados com a nova senha', async () => {
+    runtime.mode = 'api';
+    vi.mocked(api.post).mockResolvedValueOnce(undefined);
+    const token = 'Native_reset-token_123';
+    const user = show(`/redefinir-senha#token=${token}`);
+    expect(screen.getByText('Código do link preparado')).toBeVisible();
+    await fillRecoveryForm(user, '/redefinir-senha');
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.post).mock.calls[0].slice(0, 2)).toEqual(['/auth/password/reset', { token, newPassword: 'NovaSenha123!' }]);
+    expect(await screen.findByRole('heading', { name: 'Tudo pronto.' })).toBeVisible();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Voltar ao login' })).toHaveFocus());
+  });
+
+  it('permite trocar o código do link sem reaproveitar as senhas anteriores', async () => {
+    runtime.mode = 'api';
+    const user = show('/redefinir-senha#token=Native_reset-token_123');
+    await fillRecoveryForm(user, '/redefinir-senha');
+    await user.click(screen.getByRole('button', { name: 'Usar outro código' }));
+    const token = screen.getByLabelText('Código de recuperação', { exact: true });
+    expect(token).toHaveValue(''); expect(token).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Nova senha', { exact: true })).toHaveValue('');
+    expect(screen.getByLabelText('Confirmar nova senha', { exact: true })).toHaveValue('');
+    await waitFor(() => expect(token).toHaveFocus());
+    expect(screen.queryByText('Código do link preparado')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it.each(['#token=first&token=second', '#token=', '#token=invalid%20token'])('recusa um fragmento inválido e permite informar outro código (%s)', async hash => {
+    runtime.mode = 'api';
+    const user = show(`/redefinir-senha${hash}`);
+    expect(screen.getByRole('alert')).toBeVisible();
+    const token = screen.getByLabelText('Código de recuperação', { exact: true });
+    expect(token).toHaveValue(''); expect(token).toHaveAttribute('type', 'password');
+    await user.type(token, 'replacement_token');
+    await fillRecoveryForm(user, '/redefinir-senha');
+    vi.mocked(api.post).mockResolvedValueOnce(undefined);
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.post).mock.calls[0].slice(0, 2)).toEqual(['/auth/password/reset', { token: 'replacement_token', newPassword: 'NovaSenha123!' }]);
+  });
+
+  it('não aceita o código da query e mantém o preenchimento manual protegido', async () => {
+    runtime.mode = 'api';
+    show('/redefinir-senha?token=query_secret');
+    const token = screen.getByLabelText('Código de recuperação', { exact: true });
+    expect(token).toHaveValue(''); expect(token).toHaveAttribute('type', 'password');
+    expect(screen.queryByText('Código do link preparado')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

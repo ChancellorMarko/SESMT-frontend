@@ -22,21 +22,22 @@ async function expectMobileLayout(page: Page) {
 test('central permite percorrer as quatro abas por teclado sem transbordamento no celular', async ({ page }, testInfo) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await loginDemo(page, 'Técnico de segurança');
-  await navigateWithinApp(page, '/app/consulta');
+  await navigateWithinApp(page, '/app/consulta', `/app/consulta?tab=documents&unitId=${unitId}`);
   const tabs = page.getByRole('tablist', { name: 'Abas de consulta', exact: true });
   const documents = tabs.getByRole('tab', { name: 'Documentos controlados', exact: true });
   const permits = tabs.getByRole('tab', { name: 'Permissões de trabalho (PT)', exact: true });
   const authorizations = tabs.getByRole('tab', { name: 'Autorizações de trabalho (AT)', exact: true });
   const pets = tabs.getByRole('tab', { name: 'Permissões de entrada e trabalho (PET)', exact: true });
   await expect(tabs.getByRole('tab')).toHaveCount(4);
+  await expect(page.getByRole('button', { name: 'Pesquisar', exact: true })).toBeEnabled();
   await documents.focus();
   for (const tab of [permits, authorizations, pets, documents]) {
     await page.keyboard.press('ArrowRight');
     await expect(tab).toBeFocused(); await expect(tab).toHaveAttribute('aria-selected', 'true');
   }
-  await page.keyboard.press('End'); await expect(pets).toBeFocused(); await expectConsultation(page, 'pets');
-  await page.keyboard.press('Home'); await expect(documents).toBeFocused();
-  await page.keyboard.press('ArrowLeft'); await expect(pets).toBeFocused();
+  await page.keyboard.press('End'); await expect(pets).toBeFocused(); await expect(pets).toHaveAttribute('aria-selected', 'true'); await expectConsultation(page, 'pets');
+  await page.keyboard.press('Home'); await expect(documents).toBeFocused(); await expect(documents).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowLeft'); await expect(pets).toBeFocused(); await expect(pets).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('region', { name: 'Consulta de PETs', exact: true })).toContainText('A entrada não está autorizada.');
   await expect(page.getByRole('button', { name: 'Pesquisar', exact: true })).toBeEnabled();
   await expectMobileLayout(page);

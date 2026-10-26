@@ -7,6 +7,7 @@ import { Spinner } from '../shared/ui';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { homePath } from './navigation';
 import { RoutePresentation } from './navigation/RoutePresentation';
+import { API_MODE } from '../shared/api/client';
 
 const DocumentsPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentsPage})));
 const ExpirationsPage=lazy(()=>import('../features/documents/ExpirationsPage').then(m=>({default:m.ExpirationsPage})));
@@ -51,19 +52,23 @@ const DesignationDetailPage=lazy(()=>import('../features/designations').then(m=>
 const ConsultationPage=lazy(()=>import('../features/search/ConsultationPage').then(m=>({default:m.ConsultationPage})));
 const TeamInvitePage=lazy(()=>import('../features/teams/TeamInvitePage').then(m=>({default:m.TeamInvitePage})));
 const SignatureProfilePage=lazy(()=>import('../features/signature-profile/SignatureProfilePage').then(m=>({default:m.SignatureProfilePage})));
+const AccountActivationPage=lazy(()=>import('../features/auth/AccountActivationPage').then(m=>({default:m.AccountActivationPage})));
+const ConnectedAccountPage=lazy(()=>import('../features/auth/ConnectedAccountPage').then(m=>({default:m.ConnectedAccountPage})));
 export function Guard({ permission,children }: { permission?: string; children:ReactNode }) {
   const s=useSession(); if(s.status==='restoring') return <Spinner/>;
   if(!s.me) return <Navigate to="/login" replace/>;
   if(permission&&!s.can(permission)) return <div className="error-page"><p className="eyebrow">ACESSO RESTRITO</p><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
   return children;
 }
-function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can)}/>; }
+function Home() { const s=useSession(); return <Navigate replace to={API_MODE === 'api' && !s.me?.permissions.length ? '/app/conexao' : homePath(s.can)}/>; }
 export function App() {
   const location = useLocation(); const session = useSession();
   return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><RoutePresentation contextKey={`${session.sessionKey}:${session.unitId}`} /><Routes>
     <Route path="/login" element={<LoginPage/>}/><Route path="/mfa" element={<Navigate to="/login" replace/>}/>
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
+    <Route path="/ativar-acesso" element={<AccountActivationPage/>}/>
     <Route path="/convite/:token" element={<TeamInvitePage/>}/>
+    <Route path="/app/conexao" element={<Guard>{API_MODE === 'api' ? <ConnectedAccountPage/> : <Navigate to="/app" replace/>}</Guard>}/>
     <Route path="/app" element={<Guard><AppLayout/></Guard>}>
       <Route index element={<Home/>}/>
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>

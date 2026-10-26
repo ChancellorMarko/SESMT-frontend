@@ -1,13 +1,15 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../shared/api/client';
 import type { DocumentaryReadinessDto } from '../../shared/contracts/requirements';
 import type { AppointmentDto } from '../../shared/contracts/work-permits';
 import { AppointmentDetailPage } from '../agenda/AppointmentDetailPage';
 import { DocumentaryReadinessPage } from './DocumentaryReadinessPage';
+import { AppQueryNavigationProvider } from '../../shared/lib/app-query-params';
 
 const session = vi.hoisted(() => ({
   permissions: ['eligibility.read', 'eligibility.write', 'appointments.read'],
@@ -69,6 +71,28 @@ beforeEach(() => {
 });
 
 describe('consulta de pendências como área de trabalho', () => {
+  it('sincroniza o serviço antes de abrir imediatamente o link de conferência', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    function ReturnContext() { return <output aria-label="Contexto de retorno">{JSON.stringify(useLocation().state)}</output>; }
+    const router = createMemoryRouter([{ path: '*', element: <AppQueryNavigationProvider><Routes>
+      <Route path="/app/pendencias" element={<DocumentaryReadinessPage />} />
+      <Route path="/app/agenda/:id" element={<ReturnContext />} />
+    </Routes></AppQueryNavigationProvider> }], { initialEntries: ['/app/pendencias?unitId=unit-a&q=Bruno&teamId=team'] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    let opened = false;
+    const unsubscribe = router.subscribe(next => {
+      if (opened || next.location.pathname !== '/app/pendencias' || new URLSearchParams(next.location.search).get('serviceTypeId') !== 'service') return;
+      opened = true;
+      screen.getByRole('link', { name: 'Abrir conferência de AG-TESTE' }).click();
+    });
+    try {
+      await screen.findByRole('link', { name: 'Abrir conferência de AG-TESTE' });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Serviço' }), { target: { value: 'service' } });
+      const returned = await screen.findByLabelText('Contexto de retorno');
+      expect(JSON.parse(returned.textContent!)).toEqual({ readinessReturnTo: { unitId: 'unit-a', search: '?unitId=unit-a&q=Bruno&teamId=team&serviceTypeId=service' } });
+    } finally { unsubscribe(); view.unmount(); router.dispose(); client.clear(); }
+  });
+
   it.each([
     ['Busca', 'q'],
     ['Equipe', 'teamId'],

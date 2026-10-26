@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MeDto, OrganizationDto, UserDto } from '../../shared/contracts';
 import type { TeamDto } from '../../shared/contracts/work-permits';
@@ -33,7 +34,7 @@ beforeEach(() => {
 });
 function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
-  render(<QueryClientProvider client={client}><UsersPage /></QueryClientProvider>);
+  render(<MemoryRouter><QueryClientProvider client={client}><UsersPage /></QueryClientProvider></MemoryRouter>);
   return client;
 }
 async function edit() {
@@ -42,6 +43,33 @@ async function edit() {
 }
 
 describe('Escopo autorizado e desativação explícita de usuários', () => {
+  it('explica o primeiro acesso e impede ativação manual de uma conta convidada', async () => {
+    currentRecord.status = 'INVITED';
+    const user = await edit();
+    expect(screen.getByRole('heading', { name: 'Cada pessoa, seu próprio acesso.' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Ativo', hidden: true })).toBeDisabled();
+    expect(screen.getByText(/A ativação é concluída pela pessoa ao definir a senha/)).toBeVisible();
+    // Mesmo um valor alterado fora do seletor normal não pode acionar a ativação.
+    fireEvent.change(screen.getByLabelText('Situação'), { target: { value: 'ACTIVE' } });
+    await user.click(screen.getByRole('button', { name: 'Salvar acesso' }));
+    expect(await screen.findByText(/A pessoa precisa definir a própria senha pelo convite/)).toBeVisible();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('consulta o convite da pessoa e abre o roteiro de primeiro acesso em diálogo próprio', async () => {
+    currentRecord.status = 'INVITED';
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path, options) => path === '/users/user-a/invitation'
+      ? { userId: 'user-a', userRevision: 7, status: 'PENDING', expiresAt: '2099-01-01T00:00:00Z', mfaRequired: false, deliveryStatus: 'SIMULATED', demoActivationPath: '/ativar-acesso#token=convite-demo-1234567890' } as never
+      : original(path, options));
+    show(); const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Consultar convite' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Convite de conta' });
+    expect(await within(dialog).findByRole('heading', { name: currentRecord.displayName })).toBeVisible();
+    expect(within(dialog).getByText('Demonstração · nenhum e-mail enviado')).toBeVisible();
+    expect(within(dialog).getByRole('link', { name: 'Explorar primeiro acesso' })).toHaveAttribute('href', '/ativar-acesso#token=convite-demo-1234567890');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
   it('limpar prazo opcional envia remoção explícita, sem alterar os demais vínculos', async () => {
     currentRecord.scope.expiresAt = new Date(Date.now() + 86400000).toISOString();
     const user = await edit();

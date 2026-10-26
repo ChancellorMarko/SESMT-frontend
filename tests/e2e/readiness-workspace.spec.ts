@@ -62,6 +62,8 @@ test('pendências preservam a origem também após consultar a integração pelo
   await result.getByRole('link', { name: 'Abrir conferência de AG-DEMO-222', exact: true }).click();
   const appointment = '/app/agenda/00000000-0000-4000-8000-000000000222';
   await expect(page).toHaveURL(appointment);
+  // The old readiness screen has a link with the same label until the route commits.
+  await expect(page.getByRole('heading', { name: 'Conferência dos participantes', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Consultar integração de Julia Demo', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Integração administrativa do trabalhador', exact: true })).toBeFocused();
   await page.getByRole('link', { name: 'Voltar ao atendimento', exact: true }).click();

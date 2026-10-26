@@ -96,12 +96,15 @@ test('técnico percorre AT vinculada à PT, revalida, encerra e imprime sem alte
   expect(result.pt.operationStatus).toBe(pt.status); expect(result.pt.revision).toBe(pt.revision);
   await page.getByRole('link', { name: 'Imprimir AT', exact: true }).click();
   const print = page.getByRole('article', { name: 'Registro imprimível da AT' });
+  const navigation = page.getByRole('navigation', { name: 'Acesso rápido', exact: true, includeHidden: true });
+  const search = page.getByRole('button', { name: 'Buscar módulos', exact: true, includeHidden: true });
   await expect(print).toContainText('Encerrada'); await expect(print).toContainText('Revalidação 1');
   await expect(print).toContainText('SEM VALIDADE OPERACIONAL');
-  await expect(page.getByRole('navigation', { name: 'Menu principal' })).toBeVisible();
+  await expect(navigation).toBeVisible(); await expect(search).toBeVisible();
   await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('aside nav[aria-label="Menu principal"]')).not.toBeVisible();
+  await expect(navigation).not.toBeVisible(); await expect(search).not.toBeVisible();
   await expect(print).toBeVisible(); await page.emulateMedia({ media: null });
+  await expect(navigation).toBeVisible(); await expect(search).toBeVisible();
   await page.screenshot({ path: 'docs/frontend/qa/at-0.5-impressao-desktop.png', fullPage: true });
   await page.pdf({ path: 'docs/frontend/qa/at-0.5-encerrada.pdf', format: 'A4', printBackground: true, preferCSSPageSize: true });
   await page.setViewportSize({ width: 390, height: 844 });

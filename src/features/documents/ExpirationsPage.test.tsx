@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { api, ApiError } from '../../shared/api/client';
 import type { DocumentDto, PageDto } from '../../shared/contracts';
 import { ExpirationsPage } from './ExpirationsPage';
+import { expiryQuery } from './expiry';
+import { AppQueryNavigationProvider } from '../../shared/lib/app-query-params';
 
 const state = vi.hoisted(() => ({ today: '2026-10-17', unitId: 'unit-a' as string | undefined, sessionKey: 'expiry-test', allowed: true }));
 vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(), api: { get: vi.fn() } }));
@@ -27,6 +30,33 @@ beforeEach(() => {
 });
 
 describe('consulta validada de vencimentos', () => {
+  it('preserva a pesquisa no Link aberto assim que a URL da consulta é atualizada', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    for (const query of ['?unitId=unit-a&days=90', '?unitId=unit-a&days=90&q=DOC-001']) {
+      client.setQueryData(['documents', 'expirations', state.sessionKey, state.unitId, 1, expiryQuery(new URLSearchParams(query), state.today)], response());
+    }
+    function ReturnContext() {
+      return <output aria-label="Contexto de retorno">{JSON.stringify(useLocation().state)}</output>;
+    }
+    const router = createMemoryRouter([{ path: '*', element: <AppQueryNavigationProvider><Routes>
+      <Route path="/app/vencimentos" element={<ExpirationsPage />} />
+      <Route path="/app/documentos/:id" element={<ReturnContext />} />
+    </Routes></AppQueryNavigationProvider> }], { initialEntries: ['/app/vencimentos?unitId=unit-a&days=90'] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    let opened = false;
+    const unsubscribe = router.subscribe(next => {
+      if (opened || next.location.pathname !== '/app/vencimentos' || new URLSearchParams(next.location.search).get('q') !== 'DOC-001') return;
+      opened = true;
+      screen.getByRole('link', { name: 'Documento a renovar' }).click();
+    });
+    try {
+      await screen.findByRole('link', { name: 'Documento a renovar' });
+      fireEvent.change(screen.getByLabelText('Buscar por título ou código'), { target: { value: 'DOC-001' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+      const returned = await screen.findByLabelText('Contexto de retorno');
+      expect(JSON.parse(returned.textContent!)).toEqual({ expirationReturnTo: { unitId: 'unit-a', search: '?unitId=unit-a&days=90&q=DOC-001' } });
+    } finally { unsubscribe(); view.unmount(); router.dispose(); client.clear(); }
+  });
   it('consulta o período escolhido, preserva critérios no repositório e sincroniza a busca no histórico', async () => {
     show('?unitId=unit-a&days=7'); await screen.findByRole('link', { name: 'Documento a renovar' });
     expect(api.get).toHaveBeenCalledWith('/documents', expect.objectContaining({ query: { unitId: 'unit-a', page: 1, pageSize: 10, status: 'ACTIVE', validUntilFrom: '2026-10-17', validUntilTo: '2026-10-24' } }));

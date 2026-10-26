@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
 import { isCivilDate } from '../documents/validation';
@@ -30,7 +31,7 @@ function dateTime(value: string) {
 
 export function DashboardPage() {
   const { sessionKey, unitId, can } = useSession();
-  const [search, setSearch] = useSearchParams();
+  const [search, setSearch] = useAppQueryParams();
   const from = search.get('from') ?? '';
   const to = search.get('to') ?? '';
   const [draftFrom, setDraftFrom] = useState(from);
@@ -61,12 +62,12 @@ export function DashboardPage() {
       const next = new URLSearchParams();
       if (draftFrom) next.set('from', draftFrom);
       if (draftTo) next.set('to', draftTo);
-      setSearch(next);
+      setSearch(next, { flushSync: true });
     }}>
       <Field label="Período inicial" error={draftFromError}><input type="date" value={draftFrom} onChange={(event) => setDraftFrom(event.target.value)} /></Field>
       <Field label="Período final" error={draftToError}><input type="date" value={draftTo} min={isCivilDate(draftFrom) ? draftFrom : undefined} onChange={(event) => setDraftTo(event.target.value)} /></Field>
       <Button type="submit" disabled={draftInvalid}>Aplicar período</Button>
-      {(invalidQuery || from || to || draftFrom || draftTo) && <Button variant="ghost" onClick={() => { setDraftFrom(''); setDraftTo(''); setSearch(new URLSearchParams()); }}>Limpar filtros</Button>}
+      {(invalidQuery || from || to || draftFrom || draftTo) && <Button variant="ghost" onClick={() => { setDraftFrom(''); setDraftTo(''); setSearch(new URLSearchParams(), { flushSync: true }); }}>Limpar filtros</Button>}
       {hasDraftChanges && <span role="status" className="text-[11px] leading-5 text-amber-700">Há alterações no período ainda não aplicadas ao painel.</span>}
     </form>
     {invalidRange && <Feedback tone="danger">{invalidQuery ? 'Os filtros na URL são inválidos. Corrija ou limpe a seleção para consultar o painel.' : 'O intervalo na URL é inválido. Corrija as datas para consultar o painel.'}</Feedback>}

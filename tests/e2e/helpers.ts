@@ -23,14 +23,28 @@ export async function openModule(page: Page, name: string) {
   await expect(menu).toHaveCount(0);
 }
 
-export async function navigateWithinApp(page: Page, pathname: string) {
-  // A full reload intentionally resets the MSW demonstration. Simulate opening
-  // a route while retaining the current browser session for authorization QA.
-  await page.evaluate((target) => {
-    window.history.pushState({}, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+export async function navigateWithinApp(page: Page, pathname: string, expectedPath = pathname) {
+  // Keep the demo session and let the application router own history and blockers.
+  const selectedUnit = await page.evaluate(async (target) => {
+    const readUnit = () => document.querySelector<HTMLSelectElement>('select[aria-label="Unidade de trabalho"]')?.value;
+    const previousUnit = readUnit();
+    const routerUrl = '/src/app/router.tsx';
+    const { getAppRouter } = await import(routerUrl);
+    await getAppRouter().navigate(target, { flushSync: true });
+    return readUnit() || previousUnit;
   }, pathname);
-  await expect(page).toHaveURL(pathname);
+  const expected = new URL(expectedPath, page.url());
+  expected.searchParams.sort();
+  await expect(page).toHaveURL(actual => {
+    const comparable = new URL(actual.href);
+    // Lists may append the selected unit; requested filters and duplicate values stay exact.
+    if (expected.pathname.startsWith('/app/') && !expected.searchParams.has('unitId') && selectedUnit
+      && comparable.searchParams.getAll('unitId').length === 1 && comparable.searchParams.get('unitId') === selectedUnit) {
+      comparable.searchParams.delete('unitId');
+    }
+    comparable.searchParams.sort();
+    return comparable.href === expected.href;
+  });
 }
 
 export function simplePdf(text = 'Documento sintetico para teste') {

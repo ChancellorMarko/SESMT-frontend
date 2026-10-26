@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { FileText, FolderOpen, Plus, Search } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -41,11 +42,11 @@ export function DocumentsPage() {
 function DocumentsPageContent() {
   const { unitId, sessionKey, can } = useSession();
   const location = useLocation();
-  const [searchParams, navigateSearch] = useSearchParams();
+  const [searchParams, navigateSearch] = useAppQueryParams();
   const dashboardReturnTo = documentNavigation(location.state, unitId, can('dashboard.read'))?.documentDashboardReturnTo;
   const returnUnit = dashboardReturnTo?.unitId, returnSearch = dashboardReturnTo?.search;
-  const setSearchParams = useCallback((next: URLSearchParams, options?: { replace?: boolean }) => {
-    navigateSearch(next, { ...options, state: returnUnit ? { documentDashboardReturnTo: { unitId: returnUnit, search: returnSearch ?? '' } } : undefined });
+  const setSearchParams = useCallback((next: URLSearchParams, options?: { replace?: boolean; flushSync?: boolean }) => {
+    navigateSearch(next, { ...options, flushSync: options?.flushSync ?? true, state: returnUnit ? { documentDashboardReturnTo: { unitId: returnUnit, search: returnSearch ?? '' } } : undefined });
   }, [navigateSearch, returnUnit, returnSearch]);
   const documentOrigin = documentNavigation({ documentListReturnTo: { unitId, search: location.search }, documentDashboardReturnTo: dashboardReturnTo }, unitId, can('dashboard.read'));
   const filters = useMemo(() => readFilters(searchParams), [searchParams]);
@@ -65,7 +66,7 @@ function DocumentsPageContent() {
     if (!unitId || urlUnit === unitId) return;
     const next = new URLSearchParams(searchParams); next.set('unitId', unitId);
     if (urlUnit) { next.delete('workerId'); next.delete('responsibleId'); next.delete('page'); }
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, flushSync: false });
   }, [unitId, urlUnit, searchParams, setSearchParams]);
   const list = useQuery({
     queryKey: ['documents', sessionKey, unitId, page, filters],

@@ -72,6 +72,9 @@ describe('TeamInvitePage', () => {
   afterEach(() => vi.useRealTimers());
   beforeEach(() => {
     vi.clearAllMocks();
+    // Keep invitation validity independent of the day CI runs, without faking async waits.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T12:00:00Z'));
     session.status = 'anonymous';
   });
 
@@ -167,6 +170,7 @@ describe('TeamInvitePage', () => {
   });
 
   it('retira os participantes ao vencer durante a consulta sem recarregar a página', async () => {
+    vi.useRealTimers();
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
     vi.setSystemTime('2026-10-13T12:00:00Z');
     vi.mocked(api.get).mockResolvedValue({ ...mockInvite, expiresAt: '2026-10-13T12:00:05Z' });

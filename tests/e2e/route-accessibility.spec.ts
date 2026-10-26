@@ -61,6 +61,7 @@ test('alterar filtro na mesma página conserva o foco local e o título', async 
   await openModule(page, 'Trabalhadores');
   await expect(page.getByRole('heading', { level: 1, name: 'Trabalhadores', exact: true })).toBeFocused();
   const status = page.getByLabel('Situação cadastral', { exact: true });
+  await expect(status).toBeEnabled();
   await status.focus();
   await status.selectOption('ACTIVE');
   await expect(page).toHaveURL(/status=ACTIVE/);

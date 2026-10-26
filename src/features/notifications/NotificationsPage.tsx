@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useSearchParams } from 'react-router';
+import { useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { Bell, BellRing, ListChecks, RefreshCw } from 'lucide-react';
 import { api, ApiError } from '../../shared/api';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -31,10 +32,10 @@ function NotificationsContent() {
   const location = useLocation();
   const readSelect = useRef<HTMLSelectElement>(null);
   const restoreReadFocus = useRef(false);
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function writeParams(next: URLSearchParams, replace = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace }); }
+  function writeParams(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }
   const requestedRead = params.get('read') ?? '', read = ['true', 'false'].includes(requestedRead) ? requestedRead : '';
   const page = Number(params.get('page') ?? 1), urlUnit = params.get('unitId');
   const filterError = notificationCriteriaError(params);
@@ -86,18 +87,18 @@ function NotificationsContent() {
 
   function setPage(nextPage: number) {
     if (pending.current) return;
-    const next = new URLSearchParams(latestParams.current); next.set('page', String(nextPage)); writeParams(next);
+    const next = new URLSearchParams(latestParams.current); next.set('page', String(nextPage)); writeParams(next, false, true);
   }
   function changeRead(value: string) {
     if (pending.current) return;
     const next = new URLSearchParams(latestParams.current); next.delete('page');
     if (value) next.set('read', value); else next.delete('read');
-    setConfirmation(''); setMutationError(undefined); writeParams(next);
+    setConfirmation(''); setMutationError(undefined); writeParams(next, false, true);
   }
   function removeReadFilter() { changeRead(''); readSelect.current?.focus(); }
   function clearFilters() {
     if (pending.current || !unitId) return;
-    setConfirmation(''); setMutationError(undefined); writeParams(new URLSearchParams({ unitId }));
+    setConfirmation(''); setMutationError(undefined); writeParams(new URLSearchParams({ unitId }), false, true);
   }
   async function retry() {
     if (!enabled || pending.current) return;

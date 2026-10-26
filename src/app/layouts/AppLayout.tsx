@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useAnimationControls } from 'framer-motion';
@@ -17,6 +17,7 @@ import { canReadOperationsDashboard, dashboardPath } from '../navigation';
 import styles from './AppLayout.module.css';
 import navigationStyles from './WorkspaceNavigation.module.css';
 import { useProtectedLogout } from '../navigation/NavigationProtection';
+import { matchesWorkspaceSearch, normalizeWorkspaceSearch } from '../navigation/workspace-search';
 
 const nav = [
   { to: 'dashboard', label: 'Visão geral', icon: LayoutDashboard, permission: 'dashboard.read' },
@@ -88,24 +89,18 @@ const moduleDetails: Record<string, { description: string; terms: string }> = {
   'configuracoes/parametros': { description: 'Preferências e parâmetros do sistema', terms: 'parâmetro configuração configurações preferências' },
 };
 
-function normalize(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
-}
-
-function WorkspaceNavigation({ canNavigate, canConfigure, canReadAreas, onNavigate, search, overviewPath }: {
+function WorkspaceNavigation({ canNavigate, canConfigure, canReadAreas, onNavigate, onSearch, search, overviewPath }: {
   canNavigate: (item: typeof nav[number]) => boolean;
   canConfigure: (item: typeof config[number]) => boolean;
   canReadAreas: boolean;
   onNavigate: () => void;
+  onSearch: (value: string) => void;
   search: string;
   overviewPath: string;
 }) {
   const location = useLocation();
-  const query = normalize(search);
-  const matches = (label: string, terms: string) => {
-    const words = normalize(`${label} ${terms}`).split(/[^a-z0-9]+/);
-    return !query || query.split(/\s+/).every(term => words.some(word => ['pt', 'at', 'nr'].includes(term) ? word === term : word.startsWith(term)));
-  };
+  const query = normalizeWorkspaceSearch(search);
+  const matches = (label: string, terms: string) => matchesWorkspaceSearch(query, `${label} ${terms}`);
   const matchesModule = (item: { to: string; label: string }, group: string) => matches(item.label, `${group} ${moduleDetails[item.to]?.terms || ''} ${moduleDetails[item.to]?.description || ''}`);
   const visibleAreas = canReadAreas ? areaSearchItems.filter(item => matches(item.label, `${item.terms} ${item.description}`)) : [];
   const currentParams = new URLSearchParams(location.search);
@@ -115,13 +110,19 @@ function WorkspaceNavigation({ canNavigate, canConfigure, canReadAreas, onNaviga
   const visibleConfig = config.filter(canConfigure).filter(item => matchesModule(item, 'Administração'));
   const groups = navigationGroups.map(group => ({ ...group, items: group.routes.map(route => nav.find(item => item.to === route)!).filter(canNavigate).filter(item => matchesModule(item, group.label)) })).filter(group => group.items.length > 0);
   const count = groups.reduce((total, group) => total + group.items.length, 0) + visibleConfig.length + visibleAreas.length;
+  const suggestions = [
+    { route: 'agenda', label: 'Agenda' },
+    { route: 'documentos', label: 'Documentos' },
+    { route: 'pts', label: 'PT' },
+    { route: 'equipes', label: 'Equipes' },
+  ].filter(item => { const destination = nav.find(module => module.to === item.route); return !!destination && canNavigate(destination); });
   const isCurrent = (to: string) => location.pathname === to || location.pathname.startsWith(`${to}/`);
   const linkClasses = navigationStyles.moduleLink;
   function moduleLink(item: { to: string; label: string }, Icon: LucideIcon) {
     const to = item.to === 'dashboard' ? overviewPath : `/app/${item.to}`;
     const active = isCurrent(to) && (item.to !== 'dashboard' || !['inspecoes', 'saude', 'epis'].includes(currentParams.get('area') || ''));
     const descriptionId = `navigation-${item.to.replaceAll('/', '-')}-description`;
-    return <Link key={item.to} className={linkClasses} to={to} onClick={onNavigate} aria-label={item.label} aria-describedby={descriptionId} aria-current={active ? 'page' : undefined}>
+    return <Link key={item.to} data-navigation-destination className={linkClasses} to={to} onClick={onNavigate} aria-label={item.label} aria-describedby={descriptionId} aria-current={active ? 'page' : undefined}>
       <span className={navigationStyles.moduleIcon}><Icon size={17} aria-hidden="true" /></span>
       <span className={navigationStyles.moduleText}><strong>{item.label}</strong><small id={descriptionId}>{moduleDetails[item.to]?.description}</small></span>
       <ArrowUpRight size={14} className={navigationStyles.linkArrow} aria-hidden="true" />
@@ -131,7 +132,7 @@ function WorkspaceNavigation({ canNavigate, canConfigure, canReadAreas, onNaviga
     <p className={navigationStyles.resultCount} role="status" aria-atomic="true">{count === 0 ? 'Nenhum resultado' : `${count} ${count === 1 ? 'destino disponível' : 'destinos disponíveis'}`}{query ? ' para sua busca' : ' para o seu perfil'}</p>
     {visibleAreas.length > 0 && <nav aria-label="Áreas de prevenção" className={navigationStyles.areas}>
       <p className={navigationStyles.sectionTitle}>Prevenção no dia a dia</p>
-      <div className={navigationStyles.areaGrid}>{visibleAreas.map(item => <Link key={item.id} to={item.to} state={location.pathname === '/app/dashboard' && currentParams.get('area') === 'saude' && (item.id === 'asos' || item.id === 'nrs') ? { dashboardTabFocus: item.id } : undefined} className={`${linkClasses} ${navigationStyles.areaLink}`} onClick={onNavigate} aria-label={item.label} aria-describedby={`navigation-area-${item.id}`} aria-current={areaSelected(item.id) ? 'page' : undefined}>
+      <div className={navigationStyles.areaGrid}>{visibleAreas.map(item => <Link key={item.id} data-navigation-destination to={item.to} state={location.pathname === '/app/dashboard' && currentParams.get('area') === 'saude' && (item.id === 'asos' || item.id === 'nrs') ? { dashboardTabFocus: item.id } : undefined} className={`${linkClasses} ${navigationStyles.areaLink}`} onClick={onNavigate} aria-label={item.label} aria-describedby={`navigation-area-${item.id}`} aria-current={areaSelected(item.id) ? 'page' : undefined}>
         <span className={navigationStyles.moduleIcon}><item.icon size={18} aria-hidden="true" /></span><span className={navigationStyles.moduleText}><strong>{item.label}</strong><small id={`navigation-area-${item.id}`}>{item.description}</small></span><ArrowUpRight size={14} className={navigationStyles.linkArrow} aria-hidden="true" />
       </Link>)}
       </div>
@@ -146,7 +147,7 @@ function WorkspaceNavigation({ canNavigate, canConfigure, canReadAreas, onNaviga
       <p className={navigationStyles.sectionTitle}>Administração</p>
       <div className={navigationStyles.configurationGrid}>{visibleConfig.map(item => moduleLink(item, SlidersHorizontal))}</div>
     </nav>}
-    {count === 0 && <div className={navigationStyles.empty}><span><Search size={23} aria-hidden="true" /></span><p>Nenhum módulo encontrado. Tente outro termo.</p><small>Busque pelo nome ou por uma sigla, como PT, ASO ou EPI.</small></div>}
+    {count === 0 && <div className={navigationStyles.empty}><span><Search size={23} aria-hidden="true" /></span><p>Nenhum módulo encontrado. Tente outro termo.</p><small>Busque pelo nome completo ou pela sigla de um módulo disponível para você.</small>{suggestions.length > 0 && <div className={navigationStyles.suggestions} role="group" aria-label="Buscar em módulos disponíveis">{suggestions.map(item => <button key={item.route} type="button" onClick={() => onSearch(item.label)}>{item.label}<ArrowUpRight size={12} aria-hidden="true" /></button>)}</div>}</div>}
   </>;
 }
 
@@ -180,6 +181,29 @@ export function AppLayout() {
   const search = currentMenu?.search || '';
   const navigationInput = useRef<HTMLInputElement>(null);
   const navigationResults = useRef<HTMLDivElement>(null);
+  function handleNavigationKeys(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.isDefaultPrevented() || event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const links = Array.from(navigationResults.current?.querySelectorAll<HTMLAnchorElement>('a[data-navigation-destination]') || []);
+    if (!links.length) return;
+    const focus = (link: HTMLAnchorElement) => {
+      event.preventDefault();
+      link.focus({ preventScroll: true });
+      link.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    };
+    if (event.target === navigationInput.current) {
+      if (event.key === 'ArrowDown') focus(links[0]);
+      else if (event.key === 'ArrowUp') focus(links[links.length - 1]);
+      else if (event.key === 'Enter' && normalizeWorkspaceSearch(search) && links.length === 1) { event.preventDefault(); links[0].click(); }
+      return;
+    }
+    const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-navigation-destination]') : null;
+    const index = anchor ? links.indexOf(anchor) : -1;
+    if (index < 0) return;
+    if (event.key === 'ArrowDown') focus(links[(index + 1) % links.length]);
+    else if (event.key === 'ArrowUp') focus(links[(index - 1 + links.length) % links.length]);
+    else if (event.key === 'Home') focus(links[0]);
+    else if (event.key === 'End') focus(links[links.length - 1]);
+  }
   const [help, setHelp] = useState(false);
   const openMenu = useCallback(() => setNavigation(current => current?.context === navigationContext ? current : { context: navigationContext, search: '' }), [navigationContext]);
   const closeMenu = () => setNavigation(null);
@@ -315,18 +339,13 @@ export function AppLayout() {
       <div className={navigationStyles.intro}><Link to="/app" aria-label="Ampara SESMT · Início" onClick={closeMenu}><BrandLogo /></Link><p>Encontre seu próximo passo.<br /><span>Os módulos disponíveis para você.</span></p></div>
       <div className={navigationStyles.search}>
         <Search size={18} aria-hidden="true" />
-        <input ref={navigationInput} className={navigationStyles.searchInput} aria-label="Buscar módulos de navegação" aria-describedby="navigation-search-hint" placeholder="Buscar módulo ou sigla…" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => {
-          if (event.isDefaultPrevented() || event.nativeEvent.isComposing) return;
-          const links = navigationResults.current?.querySelectorAll<HTMLAnchorElement>('a[href]');
-          if (event.key === 'ArrowDown' && links?.length) { event.preventDefault(); links[0].focus(); }
-          if (event.key === 'Enter' && search.trim() && links?.length === 1) { event.preventDefault(); links[0].click(); }
-        }} />
+        <input ref={navigationInput} className={navigationStyles.searchInput} aria-label="Buscar módulos de navegação" aria-describedby="navigation-search-hint" placeholder="Buscar módulo ou sigla…" maxLength={160} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={handleNavigationKeys} />
         {search && <button type="button" aria-label="Limpar busca" onClick={() => { setSearch(''); navigationInput.current?.focus({ preventScroll: true }); }}><X size={16} aria-hidden="true" /></button>}
       </div>
-      <div ref={navigationResults} className={navigationStyles.results} data-navigation-results>
-        <WorkspaceNavigation canNavigate={canNavigate} canConfigure={canConfigure} canReadAreas={canReadOperationsDashboard(s.can)} onNavigate={closeMenu} search={search} overviewPath={dashboardPath(s.can)} />
+      <div ref={navigationResults} className={navigationStyles.results} data-navigation-results onKeyDown={handleNavigationKeys}>
+        <WorkspaceNavigation canNavigate={canNavigate} canConfigure={canConfigure} canReadAreas={canReadOperationsDashboard(s.can)} onNavigate={closeMenu} onSearch={value => { setSearch(value); navigationInput.current?.focus({ preventScroll: true }); }} search={search} overviewPath={dashboardPath(s.can)} />
       </div>
-      <div className={navigationStyles.footer}><p id="navigation-search-hint"><kbd>Tab</kbd> navegar <span>·</span> <kbd>Esc</kbd> fechar<span className="sr-only">. Enter abre quando há um único resultado. Seta para baixo foca o primeiro destino.</span></p><div className={navigationStyles.helpActions}><button type="button" onClick={openTerminology}><BookOpen size={15} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={openGuide}><Sparkles size={15} aria-hidden="true" />Guia Ampara<ArrowUpRight size={13} aria-hidden="true" /></button></div></div>
+      <div className={navigationStyles.footer}><p id="navigation-search-hint"><kbd>↑ ↓</kbd> escolher <span>·</span> <kbd>Enter</kbd> abrir <span>·</span> <kbd>Esc</kbd> fechar<span className="sr-only">. Tab percorre os controles. Na busca, Enter abre somente um resultado único. Home e End vão ao primeiro e ao último destino quando um resultado está em foco.</span></p><div className={navigationStyles.helpActions}><button type="button" onClick={openTerminology}><BookOpen size={15} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={openGuide}><Sparkles size={15} aria-hidden="true" />Guia Ampara<ArrowUpRight size={13} aria-hidden="true" /></button></div></div>
     </Modal>
     <TerminologyGuide open={terminologyOpen} onClose={() => setTerminologyContext(null)} />
     <Modal open={help} title="Sobre esta versão" onClose={() => setHelp(false)}><div className="stack"><BrandLogo /><p>Ampara SESMT: agenda, conferência documental, atendimento em campo, autorizações, revalidações e encerramento, além da preparação de rascunhos da PET, gestão documental e cadastros.</p><p className="muted">O ambiente de demonstração usa dados sintéticos e simula respostas no navegador. Não há servidor de negócio, banco de dados, emissão real de JWT, antivírus ou envio de mensagens neste repositório. A verificação de arquivos e os registros de auditoria exibidos são simulados.</p><p className="muted">O checklist e a matriz da demonstração são ilustrativos. Os modelos reais, requisitos e contratos de integração devem ser alinhados com os responsáveis e a equipe da API.</p><Button onClick={() => setHelp(false)}>Entendi</Button></div></Modal>

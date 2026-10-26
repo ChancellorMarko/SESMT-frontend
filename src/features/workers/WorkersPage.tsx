@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { Plus, Search, UsersRound } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
@@ -71,10 +72,10 @@ function WorkersPageContent() {
   const location = useLocation();
   const restored = workerNavigation(location.state, sessionKey, unitId)?.workerListReturnTo;
   const restore = restored?.search === location.search ? restored : undefined;
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function writeParams(next: URLSearchParams, replace = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace }); }
+  function writeParams(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }
   const q = params.get('q') || '', status = params.get('status') || '', companyId = params.get('companyId') || '', teamId = params.get('teamId') || '', integrationStatus = params.get('integrationStatus') || '';
   const [search, setSearch] = useState(restore?.draftSearch ?? q);
   const [advancedOpen, setAdvancedOpen] = useState(restore?.advancedOpen ?? Boolean(companyId || teamId));
@@ -96,10 +97,11 @@ function WorkersPageContent() {
   const teams = useScopedRead<TeamDto[]>({ queryKey: ['teams', sessionKey, unitId], enabled: enabled && can('teams.read'), request: signal => api.get<unknown>('/teams', { signal, query: { unitId } }), validate: value => teamsResponse(value, unitId!) });
   function change(key: string, value: string) {
     if (!unitMatches || filterError) return;
-    const next = new URLSearchParams(latestParams.current); if (value) next.set(key, value); else next.delete(key); next.delete('page'); writeParams(next);
+    // Commit user actions before another click can read a Link's previous return context.
+    const next = new URLSearchParams(latestParams.current); if (value) next.set(key, value); else next.delete(key); next.delete('page'); writeParams(next, false, true);
   }
-  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); if (value === 1) next.delete('page'); else next.set('page', String(value)); writeParams(next); }
-  function clear() { setSearch(''); writeParams(new URLSearchParams({ unitId: unitId! })); }
+  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); if (value === 1) next.delete('page'); else next.set('page', String(value)); writeParams(next, false, true); }
+  function clear() { setSearch(''); writeParams(new URLSearchParams({ unitId: unitId! }), false, true); }
   if (!allowed) return <EmptyState title="Acesso restrito" description="Seu perfil não possui acesso ao cadastro de trabalhadores." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha uma unidade para consultar seus trabalhadores." />;
   const organizationData = workers.failed ? undefined : organization.data, teamData = workers.failed ? undefined : teams.data;
@@ -120,7 +122,15 @@ function WorkersPageContent() {
   return <div className={styles.workspace}>
     <PageHeader eyebrow="Pessoas e vínculos" title="Trabalhadores" description="Encontre cadastros, situação de integração, equipes operacionais e documentos permitidos." actions={can('workers.write') && <Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Novo trabalhador</Link>} />
     <section className={`panel ${styles.filters}`} aria-label="Pesquisa de trabalhadores">
-      <form className={styles.filters} aria-label="Filtros de trabalhadores" onSubmit={event => { event.preventDefault(); change('q', search.trim()); }}>
+      <form className={styles.filters} aria-label="Filtros de trabalhadores" onSubmit={event => {
+        event.preventDefault();
+        if (!unitMatches || filterError) return;
+        const nextQuery = search.trim();
+        // A delayed route commit must not overwrite a draft typed after this submission.
+        previousQuery.current = nextQuery;
+        setSearch(nextQuery);
+        change('q', nextQuery);
+      }}>
         <div className={styles.primaryFilters}>
         <Field label="Buscar nome ou matrícula"><div className={styles.search}><Search size={16} aria-hidden="true" /><input type="search" value={search} maxLength={200} onChange={event => setSearch(event.target.value)} placeholder="Digite um nome ou matrícula" aria-describedby={hasDraft ? 'worker-search-draft' : undefined} /></div></Field>
         <Field label="Integração administrativa"><select value={integrationStatus} disabled={disabledFilters} onChange={event => change('integrationStatus', event.target.value)}><option value="">Todas as integrações</option>{integrationStatus && !Object.hasOwn(integrationStatusLabels, integrationStatus) && <option value={integrationStatus}>Integração inválida</option>}{Object.entries(integrationStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>

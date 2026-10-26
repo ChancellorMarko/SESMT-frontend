@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { PageDto } from '../../shared/contracts';
@@ -75,7 +76,7 @@ export function PreparationSearchTab({ kind }: { kind: Kind }) {
 
 function PreparationSearchContent({ kind }: { kind: Kind }) {
   const { sessionKey, unitId, can } = useSession();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const location = useLocation();
   const client = useQueryClient();
   const allowed = can(kind === 'ats' ? 'at.read' : 'pet.read');
@@ -119,7 +120,7 @@ function PreparationSearchContent({ kind }: { kind: Kind }) {
 
   function clear() {
     const next = new URLSearchParams({ tab: kind }); if (unitId) next.set('unitId', unitId);
-    setSearch(''); setDraftStatus(''); setDraftError(''); setParams(next);
+    setSearch(''); setDraftStatus(''); setDraftError(''); setParams(next, { flushSync: true });
     searchInput.current?.focus({ preventScroll: true });
   }
   function discardDraft() {
@@ -133,10 +134,10 @@ function PreparationSearchContent({ kind }: { kind: Kind }) {
     setDraftError('');
     const next = new URLSearchParams({ tab: kind, unitId: unitId! });
     if (search.trim()) next.set('q', search.trim()); if (kind === 'ats' && draftStatus) next.set('status', draftStatus);
-    setParams(next);
+    setParams(next, { flushSync: true });
   }
   function changePage(nextPage: number) {
-    const next = new URLSearchParams(params); if (nextPage === 1) next.delete('page'); else next.set('page', String(nextPage)); setParams(next);
+    const next = new URLSearchParams(params); if (nextPage === 1) next.delete('page'); else next.set('page', String(nextPage)); setParams(next, { flushSync: true });
   }
   async function retry() {
     const refreshed = await result.refetch();

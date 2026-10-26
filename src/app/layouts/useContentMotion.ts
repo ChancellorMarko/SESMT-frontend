@@ -1,6 +1,7 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
 const surfaces = '.page-header, .panel, [data-motion-surface]';
+const interactiveControls = 'a[href],button,input:not([type="hidden"]),select,textarea,summary,[tabindex]:not([tabindex="-1"]),[contenteditable]:not([contenteditable="false"]),[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="combobox"],[role="textbox"],[role="slider"],[role="spinbutton"],[role="tab"],[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"],[role="option"]';
 
 /** Animate existing content without remounting routed forms or hiding offscreen content. */
 export function useContentMotion(root: RefObject<HTMLElement | null>, context: string, reduced: boolean | null, anchored: boolean) {
@@ -21,11 +22,14 @@ export function useContentMotion(root: RefObject<HTMLElement | null>, context: s
     function reveal(element: HTMLElement, order: number) {
       const active = document.activeElement;
       if (!element.isConnected || (active instanceof Element && element.contains(active) && !active.matches('[data-page-focus]')) || window.matchMedia('print').matches) return;
-      // The resting style is always visible; cancellation also restores it immediately.
-      const animation = element.animate([
+      // A scroll-triggered entrance must not move a control between pointer targeting and click.
+      const hasControls = element.matches(interactiveControls) || Boolean(element.querySelector(interactiveControls));
+      const keyframes = hasControls ? [{ opacity: .15 }, { opacity: 1 }] : [
         { opacity: .15, translate: '0 28px' },
         { opacity: 1, translate: '0 0' },
-      ], { duration: 620, delay: Math.min(order, 5) * 85, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'backwards' });
+      ];
+      // The resting style is always visible; cancellation also restores it immediately.
+      const animation = element.animate(keyframes, { duration: 620, delay: Math.min(order, 5) * 85, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'backwards' });
       running.set(element, animation);
       animation.onfinish = () => { if (running.get(element) === animation) running.delete(element); };
     }

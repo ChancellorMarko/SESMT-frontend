@@ -1,13 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openModule, loginDemo, navigateWithinApp } from './helpers';
 
+const unitId = '00000000-0000-4000-8000-000000000002';
+
 async function expectNoOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
 test('consulta documentos por critérios combinados e retorna ao mesmo resultado', async ({ page }) => {
   await loginDemo(page, 'Auditor');
-  await navigateWithinApp(page, '/app/consulta');
+  await navigateWithinApp(page, `/app/consulta?tab=documents&unitId=${unitId}`);
   await page.getByRole('searchbox', { name: 'Buscar título ou código' }).fill('PROC-2026-002');
   await page.getByLabel('Tipo documental', { exact: true }).selectOption({ label: 'Procedimento operacional' });
   await page.getByLabel('Situação', { exact: true }).selectOption('ACTIVE');
@@ -41,7 +43,7 @@ test('pagina resultados reais da demonstração e oferece retorno de página for
       await api.post('/documents', { ...reference, code: `CONSULTA-E2E-${String(index).padStart(2, '0')}`, title: `Consulta paginada ${index}`, status: undefined, id: undefined });
     }
   });
-  await navigateWithinApp(page, '/app/consulta?tab=documents&q=CONSULTA-E2E');
+  await navigateWithinApp(page, `/app/consulta?tab=documents&q=CONSULTA-E2E&unitId=${unitId}`);
   const table = page.getByRole('table', { name: 'Resultados da consulta documental' });
   await expect(table.locator('tbody tr')).toHaveCount(10);
   await expect(page.getByText('12 documento(s) encontrado(s) · Página 1 de 2')).toBeVisible();
@@ -52,7 +54,7 @@ test('pagina resultados reais da demonstração e oferece retorno de página for
   await page.getByRole('link', { name: 'Voltar à consulta', exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(table.locator('tbody tr')).toHaveCount(2);
-  await navigateWithinApp(page, '/app/consulta?tab=documents&q=CONSULTA-E2E&page=99');
+  await navigateWithinApp(page, `/app/consulta?tab=documents&q=CONSULTA-E2E&page=99&unitId=${unitId}`);
   await expect(page.getByRole('heading', { name: 'Nenhum documento encontrado' })).toBeVisible();
   await page.getByRole('button', { name: 'Anterior', exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
@@ -61,7 +63,7 @@ test('pagina resultados reais da demonstração e oferece retorno de página for
 
 test('consulta PT por equipe e situação e preserva filtros ao voltar do detalhe', async ({ page }) => {
   await loginDemo(page, 'Técnico de segurança');
-  await navigateWithinApp(page, '/app/consulta?tab=permits');
+  await navigateWithinApp(page, `/app/consulta?tab=permits&unitId=${unitId}`);
   await page.getByRole('searchbox', { name: 'Buscar PT' }).fill('PT-DEMO-230');
   await page.getByLabel('Situação operacional', { exact: true }).selectOption('COMPLETED');
   await page.getByLabel('Revisão do encerramento', { exact: true }).selectOption('PENDING_REVIEW');
@@ -87,7 +89,7 @@ test('consulta explica critérios inválidos recebidos por link e recupera ao li
       if (/\/api\/v1\/(documents|work-permits)\?/.test(request.url())) queries.push(request.url());
     };
     page.on('request', collect);
-    await navigateWithinApp(page, `/app/consulta?tab=${tab}&${filter}`);
+    await navigateWithinApp(page, `/app/consulta?tab=${tab}&${filter}&unitId=${unitId}`);
     await expect(page.getByRole('alert').filter({ hasText: 'Filtros da consulta inválidos.' })).toBeVisible();
     await expect(page.getByRole('table')).toHaveCount(0);
     expect(queries).toEqual([]);
@@ -95,13 +97,14 @@ test('consulta explica critérios inválidos recebidos por link e recupera ao li
     await page.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
     await expect(page.getByRole('table')).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: 'Filtros da consulta inválidos.' })).toHaveCount(0);
-    await expect(page).toHaveURL(`/app/consulta?tab=${tab}&unitId=00000000-0000-4000-8000-000000000002`);
+    await expect(page).toHaveURL(`/app/consulta?tab=${tab}&unitId=${unitId}`);
   }
 });
 
 test('trabalhador não acessa PT pela aba forjada e só consulta o documento individual autorizado', async ({ page }) => {
   await loginDemo(page, 'Trabalhador');
-  await navigateWithinApp(page, '/app/consulta?tab=permits');
+  // Request the forbidden tab, then verify the route canonicalized by the access rules.
+  await navigateWithinApp(page, `/app/consulta?tab=permits&unitId=${unitId}`, `/app/consulta?tab=documents&unitId=${unitId}`);
   await expect(page.getByRole('tab', { name: /Permissões de trabalho/ })).toHaveCount(0);
   await expect(page.getByRole('searchbox', { name: 'Buscar PT' })).toHaveCount(0);
   const table = page.getByRole('table', { name: 'Resultados da consulta documental' });
@@ -118,7 +121,7 @@ for (const width of [320, 390]) {
     page.on('pageerror', error => errors.push(error.message));
     await page.setViewportSize({ width, height: 844 });
     await loginDemo(page, 'Auditor');
-    await navigateWithinApp(page, '/app/consulta');
+    await navigateWithinApp(page, `/app/consulta?tab=documents&unitId=${unitId}`);
     await expect(page.getByRole('heading', { name: 'Central de consulta unificada' })).toBeVisible();
     const docs = page.getByRole('tab', { name: 'Documentos controlados', exact: true });
     const permits = page.getByRole('tab', { name: /Permissões de trabalho/ });
@@ -176,6 +179,9 @@ test('gestor gera um convite pela interface, consulta e revoga o mesmo link', as
   await input.locator('..').getByRole('button', { name: 'Revogar convite', exact: true }).click();
   await expect(dialog.getByText('Convite revogado com sucesso.', { exact: true })).toBeVisible();
   await input.locator('..').getByRole('link', { name: 'Abrir convite nesta demonstração', exact: true }).click();
-  await expect(page.getByText('Revogado', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Participantes vinculados/ })).toHaveCount(0);
+  await expect(page).toHaveURL(shareUrl);
+  const publicInvite = page.getByRole('main');
+  await expect(publicInvite.getByRole('heading', { name: 'Equipe de manutenção · demonstração', level: 1, exact: true })).toBeVisible();
+  await expect(publicInvite.getByText('Revogado', { exact: true })).toBeVisible();
+  await expect(publicInvite.getByRole('heading', { name: /Participantes vinculados/ })).toHaveCount(0);
 });

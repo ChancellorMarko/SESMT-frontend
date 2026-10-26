@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { CalendarDays, Clock3, List, Plus, Search } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -21,7 +22,7 @@ import styles from './Agenda.module.css';
 export function AgendaPage() {
   const { unitId, sessionKey, can } = useSession();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const reduceMotion = useAppReducedMotion();
   const resultsMotion = useAnimationControls();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -45,7 +46,7 @@ export function AgendaPage() {
   const [locationInput, setLocationInput] = useState(filterLocation);
   const [showAdvanced, setShowAdvanced] = useState(Boolean(from || to || teamId || responsibleId || serviceTypeId || filterLocation));
   const searchRef = useRef<HTMLInputElement>(null);
-  const quickPeriodChange = useRef(false);
+  const quickPeriodChange = useRef<ReturnType<typeof agendaPeriodRange> | null>(null);
   const previousContext = useRef<string | null>(null);
   const context = JSON.stringify([sessionKey, unitId]);
   const [preparedContext, setPreparedContext] = useState('');
@@ -60,7 +61,12 @@ export function AgendaPage() {
   useEffect(() => { setSearch(q); }, [q]);
   useEffect(() => { setLocationInput(filterLocation); }, [filterLocation]);
   useEffect(() => {
-    if (quickPeriodChange.current) { quickPeriodChange.current = false; return; }
+    const expectedPeriod = quickPeriodChange.current;
+    if (expectedPeriod) {
+      // An earlier render must not consume a later quick-period selection.
+      if (from === expectedPeriod.from && to === expectedPeriod.to) quickPeriodChange.current = null;
+      return;
+    }
     if (from || to || teamId || responsibleId || serviceTypeId || filterLocation) setShowAdvanced(true);
   }, [from, to, teamId, responsibleId, serviceTypeId, filterLocation]);
 
@@ -70,6 +76,7 @@ export function AgendaPage() {
     const storageKey = `agenda_filters_${unitId}`;
     const enteringContext = previousContext.current !== context;
     const changedContext = previousContext.current !== null && enteringContext;
+    if (enteringContext) quickPeriodChange.current = null;
     previousContext.current = context;
     if (enteringContext && (!location.search || changedContext)) {
       let saved = '';
@@ -127,12 +134,13 @@ export function AgendaPage() {
   const filtered = Boolean(q || status || teamId || responsibleId || serviceTypeId || filterLocation || from || to || blockedOnly);
 
   function change(key: string, value: string) {
+    if (['from', 'to', 'teamId', 'responsibleId', 'serviceTypeId', 'location'].includes(key)) quickPeriodChange.current = null;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       if (value) next.set(key, value);
       else next.delete(key);
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function removeFilter(key: string) {
@@ -145,22 +153,23 @@ export function AgendaPage() {
       if (nextView === 'calendar') next.set('view', 'calendar');
       else next.delete('view');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function setQuickPeriod(period: AgendaPeriod) {
     const range = agendaPeriodRange(period, today);
-    quickPeriodChange.current = from !== range.from || to !== range.to;
+    if (quickPeriodChange.current || from !== range.from || to !== range.to) quickPeriodChange.current = range;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       for (const key of ['from', 'to'] as const) { if (range[key]) next.set(key, range[key]); else next.delete(key); }
       if (view === 'calendar' && range.from) { next.set('calendarDate', range.from); next.set('day', range.from); }
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function handleSearchSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (locationInput.trim() !== filterLocation) quickPeriodChange.current = null;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       if (search.trim()) next.set('q', search.trim());
@@ -168,10 +177,11 @@ export function AgendaPage() {
       if (locationInput.trim()) next.set('location', locationInput.trim());
       else next.delete('location');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function clearFilters() {
+    quickPeriodChange.current = null;
     if (unitId && typeof window !== 'undefined') {
       try { window.sessionStorage.removeItem(`agenda_filters_${unitId}`); } catch { /* Filters also live in the URL. */ }
     }
@@ -183,7 +193,7 @@ export function AgendaPage() {
         if (value) next.set(key, value);
       }
       return next;
-    });
+    }, { flushSync: true });
     setSearch('');
     setLocationInput('');
     setShowAdvanced(false);

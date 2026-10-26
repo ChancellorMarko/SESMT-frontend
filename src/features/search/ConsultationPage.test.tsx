@@ -1,8 +1,9 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router';
+import { createMemoryRouter, MemoryRouter, useLocation, useNavigate } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import { makeFixtures } from '../../mocks/fixtures';
@@ -87,6 +88,40 @@ describe('Central de consulta', () => {
     await user.keyboard('{Home}'); expect(docs).toHaveFocus();
     await user.keyboard('{End}'); expect(permits).toHaveFocus();
     await user.keyboard('{ArrowRight}'); expect(docs).toHaveFocus();
+  });
+
+  it.each([
+    { initial: 'pets', firstKey: 'Home', middle: 'documents', secondKey: 'ArrowLeft', final: 'pets' },
+    { initial: 'documents', firstKey: 'ArrowRight', middle: 'permits', secondKey: 'ArrowLeft', final: 'documents' },
+    { initial: 'pets', firstKey: 'Home', middle: 'documents', secondKey: 'ArrowRight', final: 'permits' },
+  ])('teclas consecutivas usam a aba focada antes do commit: $firstKey → $secondKey desde $initial', async scenario => {
+    session.permissions = ['documents.read', 'permits.read', 'at.read', 'pet.read'];
+    const labels = { documents: 'Documentos controlados', permits: 'Permissões de trabalho (PT)', ats: 'Autorizações de trabalho (AT)', pets: 'Permissões de entrada e trabalho (PET)' };
+    const tab = (name: string) => screen.getByRole('tab', { name: labels[name as keyof typeof labels] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let deferNavigation = false, release!: () => void;
+    const pending = new Promise<null>(resolve => { release = () => resolve(null); });
+    const router = createMemoryRouter([{
+      path: '/app/consulta', loader: () => deferNavigation ? pending : null,
+      HydrateFallback: () => <span>Carregando consulta</span>, element: <ConsultationPage />,
+    }], { initialEntries: [`/app/consulta?tab=${scenario.initial}&unitId=unit-a`] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    try {
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Pesquisar' })).toBeEnabled());
+      deferNavigation = true;
+      tab(scenario.initial).focus();
+      fireEvent.keyDown(tab(scenario.initial), { key: scenario.firstKey });
+      expect(tab(scenario.middle)).toHaveFocus();
+      expect(tab(scenario.initial)).toHaveAttribute('aria-selected', 'true');
+      fireEvent.keyDown(tab(scenario.middle), { key: scenario.secondKey });
+      expect(tab(scenario.final)).toHaveFocus();
+      expect(router.state.navigation.location?.search).toBe(`?tab=${scenario.final}&unitId=unit-a`);
+      await act(async () => release());
+      await waitFor(() => expect(router.state.navigation.state).toBe('idle'));
+      expect(router.state.location.search).toBe(`?tab=${scenario.final}&unitId=unit-a`);
+      expect(tab(scenario.final)).toHaveFocus();
+      expect(tab(scenario.final)).toHaveAttribute('aria-selected', 'true');
+    } finally { view.unmount(); router.dispose(); client.clear(); }
   });
 
   it.each([
