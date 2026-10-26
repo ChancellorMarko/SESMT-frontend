@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ClipboardList, Download, RefreshCw, Search, UsersRound } from 'lucide-react';
 import { api, API_MODE, ApiError } from '../../shared/api/client';
@@ -22,10 +23,10 @@ function ReadinessContent() {
   const client = useQueryClient();
   const location = useLocation();
   const searchInput = useRef<HTMLInputElement>(null);
-  const [search, setSearch] = useSearchParams();
+  const [search, setSearch] = useAppQueryParams();
   const latestSearch = useRef(new URLSearchParams(search));
   useLayoutEffect(() => { latestSearch.current = new URLSearchParams(search); }, [search]);
-  function writeSearch(next: URLSearchParams) { latestSearch.current = new URLSearchParams(next); setSearch(next, { replace: true }); }
+  function writeSearch(next: URLSearchParams, flushSync = false) { latestSearch.current = new URLSearchParams(next); setSearch(next, { replace: true, flushSync }); }
   const criteriaError = readinessCriteriaError(search);
   const urlUnit = search.get('unitId');
   useEffect(() => {
@@ -71,9 +72,9 @@ function ReadinessContent() {
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(latestSearch.current);
     if (value) next.set(key, value); else next.delete(key);
-    writeSearch(next);
+    writeSearch(next, true);
   }
-  function clearFilters() { writeSearch(new URLSearchParams(unitId ? { unitId } : {})); }
+  function clearFilters() { writeSearch(new URLSearchParams(unitId ? { unitId } : {}), true); }
   function removeFilter(key: string) { setFilter(key, key === 'status' ? 'all' : ''); searchInput.current?.focus(); }
   function exportCsv() {
     if (!enabled || failed || readiness.isFetching || !groups.length || search.toString() !== latestSearch.current.toString()) return;

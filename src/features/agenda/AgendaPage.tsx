@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { CalendarDays, Clock3, List, Plus, Search } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -21,7 +22,7 @@ import styles from './Agenda.module.css';
 export function AgendaPage() {
   const { unitId, sessionKey, can } = useSession();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const reduceMotion = useAppReducedMotion();
   const resultsMotion = useAnimationControls();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -139,7 +140,7 @@ export function AgendaPage() {
       if (value) next.set(key, value);
       else next.delete(key);
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function removeFilter(key: string) {
@@ -152,7 +153,7 @@ export function AgendaPage() {
       if (nextView === 'calendar') next.set('view', 'calendar');
       else next.delete('view');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function setQuickPeriod(period: AgendaPeriod) {
@@ -163,7 +164,7 @@ export function AgendaPage() {
       for (const key of ['from', 'to'] as const) { if (range[key]) next.set(key, range[key]); else next.delete(key); }
       if (view === 'calendar' && range.from) { next.set('calendarDate', range.from); next.set('day', range.from); }
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function handleSearchSubmit(event: React.FormEvent) {
@@ -176,7 +177,7 @@ export function AgendaPage() {
       if (locationInput.trim()) next.set('location', locationInput.trim());
       else next.delete('location');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function clearFilters() {
@@ -192,7 +193,7 @@ export function AgendaPage() {
         if (value) next.set(key, value);
       }
       return next;
-    });
+    }, { flushSync: true });
     setSearch('');
     setLocationInput('');
     setShowAdvanced(false);

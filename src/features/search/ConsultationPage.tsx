@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, ClipboardCheck, Search, MapPin, FileCheck, HardHat, ArrowUpRight } from 'lucide-react';
 import { api } from '../../shared/api/client';
@@ -58,7 +59,7 @@ function permitFilterError(operation: string, review: string) {
 
 export function ConsultationPage() {
   const { unitId, sessionKey, can } = useSession();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const tabsId = useId();
   const allowedTabs = (Object.keys(consultationTabs) as ActiveTab[]).filter(tab => can(consultationTabs[tab].permission));
   const rawTab = params.get('tab');
@@ -81,7 +82,7 @@ export function ConsultationPage() {
   function switchTab(nextTab: ActiveTab, originTab = activeTab) {
     if (nextTab === activeTab && contextReady && originTab === activeTab) return;
     // Each resource has its own filter vocabulary; changing tabs starts a new search.
-    setParams(new URLSearchParams({ tab: nextTab, ...(unitId ? { unitId } : {}) }));
+    setParams(new URLSearchParams({ tab: nextTab, ...(unitId ? { unitId } : {}) }), { flushSync: true });
   }
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, originTab: ActiveTab) {
@@ -144,7 +145,7 @@ export function ConsultationPage() {
 
 function DocumentsSearchTab() {
   const { unitId, sessionKey, can } = useSession();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const location = useLocation();
 
   const q = params.get('q') || '';
@@ -240,7 +241,7 @@ function DocumentsSearchTab() {
       else next.delete('validUntilTo');
       next.delete('page');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function handleClear() {
@@ -251,7 +252,7 @@ function DocumentsSearchTab() {
     setDraftValidFrom('');
     setDraftValidTo('');
     setValidationError('');
-    setParams(new URLSearchParams({ tab: 'documents', ...(unitId ? { unitId } : {}) }));
+    setParams(new URLSearchParams({ tab: 'documents', ...(unitId ? { unitId } : {}) }), { flushSync: true });
     searchInput.current?.focus({ preventScroll: true });
   }
 
@@ -404,7 +405,7 @@ function DocumentsSearchTab() {
 
 function PermitsSearchTab() {
   const { unitId, sessionKey, can } = useSession();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const location = useLocation();
 
   const q = params.get('q') || '';
@@ -478,7 +479,7 @@ function PermitsSearchTab() {
       else next.delete('teamId');
       next.delete('page');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function handleClear() {
@@ -487,7 +488,7 @@ function PermitsSearchTab() {
     setDraftReview('');
     setDraftTeam('');
     setValidationError('');
-    setParams(new URLSearchParams({ tab: 'permits', ...(unitId ? { unitId } : {}) }));
+    setParams(new URLSearchParams({ tab: 'permits', ...(unitId ? { unitId } : {}) }), { flushSync: true });
     searchInput.current?.focus({ preventScroll: true });
   }
 
@@ -648,7 +649,7 @@ function PermitsSearchTab() {
 
 
 function QueryPagination({ total, page, pageSize, kind }: { total: number; page: number; pageSize: number; kind: string }) {
-  const [, setParams] = useSearchParams();
+  const [, setParams] = useAppQueryParams();
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   function go(nextPage: number) {
     setParams(previous => {
@@ -656,7 +657,7 @@ function QueryPagination({ total, page, pageSize, kind }: { total: number; page:
       if (nextPage === 1) next.delete('page');
       else next.set('page', String(nextPage));
       return next;
-    });
+    }, { flushSync: true });
   }
   return <nav className="toolbar" aria-label="Paginação da consulta">
     <p className="muted" role="status">{total} {kind} encontrado(s) · Página {page} de {lastPage}</p>

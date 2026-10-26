@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { ArrowUpRight, ClipboardCheck, RefreshCw, Search } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -62,10 +63,10 @@ function PermitsPageContent() {
   const { sessionKey, unitId, can } = useSession();
   const client = useQueryClient();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function writeParams(next: URLSearchParams, replace = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace }); }
+  function writeParams(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }
   const permitted = can('permits.read');
   const q = params.get('q') ?? '', operationStatus = params.get('operationStatus') ?? '', reviewStatus = params.get('reviewStatus') ?? '', teamId = params.get('teamId') ?? '';
   const page = Number(params.get('page') ?? 1), invalidPage = !isSafePage(params.get('page'), pageSize);
@@ -128,10 +129,10 @@ function PermitsPageContent() {
   function filter(key: string, value: string) {
     const next = new URLSearchParams(latestParams.current); next.delete('page');
     if (value) next.set(key, value); else next.delete(key);
-    writeParams(next, true);
+    writeParams(next, true, true);
   }
   function changePage(nextPage: number) {
-    const next = new URLSearchParams(latestParams.current); if (nextPage === 1) next.delete('page'); else next.set('page', String(nextPage)); writeParams(next);
+    const next = new URLSearchParams(latestParams.current); if (nextPage === 1) next.delete('page'); else next.set('page', String(nextPage)); writeParams(next, false, true);
   }
   function removeFilter(key: string) {
     if (!['q', 'operationStatus', 'reviewStatus', 'teamId'].includes(key)) return;
@@ -158,7 +159,7 @@ function PermitsPageContent() {
           <Field label="Situação operacional"><select aria-label="Situação operacional" value={operationStatus} disabled={!unitMatches || invalidFilters} onChange={event => filter('operationStatus', event.target.value)}><option value="">Todas</option>{Object.entries(operationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Revisão do encerramento"><select aria-label="Revisão do encerramento" value={reviewStatus} disabled={!unitMatches || invalidFilters} onChange={event => filter('reviewStatus', event.target.value)}><option value="">Todas</option>{Object.entries(reviewLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         </div>
-        <div className="actions"><Button type="submit" disabled={!unitMatches || invalidFilters}><Search size={14} aria-hidden="true" />Pesquisar</Button><Button variant="ghost" disabled={!enabled || permits.isFetching || failed} onClick={() => void permits.refetch()}><RefreshCw size={14} aria-hidden="true" />Atualizar PTs</Button>{filtered && <Button variant="ghost" onClick={() => { setSearch(''); writeParams(new URLSearchParams({ unitId })); }}>Limpar filtros</Button>}{search.trim() !== q && <span className={styles.searchDraft}>Busca digitada ainda não aplicada à lista.</span>}</div>
+        <div className="actions"><Button type="submit" disabled={!unitMatches || invalidFilters}><Search size={14} aria-hidden="true" />Pesquisar</Button><Button variant="ghost" disabled={!enabled || permits.isFetching || failed} onClick={() => void permits.refetch()}><RefreshCw size={14} aria-hidden="true" />Atualizar PTs</Button>{filtered && <Button variant="ghost" onClick={() => { setSearch(''); writeParams(new URLSearchParams({ unitId }), false, true); }}>Limpar filtros</Button>}{search.trim() !== q && <span className={styles.searchDraft}>Busca digitada ainda não aplicada à lista.</span>}</div>
         <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />
         {teamId && !invalidFilters && <div className={styles.teamCriterion}><Badge tone="info">Filtro de equipe aplicado</Badge><Button variant="ghost" onClick={() => removeFilter('teamId')}>Remover filtro de equipe</Button></div>}
       </form>

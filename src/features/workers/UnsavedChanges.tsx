@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button, Modal } from '../../shared/ui';
 import { useNavigationGuard } from '../../app/navigation/NavigationProtection';
@@ -10,7 +10,9 @@ export function UnsavedChanges({ dirty, busy, protectContext = false, navigation
   const route = useLocation();
   const returnState = navigationState ? navigationState.state : route.state;
   const [destination, setDestination] = useState<{ to: string; state: unknown }>();
-  useEffect(() => {
+  // Remove capture guards in the same commit that unmounts the editor; a newly
+  // rendered destination link must not be blocked by the previous busy form.
+  useLayoutEffect(() => {
     if (!dirty && !busy) return;
     function beforeUnload(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = ''; }
     function contextChange(event: Event) {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { useLayoutEffect, useRef } from 'react';
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { UnsavedChanges } from './UnsavedChanges';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -23,6 +24,23 @@ describe('saída de formulário com alterações', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Sair do formulário' }));
     expect(screen.getByRole('heading', { name: 'Formulário de trabalhador' })).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+  it.each([false, true])('libera os links da próxima tela no mesmo commit da conclusão (envio=%s)', busy => {
+    function Editor() {
+      const navigate = useNavigate();
+      return <><UnsavedChanges dirty busy={busy} /><button onClick={() => navigate('/saved')}>Concluir</button></>;
+    }
+    function Saved() {
+      const back = useRef<HTMLAnchorElement>(null);
+      // Exercise the newly committed link before passive cleanup can remove an
+      // obsolete editor guard. The completed editor must no longer intercept it.
+      useLayoutEffect(() => { back.current?.click(); }, []);
+      return <Link ref={back} to="/workers">Voltar à lista</Link>;
+    }
+    render(<MemoryRouter initialEntries={['/form']}><Routes><Route path="/form" element={<Editor />} /><Route path="/saved" element={<Saved />} /><Route path="/workers" element={<h1>Lista de trabalhadores</h1>} /></Routes></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Concluir' }));
+    expect(screen.getByRole('heading', { name: 'Lista de trabalhadores' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it('protege uma troca de unidade e permite somente descarte confirmado', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -21,7 +22,7 @@ const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function AgendaCalendarView({ appointments, searchString = '', initialDate }: AgendaCalendarViewProps) {
   const { can, sessionKey, unitId } = useSession();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const fallback = calendarDate(initialDate) || calendarDate(appointmentDateOnly(appointments[0]?.startsAt || '')) || calendarToday();
   const viewDate = calendarDate(params.get('calendarDate')) || fallback;
   const mode = params.get('calendarMode') === 'week' ? 'week' : 'month';
@@ -84,7 +85,7 @@ export function AgendaCalendarView({ appointments, searchString = '', initialDat
       if (nextMode === 'week') next.set('calendarMode', 'week');
       else next.delete('calendarMode');
       return next;
-    });
+    }, { flushSync: true });
   }
 
   function selectDay(date: string, focus = false) {
