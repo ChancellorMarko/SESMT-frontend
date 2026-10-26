@@ -78,20 +78,22 @@ export function ConsultationPage() {
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
   }, [activeTab, invalidContext, params, requestedTab, setParams, unitId]);
 
-  function switchTab(nextTab: ActiveTab) {
-    if (nextTab === activeTab && contextReady) return;
+  function switchTab(nextTab: ActiveTab, originTab = activeTab) {
+    if (nextTab === activeTab && contextReady && originTab === activeTab) return;
     // Each resource has its own filter vocabulary; changing tabs starts a new search.
     setParams(new URLSearchParams({ tab: nextTab, ...(unitId ? { unitId } : {}) }));
   }
 
-  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>) {
-    const position = allowedTabs.indexOf(activeTab!);
+  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, originTab: ActiveTab) {
+    // Focus moves before the router commits; the pressed button owns the next step.
+    const position = allowedTabs.indexOf(originTab);
+    if (position < 0) return;
     const next = event.key === 'ArrowRight' ? allowedTabs[(position + 1) % allowedTabs.length]
       : event.key === 'ArrowLeft' ? allowedTabs[(position + allowedTabs.length - 1) % allowedTabs.length]
       : event.key === 'Home' ? allowedTabs[0] : event.key === 'End' ? allowedTabs.at(-1) : undefined;
     if (!next) return;
     event.preventDefault();
-    switchTab(next);
+    switchTab(next, originTab);
     document.getElementById(`${tabsId}-${next}`)?.focus();
   }
 
@@ -122,7 +124,7 @@ export function ConsultationPage() {
             aria-selected={activeTab === tab}
             className={`${styles.tabBtn} ${activeTab === tab ? styles.tabBtnActive : ''}`}
             onClick={() => switchTab(tab)}
-            onKeyDown={navigateTabs}
+            onKeyDown={event => navigateTabs(event, tab)}
           >
             <span className={styles.tabIcon}><Icon size={19} aria-hidden="true" /></span>
             <span className={styles.tabText}><strong>{shortLabel}</strong><small>{description}</small></span>

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { CalendarClock, ArrowUpRight, FileText, RefreshCw, Search } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -32,7 +33,7 @@ function ExpirationsContextPage() {
   const allowed = can('documents.read');
   const location = useLocation();
   const searchInput = useRef<HTMLInputElement>(null);
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
   function write(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }

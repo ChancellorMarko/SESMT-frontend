@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import type { OrganizationDto, PageDto, WorkerDto } from '../../shared/contracts';
 import { WorkersPage } from './WorkersPage';
+import { AppQueryNavigationProvider } from '../../shared/lib/app-query-params';
 
 const state = vi.hoisted(() => ({ unitId: 'unit-1' as string | undefined, sessionKey: 'workers-list', permissions: ['workers.read', 'organization.read', 'teams.read'] }));
 const queryCommit = vi.hoisted(() => ({ deferred: false, pending: undefined as (() => void) | undefined }));
@@ -43,6 +45,34 @@ beforeEach(() => {
 });
 
 describe('consulta segura de trabalhadores', () => {
+  it('atualiza o contexto dos links antes de abrir uma pessoa imediatamente após pesquisar', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    for (const q of ['', 'Carlos']) client.setQueryData(['workers', state.sessionKey, state.unitId, q, '', '', '', '', 1], pageResponse());
+    function ReturnContext() {
+      return <output aria-label="Contexto de retorno">{JSON.stringify(useLocation().state)}</output>;
+    }
+    const router = createMemoryRouter([{ path: '*', element: <AppQueryNavigationProvider><Routes>
+      <Route path="/app/trabalhadores" element={<WorkersPage />} />
+      <Route path="/app/trabalhadores/:id" element={<ReturnContext />} />
+    </Routes></AppQueryNavigationProvider> }], { initialEntries: ['/app/trabalhadores?unitId=unit-1'] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    let opened = false;
+    const unsubscribe = router.subscribe(next => {
+      if (opened || next.location.pathname !== '/app/trabalhadores' || new URLSearchParams(next.location.search).get('q') !== 'Carlos') return;
+      opened = true;
+      // The URL is already updated here; a deferred render would still expose the old Link state.
+      screen.getByRole('link', { name: 'Carlos Mendes' }).click();
+    });
+    try {
+      await screen.findByRole('link', { name: 'Carlos Mendes' });
+      fireEvent.change(screen.getByLabelText('Buscar nome ou matrícula'), { target: { value: 'Carlos' } });
+      fireEvent.submit(screen.getByRole('form', { name: 'Filtros de trabalhadores' }));
+      const returned = await screen.findByLabelText('Contexto de retorno');
+      expect(JSON.parse(returned.textContent!)).toMatchObject({ workerListReturnTo: {
+        unitId: 'unit-1', sessionKey: state.sessionKey, search: '?unitId=unit-1&q=Carlos', draftSearch: 'Carlos',
+      } });
+    } finally { unsubscribe(); view.unmount(); router.dispose(); client.clear(); }
+  });
   it('preserva um novo rascunho digitado antes do commit da pesquisa e limpa ao remover o critério aplicado', async () => {
     queryCommit.deferred = true;
     show(); await screen.findByRole('link', { name: 'Carlos Mendes' });

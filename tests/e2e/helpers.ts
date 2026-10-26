@@ -25,19 +25,20 @@ export async function openModule(page: Page, name: string) {
 
 export async function navigateWithinApp(page: Page, pathname: string, expectedPath = pathname) {
   // Keep the demo session and let the application router own history and blockers.
-  await page.evaluate(async (target) => {
+  const selectedUnit = await page.evaluate(async (target) => {
+    const readUnit = () => document.querySelector<HTMLSelectElement>('select[aria-label="Unidade de trabalho"]')?.value;
+    const previousUnit = readUnit();
     const routerUrl = '/src/app/router.tsx';
     const { getAppRouter } = await import(routerUrl);
-    await getAppRouter().navigate(target);
+    await getAppRouter().navigate(target, { flushSync: true });
+    return readUnit() || previousUnit;
   }, pathname);
-  const unit = page.getByRole('combobox', { name: 'Unidade de trabalho', exact: true });
-  const selectedUnit = await unit.count() === 1 ? await unit.inputValue() : undefined;
   const expected = new URL(expectedPath, page.url());
   expected.searchParams.sort();
   await expect(page).toHaveURL(actual => {
     const comparable = new URL(actual.href);
     // Lists may append the selected unit; requested filters and duplicate values stay exact.
-    if (!expected.searchParams.has('unitId') && selectedUnit
+    if (expected.pathname.startsWith('/app/') && !expected.searchParams.has('unitId') && selectedUnit
       && comparable.searchParams.getAll('unitId').length === 1 && comparable.searchParams.get('unitId') === selectedUnit) {
       comparable.searchParams.delete('unitId');
     }

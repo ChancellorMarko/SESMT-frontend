@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { PageDto } from '../../shared/contracts';
@@ -18,7 +19,7 @@ const pageSize = 10;
 export function WorkAuthorizationsPage() {
   const { can, sessionKey, unitId } = useSession();
   const now = useAuthorizationClock();
-  const location = useLocation(); const [params, setParams] = useSearchParams();
+  const location = useLocation(); const [params, setParams] = useAppQueryParams();
   // Router search updates are navigations, not queued state updates. Consecutive
   // controls must merge with the last requested URL before its render commits.
   const latestParams = useRef(new URLSearchParams(params));

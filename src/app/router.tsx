@@ -2,10 +2,11 @@ import { createBrowserRouter } from 'react-router';
 import { useSession } from '../shared/auth/SessionProvider';
 import { App } from './App';
 import { NavigationProtection } from './navigation/NavigationProtection';
+import { AppQueryNavigationProvider } from '../shared/lib/app-query-params';
 
 function ProtectedApp() {
   const { sessionKey, unitId } = useSession();
-  return <NavigationProtection contextKey={`${sessionKey}:${unitId}`}><App /></NavigationProtection>;
+  return <AppQueryNavigationProvider><NavigationProtection contextKey={`${sessionKey}:${unitId}`}><App /></NavigationProtection></AppQueryNavigationProvider>;
 }
 
 let router: ReturnType<typeof createBrowserRouter> | undefined;

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { Plus, Search, UsersRound } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
@@ -71,10 +72,10 @@ function WorkersPageContent() {
   const location = useLocation();
   const restored = workerNavigation(location.state, sessionKey, unitId)?.workerListReturnTo;
   const restore = restored?.search === location.search ? restored : undefined;
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useAppQueryParams();
   const latestParams = useRef(new URLSearchParams(params));
   useLayoutEffect(() => { latestParams.current = new URLSearchParams(params); }, [params]);
-  function writeParams(next: URLSearchParams, replace = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace }); }
+  function writeParams(next: URLSearchParams, replace = false, flushSync = false) { latestParams.current = new URLSearchParams(next); setParams(next, { replace, flushSync }); }
   const q = params.get('q') || '', status = params.get('status') || '', companyId = params.get('companyId') || '', teamId = params.get('teamId') || '', integrationStatus = params.get('integrationStatus') || '';
   const [search, setSearch] = useState(restore?.draftSearch ?? q);
   const [advancedOpen, setAdvancedOpen] = useState(restore?.advancedOpen ?? Boolean(companyId || teamId));
@@ -96,10 +97,11 @@ function WorkersPageContent() {
   const teams = useScopedRead<TeamDto[]>({ queryKey: ['teams', sessionKey, unitId], enabled: enabled && can('teams.read'), request: signal => api.get<unknown>('/teams', { signal, query: { unitId } }), validate: value => teamsResponse(value, unitId!) });
   function change(key: string, value: string) {
     if (!unitMatches || filterError) return;
-    const next = new URLSearchParams(latestParams.current); if (value) next.set(key, value); else next.delete(key); next.delete('page'); writeParams(next);
+    // Commit user actions before another click can read a Link's previous return context.
+    const next = new URLSearchParams(latestParams.current); if (value) next.set(key, value); else next.delete(key); next.delete('page'); writeParams(next, false, true);
   }
-  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); if (value === 1) next.delete('page'); else next.set('page', String(value)); writeParams(next); }
-  function clear() { setSearch(''); writeParams(new URLSearchParams({ unitId: unitId! })); }
+  function setPage(value: number) { const next = new URLSearchParams(latestParams.current); if (value === 1) next.delete('page'); else next.set('page', String(value)); writeParams(next, false, true); }
+  function clear() { setSearch(''); writeParams(new URLSearchParams({ unitId: unitId! }), false, true); }
   if (!allowed) return <EmptyState title="Acesso restrito" description="Seu perfil não possui acesso ao cadastro de trabalhadores." />;
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha uma unidade para consultar seus trabalhadores." />;
   const organizationData = workers.failed ? undefined : organization.data, teamData = workers.failed ? undefined : teams.data;
