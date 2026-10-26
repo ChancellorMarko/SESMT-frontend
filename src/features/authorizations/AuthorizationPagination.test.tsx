@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../../shared/api/client';
 import type { PageDto } from '../../shared/contracts';
@@ -53,6 +54,34 @@ beforeEach(() => {
 });
 
 describe('paginação e filtros das ATs', () => {
+  it('aguarda a unidade canônica antes de aceitar pesquisa e estado consecutivos', async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let canonicalReady = false, releaseCanonical!: () => void;
+    const canonical = new Promise<null>(resolve => { releaseCanonical = () => { canonicalReady = true; resolve(null); }; });
+    const router = createMemoryRouter([{
+      path: '/app/ats',
+      loader: ({ request }) => new URL(request.url).searchParams.has('unitId') && !canonicalReady ? canonical : null,
+      HydrateFallback: () => <span>Preparando consulta</span>,
+      element: <><LocationProbe /><WorkAuthorizationsPage /></>,
+    }], { initialEntries: ['/app/ats'] });
+    const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+    try {
+      const search = await screen.findByLabelText('Pesquisar AT'), status = screen.getByLabelText('Estado da AT');
+      await waitFor(() => expect(router.state.navigation.location?.search).toBe('?unitId=unit-a'));
+      expect(search).toBeDisabled(); expect(status).toBeDisabled();
+      expect(api.get).not.toHaveBeenCalled();
+      await act(async () => releaseCanonical());
+      await waitFor(() => expect(search).toBeEnabled());
+      fireEvent.change(search, { target: { value: 'alvo' } });
+      await user.selectOptions(status, 'DRAFT');
+      expect(await screen.findByRole('link', { name: 'Consultar AT-031' })).toBeInTheDocument();
+      expect(search).toHaveValue('alvo'); expect(status).toHaveValue('DRAFT');
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get('unitId')).toBe('unit-a'); expect(params.get('q')).toBe('alvo'); expect(params.get('status')).toBe('DRAFT');
+    } finally { view.unmount(); router.dispose(); client.clear(); }
+  });
+
   it('consulta páginas além dos primeiros 25 registros com total e sem buscar a lista completa', async () => {
     const user = userEvent.setup(); show('/app/ats?unitId=unit-a&page=3');
     const results = await screen.findByRole('region', { name: 'Resultados de ATs' });
@@ -109,6 +138,22 @@ describe('paginação e filtros das ATs', () => {
     expect(await screen.findByText(message)).toBeInTheDocument(); expect(api.get).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: recovery }));
     expect(await screen.findByRole('link', { name: 'Consultar AT-001' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['status=UNKNOWN', 'Limpar estado'],
+    ['page=0', 'Voltar à primeira página'],
+  ])('permite reparar %s junto de unidade repetida sem consultar antes da correção', async (criteria, recovery) => {
+    const user = userEvent.setup(); show(`/app/ats?unitId=unit-a&unitId=unit-a&${criteria}`);
+    await user.click(await screen.findByRole('button', { name: recovery }));
+    expect(await screen.findByText(/critérios de AT repetidos/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Pesquisar AT')).toBeDisabled();
+    expect(api.get).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(await screen.findByRole('link', { name: 'Consultar AT-001' })).toBeInTheDocument();
+    const params = new URLSearchParams(screen.getByLabelText('Endereço atual').textContent!.split('?')[1]);
+    expect(params.getAll('unitId')).toEqual(['unit-a']);
+    expect(screen.getByLabelText('Pesquisar AT')).toBeEnabled();
   });
 
   it('permite recuperar página vazia sem apagar a busca e o estado', async () => {

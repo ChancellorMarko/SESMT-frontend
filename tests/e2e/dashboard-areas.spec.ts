@@ -77,7 +77,7 @@ test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e hist
     url.searchParams.set('context', 'consulta-preservada');
     const routerUrl = '/src/app/router.tsx';
     const { getAppRouter } = await import(routerUrl);
-    await getAppRouter().navigate(`${url.pathname}${url.search}`, { replace: true });
+    await getAppRouter().navigate(`${url.pathname}${url.search}`, { replace: true, flushSync: true });
   });
   await expect(page).toHaveURL(/context=consulta-preservada/);
   await asos.focus();

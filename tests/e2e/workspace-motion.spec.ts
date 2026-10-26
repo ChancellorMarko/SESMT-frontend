@@ -2,8 +2,12 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { loginDemo, openModule } from './helpers';
 
 type Appearance = { opacity: number; transform: string; translate: string; scale: string; filter: string };
-type CapturedAppearance = Appearance & { x: number; y: number; width: number; height: number; layoutHeight: number; hasControls: boolean };
-type Capture = { frames: CapturedAppearance[]; done: boolean };
+type CapturedAppearance = Appearance & { sampledAt: number; x: number; y: number; width: number; height: number; layoutHeight: number; hasControls: boolean };
+type NativeAnimationCapture = {
+  isAnimation: boolean; isCssAnimation: boolean; name: string; running: boolean; duration: number; finished: boolean;
+  keyframes: { opacity: number; transform: string; offset: number }[];
+};
+type Capture = { frames: CapturedAppearance[]; done: boolean; animations: NativeAnimationCapture[]; animationEnds: string[] };
 
 function observeErrors(page: Page) {
   const errors: string[] = [];
@@ -26,10 +30,19 @@ function movement(frame: Appearance) {
 // while Playwright is waiting for the next element to become actionable.
 async function captureNext(page: Page, selector: string, path?: string, heading?: string) {
   await page.evaluate(({ selector, path, heading }) => {
-    const capture: Capture = { frames: [], done: false };
+    const capture: Capture = { frames: [], done: false, animations: [], animationEnds: [] };
     (window as unknown as { __workspaceCapture: Capture }).__workspaceCapture = capture;
     let started = false;
     let samplingSince = 0;
+    const observedAnimations = new Map<Animation, NativeAnimationCapture>();
+    const ended = (event: AnimationEvent) => {
+      if (event.target instanceof Element && event.target.matches(selector)) capture.animationEnds.push(event.animationName);
+    };
+    document.addEventListener('animationend', ended, true);
+    const finishCapture = () => {
+      capture.done = true;
+      document.removeEventListener('animationend', ended, true);
+    };
     const target = () => {
       if (path && location.pathname !== path) return null;
       if (heading && document.querySelector('main h1')?.textContent !== heading) return null;
@@ -37,15 +50,31 @@ async function captureNext(page: Page, selector: string, path?: string, heading?
     };
     const sample = () => {
       const element = target();
-      if (!element) { capture.done = true; return; }
-      if (!samplingSince) samplingSince = performance.now();
+      if (!element) { finishCapture(); return; }
+      const sampledAt = performance.now();
+      if (!samplingSince) samplingSince = sampledAt;
       const style = getComputedStyle(element);
+      for (const animation of element.getAnimations()) {
+        const known = observedAnimations.get(animation);
+        if (known) { known.running ||= animation.playState === 'running'; continue; }
+        if (!(animation.effect instanceof KeyframeEffect)) continue;
+        const entry: NativeAnimationCapture = {
+          isAnimation: animation instanceof Animation,
+          isCssAnimation: animation instanceof CSSAnimation,
+          name: animation instanceof CSSAnimation ? animation.animationName : '',
+          running: animation.playState === 'running', duration: Number(animation.effect.getComputedTiming().duration), finished: false,
+          keyframes: animation.effect.getKeyframes().map(frame => ({ opacity: Number(frame.opacity), transform: String(frame.transform ?? 'none'), offset: frame.computedOffset })),
+        };
+        observedAnimations.set(animation, entry);
+        capture.animations.push(entry);
+        void animation.finished.then(() => { entry.finished = true; }, () => {});
+      }
       const bounds = element.getBoundingClientRect(), mainBounds = element.closest('main#conteudo')?.getBoundingClientRect();
-      capture.frames.push({ opacity: Number(style.opacity), transform: style.transform, translate: style.translate, scale: style.scale, filter: style.filter,
+      capture.frames.push({ sampledAt, opacity: Number(style.opacity), transform: style.transform, translate: style.translate, scale: style.scale, filter: style.filter,
         x: bounds.x - (mainBounds?.x || 0), y: bounds.y - (mainBounds?.y || 0), width: bounds.width, height: bounds.height, layoutHeight: element.offsetHeight,
         hasControls: element.matches('a[href],button,input,select,textarea,summary,[role="button"],[role="link"]') || Boolean(element.querySelector('a[href],button,input,select,textarea,summary,[role="button"],[role="link"]')) });
-      if (performance.now() - samplingSince < 1_600) requestAnimationFrame(sample);
-      else capture.done = true;
+      if (sampledAt - samplingSince < 1_600) requestAnimationFrame(sample);
+      else finishCapture();
     };
     const observer = new MutationObserver(() => {
       if (started || !target()) return;
@@ -60,7 +89,9 @@ async function captureNext(page: Page, selector: string, path?: string, heading?
 async function capturedFrames(page: Page) {
   await expect.poll(() => page.evaluate(() => (window as unknown as { __workspaceCapture?: Capture }).__workspaceCapture?.done)).toBe(true);
   const frames = await page.evaluate(() => (window as unknown as { __workspaceCapture: Capture }).__workspaceCapture.frames);
-  expect(frames.length).toBeGreaterThan(10);
+  // CI may paint fewer frames; validate observed states and elapsed coverage, not a minimum FPS.
+  expect(frames.length).toBeGreaterThanOrEqual(2);
+  expect(frames.at(-1)!.sampledAt - frames[0].sampledAt).toBeGreaterThanOrEqual(1_600);
   return frames;
 }
 
@@ -122,7 +153,16 @@ test('troca de módulo anima o conteúdo sem recriar a área principal', async (
   await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click();
   const panels = await capturedFrames(page);
   expect(Math.min(...panels.map(frame => frame.opacity))).toBeLessThan(.95);
-  expect(panels.some(frame => frame.opacity > .15 && frame.opacity < .95)).toBe(true);
+  const paintedPanelIntermediate = panels.some(frame => frame.opacity > .15 && frame.opacity < .95);
+  const panelAnimations = await page.evaluate(() => (window as unknown as { __workspaceCapture: Capture }).__workspaceCapture.animations);
+  const completedNativeFade = panelAnimations.some(animation => animation.isAnimation && animation.running && animation.finished
+    && Number.isFinite(animation.duration) && animation.duration > 0 && animation.keyframes.length >= 2
+    && animation.keyframes[0].offset === 0 && animation.keyframes.at(-1)!.offset === 1
+    && Number.isFinite(animation.keyframes[0].opacity) && Number.isFinite(animation.keyframes.at(-1)!.opacity)
+    && animation.keyframes[0].opacity < .95 && animation.keyframes.at(-1)!.opacity > .99
+    && animation.keyframes.at(-1)!.opacity - animation.keyframes[0].opacity > .05);
+  // WAAPI fades have no CSS animationend event; completion proves progress at low FPS.
+  expect(paintedPanelIntermediate || completedNativeFade).toBe(true);
   expect(panels.every(frame => frame.hasControls)).toBe(true);
   expect(new Set(panels.map(movement)).size).toBe(1);
   // The form fades without shifting controls; the main route may still move as a whole.
@@ -150,9 +190,25 @@ test('janela entra suavemente e continua acessível por teclado', async ({ page 
   const dialog = page.getByRole('dialog', { name: 'Sobre esta versão', exact: true });
   await expect(dialog).toBeFocused();
   const frames = await capturedFrames(page);
-  expect(Math.min(...frames.map(frame => frame.opacity))).toBeLessThan(.95);
+  const initialOpacity = Math.min(...frames.map(frame => frame.opacity));
+  expect(initialOpacity).toBeLessThan(.95);
+  const paintedIntermediate = frames.some(frame => frame.opacity > initialOpacity + .01 && frame.opacity < .99);
+  const native = await page.evaluate(() => {
+    const capture = (window as unknown as { __workspaceCapture: Capture }).__workspaceCapture;
+    return { animations: capture.animations, animationEnds: capture.animationEnds };
+  });
+  const transitions = native.animations.filter(animation => animation.isAnimation && animation.isCssAnimation && animation.running
+    && Number.isFinite(animation.duration) && animation.duration > 0 && animation.keyframes.length >= 2
+    && animation.keyframes[0].offset === 0 && animation.keyframes.at(-1)!.offset === 1
+    && Math.abs(animation.keyframes[0].opacity - animation.keyframes.at(-1)!.opacity) > .05
+    && animation.keyframes[0].transform !== animation.keyframes.at(-1)!.transform);
+  expect(transitions.length).toBeGreaterThan(0);
+  // At low FPS, native completion proves interpolation even if rAF sampled only its endpoints.
+  const completedNativeTransition = transitions.some(animation => animation.finished && native.animationEnds.includes(animation.name));
+  expect(paintedIntermediate || completedNativeTransition).toBe(true);
   expect(new Set(frames.map(movement)).size).toBeGreaterThan(1);
   expect(frames.at(-1)!.opacity).toBeGreaterThan(.99);
+  await expect(dialog).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Fechar janela', exact: true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
@@ -178,6 +234,8 @@ test('movimento reduzido e largura320 preservam filtros, rascunho e foco', async
   const frames = await capturedFrames(page);
   expect(frames.every(frame => frame.opacity >= .99)).toBe(true);
   expect(new Set(frames.map(movement)).size).toBeLessThanOrEqual(1);
+  const nativeAnimations = await page.evaluate(() => (window as unknown as { __workspaceCapture: Capture }).__workspaceCapture.animations);
+  expect(nativeAnimations).toHaveLength(0);
 
   const search = page.getByLabel('Buscar nome ou matrícula', { exact: true });
   await search.fill('Ana');

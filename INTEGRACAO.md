@@ -1,6 +1,6 @@
 # Ampara · integração frontend e backend
 
-Estado em 25/10/2026. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A integração foi iniciada na branch **Teste** e reunida na **main**, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. Arquivos de compilação e configurações locais permanecem fora do versionamento.
+Estado em 26/10/2026. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A integração foi iniciada na branch **Teste** e reunida na **main**, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. Arquivos de compilação e configurações locais permanecem fora do versionamento.
 
 ## O que está conectado
 

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppointmentDto, PermitOptionsDto } from '../../shared/contracts/work-permits';
 import { api } from '../../shared/api/client';
@@ -91,13 +92,13 @@ const mockAppointments: AppointmentDto[] = [
   },
 ];
 
-function renderPage(initialEntry = '/app/agenda') {
+function renderPage(initialEntry = '/app/agenda', afterAgenda?: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/app/agenda" element={<AgendaPage />} />
+          <Route path="/app/agenda" element={<><AgendaPage />{afterAgenda}</>} />
           <Route path="/app/agenda/:id" element={<div>Detalhe do agendamento</div>} />
         </Routes>
       </MemoryRouter>
@@ -153,6 +154,29 @@ describe('AgendaPage — Visão de lista e calendário, múltiplos serviços e f
     await user.click(screen.getByRole('button', { name: 'Filtrar agenda para hoje' }));
     expect(screen.getByRole('button', { name: /Filtros avançados/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', { name: 'Filtrar agenda para hoje' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it.each([
+    'Filtrar agenda para os próximos 7 dias, incluindo hoje',
+    'Consultar agenda sem limite de período',
+  ])('mantém os filtros recolhidos ao escolher "%s" antes de concluir o primeiro período', async nextPeriod => {
+    function ChooseNextPeriod() {
+      const location = useLocation();
+      const switched = useRef(false);
+      useLayoutEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (switched.current || !params.get('from') || params.get('from') !== params.get('to')) return;
+        switched.current = true;
+        screen.getByRole('button', { name: nextPeriod }).click();
+      }, [location.search]);
+      return null;
+    }
+    const user = userEvent.setup();
+    renderPage('/app/agenda', <ChooseNextPeriod />);
+    await screen.findByRole('table');
+    await user.click(screen.getByRole('button', { name: 'Filtrar agenda para hoje' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: nextPeriod })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: /Filtros avançados/ })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('alterna para a visão de calendário e exibe a grade do mês e navegação', async () => {

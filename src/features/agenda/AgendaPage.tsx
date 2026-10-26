@@ -45,7 +45,7 @@ export function AgendaPage() {
   const [locationInput, setLocationInput] = useState(filterLocation);
   const [showAdvanced, setShowAdvanced] = useState(Boolean(from || to || teamId || responsibleId || serviceTypeId || filterLocation));
   const searchRef = useRef<HTMLInputElement>(null);
-  const quickPeriodChange = useRef(false);
+  const quickPeriodChange = useRef<ReturnType<typeof agendaPeriodRange> | null>(null);
   const previousContext = useRef<string | null>(null);
   const context = JSON.stringify([sessionKey, unitId]);
   const [preparedContext, setPreparedContext] = useState('');
@@ -60,7 +60,12 @@ export function AgendaPage() {
   useEffect(() => { setSearch(q); }, [q]);
   useEffect(() => { setLocationInput(filterLocation); }, [filterLocation]);
   useEffect(() => {
-    if (quickPeriodChange.current) { quickPeriodChange.current = false; return; }
+    const expectedPeriod = quickPeriodChange.current;
+    if (expectedPeriod) {
+      // An earlier render must not consume a later quick-period selection.
+      if (from === expectedPeriod.from && to === expectedPeriod.to) quickPeriodChange.current = null;
+      return;
+    }
     if (from || to || teamId || responsibleId || serviceTypeId || filterLocation) setShowAdvanced(true);
   }, [from, to, teamId, responsibleId, serviceTypeId, filterLocation]);
 
@@ -70,6 +75,7 @@ export function AgendaPage() {
     const storageKey = `agenda_filters_${unitId}`;
     const enteringContext = previousContext.current !== context;
     const changedContext = previousContext.current !== null && enteringContext;
+    if (enteringContext) quickPeriodChange.current = null;
     previousContext.current = context;
     if (enteringContext && (!location.search || changedContext)) {
       let saved = '';
@@ -127,6 +133,7 @@ export function AgendaPage() {
   const filtered = Boolean(q || status || teamId || responsibleId || serviceTypeId || filterLocation || from || to || blockedOnly);
 
   function change(key: string, value: string) {
+    if (['from', 'to', 'teamId', 'responsibleId', 'serviceTypeId', 'location'].includes(key)) quickPeriodChange.current = null;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       if (value) next.set(key, value);
@@ -150,7 +157,7 @@ export function AgendaPage() {
 
   function setQuickPeriod(period: AgendaPeriod) {
     const range = agendaPeriodRange(period, today);
-    quickPeriodChange.current = from !== range.from || to !== range.to;
+    if (quickPeriodChange.current || from !== range.from || to !== range.to) quickPeriodChange.current = range;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       for (const key of ['from', 'to'] as const) { if (range[key]) next.set(key, range[key]); else next.delete(key); }
@@ -161,6 +168,7 @@ export function AgendaPage() {
 
   function handleSearchSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (locationInput.trim() !== filterLocation) quickPeriodChange.current = null;
     setParams(previous => {
       const next = new URLSearchParams(previous);
       if (search.trim()) next.set('q', search.trim());
@@ -172,6 +180,7 @@ export function AgendaPage() {
   }
 
   function clearFilters() {
+    quickPeriodChange.current = null;
     if (unitId && typeof window !== 'undefined') {
       try { window.sessionStorage.removeItem(`agenda_filters_${unitId}`); } catch { /* Filters also live in the URL. */ }
     }
