@@ -59,6 +59,13 @@ describe('paginação e filtros das ATs', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     let canonicalReady = false, releaseCanonical!: () => void;
     const canonical = new Promise<null>(resolve => { releaseCanonical = () => { canonicalReady = true; resolve(null); }; });
+    let releaseFiltered!: () => void;
+    const filtered = new Promise<void>(resolve => { releaseFiltered = resolve; });
+    const get = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path, options) => {
+      if (path === '/work-authorizations' && options?.query?.q === 'alvo' && options.query.status === 'DRAFT') await filtered;
+      return get(path, options);
+    });
     const router = createMemoryRouter([{
       path: '/app/ats',
       loader: ({ request }) => new URL(request.url).searchParams.has('unitId') && !canonicalReady ? canonical : null,
@@ -75,10 +82,21 @@ describe('paginação e filtros das ATs', () => {
       await waitFor(() => expect(search).toBeEnabled());
       fireEvent.change(search, { target: { value: 'alvo' } });
       await user.selectOptions(status, 'DRAFT');
-      expect(await screen.findByRole('link', { name: 'Consultar AT-031' })).toBeInTheDocument();
-      expect(search).toHaveValue('alvo'); expect(status).toHaveValue('DRAFT');
-      const params = new URLSearchParams(router.state.location.search);
-      expect(params.get('unitId')).toBe('unit-a'); expect(params.get('q')).toBe('alvo'); expect(params.get('status')).toBe('DRAFT');
+      await waitFor(() => {
+        const params = new URLSearchParams(router.state.location.search);
+        expect(params.get('unitId')).toBe('unit-a'); expect(params.get('q')).toBe('alvo'); expect(params.get('status')).toBe('DRAFT');
+        expect(router.state.navigation.state).toBe('idle');
+        expect(api.get).toHaveBeenLastCalledWith('/work-authorizations', expect.objectContaining({ query: { unitId: 'unit-a', page: 1, pageSize: 10, q: 'alvo', status: 'DRAFT' } }));
+        expect(screen.queryByRole('link', { name: 'Consultar AT-031' })).not.toBeInTheDocument();
+      });
+      // The q-only response may briefly contain the same AT. Wait for the final
+      // query, whose pending state removes that earlier result from the document.
+      await act(async () => releaseFiltered());
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: 'Consultar AT-031' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Pesquisar AT')).toHaveValue('alvo');
+        expect(screen.getByLabelText('Estado da AT')).toHaveValue('DRAFT');
+      });
     } finally { view.unmount(); router.dispose(); client.clear(); }
   });
 
