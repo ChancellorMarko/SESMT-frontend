@@ -1,4 +1,5 @@
 import type { ErrorDto, SessionDto } from '../contracts';
+import { decodeSessionResponse } from '../auth/session-response';
 
 export const API_MODE = import.meta.env.VITE_API_MODE === 'api' ? 'api' : 'demo';
 const BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
@@ -103,6 +104,17 @@ async function request<T>(method: string, path: string, body?: unknown, options:
       throw new ApiError(response.status, errorDto(undefined));
     }
     if (requestEpoch !== epoch || options.signal?.aborted) throw new DOMException('Contexto de acesso alterado.', 'AbortError');
+    if (method === 'POST' && ['/auth/login', '/auth/refresh', '/auth/mfa/verify'].includes(path)) {
+      const challenge = result as Record<string, unknown> | null;
+      if (path === '/auth/login' && challenge?.status === 'MFA_REQUIRED'
+        && typeof challenge.challengeId === 'string' && challenge.challengeId.trim()
+        && typeof challenge.expiresAt === 'string' && Number.isFinite(Date.parse(challenge.expiresAt))
+        && Array.isArray(challenge.methods) && challenge.methods.length > 0
+        && challenge.methods.every(value => typeof value === 'string' && value.trim())) return result;
+      const session = decodeSessionResponse(result);
+      if (!session) throw new ApiError(response.status, errorDto(undefined));
+      return session as T;
+    }
     return result;
   } finally {
     clearTimeout(timeout); controllers.delete(controller); options.signal?.removeEventListener('abort', abort);
@@ -118,6 +130,8 @@ export async function obtainCsrf() {
   const sessionEpoch = epoch;
   const result = await api.get<{ csrfToken: string }>('/auth/csrf');
   if (sessionEpoch !== epoch) throw new DOMException('Sessão alterada.', 'AbortError');
+  if (!result || typeof result.csrfToken !== 'string' || !result.csrfToken || /\s|[\u0000-\u001f\u007f]/.test(result.csrfToken))
+    throw new ApiError(200, errorDto(undefined));
   csrf = result.csrfToken;
 }
 export async function renewSession(): Promise<SessionDto> {

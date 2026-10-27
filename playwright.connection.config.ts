@@ -14,11 +14,16 @@ export default defineConfig({
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
+  webServer: [{
+    command: 'node tests/connection-ui/fixtures/cookie-api-server.mjs',
+    url: 'http://127.0.0.1:5177/__health',
+    reuseExistingServer: false,
+    timeout: 30_000,
+  }, {
     command: 'npm run dev -- --port 5176 --strictPort --mode integration',
     url: 'http://127.0.0.1:5176/login',
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { VITE_API_MODE: 'api', VITE_API_BASE_URL: '/api/v1', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false' },
-  },
+    env: { VITE_API_MODE: 'api', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false' },
+  }],
 });

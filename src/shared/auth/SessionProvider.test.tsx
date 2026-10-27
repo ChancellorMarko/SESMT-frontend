@@ -25,11 +25,67 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('isolamento do ciclo da sessão', () => {
+  it.each(['login', 'mfa'] as const)('sincroniza o CSRF rotacionado após %s antes de buscar a identidade', async method => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    const events: string[] = [];
+    http.csrf.mockImplementation(async () => { events.push('csrf'); });
+    http.post.mockImplementation(async (path: string) => { events.push(path); return session; });
+    http.get.mockImplementation(async (path: string) => { events.push(path); return identity; });
+    await act(async () => {
+      if (method === 'login') await current.login('atual@example.test', 'secret');
+      else await current.verifyMfa('challenge-1', '123456');
+    });
+    expect(events).toEqual(['csrf', method === 'login' ? '/auth/login' : '/auth/mfa/verify', 'csrf', '/me']);
+    expect(current.status).toBe('authenticated');
+  });
+
+  it('um desafio MFA ainda não autenticado não sincroniza a proteção pós-login nem busca identidade', async () => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    http.csrf.mockClear(); http.get.mockClear();
+    const challenge = { status: 'MFA_REQUIRED', challengeId: 'challenge-1', methods: ['TOTP'], expiresAt: '2099-01-01T00:00:00Z' };
+    http.post.mockResolvedValueOnce(challenge);
+    await act(async () => { expect(await current.login('atual@example.test', 'secret')).toEqual(challenge); });
+    expect(http.csrf).toHaveBeenCalledTimes(1);
+    expect(http.get).not.toHaveBeenCalled();
+    expect(current.status).toBe('anonymous');
+  });
+
+  it.each(['login', 'mfa'] as const)('não estabelece a sessão se a sincronização CSRF após %s falhar', async method => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    http.csrf.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Não foi possível sincronizar o CSRF.'));
+    http.get.mockClear(); http.token.mockClear();
+    await act(async () => {
+      const authentication = method === 'login' ? current.login('atual@example.test', 'secret') : current.verifyMfa('challenge-1', '123456');
+      await expect(authentication).rejects.toThrow('Não foi possível sincronizar o CSRF.');
+    });
+    expect(http.get).not.toHaveBeenCalled(); expect(http.token).not.toHaveBeenCalled();
+    expect(current.status).toBe('anonymous'); expect(current.me).toBeNull();
+  });
+
+  it.each(['login', 'mfa'] as const)('logout durante a sincronização CSRF após %s impede a autenticação antiga', async method => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    const rotated = deferred<void>();
+    http.csrf.mockResolvedValueOnce(undefined).mockReturnValueOnce(rotated.promise);
+    http.csrf.mockClear(); http.get.mockClear(); http.token.mockClear();
+    let authentication!: Promise<unknown>;
+    act(() => { authentication = method === 'login' ? current.login('atual@example.test', 'secret') : current.verifyMfa('challenge-1', '123456'); });
+    const outcome = authentication.then(value => ({ value }), error => ({ error }));
+    await waitFor(() => expect(http.csrf).toHaveBeenCalledTimes(2));
+    await act(async () => { await current.logout(); });
+    await act(async () => {
+      rotated.resolve();
+      expect(await outcome).toMatchObject({ error: { name: 'AbortError' } });
+    });
+    expect(http.get).not.toHaveBeenCalled(); expect(http.token).not.toHaveBeenCalledWith(session.accessToken);
+    expect(current.status).toBe('anonymous'); expect(current.me).toBeNull();
+  });
+
   it('remove o acesso local imediatamente mesmo quando a revogação remota ainda aguarda resposta', async () => {
     mount(); await waitFor(() => expect(screen.getByLabelText('Status')).toHaveTextContent('authenticated'));
     const remote = deferred<unknown>(); http.post.mockReturnValueOnce(remote.promise);
     let logout!: Promise<void>;
     act(() => { logout = current.logout(); });
+    expect(http.post).toHaveBeenCalledWith('/auth/logout');
     expect(screen.getByLabelText('Status')).toHaveTextContent('anonymous');
     expect(screen.getByLabelText('Identidade')).toBeEmptyDOMElement();
     expect(current.can('worker.read')).toBe(false);
@@ -114,7 +170,7 @@ describe('isolamento do ciclo da sessão', () => {
     await act(async () => { await expect(current.verifyMfa('challenge-1', '000000')).rejects.toThrow('Código inválido'); });
     http.csrf.mockClear();
     await act(async () => { await current.verifyMfa('challenge-1', '123456'); });
-    expect(http.csrf).toHaveBeenCalledTimes(1);
+    expect(http.csrf).toHaveBeenCalledTimes(2);
     expect(screen.getByLabelText('Status')).toHaveTextContent('authenticated');
   });
 });

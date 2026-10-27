@@ -2,6 +2,20 @@
 
 Estado em 26/10/2026. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A integração foi iniciada na branch **Teste** e reunida na **main**, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. Arquivos de compilação e configurações locais permanecem fora do versionamento.
 
+## Revisão do contrato em 27/10/2026
+
+O [levantamento de sessão por cookie e rotas](docs/frontend/contrato-cookie-e-rotas.md) compara a nota recebida com o frontend atual e as branches `main` e `marcos-dev` do backend independente consultadas nesta data. A `marcos-dev` confirma o contrato de autenticação por cookie e as rotas de PT agrupadas em `/api/v1/work-permits`; a `main` ainda tem o contrato anterior. Os estados e números de validação registrados abaixo pertencem à etapa anterior do adaptador integrado local; não são comprovação da implantação da `marcos-dev`.
+
+O frontend já não armazena refresh token no `SessionDto` e já envia refresh/logout sem corpo. O cliente agora valida e normaliza a resposta HTTP com `expiresAtUtc` para o formato interno `accessExpiresAt`, preservando a resposta anterior do adaptador; isso não substitui um contrato de identidade completo compatível com `MeDto`. O `/auth/me` nativo retorna somente `userId` nas duas branches consultadas e não autoriza a criação de permissões ou escopos fictícios.
+
+As mudanças de prefixo de PT descritas na nota estão na `marcos-dev`, mas ainda não aparecem no controller da `main` consultada. Além dos caminhos, os DTOs de checklist, detalhe completo, templates e abertura por agendamento diferem. `/app/pts` continua sendo uma rota da interface. A mudança desses contratos precisa ser validada na revisão do backend que será implantada.
+
+Na `marcos-dev`, o cookie HttpOnly `sesmt_refresh` tem `SameSite=Strict` e `Path=/api/v1/auth/refresh`; ele não acompanha `/api/v1/auth/logout`, que precisa lê-lo para revogar a sessão. Essa correção depende do backend: usar um caminho comum `/api/v1/auth`, como o adaptador local já faz, e manter a remoção do cookie coerente. O frontend não consegue corrigir o `Path` de um cookie HttpOnly.
+
+O login da `marcos-dev` também rotaciona `sesmt_csrf`, com `Path=/api/v1/auth`, sem devolver o novo token no JSON. O cliente agora consulta `GET /auth/csrf` novamente após login/MFA concluído e antes de estabelecer a sessão; manter o token obtido antes do login pode causar `CSRF_INVALID` no refresh. A etapa de MFA precisa seguir o contrato efetivamente implantado. Base absoluta deve incluir `/api/v1`; proxy e CORS devem refletir o ambiente configurado.
+
+Os testes de cliente com respostas controladas continuam ativos: a falta de um endpoint real não é motivo para ignorar um teste do transporte. Testes de cookies em navegador com servidor controlado também não substituem a validação com a API e o banco reais.
+
 ## O que está conectado
 
 O contrato de navegador `/api/v1` adapta os serviços existentes do backend para o protocolo do frontend:

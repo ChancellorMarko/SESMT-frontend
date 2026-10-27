@@ -76,13 +76,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const result = await api.post<SessionDto | MfaChallengeDto>('/auth/login',{email,password});
       assertCurrent(operation);
       if ('status' in result) return result;
+      // Authentication may rotate the CSRF cookie; keep its matching header token.
+      await obtainCsrf(); assertCurrent(operation);
       await establish(result, operation); return null;
     } catch (error) { if (operation === generation.current) clear(); throw error; }
   };
   const verifyMfa = async (challengeId: string,code: string) => {
     const operation = ++generation.current;
     cancelAllRequests();
-    try { await obtainCsrf(); assertCurrent(operation); await establish(await api.post<SessionDto>('/auth/mfa/verify',{challengeId,code}), operation); }
+    try {
+      await obtainCsrf(); assertCurrent(operation);
+      const session = await api.post<SessionDto>('/auth/mfa/verify',{challengeId,code});
+      assertCurrent(operation);
+      await obtainCsrf(); assertCurrent(operation);
+      await establish(session, operation);
+    }
     catch (error) { if (operation === generation.current) clear(); throw error; }
   };
   const logout = async () => {

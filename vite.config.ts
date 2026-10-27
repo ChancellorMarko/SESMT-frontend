@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       // Generated QA captures must not reload the in-memory demonstration session.
       watch: { ignored: ['**/SESMT-backend/**/bin/**', '**/SESMT-backend/**/obj/**', '**/.local/**', '**/docs/frontend/qa/**', '**/test-results-*/**'] },
       proxy: env.VITE_API_MODE === 'api' && env.API_PROXY_TARGET
-        ? { '/api': { target: env.API_PROXY_TARGET, changeOrigin: true } }
+        ? { '/api/v1': { target: env.API_PROXY_TARGET, changeOrigin: true } }
         : undefined,
     },
   };

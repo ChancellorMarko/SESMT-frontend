@@ -10,6 +10,52 @@ beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('cliente HTTP e ciclo da sessão', () => {
+  it.each(['/auth/login', '/auth/refresh', '/auth/mfa/verify'])('normaliza o contrato de cookie em %s sem expor refresh ou usar claims como permissões', async path => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({
+      accessToken: 'cookie-access', expiresAtUtc: '2099-01-01T00:00:00Z',
+      userId: 'account', roles: ['ADMIN'], scopes: [{ scopeType: 'GLOBAL', referenceId: null }],
+      refreshToken: 'must-not-reach-consumers', refreshTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
+    })));
+    const { api } = await import('./client');
+    await expect(api.post(path)).resolves.toEqual({ accessToken: 'cookie-access', tokenType: 'Bearer', accessExpiresAt: '2099-01-01T00:00:00Z' });
+  });
+
+  it('preserva um desafio MFA válido sem confundi-lo com uma sessão', async () => {
+    const challenge = { status: 'MFA_REQUIRED', challengeId: 'challenge', expiresAt: '2099-01-01T00:00:00Z', methods: ['TOTP'] };
+    vi.stubGlobal('fetch', vi.fn(async () => json(challenge)));
+    const { api } = await import('./client');
+    await expect(api.post('/auth/login')).resolves.toEqual(challenge);
+  });
+
+  it.each([null, {}, { accessToken: 'bad', expiresAtUtc: 'invalid' }, { status: 'MFA_REQUIRED' }])('recusa sucesso de autenticação fora do contrato: %j', async value => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(value)));
+    const { api } = await import('./client');
+    await expect(api.post('/auth/login')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+
+  it('renova e encerra por cookies e CSRF sem corpo ou refresh token em JSON', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => pathOf(input).endsWith('/auth/csrf')
+      ? json({ csrfToken: 'csrf-cookie-pair' }) : pathOf(input).endsWith('/auth/logout') ? new Response(null, { status: 204 })
+        : json({ accessToken: 'cookie-access', expiresAtUtc: '2099-01-01T00:00:00Z' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { renewSession, api } = await import('./client');
+    await renewSession(); await api.post('/auth/logout');
+    for (const [input, options] of fetchMock.mock.calls as unknown as [RequestInfo | URL, RequestInit][]) {
+      expect(options.credentials).toBe('include');
+      if (!pathOf(input).endsWith('/auth/csrf')) {
+        expect(options.body).toBeUndefined();
+        expect(new Headers(options.headers).has('Content-Type')).toBe(false);
+        expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-cookie-pair');
+      }
+    }
+  });
+
+  it.each([null, {}, { csrfToken: '' }, { csrfToken: 'with space' }])('não prossegue com um CSRF inválido: %j', async value => {
+    const fetchMock = vi.fn(async () => json(value)); vi.stubGlobal('fetch', fetchMock);
+    const { renewSession } = await import('./client');
+    await expect(renewSession()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it('envia solicitação por convite sem credenciais nem renovação da sessão', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => pathOf(input).includes('/team-invites/public/') ? error('TOKEN_EXPIRED', 401) : json({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
