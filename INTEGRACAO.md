@@ -2,9 +2,11 @@
 
 Estado em 26/10/2026. Frontend na raiz; backend .NET 10 em `SESMT-backend/`. A integração foi iniciada na branch **Teste** e reunida na **main**, preservando as alterações locais, inclusive o primeiro acesso demonstrativo. Arquivos de compilação e configurações locais permanecem fora do versionamento.
 
-## Revisão do contrato em 27/10/2026
+## Revisão do contrato em 28/10/2026
 
-O [levantamento de sessão por cookie e rotas](docs/frontend/contrato-cookie-e-rotas.md) usa como referência vigente a [main do backend independente no commit b34b30e](https://github.com/ChancellorMarko/SESMT-backend/tree/b34b30ee8cdd717b0c7daf4305139b4186f54635), resultado do merge da PR #24 da `marcos-dev`. A revisão confirma o contrato de autenticação por cookie e as rotas de PT agrupadas em `/api/v1/work-permits`. Os estados e números de validação registrados abaixo pertencem à etapa anterior do adaptador integrado local. Os 2.995 testes de unidade e 13 cenários de navegador do frontend no commit `e9e52b9` também são uma verificação anterior, com respostas/servidores controlados, e não comprovam o funcionamento desta `main` da API.
+O [levantamento de sessão por cookie e rotas](docs/frontend/contrato-cookie-e-rotas.md) registra a referência publicada auditada da [main do backend independente no commit 134d5bb](https://github.com/ChancellorMarko/SESMT-backend/tree/134d5bb8dcdb40f9ef50a84e16668abe77c5f3f2), consultada em 28/10/2026. Os controllers de autenticação e PT e o `Program.cs` mantêm os mesmos contratos da revisão anterior `b34b30e`. Os estados e números de validação registrados nas seções históricas abaixo pertencem ao adaptador integrado local; não comprovam o funcionamento desta `main` da API.
+
+Após essa auditoria, o responsável informou ter corrigido o backend localmente, ainda sem commit, e solicitou explicitamente o commit do frontend em nova branch. A entrega do frontend é registrada em `codex/frontend-main-auth-compat`. As divergências abaixo descrevem a referência publicada auditada; a homologação com as correções locais do backend permanece uma etapa separada.
 
 O frontend já não armazena refresh token no `SessionDto` e já envia refresh/logout sem corpo. O cliente agora valida e normaliza a resposta HTTP com `expiresAtUtc` para o formato interno `accessExpiresAt`, preservando a resposta anterior do adaptador; isso não substitui um contrato de identidade completo compatível com `MeDto`. O `/auth/me` nativo da `main` retorna somente `userId` e não autoriza a criação de permissões ou escopos fictícios.
 
@@ -16,9 +18,30 @@ O login da `main` também rotaciona `sesmt_csrf`, com `Path=/api/v1/auth`, sem d
 
 Os testes de cliente com respostas controladas continuam ativos: a falta de um endpoint real não é motivo para ignorar um teste do transporte. Testes de cookies em navegador com servidor controlado também não substituem a validação com a API e o banco reais.
 
-Outras diferenças confirmadas na `main` exigem acordo de contrato antes de adaptar o cliente: recuperação usa `/auth/forgot-password` e `/auth/reset-password`, enquanto o frontend/adaptador usa `/auth/password/forgot` e `/auth/password/reset`; o backend exige nova senha com pelo menos 12 caracteres. MFA nativo retorna apenas `403` com `MFA_REQUIRED`, sem protocolo de desafio/verificação. A autenticação JWT também pode responder `401` sem o código `TOKEN_EXPIRED` esperado pelo cliente para renovação automática durante o uso. Esta revalidação registra as lacunas; não altera esses fluxos nem representa um smoke test da API .NET.
+O cliente seleciona os caminhos de autenticação conforme o ambiente. Em modo API, o contrato `native` é o padrão: identidade em `/auth/me`, recuperação em `/auth/forgot-password` e redefinição em `/auth/reset-password`. O contrato `adapter` preserva `/me` e `/auth/password/forgot` e `/auth/password/reset`. A nova senha exige pelo menos 12 caracteres, com orientação acessível antes do envio. Não há repetição automática de comandos em caminhos alternativos.
 
-Nesta revalidação, `npm run typecheck` passou e os cinco arquivos focados em autenticação aprovaram 118/118 testes. Foram conferidos o frontend e o código-fonte da `main` no SHA acima. A suíte completa e os testes de navegador não foram repetidos, pois o runtime do frontend não mudou nesta rodada; os resultados do commit `e9e52b9` permanecem históricos.
+Uma identidade incompleta ou inválida mantém o acesso bloqueado e apresenta orientação para procurar o administrador. O cliente exige usuário, permissões e escopo explícitos; não cria esses dados a partir dos perfis do login. MFA nativo retorna apenas `403` com `MFA_REQUIRED`, sem protocolo de desafio/verificação; a interface explica a necessidade de verificação adicional sem abrir uma etapa fictícia. A autenticação JWT ainda pode responder `401` sem o código `TOKEN_EXPIRED` esperado para renovação automática durante o uso. Esse protocolo e o caminho do cookie de logout continuam pendentes no backend.
+
+Na revalidação anterior (`f152b6c`), `npm run typecheck` passou e cinco arquivos focados em autenticação aprovaram 118/118 testes. Os resultados da implementação atual são registrados no levantamento de contrato acima; os resultados dos commits anteriores permanecem históricos.
+
+A revisão `134d5bb` também alterou o gerador de links de recuperação: o serviço usa `?token=...` e a configuração consultada aponta para `/reset-password`. A interface atual usa `/redefinir-senha#token=...`. Portanto o acesso pelo link enviado ainda exige conciliar rota e transporte do código. As rotas de API e o preenchimento manual do código já são selecionáveis, mas isso não comprova que o link recebido abre a tela correta.
+
+As alterações do frontend passaram no build, em 3.048 testes de unidade e em 16 cenários de navegador (9 dos contratos de API e 7 demonstrativos). Esses testes usam dados e serviços controlados. A autorização posterior para registrar o frontend em nova branch não representa, por si só, a homologação das correções locais do backend.
+
+## Escolher o contrato de autenticação
+
+Para a API independente da `main`, configure o ambiente local do Vite e reinicie o servidor:
+
+```dotenv
+VITE_API_MODE=api
+VITE_AUTH_API_CONTRACT=native
+VITE_API_BASE_URL=/api/v1
+API_PROXY_TARGET=http://127.0.0.1:5047
+```
+
+A porta do exemplo deve corresponder ao serviço de desenvolvimento em execução. A `main` de referência ainda retorna identidade reduzida, portanto o login permanece bloqueado após a conferência do perfil até que o backend disponibilize o contrato completo. Isso não impede a interface de usar as rotas nativas de recuperação de acesso.
+
+O comando `npm run dev:integrated` seleciona explicitamente `VITE_AUTH_API_CONTRACT=adapter` para o backend incluído neste repositório. Quem inicia o Vite manualmente com esse backend deve selecionar `adapter` também. No modo `demo`, o contrato dos dados sintéticos é usado automaticamente. O comando `integration:smoke` continua destinado ao adaptador local e não é um aceite da API independente.
 
 ## O que está conectado
 

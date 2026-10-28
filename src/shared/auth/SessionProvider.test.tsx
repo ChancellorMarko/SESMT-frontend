@@ -4,12 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MeDto, SessionDto } from '../contracts';
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), cancel: vi.fn(), clear: vi.fn(), csrf: vi.fn(), renew: vi.fn(), token: vi.fn(), expired: vi.fn() }));
+const authContract = vi.hoisted(() => ({ kind: 'adapter', mePath: '/me' }));
+vi.mock('../api/auth-contract', () => ({ AUTH_CONTRACT: authContract }));
 vi.mock('../api/client', async (original) => ({
   ...await original<typeof import('../api/client')>(),
   api: { get: http.get, post: http.post }, cancelAllRequests: http.cancel, clearCredentials: http.clear,
   obtainCsrf: http.csrf, renewSession: http.renew, setAccessToken: http.token, setExpiredHandler: http.expired,
 }));
 import { SessionProvider, useSession } from './SessionProvider';
+import { ApiError } from '../api/client';
 
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (value: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; }
 const session: SessionDto = { accessToken: 'access-token', tokenType: 'Bearer', accessExpiresAt: '2099-01-01T00:00:00Z' };
@@ -20,11 +23,68 @@ function mount() { const client = new QueryClient({ defaultOptions: { queries: {
 
 beforeEach(() => {
   vi.resetAllMocks(); sessionStorage.clear();
+  authContract.kind = 'adapter'; authContract.mePath = '/me';
   http.csrf.mockResolvedValue(undefined); http.renew.mockResolvedValue(session); http.post.mockResolvedValue(session); http.get.mockResolvedValue(identity);
 });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('isolamento do ciclo da sessão', () => {
+  it.each([{ kind: 'native', path: '/auth/me' }, { kind: 'adapter', path: '/me' }])('consulta a identidade pelo contrato $kind configurado', async ({ kind, path }) => {
+    authContract.kind = kind; authContract.mePath = path;
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    expect(http.get).toHaveBeenCalledWith(path);
+    expect(current.me).toEqual(identity);
+  });
+
+  it('mantém a restauração anônima quando a API nativa retorna somente userId', async () => {
+    authContract.kind = 'native'; authContract.mePath = '/auth/me';
+    http.get.mockResolvedValue({ userId: 'user-new' });
+    mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
+    expect(current.sessionError).toContain('carregar seu perfil e suas permissões');
+    expect(current.me).toBeNull(); expect(current.unitId).toBeUndefined();
+    expect(current.can('worker.read')).toBe(false); expect(http.clear).toHaveBeenCalled();
+  });
+
+  it('remove identidade e permissões anteriores se o novo login não carrega um perfil completo', async () => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    expect(current.can('worker.read')).toBe(true);
+    http.clear.mockClear(); http.get.mockResolvedValueOnce({ userId: 'another-account', roles: ['ADMIN'] });
+    await act(async () => { await expect(current.login('outro@example.test', 'secret')).rejects.toThrow('carregar seu perfil e suas permissões'); });
+    expect(current.status).toBe('anonymous'); expect(current.me).toBeNull();
+    expect(current.unitId).toBeUndefined(); expect(current.can('worker.read')).toBe(false);
+    expect(http.clear).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['native', 'adapter'])('explica perfil indisponível quando a rota de identidade retorna 404 no contrato %s', async kind => {
+    authContract.kind = kind; authContract.mePath = kind === 'native' ? '/auth/me' : '/me';
+    http.get.mockRejectedValue(new ApiError(404, { code: 'NOT_FOUND', message: 'Recurso não encontrado.', requestId: 'test' }));
+    mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
+    expect(current.sessionError).toContain('carregar seu perfil e suas permissões');
+    expect(current.me).toBeNull(); expect(http.clear).toHaveBeenCalled();
+  });
+
+  it('preserva a mensagem de indisponibilidade temporária ao carregar a identidade', async () => {
+    http.get.mockRejectedValue(new ApiError(503, { code: 'SERVICE_UNAVAILABLE', message: 'Serviço temporariamente indisponível.', requestId: 'test' }));
+    mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
+    expect(current.sessionError).toBe('Serviço temporariamente indisponível.');
+    expect(current.me).toBeNull();
+  });
+
+  it('explica MFA_REQUIRED nativo sem criar desafio ou autenticar a conta', async () => {
+    authContract.kind = 'native'; authContract.mePath = '/auth/me';
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    http.get.mockClear(); http.post.mockRejectedValueOnce(new ApiError(403, { code: 'MFA_REQUIRED', message: 'Não foi possível autenticar.', requestId: 'test' }));
+    await act(async () => { await expect(current.login('atual@example.test', 'secret')).rejects.toThrow('Sua conta exige uma verificação adicional. Procure o administrador para concluir o acesso.'); });
+    expect(http.get).not.toHaveBeenCalled(); expect(current.status).toBe('anonymous'); expect(current.me).toBeNull();
+  });
+
+  it('recusa uma concessão já expirada mesmo quando o perfil completo é válido', async () => {
+    http.get.mockResolvedValue({ ...identity, scope: { ...identity.scope, expiresAt: '2020-01-01T00:00:00Z' } });
+    mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
+    expect(current.sessionError).toContain('concessão de acesso expirou');
+    expect(current.me).toBeNull(); expect(current.can('worker.read')).toBe(false);
+  });
+
   it.each(['login', 'mfa'] as const)('sincroniza o CSRF rotacionado após %s antes de buscar a identidade', async method => {
     mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
     const events: string[] = [];

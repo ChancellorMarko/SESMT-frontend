@@ -7,9 +7,14 @@ import { api, obtainCsrf } from '../../shared/api/client';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { LoginPage, RecoveryPage, ResetPasswordPage } from './AuthPages';
 
-const runtime = vi.hoisted(() => ({ mode: 'demo' }));
+const runtime = vi.hoisted(() => ({ mode: 'demo', contract: 'adapter' }));
 vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: vi.fn() }));
 vi.mock('../../shared/api/client', () => ({ get API_MODE() { return runtime.mode; }, obtainCsrf: vi.fn(), api: { post: vi.fn() } }));
+vi.mock('../../shared/api/auth-contract', () => ({ get AUTH_CONTRACT() {
+  return runtime.contract === 'native'
+    ? { kind: 'native', mePath: '/auth/me', forgotPasswordPath: '/auth/forgot-password', resetPasswordPath: '/auth/reset-password' }
+    : { kind: 'adapter', mePath: '/me', forgotPasswordPath: '/auth/password/forgot', resetPasswordPath: '/auth/password/reset' };
+} }));
 vi.mock('../../shared/motion/MotionPreferences', () => ({ useAppReducedMotion: () => true }));
 vi.mock('./LoginArrival', () => ({ useLoginArrival: () => 'ready', LoginPreloader: () => null }));
 
@@ -60,6 +65,7 @@ async function fillRecoveryForm(user: ReturnType<typeof userEvent.setup>, path: 
 
 beforeEach(() => {
   runtime.mode = 'demo';
+  runtime.contract = 'adapter';
   login.mockReset().mockResolvedValue(challenge);
   verifyMfa.mockReset().mockResolvedValue(undefined);
   vi.mocked(obtainCsrf).mockReset().mockResolvedValue(undefined);
@@ -71,6 +77,49 @@ beforeEach(() => {
 });
 
 describe('continuidade do acesso', () => {
+  it.each([
+    { contract: 'native', path: '/recuperar-acesso', endpoint: '/auth/forgot-password', action: 'Solicitar recuperação' },
+    { contract: 'adapter', path: '/recuperar-acesso', endpoint: '/auth/password/forgot', action: 'Solicitar recuperação' },
+    { contract: 'native', path: '/redefinir-senha#token=Native_reset-token_123', endpoint: '/auth/reset-password', action: 'Redefinir senha' },
+    { contract: 'adapter', path: '/redefinir-senha#token=Native_reset-token_123', endpoint: '/auth/password/reset', action: 'Redefinir senha' },
+  ])('envia recuperação pelo contrato $contract no endpoint $endpoint', async ({ contract, path, endpoint, action }) => {
+    runtime.mode = 'api'; runtime.contract = contract;
+    const reset = action === 'Redefinir senha';
+    vi.mocked(api.post).mockResolvedValueOnce(reset ? undefined : { message: 'Solicitação recebida.' });
+    const user = show(path);
+    if (reset) {
+      await user.type(screen.getByLabelText('Nova senha', { exact: true }), '  Frase segura 2026  ');
+      await user.type(screen.getByLabelText('Confirmar nova senha', { exact: true }), '  Frase segura 2026  ');
+    } else await user.type(screen.getByLabelText('E-mail', { exact: true }), '  conta@example.invalid  ');
+    await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.post).mock.calls[0].slice(0, 2)).toEqual([endpoint, reset
+      ? { token: 'Native_reset-token_123', newPassword: '  Frase segura 2026  ' }
+      : { email: 'conta@example.invalid' }]);
+    expect(await screen.findByRole('heading', { name: reset ? 'Tudo pronto.' : 'Confira seu e-mail' })).toBeVisible();
+  });
+
+  it('explica e valida o mínimo de 12 caracteres sem perder código ou senhas', async () => {
+    runtime.mode = 'api'; runtime.contract = 'native';
+    const user = show('/redefinir-senha#token=Native_reset-token_123');
+    const password = screen.getByLabelText('Nova senha', { exact: true });
+    const confirm = screen.getByLabelText('Confirmar nova senha', { exact: true });
+    expect(password).toHaveAccessibleDescription('Use pelo menos 12 caracteres. Você pode criar uma frase fácil de lembrar.');
+    await user.type(password, 'Curta123!'); await user.type(confirm, 'Curta123!');
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Use pelo menos 12 caracteres.');
+    expect(password).toHaveAttribute('aria-invalid', 'true');
+    expect(password).toHaveValue('Curta123!'); expect(confirm).toHaveValue('Curta123!');
+    expect(screen.getByLabelText('Código de recuperação', { exact: true })).toHaveValue('Native_reset-token_123');
+    expect(obtainCsrf).not.toHaveBeenCalled(); expect(api.post).not.toHaveBeenCalled();
+    await user.clear(password); await user.type(password, '123456789012');
+    await user.clear(confirm); await user.type(confirm, '123456789012');
+    vi.mocked(api.post).mockResolvedValueOnce(undefined);
+    await user.click(screen.getByRole('button', { name: 'Redefinir senha' }));
+    expect(await screen.findByRole('heading', { name: 'Tudo pronto.' })).toBeVisible();
+    expect(vi.mocked(api.post).mock.calls[0].slice(0, 2)).toEqual(['/auth/reset-password', { token: 'Native_reset-token_123', newPassword: '123456789012' }]);
+  });
+
   it('mantém o retorno bloqueado durante MFA pendente e não duplica a verificação por submissão concorrente', async () => {
     const response = deferred<void>();
     verifyMfa.mockReturnValueOnce(response.promise);

@@ -43,8 +43,19 @@ async function serve(request, response) {
       chunks.push(chunk);
     }
     const body = Buffer.concat(chunks).toString('utf8');
+    if (path === `${cookiePath}/forgot-password` || path === `${cookiePath}/reset-password`) {
+      let input; try { input = JSON.parse(body); } catch { return error('INVALID_BODY', 400); }
+      if (path.endsWith('/forgot-password')) {
+        if (typeof input?.email !== 'string' || !input.email.includes('@')) return error('INVALID_BODY', 400);
+        return json({ message: 'Se o e-mail estiver cadastrado, você receberá instruções para redefinir a senha.' }, 202);
+      }
+      if (input?.token !== 'fixture-reset-token' || typeof input.newPassword !== 'string' || input.newPassword.length < 12)
+        return error('INVALID_RESET_TOKEN', 400);
+      response.writeHead(204); return response.end();
+    }
     if (path === `${cookiePath}/login`) {
       let credentials; try { credentials = JSON.parse(body); } catch { return error('INVALID_BODY', 400); }
+      if (credentials.email === 'mfa@example.invalid' && credentials.password === 'Senha fictícia do cookie') return error('MFA_REQUIRED', 403);
       if (credentials.email !== 'cookie@example.invalid' || credentials.password !== 'Senha fictícia do cookie') return error('INVALID_CREDENTIALS', 401);
     } else if (body.length) return error('BODY_NOT_ALLOWED', 400);
     if (path === `${cookiePath}/login` || path === `${cookiePath}/refresh`) {
@@ -65,11 +76,12 @@ async function serve(request, response) {
       response.writeHead(204); return response.end();
     }
   }
-  if (path === '/api/v1/me' && request.method === 'GET') {
+  if ((path === '/api/v1/me' || path === `${cookiePath}/me`) && request.method === 'GET') {
     const access = request.headers.authorization?.replace(/^Bearer /, '');
     if (![...sessions.values()].includes(access)) return error('SESSION_EXPIRED', 401);
+    if (path === `${cookiePath}/me`) return json({ userId });
     return json({ user: { id: userId, displayName: 'Conta de teste de cookies', email: 'cookie@example.invalid' },
-      roles: ['ADMIN'], permissions: [], scope: { companyIds: [], unitIds: [], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: expiresAtUtc });
+      roles: ['ADMIN'], permissions: [], scope: { companyIds: [], unitIds: [], sectorIds: [], teamIds: [], ownOnly: false }, workerId: null, accessExpiresAt: expiresAtUtc });
   }
   return error('INTEGRATION_PENDING', 501);
 }

@@ -13,7 +13,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', testIgnore: '**/native-auth.spec.ts', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium-native', testMatch: '**/native-auth.spec.ts', use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:5178' } },
+  ],
   webServer: [{
     command: 'node tests/connection-ui/fixtures/cookie-api-server.mjs',
     url: 'http://127.0.0.1:5177/__health',
@@ -24,6 +27,12 @@ export default defineConfig({
     url: 'http://127.0.0.1:5176/login',
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { VITE_API_MODE: 'api', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false' },
+    env: { VITE_API_MODE: 'api', VITE_AUTH_API_CONTRACT: 'adapter', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false' },
+  }, {
+    command: 'npm run dev -- --port 5178 --strictPort --mode integration',
+    url: 'http://127.0.0.1:5178/login',
+    reuseExistingServer: false,
+    timeout: 60_000,
+    env: { VITE_API_MODE: 'api', VITE_AUTH_API_CONTRACT: 'native', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false' },
   }],
 });

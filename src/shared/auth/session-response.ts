@@ -7,7 +7,7 @@ const identifier = (value: unknown): value is string =>
 const label = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(value);
 
-function instant(value: unknown): value is string {
+export function isIsoInstant(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match) return false;
@@ -37,7 +37,7 @@ export function decodeSessionResponse(value: unknown): SessionDto | null {
   if (!record(value) || !identifier(value.accessToken) || !validCookieMetadata(value)) return null;
   const cookieResponse = Object.hasOwn(value, 'expiresAtUtc');
   const expiresAt = cookieResponse ? value.expiresAtUtc : value.accessExpiresAt;
-  if (!instant(expiresAt) || (!cookieResponse || Object.hasOwn(value, 'tokenType')) && value.tokenType !== 'Bearer') return null;
+  if (!isIsoInstant(expiresAt) || (!cookieResponse || Object.hasOwn(value, 'tokenType')) && value.tokenType !== 'Bearer') return null;
   // /me remains the authority for the user's identity, permissions and scope.
   return { accessToken: value.accessToken, tokenType: 'Bearer', accessExpiresAt: expiresAt };
 }
