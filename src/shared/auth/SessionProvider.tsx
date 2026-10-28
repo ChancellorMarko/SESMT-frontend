@@ -2,6 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useQueryClient } from '@tanstack/react-query';
 import type { MeDto, MfaChallengeDto, SessionDto } from '../contracts';
 import { api, ApiError, cancelAllRequests, clearCredentials, obtainCsrf, renewSession, setAccessToken, setExpiredHandler } from '../api/client';
+import { AUTH_CONTRACT } from '../api/auth-contract';
+import { decodeIdentityResponse } from './identity-response';
+
+const incompleteIdentityMessage = 'Seu acesso foi reconhecido, mas não foi possível carregar seu perfil e suas permissões. Procure o administrador.';
 
 interface SessionContextValue {
   me: MeDto | null; unitId: string | undefined; sessionKey: string;
@@ -26,8 +30,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const establish = useCallback(async (session: SessionDto, operation: number) => {
     assertCurrent(operation);
     setAccessToken(session.accessToken);
-    const identity = await api.get<MeDto>('/me');
+    let response: unknown;
+    try { response = await api.get<unknown>(AUTH_CONTRACT.mePath); }
+    catch (error) {
+      assertCurrent(operation);
+      if (error instanceof ApiError && error.status === 404) throw new Error(incompleteIdentityMessage);
+      throw error;
+    }
     assertCurrent(operation);
+    const identity = decodeIdentityResponse(response);
+    if (!identity) throw new Error(incompleteIdentityMessage);
     if (identity.scope.expiresAt && (!Number.isFinite(Date.parse(identity.scope.expiresAt)) || Date.parse(identity.scope.expiresAt) <= Date.now())) throw new Error('A concessão de acesso expirou ou está inválida. Solicite uma nova autorização.');
     client.clear(); setMe(identity); changeUnit(identity.scope.unitIds[0]); setKey(crypto.randomUUID()); setStatus('authenticated'); setError(null);
     sessionStorage.removeItem('sesmt.logoutPending');
@@ -76,13 +88,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const result = await api.post<SessionDto | MfaChallengeDto>('/auth/login',{email,password});
       assertCurrent(operation);
       if ('status' in result) return result;
+      // Authentication may rotate the CSRF cookie; keep its matching header token.
+      await obtainCsrf(); assertCurrent(operation);
       await establish(result, operation); return null;
-    } catch (error) { if (operation === generation.current) clear(); throw error; }
+    } catch (error) {
+      if (operation === generation.current) clear();
+      if (AUTH_CONTRACT.kind === 'native' && error instanceof ApiError && error.status === 403 && error.code === 'MFA_REQUIRED')
+        throw new Error('Sua conta exige uma verificação adicional. Procure o administrador para concluir o acesso.');
+      throw error;
+    }
   };
   const verifyMfa = async (challengeId: string,code: string) => {
     const operation = ++generation.current;
     cancelAllRequests();
-    try { await obtainCsrf(); assertCurrent(operation); await establish(await api.post<SessionDto>('/auth/mfa/verify',{challengeId,code}), operation); }
+    try {
+      await obtainCsrf(); assertCurrent(operation);
+      const session = await api.post<SessionDto>('/auth/mfa/verify',{challengeId,code});
+      assertCurrent(operation);
+      await obtainCsrf(); assertCurrent(operation);
+      await establish(session, operation);
+    }
     catch (error) { if (operation === generation.current) clear(); throw error; }
   };
   const logout = async () => {

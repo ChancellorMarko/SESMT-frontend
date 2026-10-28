@@ -2,6 +2,9 @@ export interface PageDto<T> { items: T[]; page: number; pageSize: number; total:
 export interface ErrorDto { code: string; message: string; fieldErrors?: { field: string; code: string; message: string }[]; requestId: string }
 export interface ScopeDto { companyIds: string[]; unitIds: string[]; sectorIds: string[]; teamIds: string[]; ownOnly: boolean; expiresAt?: string }
 export interface SessionDto { accessToken: string; tokenType: 'Bearer'; accessExpiresAt: string }
+/** Public cookie-auth response. Refresh credentials are held only by the browser's HttpOnly cookie. */
+export interface CookieSessionScopeClaim { scopeType: string; referenceId: string | null }
+export interface CookieSessionResponse { accessToken: string; expiresAtUtc: string; userId: string; roles: string[]; scopes: CookieSessionScopeClaim[] }
 export interface MfaChallengeDto { status: 'MFA_REQUIRED'; challengeId: string; expiresAt: string; methods: string[] }
 export interface MeDto { user: { id: string; displayName: string; email: string }; roles: string[]; permissions: string[]; scope: ScopeDto; workerId?: string; accessExpiresAt: string }
 export interface UserDto { id: string; displayName: string; email: string; status: 'ACTIVE' | 'DISABLED' | 'INVITED'; roles: string[]; scope: ScopeDto; mfaRequired: boolean; revision: number }

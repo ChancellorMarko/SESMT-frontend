@@ -6,6 +6,7 @@ import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, Flame, HardHat, Hear
 import { useForm } from 'react-hook-form';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { API_MODE, api, obtainCsrf } from '../../shared/api/client';
+import { AUTH_CONTRACT } from '../../shared/api/auth-contract';
 import { Feedback, Field, Spinner } from '../../shared/ui';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
@@ -270,7 +271,7 @@ export function RecoveryPage() {
       setError(''); setMessage('');
       const email = v.email.trim();
       try {
-        const result = await command.post<unknown>('/auth/password/forgot', { email });
+        const result = await command.post<unknown>(AUTH_CONTRACT.forgotPasswordPath, { email });
         setAddress(email); setMessage(checkedRecoveryMessage(result));
       } catch (e) { if (!recoveryCanceled(e)) setError(e instanceof Error ? e.message : 'Não foi possível solicitar a recuperação. Tente novamente.'); }
     })}>
@@ -308,6 +309,7 @@ function ResetPasswordContent() {
   const { busy } = command;
   const successAction = useRef<HTMLAnchorElement>(null);
   const codeHintId = useId();
+  const passwordHintId = useId();
   const attempted = useRef<{ token: string; password: string; key: string } | null>(null);
   const form = useForm<{ token: string; password: string; confirm: string }>({ defaultValues: { token: initial.token || (!initial.invalid && API_MODE === 'demo' ? 'demo-reset' : ''), password: '', confirm: '' } });
   const tokenProps = form.register('token', { required: 'Informe o código recebido.', validate: value => validPasswordResetToken(value) || 'Confira o código recebido ou solicite uma nova recuperação.' });
@@ -326,7 +328,7 @@ function ResetPasswordContent() {
       if (v.password !== v.confirm) { form.setError('confirm', { message: 'As senhas devem ser iguais.' }); return; }
       setError('');
       if (!attempted.current || attempted.current.token !== v.token || attempted.current.password !== v.password) attempted.current = { token: v.token, password: v.password, key: crypto.randomUUID() };
-      try { await command.post('/auth/password/reset', { token: v.token, newPassword: v.password }, attempted.current.key); attempted.current = null; form.reset({ token: '', password: '', confirm: '' }); setShow(false); setShowConfirm(false); setDone(true); }
+      try { await command.post(AUTH_CONTRACT.resetPasswordPath, { token: v.token, newPassword: v.password }, attempted.current.key); attempted.current = null; form.reset({ token: '', password: '', confirm: '' }); setShow(false); setShowConfirm(false); setDone(true); }
       catch (e) { if (!recoveryCanceled(e)) setError(e instanceof Error ? e.message : 'Não foi possível redefinir a senha. Tente novamente.'); }
     })}>
       {fromLink && <div className={styles.recoveryLinkReady}><ShieldCheck size={17} aria-hidden="true" /><div><strong>Código do link preparado</strong><span>Defina sua nova senha para continuar. A validade será conferida ao enviar.</span></div></div>}
@@ -334,9 +336,10 @@ function ResetPasswordContent() {
       <p id={codeHintId} className={styles.fieldHint}>Use o código recebido. Não é a senha da sua conta.</p>
       <AuthButton variant="ghost" disabled={busy || restoring} onClick={() => { attempted.current = null; form.reset({ token: '', password: '', confirm: '' }); setFromLink(false); setShow(false); setShowConfirm(false); setError(''); setFocusCode(value => value + 1); }}>Usar outro código</AuthButton>
       <Field required label="Nova senha" error={form.formState.errors.password?.message}><span className={styles.password}>
-        <input className={`${inputClass} ${styles.passwordInput}`} type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="Digite a nova senha" readOnly={busy} {...form.register('password', { required: 'Informe uma senha.' })} />
+        <input className={`${inputClass} ${styles.passwordInput}`} type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="Digite a nova senha" minLength={12} aria-describedby={passwordHintId} readOnly={busy} {...form.register('password', { required: 'Informe uma senha.', minLength: { value: 12, message: 'Use pelo menos 12 caracteres.' } })} />
         <PasswordVisibility shown={show} onToggle={() => setShow(!show)} label="nova senha" />
       </span></Field>
+      <p id={passwordHintId} className={styles.fieldHint}>Use pelo menos 12 caracteres. Você pode criar uma frase fácil de lembrar.</p>
       <Field required label="Confirmar nova senha" error={form.formState.errors.confirm?.message}><span className={styles.password}>
         <input className={`${inputClass} ${styles.passwordInput}`} type={showConfirm ? 'text' : 'password'} autoComplete="new-password" placeholder="Repita a nova senha" readOnly={busy} {...form.register('confirm', { required: 'Confirme a senha.' })} />
         <PasswordVisibility shown={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} label="confirmação da senha" />
