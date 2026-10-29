@@ -170,7 +170,7 @@ test('gestor gera um convite pela interface, consulta e revoga o mesmo link', as
   await expect(dialog.getByText('Novo link de convite gerado com sucesso!', { exact: true })).toBeVisible();
   const input = dialog.getByRole('textbox', { name: /^Link de convite inv-/ });
   const shareUrl = await input.inputValue();
-  await input.locator('..').getByRole('link', { name: 'Abrir convite nesta demonstração', exact: true }).click();
+  await input.locator('..').getByRole('link', { name: 'Abrir convite', exact: true }).click();
   await expect(page).toHaveURL(shareUrl);
   await expect(page.getByText('Convite válido', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Participantes vinculados (3)', exact: true })).toBeVisible();
@@ -178,7 +178,7 @@ test('gestor gera um convite pela interface, consulta e revoga o mesmo link', as
   await button.click();
   await input.locator('..').getByRole('button', { name: 'Revogar convite', exact: true }).click();
   await expect(dialog.getByText('Convite revogado com sucesso.', { exact: true })).toBeVisible();
-  await input.locator('..').getByRole('link', { name: 'Abrir convite nesta demonstração', exact: true }).click();
+  await input.locator('..').getByRole('link', { name: 'Abrir convite', exact: true }).click();
   await expect(page).toHaveURL(shareUrl);
   const publicInvite = page.getByRole('main');
   await expect(publicInvite.getByRole('heading', { name: 'Equipe de manutenção · demonstração', level: 1, exact: true })).toBeVisible();

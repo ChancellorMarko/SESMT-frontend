@@ -8,7 +8,7 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import { invalidateConsultation } from '../../shared/lib/consultation-cache';
 import { consultationNavigation } from '../../shared/lib/consultation-navigation';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
-import type { DocumentDto, DocumentHistoryDto, DocumentTypeDto, DocumentVersionDto, DownloadUrlDto, OrganizationDto, PageDto, SignatureEvidenceDto } from '../../shared/contracts';
+import type { DocumentReadDto as DocumentDto, DocumentHistoryReadDto as DocumentHistoryDto, DocumentTypeReadDto as DocumentTypeDto, DocumentVersionReadDto as DocumentVersionDto, DownloadUrlDto, OrganizationDto, PageDto, SignatureEvidenceDto } from '../../shared/contracts';
 import { Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
 import { DocumentStatus } from './DocumentStatus';
 import { DocumentVersionList } from './DocumentVersionList';
@@ -73,17 +73,18 @@ export function DocumentDetailPage() {
   useEffect(() => { focusVersion.current = undefined; setChosenVersionId(''); setVersionPage(1); setHistoryPage(1); setCommand(undefined); setDownload(undefined); setNotice(''); }, [id, sessionKey, unitId]);
   const document = useQuery({ queryKey: ['document', sessionKey, unitId, id], queryFn: ({ signal }) => api.get<DocumentDto>(`/documents/${id}`, { signal }) });
   const organization = useQuery({ queryKey: ['organization', sessionKey], queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal }), enabled: can('organization.read') });
-  const versions = useQuery({ queryKey: ['document-versions', sessionKey, unitId, id, versionPage], queryFn: ({ signal }) => api.get<PageDto<DocumentVersionDto>>(`/documents/${id}/versions`, { signal, query: { page: versionPage, pageSize: 10 } }), enabled: Boolean(document.data), refetchInterval: (query) => query.state.data?.items.some((item) => item.file.scanStatus === 'PENDING') ? 3000 : false });
+  const versions = useQuery({ queryKey: ['document-versions', sessionKey, unitId, id, versionPage], queryFn: ({ signal }) => api.get<PageDto<DocumentVersionDto>>(`/documents/${id}/versions`, { signal, query: { page: versionPage, pageSize: 10 } }), enabled: Boolean(document.data), refetchInterval: (query) => query.state.data?.items.some((item) => item.file?.scanStatus === 'PENDING') ? 3000 : false });
   const selectedId = chosenVersionId || document.data?.currentVersionId || document.data?.activeVersionIds?.[0];
-  const version = useQuery({ queryKey: ['document-version', sessionKey, unitId, id, selectedId], queryFn: ({ signal }) => api.get<DocumentVersionDto>(`/documents/${id}/versions/${selectedId}`, { signal }), enabled: Boolean(document.data && selectedId), refetchInterval: (query) => query.state.data?.file.scanStatus === 'PENDING' || query.state.data?.signatureEvidences.some((evidence) => evidence.file.scanStatus === 'PENDING') ? 3000 : false });
-  const types = usePagedLookup<DocumentTypeDto>({ queryKey: ['document-types', sessionKey, unitId, 'document-detail'], path: '/document-types', selectedIds: [document.data?.typeId, version.data?.metadataSnapshot.typeId].filter((value): value is string => Boolean(value)), enabled: Boolean(document.data) && can('documents.read') });
+  const version = useQuery({ queryKey: ['document-version', sessionKey, unitId, id, selectedId], queryFn: ({ signal }) => api.get<DocumentVersionDto>(`/documents/${id}/versions/${selectedId}`, { signal }), enabled: Boolean(document.data && selectedId), refetchInterval: (query) => query.state.data?.file?.scanStatus === 'PENDING' || query.state.data?.signatureEvidences.some((evidence) => evidence.file.scanStatus === 'PENDING') ? 3000 : false });
+  const types = usePagedLookup<DocumentTypeDto>({ queryKey: ['document-types', sessionKey, unitId, 'document-detail'], path: '/document-types', selectedIds: [document.data?.typeId, version.data?.metadataSnapshot?.typeId].filter((value): value is string => Boolean(value)), enabled: Boolean(document.data) && can('documents.read') });
   const history = useQuery({ queryKey: ['document-history', sessionKey, unitId, id, historyPage], queryFn: ({ signal }) => api.get<PageDto<DocumentHistoryDto>>(`/documents/${id}/history`, { signal, query: { page: historyPage, pageSize: 10 } }), enabled: Boolean(document.data) });
   const type = types.selectedItems.find((item) => item.id === document.data?.typeId);
-  const versionType = types.selectedItems.find((item) => item.id === version.data?.metadataSnapshot.typeId);
+  const selectedVersionType = types.selectedItems.find((item) => item.id === version.data?.metadataSnapshot?.typeId);
+  const versionType = selectedVersionType?.sourceReadOnly ? undefined : selectedVersionType;
   const policyReady = types.verified && Boolean(versionType);
   const medicalWriteAllowed = document.data?.accessClass !== 'MEDICAL' || can('documents.medical.write');
-  const hasDocumentAction = (permission: string, action: string) => can(permission) && medicalWriteAllowed && document.data?.availableActions.includes(action);
-  const hasVersionAction = (permission: string, action: string, writing = true) => can(permission) && (!writing || medicalWriteAllowed) && version.data?.availableActions.includes(action);
+  const hasDocumentAction = (permission: string, action: string) => !document.data?.sourceReadOnly && can(permission) && medicalWriteAllowed && document.data?.availableActions.includes(action);
+  const hasVersionAction = (permission: string, action: string, writing = true) => !version.data?.sourceReadOnly && can(permission) && (!writing || medicalWriteAllowed) && version.data?.availableActions.includes(action);
 
   const mutation = useMutation({ mutationFn: async () => {
     if (!command) return;
@@ -101,7 +102,7 @@ export function DocumentDetailPage() {
     return api.post<unknown>(`${base}/${suffix}`, { comment: comment.trim() || undefined }, options);
   }, onSuccess: async () => {
     const label = command ? commandLabels[command] : 'Operação';
-    const affectedUnits = [...new Set([unitId, document.data?.unitId, version.data?.metadataSnapshot.unitId])];
+    const affectedUnits = [...new Set([unitId, document.data?.unitId, version.data?.metadataSnapshot?.unitId].map(value => value || undefined))];
     setCommand(undefined); setNotice(`${label}: operação confirmada.`);
     await Promise.all([
       ...['document', 'document-versions', 'document-version', 'document-history', 'documents', 'dashboard', 'notifications', 'audit-logs'].map((key) => client.invalidateQueries({ queryKey: [key] })),
@@ -161,7 +162,7 @@ export function DocumentDetailPage() {
   if (document.isError) return <div className="panel stack"><Feedback tone="danger">{errorMessage(document.error)}</Feedback><div className="actions"><Button variant="secondary" onClick={() => document.refetch()}>Tentar novamente</Button><Link className="button button--secondary" to={backHref} state={backState}><ArrowLeft size={16} aria-hidden="true" />{backLabel}</Link></div></div>;
   const doc = document.data;
   const current = version.data;
-  const currentIsClean = current?.file.scanStatus === 'CLEAN';
+  const currentIsClean = current?.file?.scanStatus === 'CLEAN';
 
   return <div className={`stack ${styles.detailWorkspace}`}>
     <PageHeader eyebrow={doc.code} title={doc.title} description="Metadados, vigência e histórico de um documento controlado." actions={<Link className="button button--secondary" to={backHref} state={backState}><ArrowLeft size={16} aria-hidden="true" />{backLabel}</Link>} />
@@ -174,12 +175,12 @@ export function DocumentDetailPage() {
         {hasDocumentAction('documents.archive', 'ARCHIVE') && <Button variant="danger" onClick={() => openCommand('archive')}><Archive size={16} aria-hidden="true" />Arquivar</Button>}
       </div></div>
       <dl className={styles.metadata}>
-        <div><dt>Tipo documental</dt><dd>{type?.name ?? 'Tipo cadastrado'}</dd></div><div><dt>Unidade</dt><dd>{organization.data?.units.find((item) => item.id === doc.unitId)?.name ?? 'Unidade autorizada'}</dd></div>
+        <div><dt>Tipo documental</dt><dd>{type?.name ?? 'Tipo cadastrado'}</dd></div><div><dt>Unidade</dt><dd>{doc.unitId ? organization.data?.units.find((item) => item.id === doc.unitId)?.name ?? 'Unidade autorizada' : 'Abrangência da empresa'}</dd></div>
         <div><dt>Setor</dt><dd>{doc.sectorId ? organization.data?.sectors.find((item) => item.id === doc.sectorId)?.name ?? 'Setor vinculado' : 'Sem setor específico'}</dd></div><div><dt>Proprietário</dt><dd>{doc.ownerId === me?.user.id ? me.user.displayName : 'Proprietário cadastrado'}</dd></div>
         <div><dt>Emissão</dt><dd>{formatDate(doc.issueDate)}</dd></div><div><dt>Vigência</dt><dd>{formatDate(doc.validFrom)} a {formatDate(doc.validUntil)}</dd></div>
-        <div><dt>Trabalhadores vinculados</dt><dd>{doc.workerIds.length}</dd></div><div><dt>Responsáveis</dt><dd>{doc.responsibleIds.length}</dd></div><div><dt>Palavras-chave</dt><dd>{doc.keywords.join(', ') || '—'}</dd></div>
+        <div><dt>Trabalhadores vinculados</dt><dd>{doc.workerIds.length}</dd></div>{!doc.sourceReadOnly && <div><dt>Responsáveis</dt><dd>{doc.responsibleIds.length}</dd></div>}<div><dt>Palavras-chave</dt><dd>{doc.keywords.join(', ') || '—'}</dd></div>
       </dl>
-      {doc.activeVersionIds.length > 1 && <Feedback tone="info">A política deste documento autoriza {doc.activeVersionIds.length} versões vigentes. Selecione a versão desejada para consultar seu arquivo.</Feedback>}
+      {doc.activeVersionIds.length > 1 && <Feedback tone="info">Este documento possui {doc.activeVersionIds.length} versões vigentes. Selecione a versão desejada para consultar seu arquivo.</Feedback>}
       {doc.currentVersionId && !doc.activeVersionIds.includes(doc.currentVersionId) && doc.activeVersionIds.length > 0 && <Feedback tone="info">A versão em trabalho ainda não substituiu a versão vigente.</Feedback>}
     </section>
     <section className="panel stack" aria-label="Versões do documento"><h2 className={styles.sectionTitle}><Layers3 size={18} aria-hidden="true" />Versões</h2>
@@ -190,9 +191,9 @@ export function DocumentDetailPage() {
     </section>
     {selectedId && <section ref={versionPanel} tabIndex={-1} className={`panel stack ${styles.selectedVersion}`} aria-label="Versão selecionada" aria-busy={version.isFetching}>{version.isPending ? <Spinner /> : version.isError ? <Feedback tone="danger">{errorMessage(version.error)} <Button variant="secondary" disabled={version.isFetching} onClick={() => void version.refetch()}>Tentar carregar versão selecionada novamente</Button></Feedback> : current && <>
       <div className="toolbar"><h2 className={styles.sectionTitle}><FileCheck size={18} aria-hidden="true" />Versão {current.versionNumber}</h2><DocumentStatus status={current.status} /></div><p>{current.reason}</p>
-      <div className="muted">{current.file.name} · {formatBytes(current.file.sizeBytes)} · <DocumentStatus status={current.file.scanStatus} /></div>
-      <dl className={styles.metadata}><div><dt>Emissão da versão</dt><dd>{formatDate(current.metadataSnapshot.issueDate)}</dd></div><div><dt>Validade da versão</dt><dd>{formatDate(current.metadataSnapshot.validFrom)} a {formatDate(current.metadataSnapshot.validUntil)}</dd></div></dl>
-      {!currentIsClean && <Feedback tone={current.file.scanStatus === 'REJECTED' ? 'danger' : 'warning'}>{current.file.scanStatus === 'REJECTED' ? 'O arquivo foi rejeitado na verificação. Envie uma nova versão permitida.' : 'O arquivo está em verificação. Prévia, download e avanços de aprovação aguardam a liberação.'}</Feedback>}
+      {current.file ? <div className="muted">{current.file.name} · {formatBytes(current.file.sizeBytes)} · <DocumentStatus status={current.file.scanStatus} /></div> : <p className="muted">Arquivo indisponível para consulta.</p>}
+      {current.metadataSnapshot ? <dl className={styles.metadata}><div><dt>Emissão da versão</dt><dd>{formatDate(current.metadataSnapshot.issueDate)}</dd></div><div><dt>Validade da versão</dt><dd>{formatDate(current.metadataSnapshot.validFrom)} a {formatDate(current.metadataSnapshot.validUntil)}</dd></div></dl> : <p className="muted">Metadados históricos não registrados nesta versão.</p>}
+      {current.file && !currentIsClean && <Feedback tone={['REJECTED', 'ERROR'].includes(current.file.scanStatus) ? 'danger' : 'warning'}>{current.file.scanStatus === 'REJECTED' ? 'O arquivo foi rejeitado na verificação.' : current.file.scanStatus === 'PENDING' ? 'O arquivo está em verificação. O acesso aguarda a liberação.' : 'Não há confirmação de liberação do arquivo.'}</Feedback>}
       <div className="actions">
         {hasVersionAction('documents.download', 'PREVIEW', false) && <Button variant="secondary" disabled={!currentIsClean || downloadMutation.isPending} onClick={() => requestDownload('PREVIEW')}><Eye size={16} aria-hidden="true" />Visualizar arquivo</Button>}
         {hasVersionAction('documents.download', 'DOWNLOAD', false) && <Button variant="secondary" disabled={!currentIsClean || downloadMutation.isPending} onClick={() => requestDownload('DOWNLOAD')}><Download size={16} aria-hidden="true" />Solicitar download</Button>}
@@ -212,7 +213,7 @@ export function DocumentDetailPage() {
     </>}</section>}
     {downloadError && <Feedback tone="danger">{downloadError}</Feedback>}
     <section className="panel stack" aria-label="Histórico do documento"><h2 className={styles.sectionTitle}><History size={18} aria-hidden="true" />Histórico</h2>{history.isPending ? <Spinner /> : history.isError ? <Feedback tone="danger">{errorMessage(history.error)} <Button variant="secondary" disabled={history.isFetching} onClick={() => void history.refetch()}>Tentar carregar histórico novamente</Button></Feedback> : !history.data?.items.length ? <p className="muted">Nenhum evento disponível para consulta.</p> : <>
-      <ol className={styles.history}>{history.data.items.map((item) => <li key={item.id}><strong>{historyLabels[item.action] ?? item.action}</strong><span>{item.actor.displayName} · {formatDate(item.occurredAt)}</span>{item.reason && <p>{item.reason}</p>}</li>)}</ol>
+      <ol className={styles.history}>{history.data.items.map((item) => <li key={item.id}><strong>{historyLabels[item.action] ?? item.action}</strong><span>{item.actor.displayName || 'Autor não identificado'} · {formatDate(item.occurredAt)}</span>{item.reason && <p>{item.reason}</p>}</li>)}</ol>
       <div className="toolbar"><span className="muted">Página {historyPage} · {history.data.total} evento(s)</span><div className="actions"><Button variant="secondary" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>Histórico anterior</Button><Button variant="secondary" disabled={historyPage * 10 >= history.data.total} onClick={() => setHistoryPage(historyPage + 1)}>Próximos eventos</Button></div></div>
     </>}</section>
     <Modal open={Boolean(command)} title={command ? commandLabels[command] : ''} onClose={() => { if (!mutation.isPending) setCommand(undefined); }}><form className="stack" onSubmit={submitCommand}>

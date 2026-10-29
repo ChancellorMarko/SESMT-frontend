@@ -21,9 +21,9 @@ const appointmentLabels = {
   REQUESTED: 'Solicitado', CONFIRMED: 'Confirmado', ATTENDANCE_OPENED: 'Atendimento aberto', CANCELED: 'Cancelado',
 };
 const areaContent = {
-  inspecoes: { title: 'Inspeções de segurança', description: 'Dos achados em campo à verificação das correções. Organize o próximo passo de cada vistoria.', action: 'Consultar agenda de inspeções', to: '/app/agenda?q=Inspeção', permission: 'appointments.read' },
-  saude: { title: 'Saúde ocupacional e capacitações', description: 'Atestados de saúde ocupacional (ASO) e capacitações: espaços próprios para acompanhar documentos e planejar cada rotina.', action: 'Consultar vencimentos', to: '/app/vencimentos', permission: 'documents.read' },
-  epis: { title: 'Equipamentos de proteção', description: 'Equipamentos de proteção individual (EPI): planeje entregas, confira comprovantes e acompanhe o que precisa de atenção.', action: 'Consultar documentos de EPIs', to: '/app/documentos?q=EPI', permission: 'documents.read' },
+  inspecoes: { title: 'Inspeções de segurança', description: 'Vistorias, achados e ações corretivas.', action: 'Consultar agenda de inspeções', to: '/app/agenda?q=Inspeção', permission: 'appointments.read' },
+  saude: { title: 'Saúde ocupacional e capacitações', description: 'Atestados, capacitações e vencimentos.', action: 'Consultar vencimentos', to: '/app/vencimentos', permission: 'documents.read' },
+  epis: { title: 'Equipamentos de proteção', description: 'Entregas, comprovantes e conferências.', action: 'Consultar documentos de EPIs', to: '/app/documentos?q=EPI', permission: 'documents.read' },
 };
 
 function dateTime(value: string) {
@@ -111,7 +111,6 @@ function GeneralOperationsDashboard() {
     : category === 'documentos' && s.can('documents.read') ? 'documentos' : 'agenda';
   const canSearch = searchCategory === 'documentos' ? s.can('documents.read')
     : searchCategory === 'pts' ? !options.isError && !invalidSelection && Boolean(!filterTeamId || options.data) : enabled && !dashboard.isError;
-  const greeting = s.me?.user.displayName.split(' ')[0];
   const reveal = (delay = 0) => ({
     initial: reduce ? false as const : { opacity: 0, y: 24, filter: 'blur(4px)' },
     animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
@@ -123,7 +122,7 @@ function GeneralOperationsDashboard() {
   if (!s.unitId) return <EmptyState title="Selecione uma unidade" description="Escolha uma unidade de trabalho para consultar o painel operacional." />;
 
   return <div className={styles.page}>
-    <DashboardHero variant="overview" title="Visão geral" description={`Olá${greeting ? `, ${greeting}` : ''}. Vamos cuidar de quem faz a operação acontecer.`} action={s.can('appointments.write') ? { label: 'Agendar serviço', to: '/app/agenda/novo' } : undefined} />
+    <DashboardHero variant="overview" title="Visão geral" description="Indicadores e atividades da unidade." action={s.can('appointments.write') ? { label: 'Agendar serviço', to: '/app/agenda/novo' } : undefined} />
 
     <SafetyOverview key={`${s.sessionKey}:${s.unitId}`} canReadDocuments={s.can('documents.read')} />
 
@@ -131,8 +130,8 @@ function GeneralOperationsDashboard() {
       <div className={styles.sectionHeader}>
         <div>
           <span className={styles.sectionLabel}><Layers3 size={12} aria-hidden="true" />OPERAÇÃO DA UNIDADE SELECIONADA</span>
-          <h2>O trabalho, em movimento</h2>
-          <p>Agenda, permissões e pendências consultadas no escopo do seu acesso.</p>
+          <h2>Agenda e permissões</h2>
+
         </div>
         {validFilters && !invalidSelection && !options.isError && !dashboard.isError && <Link to={agendaPath} className={styles.sectionLink}>Consultar agenda<ArrowUpRight size={15} aria-hidden="true" /></Link>}
       </div>

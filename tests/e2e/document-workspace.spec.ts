@@ -46,6 +46,11 @@ for (const width of [320, 390, 768, 1440]) {
     page.on('pageerror', error => errors.push(error.message));
     await loginDemo(page, 'Engenheiro');
     await openModule(page, 'Documentos');
+    await expect(page.getByRole('heading', { name: 'Documentos', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('banner').getByText('Documentos', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('banner').getByText('Organização Exemplo', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('REPOSITÓRIO CONTROLADO', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Consulte vigências, acompanhe versões e encontre as evidências da sua unidade.', { exact: true })).toHaveCount(0);
     const table = page.getByRole('table', { name: 'Lista de documentos', exact: true });
     await expect(table).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'Documento', exact: true })).toHaveCount(1);

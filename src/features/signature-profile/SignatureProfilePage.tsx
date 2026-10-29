@@ -76,7 +76,9 @@ function PersonalProfile({ userId, name, sessionKey, unitId }: { userId: string;
     const payload: SignatureRepresentationWriteDto = { method: draft.method, representation: name, ...(draft.method !== 'TYPED' ? { image: draft.image } : {}), confirmed: true };
     const controller = new AbortController(); request.current = controller; setPending(true);
     try {
-      const saved = await api.put<SignatureRepresentationDto>('/me/signature-representation', payload, { etag: revisionEtag(draft.revision), signal: controller.signal });
+      // Zero is the creation precondition for an absent profile, not an edit revision.
+      const etag = !profile && draft.revision === 0 ? '"0"' : revisionEtag(draft.revision);
+      const saved = await api.put<SignatureRepresentationDto>('/me/signature-representation', payload, { etag, signal: controller.signal });
       if (controller.signal.aborted) return;
       if (saved.userId !== userId || saved.revision <= draft.revision || saved.representation !== name || saved.method !== payload.method || saved.image !== payload.image) throw new Error('A resposta não corresponde ao seu perfil. Seu preenchimento foi preservado.');
       client.setQueryData(queryKey, saved); setDraft({ method: saved.method, image: saved.image || '', revision: saved.revision }); setConfirmed(false);
@@ -102,7 +104,7 @@ function PersonalProfile({ userId, name, sessionKey, unitId }: { userId: string;
       {draft.method === 'DRAWN' && <><SignaturePad key={padKey} disabled={busy} onChange={image => { setDraft(value => value ? { ...value, image } : value); setConfirmed(false); setNotice(''); }} /><p className="muted">Para substituir um desenho salvo, desenhe no quadro ou altere a forma de representação.</p></>}
       {draft.method === 'IMAGE' && <label>Imagem pessoal (PNG/JPEG até 2 MB)<input type="file" aria-label="Imagem da representação pessoal" accept="image/png,image/jpeg" disabled={pending || reloading} onChange={selectImage} />{fileName && <small>Arquivo selecionado: {fileName}</small>}{reading && <span role="status">Lendo a imagem selecionada…</span>}</label>}
       <div className={styles.preview}><p>Prévia da representação pessoal:</p>{draft.method === 'TYPED' ? <p className={styles.name}>{name}</p> : draft.image ? <img src={draft.image} alt="Prévia da representação pessoal" onError={() => { setDraft(value => value ? { ...value, image: '' } : value); setConfirmed(false); setError('A imagem não pode ser exibida. Escolha outro PNG ou JPEG.'); }} /> : <p className="muted">Representação visual pendente</p>}</div>
-      <p className="muted">Esta representação visual não constitui certificado ICP-Brasil ou assinatura digital certificada. No modo demonstração, o perfil existe somente na memória desta instância.</p>
+      <p className="muted">Esta representação visual não constitui certificado ICP-Brasil ou assinatura digital certificada.</p>
       <label className={styles.confirmation}><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} /><span>Confirmo que esta é minha representação pessoal e desejo salvá-la para uso em decisões futuras.</span></label>
       <div className="actions"><Button type="submit" disabled={busy || query.isFetching}>{pending ? 'Salvando…' : 'Salvar representação pessoal'}</Button><Button variant="secondary" disabled={busy || query.isFetching} onClick={() => void reload()}>Carregar perfil atual</Button></div>
     </form>

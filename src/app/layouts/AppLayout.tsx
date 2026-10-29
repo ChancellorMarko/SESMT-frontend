@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useAnimationControls } from 'framer-motion';
 import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
-import { api, API_MODE } from '../../shared/api/client';
+import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { Button, Modal, Spinner } from '../../shared/ui';
@@ -266,8 +266,6 @@ export function AppLayout() {
   }, [openMenu, open]);
 
   const org = useQuery({ queryKey: ['shell-organization', s.sessionKey], queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal }), enabled: s.can('organization.read') });
-  const name = areaName || nav.find(n => location.pathname.startsWith(`/app/${n.to}`))?.label || config.find(n => location.pathname.startsWith(`/app/${n.to}`))?.label || (location.pathname.includes('painel-documental') ? 'Painel documental' : 'Início');
-  const organization = org.data?.companies.find(company => company.id === org.data?.units.find(unit => unit.id === s.unitId)?.companyId)?.name || 'Espaço de trabalho';
   const initials = s.me?.user.displayName.split(' ').slice(0, 2).map(v => v[0]).join('');
   const role = s.me?.roles.includes('AUDITOR') ? 'Auditoria' : s.me?.roles.includes('HR') ? 'Recursos Humanos' : s.me?.roles.includes('WORKER') ? 'Meu acesso' : s.me?.roles.includes('ADMIN') ? 'Administração' : s.me?.roles.includes('TECHNICIAN') ? 'Técnico de segurança' : s.me?.roles.includes('FIREFIGHTER') ? 'Bombeiro' : 'Engenheiro / SESMT';
   const activeArea = areaName ? dashboardArea : null;
@@ -280,7 +278,7 @@ export function AppLayout() {
   return <div className={styles.shell}>
     <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <motion.aside className={styles.rail} aria-label="Navegação do espaço de trabalho" initial={reduceMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .4 }}>
-      <div className={styles.railMark} aria-hidden="true"><img src="/brand/ampara/icon.png" alt="" width="36" height="36" /></div>
+      <button type="button" className={styles.railMark} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><img src="/brand/ampara/icon.png" alt="Ampara SESMT" width="36" height="36" /></button>
       <div className={styles.railSurface}>
         <nav aria-label="Acesso rápido" className={styles.railItems}>
           {visibleDockItems.map(item => {
@@ -295,14 +293,13 @@ export function AppLayout() {
           <button type="button" aria-label="Abrir navegação" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu} className={styles.railItem} title="Todos os módulos"><Menu size={20} strokeWidth={1.7} aria-hidden="true" /><span className={styles.railLabel} aria-hidden="true">Todos os módulos</span><span className={styles.railCompactLabel} aria-hidden="true">Menu</span></button>
         </nav>
         {shortcuts.length > 0 && <nav className={styles.railShortcuts} aria-label="Atalhos da unidade">{shortcuts.map(item => <NavLink key={item.to} to={`/app/${item.to}`} className={styles.railItem} aria-label={`Ir para ${item.label}`} title={item.label}><item.icon size={18} strokeWidth={1.7} aria-hidden="true" /><span className={styles.railLabel} aria-hidden="true">{item.label}</span></NavLink>)}</nav>}
-        <div className={styles.railBottom}><button type="button" className={styles.railItem} onClick={() => setHelp(true)} aria-label="Ajuda sobre o sistema" title="Sobre esta versão"><CircleHelp size={19} aria-hidden="true" /><span className={styles.railLabel} aria-hidden="true">Sobre esta versão</span></button><span className={styles.railAvatar} aria-hidden="true">{initials}</span></div>
+        <div className={styles.railBottom}><button type="button" className={styles.railItem} onClick={() => setHelp(true)} aria-label="Ajuda sobre o sistema" title="Ajuda"><CircleHelp size={19} aria-hidden="true" /><span className={styles.railLabel} aria-hidden="true">Ajuda</span></button><span className={styles.railAvatar} aria-hidden="true">{initials}</span></div>
       </div>
     </motion.aside>
 
     <motion.header className={styles.header} initial={reduceMotion ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}>
       <div className={styles.headerIdentity}>
-        <Link to="/app" aria-label="Ampara SESMT · Início" className={styles.headerBrand}><BrandLogo /></Link>
-        <div className={styles.workspaceIdentity}><p>{organization}</p><motion.strong key={name} initial={reduceMotion ? false : { opacity: .4, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25 }}>{name}</motion.strong></div>
+        <button type="button" className={styles.headerBrand} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><BrandLogo /></button>
       </div>
       <div className={styles.headerActions}>
         <label className={styles.unit}>
@@ -313,7 +310,7 @@ export function AppLayout() {
             s.setUnitId(e.target.value);
           }}>{s.me?.scope.unitIds.map(id => <option key={id} value={id}>{org.data?.units.find(u => u.id === id)?.name || 'Unidade autorizada'}</option>)}</select>
         </label>
-        <button type="button" onClick={openMenu} className={styles.searchButton} aria-label="Buscar módulos" aria-keyshortcuts="Control+k Meta+k"><span>O que você procura?</span><kbd><Command size={11} aria-hidden="true" /> K</kbd><i aria-hidden="true"><Search size={16} /></i></button>
+        <button type="button" onClick={openMenu} className={styles.searchButton} aria-label="Buscar módulos" aria-keyshortcuts="Control+k Meta+k"><span>Buscar módulos</span><kbd><Command size={11} aria-hidden="true" /> K</kbd><i aria-hidden="true"><Search size={16} /></i></button>
         <button type="button" className={`${styles.iconButton} ${styles.motionButton}`} data-motion-mode={reduceMotion ? 'reduced' : 'full'} aria-label="Configurar animações" aria-haspopup="dialog" title="Configurar animações" onClick={() => setMotionSettings(true)}><Sparkles size={18} aria-hidden="true" /></button>
         <HeaderNotifications className={styles.iconButton} />
         <div role="group" aria-label={`Perfil: ${s.me?.user.displayName} · ${role}`} className={styles.profile} title={`${s.me?.user.displayName} · ${role}`}>
@@ -325,10 +322,9 @@ export function AppLayout() {
     </motion.header>
 
     <div className={styles.content}>
-      {API_MODE === 'demo' && <div className={styles.demoBand}><span>DEMONSTRAÇÃO</span><p title="Dados fictícios em memória. Integração com a API ainda pendente; recarregar restaura a demonstração.">Dados fictícios em memória. Integração com a API ainda pendente; recarregar restaura a demonstração.</p></div>}
       <motion.main ref={contentRef} id="conteudo" data-motion-page className={styles.main} initial={false} animate={pageMotion} tabIndex={-1}><Suspense fallback={<Spinner />}><Outlet key={`${s.sessionKey}:${s.unitId}`} /></Suspense></motion.main>
       <WorkspaceGuide can={s.can} displayName={s.me?.user.displayName || 'Seu acesso'} role={role} onSearch={openMenu} onTerminology={openTerminology} open={guideOpen} onOpen={openGuide} onClose={() => setGuideContext(null)} />
-      <footer className={styles.footer}><span>Ampara SESMT <span>/</span> Segurança que acompanha você.</span><div><span>{API_MODE === 'demo' ? 'Ambiente de demonstração' : 'API externa'}</span><button type="button" aria-haspopup="dialog" onClick={openTerminology}><BookOpen size={14} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={() => setHelp(true)}><CircleHelp size={14} aria-hidden="true" />Sobre esta versão</button></div></footer>
+      <footer className={styles.footer}><span>Ampara SESMT</span><div><button type="button" aria-haspopup="dialog" onClick={openTerminology}><BookOpen size={14} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={() => setHelp(true)}><CircleHelp size={14} aria-hidden="true" />Ajuda</button></div></footer>
     </div>
     <Modal open={motionSettings} title="Animações da interface" onClose={closeMotionSettings}>
       <MotionPreferencesContent />
@@ -336,7 +332,6 @@ export function AppLayout() {
     </Modal>
 
     <Modal open={open} title="Navegação" onClose={closeMenu} className={navigationStyles.dialog}>
-      <div className={navigationStyles.intro}><Link to="/app" aria-label="Ampara SESMT · Início" onClick={closeMenu}><BrandLogo /></Link><p>Encontre seu próximo passo.<br /><span>Os módulos disponíveis para você.</span></p></div>
       <div className={navigationStyles.search}>
         <Search size={18} aria-hidden="true" />
         <input ref={navigationInput} className={navigationStyles.searchInput} aria-label="Buscar módulos de navegação" aria-describedby="navigation-search-hint" placeholder="Buscar módulo ou sigla…" maxLength={160} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={handleNavigationKeys} />
@@ -348,6 +343,6 @@ export function AppLayout() {
       <div className={navigationStyles.footer}><p id="navigation-search-hint"><kbd>↑ ↓</kbd> escolher <span>·</span> <kbd>Enter</kbd> abrir <span>·</span> <kbd>Esc</kbd> fechar<span className="sr-only">. Tab percorre os controles. Na busca, Enter abre somente um resultado único. Home e End vão ao primeiro e ao último destino quando um resultado está em foco.</span></p><div className={navigationStyles.helpActions}><button type="button" onClick={openTerminology}><BookOpen size={15} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={openGuide}><Sparkles size={15} aria-hidden="true" />Guia Ampara<ArrowUpRight size={13} aria-hidden="true" /></button></div></div>
     </Modal>
     <TerminologyGuide open={terminologyOpen} onClose={() => setTerminologyContext(null)} />
-    <Modal open={help} title="Sobre esta versão" onClose={() => setHelp(false)}><div className="stack"><BrandLogo /><p>Ampara SESMT: agenda, conferência documental, atendimento em campo, autorizações, revalidações e encerramento, além da preparação de rascunhos da PET, gestão documental e cadastros.</p><p className="muted">O ambiente de demonstração usa dados sintéticos e simula respostas no navegador. Não há servidor de negócio, banco de dados, emissão real de JWT, antivírus ou envio de mensagens neste repositório. A verificação de arquivos e os registros de auditoria exibidos são simulados.</p><p className="muted">O checklist e a matriz da demonstração são ilustrativos. Os modelos reais, requisitos e contratos de integração devem ser alinhados com os responsáveis e a equipe da API.</p><Button onClick={() => setHelp(false)}>Entendi</Button></div></Modal>
+    <Modal open={help} title="Ajuda" onClose={() => setHelp(false)}><div className="stack"><p>Encontre os módulos no menu ou consulte o significado das siglas.</p><div className="actions"><Button onClick={() => { setHelp(false); openMenu(); }}>Abrir menu</Button><Button variant="secondary" onClick={() => { setHelp(false); openTerminology(); }}>Guia de siglas</Button></div></div></Modal>
   </div>;
 }

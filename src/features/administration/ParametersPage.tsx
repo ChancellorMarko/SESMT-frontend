@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { DocumentTypeDto } from '../../shared/contracts';
+import type { DocumentTypeReadDto as DocumentTypeDto } from '../../shared/contracts';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
 import styles from './administration.module.css';
@@ -27,7 +27,26 @@ function ParametersPageContent() {
       {types.term && <Button variant="secondary" disabled={blocked} onClick={() => { setSearch(''); types.setTerm(''); }}>Limpar busca</Button>}
     </form>
     {types.isPending && <Spinner />}{types.isError && <Feedback tone="danger">Não foi possível consultar as políticas documentais. {types.error instanceof Error ? types.error.message : 'Confira seu acesso e tente novamente.'} <Button variant="ghost" disabled={types.isFetching} onClick={() => void types.refetch()}>Tentar novamente</Button></Feedback>}
-    {!types.isPending && !types.isError && <>{types.items.map((type) => <article className={`panel ${styles.policyCard}`} aria-label={`Política de ${type.name}`} key={type.id}><h2>{type.name} <span className="muted">· {type.code}</span></h2><dl className={styles.detail}><dt>Renovação</dt><dd>{type.renewalPolicy.enabled ? `${type.renewalPolicy.periodMonths ?? 'Não informada'} meses` : 'Sem periodicidade automática'}</dd><dt>Aviso antecipado</dt><dd>{type.renewalPolicy.noticeDays} dias — parâmetro do tipo</dd><dt>Limite por arquivo</dt><dd>{(type.maxFileSizeBytes / 1024 / 1024).toLocaleString('pt-BR')} MB</dd><dt>Formatos permitidos</dt><dd>{type.allowedMimeTypes.join(', ')}</dd><dt>Política de guarda</dt><dd>{type.retentionPolicyReference.code} · versão {type.retentionPolicyReference.version}</dd><dt>Fonte</dt><dd>{type.retentionPolicyReference.source}</dd><dt>Fluxo</dt><dd>{type.workflow.reviewRequired ? 'Revisão exigida' : 'Revisão facultativa'}; {type.workflow.signatureRequired ? 'assinatura exigida' : 'assinatura facultativa'}; {type.workflow.allowSelfApproval ? 'autoaprovação permitida pela política' : 'sem autoaprovação'}</dd><dt>Versões vigentes</dt><dd>{type.workflow.allowMultipleActiveVersions ? 'Exceção de múltiplas vigentes configurada' : 'Uma vigente por escopo'}</dd></dl></article>)}
+    {!types.isPending && !types.isError && <>{types.items.map((type) => <article className={`panel ${styles.policyCard}`} aria-label={`Política de ${type.name}`} key={type.id}>
+      <h2>{type.name} <span className="muted">· {type.code}</span></h2>
+      {type.sourceReadOnly ? <dl className={styles.detail}>
+        <dt>Categoria</dt><dd>{type.category}</dd>
+        <dt>Periodicidade cadastrada</dt><dd>{type.periodicityInDays == null ? 'Não informada' : `${type.periodicityInDays} dias`}</dd>
+        <dt>Prazo de guarda cadastrado</dt><dd>{type.retentionPeriodInYears == null ? 'Não informado' : `${type.retentionPeriodInYears} anos`}</dd>
+        <dt>Aprovação</dt><dd>{type.requiresApproval ? 'Exigida' : 'Não exigida'}</dd>
+        <dt>Assinatura</dt><dd>{type.requiresSignature ? 'Exigida' : 'Não exigida'}</dd>
+        <dt>Versão do esquema</dt><dd>{type.schemaVersion}</dd>
+      </dl> : <dl className={styles.detail}>
+        <dt>Renovação</dt><dd>{type.renewalPolicy.enabled ? `${type.renewalPolicy.periodMonths ?? 'Não informada'} meses` : 'Sem periodicidade automática'}</dd>
+        <dt>Aviso antecipado</dt><dd>{type.renewalPolicy.noticeDays} dias — parâmetro do tipo</dd>
+        <dt>Limite por arquivo</dt><dd>{(type.maxFileSizeBytes / 1024 / 1024).toLocaleString('pt-BR')} MB</dd>
+        <dt>Formatos permitidos</dt><dd>{type.allowedMimeTypes.join(', ')}</dd>
+        <dt>Política de guarda</dt><dd>{type.retentionPolicyReference.code} · versão {type.retentionPolicyReference.version}</dd>
+        <dt>Fonte</dt><dd>{type.retentionPolicyReference.source}</dd>
+        <dt>Fluxo</dt><dd>{type.workflow.reviewRequired ? 'Revisão exigida' : 'Revisão facultativa'}; {type.workflow.signatureRequired ? 'assinatura exigida' : 'assinatura facultativa'}; {type.workflow.allowSelfApproval ? 'autoaprovação permitida pela política' : 'sem autoaprovação'}</dd>
+        <dt>Versões vigentes</dt><dd>{type.workflow.allowMultipleActiveVersions ? 'Exceção de múltiplas vigentes configurada' : 'Uma vigente por escopo'}</dd>
+      </dl>}
+    </article>)}
       {!types.items.length && <EmptyState title="Nenhuma política disponível" description={types.term ? 'Ajuste a busca por nome ou código para consultar outras políticas.' : 'As políticas aparecerão após a configuração dos tipos documentais.'} />}
       <nav className="panel pagination" aria-label="Paginação das políticas"><span className="muted" role="status">{types.total} política(s) · Página {types.page} de {lastPage}</span><div className="actions">
         {types.page > 1 && !types.items.length && <Button variant="secondary" disabled={blocked} onClick={() => types.setPage(1)}>Primeira página</Button>}

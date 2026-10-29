@@ -8,12 +8,12 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import { integrationReturnDestination } from './worker-integration-navigation';
 import { restoredWorkerDocumentPage, workerDocumentNavigation } from './worker-document-navigation';
 import type {
-  WorkerDto,
-  WorkerMovementDto,
+  WorkerReadDto as WorkerDto,
+  WorkerMovementReadDto as WorkerMovementDto,
   OrganizationDto,
   PageDto,
-  DocumentDto,
-  WorkerAssignment,
+  DocumentReadDto as DocumentDto,
+  WorkerAssignmentReadDto as WorkerAssignment,
 } from '../../shared/contracts';
 import { Badge, Button, EmptyState, Feedback, PageHeader, Spinner } from '../../shared/ui';
 import { workerNavigation } from './worker-navigation';
@@ -103,7 +103,7 @@ function WorkerDetailContent() {
 
   const data = worker.data;
 
-  function name(collection: keyof OrganizationDto, value?: string) {
+  function name(collection: keyof OrganizationDto, value?: string | null) {
     return organization.data?.[collection].find(item => item.id === value)?.name || (value ? 'Vínculo registrado' : 'Não informado');
   }
 
@@ -116,14 +116,14 @@ function WorkerDetailContent() {
   }
 
   const success = (location.state as { success?: string } | null)?.success;
-  const integrationReturn = integrationReturnDestination(location.state, unitId, data.unitId, can('eligibility.read'));
+  const integrationReturn = data.unitId ? integrationReturnDestination(location.state, unitId, data.unitId, can('eligibility.read')) : null;
   const origin = data.unitId === unitId ? listOrigin : undefined;
   const backHref = origin ? `/app/trabalhadores${origin.workerListReturnTo.search}` : '/app/trabalhadores';
   const documentOrigin = data.unitId === unitId ? workerDocumentNavigation({ workerDocumentReturnTo: { workerId: data.id, unitId, sessionKey, documentPage, ...origin, integrationReturnTo: (location.state as { integrationReturnTo?: unknown } | null)?.integrationReturnTo } }, sessionKey, unitId, canReadWorker, can('eligibility.read')) : undefined;
   const sections = [
     { hash: '#vinculo', label: 'Vínculo', icon: Building2 },
-    { hash: '#integracao', label: 'Integração', icon: ClipboardCheck },
-    { hash: '#equipes', label: 'Equipes', icon: UsersRound },
+    ...(!data.sourceReadOnly ? [{ hash: '#integracao', label: 'Integração', icon: ClipboardCheck }] : []),
+    ...(!data.sourceReadOnly || data.teams ? [{ hash: '#equipes', label: 'Equipes', icon: UsersRound }] : []),
     { hash: '#documentos', label: 'Documentos', icon: FileText },
     { hash: '#historico', label: 'Histórico', icon: History },
   ];
@@ -144,7 +144,7 @@ function WorkerDetailContent() {
             <Link className="button button--secondary" to={backHref} state={origin}>
               <ArrowLeft size={15} aria-hidden="true" />Voltar à lista
             </Link>
-            {can('workers.write') && (
+            {can('workers.write') && !data.sourceReadOnly && (
               <>
                 <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`} state={origin}>
                   Editar cadastro
@@ -190,7 +190,7 @@ function WorkerDetailContent() {
           </div>
           <div>
             <dt className="muted">Tipo de vínculo</dt>
-            <dd>{data.employmentType}</dd>
+            <dd>{data.employmentType || 'Não informado'}</dd>
           </div>
           <div>
             <dt className="muted">Admissão</dt>
@@ -204,12 +204,12 @@ function WorkerDetailContent() {
         {organization.isError && <QueryError error={organization.error} retry={() => void organization.refetch()} />}
       </section>
 
-      <div id="integracao" className={styles.section} ref={integrationPanel} tabIndex={-1} role="region" aria-label="Integração administrativa do trabalhador">
+      {!data.sourceReadOnly && <div id="integracao" className={styles.section} ref={integrationPanel} tabIndex={-1} role="region" aria-label="Integração administrativa do trabalhador">
         <WorkerIntegrationPanel worker={data} />
-      </div>
+      </div>}
 
       {/* Equipes de trabalho vinculadas */}
-      <section id="equipes" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-teams-heading">
+      {(!data.sourceReadOnly || data.teams) && <section id="equipes" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-teams-heading">
         <div className={styles.sectionHeader}>
           <div>
             <h2 id="worker-teams-heading"><UsersRound size={18} aria-hidden="true" />Equipes de trabalho vinculadas</h2>
@@ -261,7 +261,7 @@ function WorkerDetailContent() {
             description="Este trabalhador ainda não participa de nenhuma equipe operacional nesta unidade."
           />
         )}
-      </section>
+      </section>}
 
       {/* Documentos vinculados */}
       <section id="documentos" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-documents-heading">
@@ -348,12 +348,12 @@ function WorkerDetailContent() {
                     <strong>{movementLabels[movement.type]}</strong>
                     <time dateTime={movement.effectiveDate}>{dateLabel(movement.effectiveDate)}</time>
                   </div>
-                  <p>{movement.reason}</p>
+                  {movement.reason && <p>{movement.reason}</p>}
                   {movement.previousAssignment && (
                     <p className="muted">Anterior: {assignmentLabel(movement.previousAssignment)}</p>
                   )}
                   {movement.newAssignment && (
-                    <p className="muted">Novo vínculo: {assignmentLabel(movement.newAssignment)}</p>
+                    <p className="muted">{movement.type === 'ASSIGNMENT' ? 'Vínculo' : 'Novo vínculo'}: {assignmentLabel(movement.newAssignment)}</p>
                   )}
                 </li>
               ))}
@@ -384,13 +384,6 @@ function WorkerDetailContent() {
         ))}
       </section>
 
-      {/* Saúde e prevenção */}
-      <section className="panel">
-        <h2>Saúde e prevenção</h2>
-        <p className="muted">
-          Exposições, ASOs, EPIs, treinamentos e ocorrências serão disponibilizados nas próximas etapas do projeto, conforme as permissões de acesso. Esta versão apresenta o cadastro e os documentos autorizados.
-        </p>
-      </section>
     </div>
   );
 }

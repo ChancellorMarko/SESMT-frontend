@@ -22,10 +22,9 @@ describe('painel dedicado de inspeções', () => {
     expect(summary.inProgressCount).toBe(2);
     expect(summary.reinspections).toHaveLength(2);
     show();
-    expect(screen.getByText('Cenário ilustrativo de inspeções')).toBeInTheDocument();
-    expect(screen.getByText(/Os exemplos não representam a unidade selecionada/)).toBeInTheDocument();
+    expect(screen.queryByText('Cenário ilustrativo de inspeções')).not.toBeInTheDocument();
     expect(screen.getByText('Achados em aberto').closest('article')).toHaveTextContent('5');
-    expect(screen.getByRole('figure', { name: 'Achados em aberto por área · exemplo' })).toHaveTextContent('Manutenção2 achados em aberto');
+    expect(screen.getByRole('figure', { name: 'Achados em aberto por área' })).toHaveTextContent('Manutenção2 achados em aberto');
     expect(screen.getByRole('heading', { name: 'Plano de ação das inspeções' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver achado: Organização do ponto de coleta' })).not.toBeInTheDocument();
   });
@@ -47,23 +46,21 @@ describe('painel dedicado de inspeções', () => {
     await user.click(trigger);
     const dialog = screen.getByRole('dialog', { name: 'Proteção de transmissão' });
     expect(dialog).toHaveFocus();
-    expect(within(dialog).getByText(/Conteúdo sintético; o acompanhamento fica apenas nesta sessão/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Acompanhar exemplo' }));
-    expect(within(dialog).getByRole('status')).toHaveTextContent('Exemplo incluído no acompanhamento desta sessão.');
-    expect(within(dialog).getByRole('button', { name: 'Em acompanhamento no exemplo' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('button', { name: 'Acompanhar' }));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Achado em acompanhamento.');
+    expect(within(dialog).getByRole('button', { name: 'Em acompanhamento' })).toBeDisabled();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
-    expect(screen.getByText('Em acompanhamento · exemplo')).toBeInTheDocument();
+    expect(screen.getByText('Em acompanhamento')).toBeInTheDocument();
     await user.click(trigger);
-    expect(screen.getByRole('button', { name: 'Em acompanhamento no exemplo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Em acompanhamento' })).toBeDisabled();
   });
 
   it('separa a conclusão da vistoria das ações e identifica o detalhe como sintético', () => {
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Ver reinspeção: Logística' }));
     const dialog = screen.getByRole('dialog', { name: 'Circulação e armazenamento' });
-    expect(within(dialog).getByText(/Conteúdo sintético/)).toBeInTheDocument();
     expect(within(dialog).getByText('Organização do ponto de coleta')).toBeInTheDocument();
     expect(within(dialog).getByText('Concluída')).toBeInTheDocument();
     expect(within(dialog).getByText('Em andamento')).toBeInTheDocument();
@@ -73,7 +70,7 @@ describe('painel dedicado de inspeções', () => {
   it('omite o cenário e as ações locais no modo API, respeitando as permissões dos destinos', () => {
     mode.value = 'api';
     show(['documents.read']);
-    expect(screen.getByRole('heading', { name: 'Inspeções ainda não conectadas' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sem registros de inspeções' })).toBeInTheDocument();
     expect(screen.queryByText('Achados em aberto')).not.toBeInTheDocument();
     expect(screen.queryByRole('figure')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

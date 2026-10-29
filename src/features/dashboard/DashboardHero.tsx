@@ -15,10 +15,10 @@ type HeroProps = {
 };
 
 const content = {
-  overview: { eyebrow: 'SEU ESPAÇO DE SEGURANÇA', note: 'Conectar o cuidado à operação.', icon: ShieldCheck },
-  inspecoes: { eyebrow: 'OLHAR ATENTO. PRÓXIMO PASSO CLARO.', note: 'Observar. Registrar. Acompanhar.', icon: ClipboardCheck },
-  saude: { eyebrow: 'CUIDADO QUE ACOMPANHA PESSOAS', note: 'Documentos e capacitações, lado a lado.', icon: HeartPulse },
-  epis: { eyebrow: 'PROTEÇÃO EM CADA DETALHE', note: 'Da entrega ao acompanhamento.', icon: HardHat },
+  overview: { eyebrow: 'PAINEL OPERACIONAL', note: 'Conectar o cuidado à operação.', icon: ShieldCheck },
+  inspecoes: { eyebrow: 'INSPEÇÕES', note: 'Observar. Registrar. Acompanhar.', icon: ClipboardCheck },
+  saude: { eyebrow: 'SAÚDE E CAPACITAÇÕES', note: 'Documentos e capacitações, lado a lado.', icon: HeartPulse },
+  epis: { eyebrow: 'EQUIPAMENTOS DE PROTEÇÃO', note: 'Da entrega ao acompanhamento.', icon: HardHat },
 };
 
 /** Decorative product illustrations. They never encode a score, completion or authorization. */
@@ -101,6 +101,6 @@ export function DashboardHero({ variant, title, description, action, back = fals
       <p className={styles.description}>{description}</p>
       {action && <Link className={`button button--secondary ${styles.action}`} to={action.to}>{action.label}<ArrowUpRight size={16} aria-hidden="true" /></Link>}
     </div>
-    <motion.div className={styles.art} initial={reduce ? false : { opacity: 0, x: 20, rotate: -3 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: reduce ? 0 : .9, delay: reduce ? 0 : .08, ease: [.22, 1, .36, 1] }}><HeroArtwork variant={variant} /><p>{presentation.note}</p></motion.div>
+    <motion.div className={styles.art} initial={reduce ? false : { opacity: 0, x: 20, rotate: -3 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: reduce ? 0 : .9, delay: reduce ? 0 : .08, ease: [.22, 1, .36, 1] }}><HeroArtwork variant={variant} /></motion.div>
   </motion.header>;
 }

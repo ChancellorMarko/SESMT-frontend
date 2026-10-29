@@ -189,7 +189,7 @@ test('Reduzidas desativa movimento de CSS, página e janelas apesar do dispositi
     expect(new Set(frames.map(frame => position(frame[region]))).size).toBeLessThanOrEqual(1);
   }
   await page.getByRole('button', { name: 'Ajuda sobre o sistema', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Sobre esta versão', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Ajuda', exact: true });
   expect(await dialog.evaluate(element => getComputedStyle(element).animationName)).toBe('none');
   expect((await appearance(dialog)).opacity).toBe(1);
   await page.keyboard.press('Escape');

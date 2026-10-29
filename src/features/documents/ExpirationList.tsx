@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { ArrowUpRight, FileText } from 'lucide-react';
-import type { DocumentDto } from '../../shared/contracts';
+import type { DocumentReadDto as DocumentDto } from '../../shared/contracts';
 import { formatDate } from '../../shared/lib/format';
 import { Badge } from '../../shared/ui';
 import { DocumentStatus } from './DocumentStatus';
@@ -28,7 +28,7 @@ export function ExpirationList({ documents, today, documentState }: ExpirationLi
       </tr></thead>
       <tbody role="rowgroup" className="max-md:grid max-md:gap-3 max-md:bg-slate-50/50 max-md:p-3">
         {documents.map(document => {
-          const remaining = daysUntil(document.validUntil, today);
+          const remaining = daysUntil(document.validUntil || undefined, today);
           return <tr key={document.id} role="row" className="group max-md:grid max-md:grid-cols-2 max-md:rounded-2xl max-md:border max-md:border-slate-100 max-md:bg-white max-md:pb-2">
             <td role="cell" className={`${cell} max-md:col-span-2 max-md:!py-3.5`}>
               <div className="flex min-w-0 items-start gap-3">

@@ -42,6 +42,8 @@ builder.Services.AddDbContext<SesmtDbContext>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IBrowserIdentityReader, BrowserIdentityReader>();
+builder.Services.AddScoped<IBrowserWorkspaceAccessReader, BrowserWorkspaceAccessReader>();
+builder.Services.AddScoped<IBrowserWorkersReader, BrowserWorkersReader>();
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-Token";

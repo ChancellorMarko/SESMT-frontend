@@ -66,8 +66,8 @@ describe('Escopo autorizado e desativação explícita de usuários', () => {
     await user.click(await screen.findByRole('button', { name: 'Consultar convite' }));
     const dialog = await screen.findByRole('dialog', { name: 'Convite de conta' });
     expect(await within(dialog).findByRole('heading', { name: currentRecord.displayName })).toBeVisible();
-    expect(within(dialog).getByText('Demonstração · nenhum e-mail enviado')).toBeVisible();
-    expect(within(dialog).getByRole('link', { name: 'Explorar primeiro acesso' })).toHaveAttribute('href', '/ativar-acesso#token=convite-demo-1234567890');
+    expect(within(dialog).getByText('Envio não realizado')).toBeVisible();
+    expect(within(dialog).getByRole('link', { name: 'Definir primeiro acesso' })).toHaveAttribute('href', '/ativar-acesso#token=convite-demo-1234567890');
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
   it('limpar prazo opcional envia remoção explícita, sem alterar os demais vínculos', async () => {

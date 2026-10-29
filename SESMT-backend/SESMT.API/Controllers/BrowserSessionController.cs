@@ -105,12 +105,11 @@ public sealed class BrowserSessionController(
         return Ok(new BrowserMeResponse(
             new BrowserUserResponse(data.User.Id, data.User.Name, data.User.Email.Value),
             data.Roles,
-            // Grants must only be exposed after the corresponding browser endpoints are adapted.
-            // Copying native role permissions would open incompatible frontend modules.
-            Array.Empty<string>(),
+            identity.Workspace?.Permissions ?? Array.Empty<string>(),
             new BrowserScopeResponse(
-                ScopeIds(data.Scopes, ScopeType.EMPRESA), ScopeIds(data.Scopes, ScopeType.UNIDADE),
-                ScopeIds(data.Scopes, ScopeType.SETOR), Array.Empty<Guid>(), ownOnly),
+                identity.Workspace?.CompanyIds ?? ScopeIds(data.Scopes, ScopeType.EMPRESA),
+                identity.Workspace?.UnitIds ?? ScopeIds(data.Scopes, ScopeType.UNIDADE),
+                identity.Workspace?.SectorIds ?? ScopeIds(data.Scopes, ScopeType.SETOR), Array.Empty<Guid>(), ownOnly),
             identity.WorkerId,
             DateTimeOffset.FromUnixTimeSeconds(exp)));
     }

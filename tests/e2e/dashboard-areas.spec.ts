@@ -17,7 +17,7 @@ async function expectNoGenericDashboard(page: Page) {
   await expect(page.getByRole('region', { name: 'Panorama de segurança do trabalho', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Operação da unidade selecionada', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Dias sem acidentes', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs no cenário ilustrativo', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs', exact: true })).toHaveCount(0);
 }
 
 async function expectNoOverflow(page: Page) {
@@ -37,7 +37,7 @@ test('os acessos rápidos apresentam indicadores e seções próprios de cada á
   await expect(page.getByRole('heading', { name: 'Onde estão os achados', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Plano de ação das inspeções', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Roteiro de vistorias', exact: true })).toBeVisible();
-  await expect(page.getByText('Cenário ilustrativo de inspeções', { exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Filtrar ações de inspeção', exact: true }).getByRole('button', { name: 'Todas', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expectNoGenericDashboard(page);
 
   await dock.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
@@ -110,7 +110,7 @@ test('as abas ASOs e NRs diferenciam o conteúdo e preservam URL, teclado e hist
   verifyPageErrors();
 });
 
-test('detalhes de inspeção e saúde acompanham apenas o exemplo e devolvem o foco', async ({ page }) => {
+test('detalhes de inspeção e saúde atualizam acompanhamento e devolvem o foco', async ({ page }) => {
   const verifyPageErrors = observePageErrors(page);
   await loginDemo(page, 'Engenheiro');
   const writes: string[] = [];
@@ -124,20 +124,21 @@ test('detalhes de inspeção e saúde acompanham apenas o exemplo e devolvem o f
   const finding = page.getByRole('button', { name: 'Ver achado: Proteção de transmissão', exact: true });
   await finding.click();
   const findingDialog = page.getByRole('dialog', { name: 'Proteção de transmissão', exact: true });
-  await findingDialog.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
-  await expect(findingDialog.getByRole('status')).toContainText('Exemplo incluído no acompanhamento desta sessão.');
-  await expect(findingDialog.getByRole('button', { name: 'Em acompanhamento no exemplo', exact: true })).toBeDisabled();
+  await findingDialog.getByRole('button', { name: 'Acompanhar', exact: true }).click();
+  await expect(findingDialog.getByRole('status')).toContainText('Achado em acompanhamento.');
+  await expect(findingDialog.getByRole('button', { name: 'Em acompanhamento', exact: true })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(findingDialog).toHaveCount(0);
   await expect(finding).toBeFocused();
-  await expect(page.getByText('Em acompanhamento · exemplo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Em acompanhamento', { exact: true })).toBeVisible();
 
   await dock.getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
   const documentDetail = page.getByRole('button', { name: 'Ver detalhe: Conferir identificação do documento', exact: true });
   await documentDetail.click();
   const documentDialog = page.getByRole('dialog', { name: 'Conferir identificação do documento', exact: true });
-  await documentDialog.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
-  await expect(documentDialog).toContainText('Em acompanhamento local');
+  await documentDialog.getByRole('button', { name: 'Acompanhar', exact: true }).click();
+  await expect(documentDialog.getByRole('status')).toHaveText('Em acompanhamento');
+  await expect(documentDialog.getByRole('button', { name: 'Retirar acompanhamento', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(documentDialog).toHaveCount(0);
   await expect(documentDetail).toBeFocused();
@@ -145,8 +146,9 @@ test('detalhes de inspeção e saúde acompanham apenas o exemplo e devolvem o f
   const trainingDetail = page.getByRole('button', { name: 'Ver detalhe: Planejar orientação da manutenção', exact: true });
   await trainingDetail.click();
   const trainingDialog = page.getByRole('dialog', { name: 'Planejar orientação da manutenção', exact: true });
-  await trainingDialog.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
-  await expect(trainingDialog).toContainText('Em acompanhamento local');
+  await trainingDialog.getByRole('button', { name: 'Acompanhar', exact: true }).click();
+  await expect(trainingDialog.getByRole('status')).toHaveText('Em acompanhamento');
+  await expect(trainingDialog.getByRole('button', { name: 'Retirar acompanhamento', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(trainingDialog).toHaveCount(0);
   await expect(trainingDetail).toBeFocused();

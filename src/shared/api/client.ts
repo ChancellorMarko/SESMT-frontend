@@ -18,7 +18,10 @@ export class ApiError extends Error {
   }
 }
 export interface RequestOptions { query?: Record<string, string | number | boolean | undefined | null>; signal?: AbortSignal; etag?: string; idempotencyKey?: string }
-export const revisionEtag = (revision: number) => `"${revision}"`;
+export function revisionEtag(revision: number | null | undefined): string {
+  if (!Number.isSafeInteger(revision) || Number(revision) < 1) throw new Error('Este registro não possui uma revisão válida para edição.');
+  return `"${revision}"`;
+}
 export function setAccessToken(value: string | null) { token = value; }
 export function setExpiredHandler(handler: () => void) { onExpired = handler; }
 export function cancelAllRequests() { epoch++; refreshPromise = null; controllers.forEach(c => c.abort()); controllers.clear(); }

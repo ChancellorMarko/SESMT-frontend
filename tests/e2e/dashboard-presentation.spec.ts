@@ -46,7 +46,7 @@ test('fila de EPIs filtra acompanhamento, recupera estado vazio e mantém foco a
   const detail = queue.getByRole('button', { name: 'Ver conferência: Capacetes', exact: true });
   await detail.click();
   const dialog = page.getByRole('dialog', { name: 'Conferência de capacetes', exact: true });
-  await dialog.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Acompanhar', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(detail).toBeFocused();
   await following.click();
@@ -57,7 +57,7 @@ test('fila de EPIs filtra acompanhamento, recupera estado vazio e mantém foco a
   await page.keyboard.press('Escape');
   await expect(following).toBeFocused();
   await expect(queue.getByRole('heading', { name: 'Nenhum lote em acompanhamento', exact: true })).toBeVisible();
-  await expect(page.getByRole('progressbar', { name: 'Comprovantes conferidos: Capacetes', exact: true })).toHaveAttribute('aria-valuetext', '40 de 43 registros de exemplo');
+  await expect(page.getByRole('progressbar', { name: 'Comprovantes conferidos: Capacetes', exact: true })).toHaveAttribute('aria-valuetext', '40 de 43 registros');
   expect(writes).toEqual([]);
 });
 
@@ -86,7 +86,7 @@ for (const width of [320, 1440]) {
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     }
-    await expect(page.getByRole('banner').getByAltText('Ampara SESMT', { exact: true })).toHaveAttribute('src', '/brand/ampara/logo-principal.png');
+    await expect(page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toHaveAttribute('src', width >= 1024 ? '/brand/ampara/icon.png' : '/brand/ampara/logo-principal.png');
     await page.screenshot({ path: testInfo.outputPath(`design-${width}.png`) });
     expect(errors).toEqual([]);
   });

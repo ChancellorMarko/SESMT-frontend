@@ -12,7 +12,7 @@ it('mostra identidade confirmada e informa módulos pendentes sem atalhos sem pe
   show();
   expect(screen.getByRole('heading', { name: 'Sua conta está conectada.' })).toBeVisible();
   expect(screen.getByText('admin@example.invalid')).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Módulos em preparação' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Módulos não liberados' })).toBeVisible();
   expect(screen.queryByRole('link', { name: 'Abrir meu espaço de trabalho' })).not.toBeInTheDocument();
 });
 it('oferece saída e só abre espaço de trabalho quando há permissões de módulos', async () => {

@@ -6,10 +6,10 @@ import { FolderOpen, ClipboardCheck, Search, MapPin, FileCheck, HardHat, ArrowUp
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type {
-  DocumentDto,
-  DocumentTypeDto,
+  DocumentReadDto as DocumentDto,
+  DocumentTypeReadDto as DocumentTypeDto,
   PageDto,
-  WorkerDto,
+  WorkerReadDto as WorkerDto,
 } from '../../shared/contracts';
 import type {
   PermitOptionsDto,

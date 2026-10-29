@@ -3,9 +3,9 @@ import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { Plus, Search, UsersRound } from 'lucide-react';
-import { api, ApiError } from '../../shared/api/client';
+import { api, ApiError, API_MODE } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { PageDto, WorkerDto, OrganizationDto } from '../../shared/contracts';
+import type { PageDto, WorkerReadDto as WorkerDto, OrganizationDto } from '../../shared/contracts';
 import type { TeamDto } from '../../shared/contracts/work-permits';
 import { checkedPage, isRecord, isSafePage, ScopedPageError, scopedQueryError, shortText } from '../../shared/lib/scoped-page';
 import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
@@ -19,9 +19,12 @@ const pageSize = 10;
 type Denial = { error: unknown; revisions: Record<string, number> };
 
 function workerItem(value: unknown, unitId: string): value is WorkerDto {
-  return isRecord(value) && identifier(value.id) && value.unitId === unitId && identifier(value.companyId) && identifier(value.sectorId)
+  return isRecord(value) && identifier(value.id) && value.unitId === unitId && identifier(value.companyId)
     && shortText(value.fullName, 500) && Boolean(value.fullName.trim()) && shortText(value.registration, 200)
-    && shortText(value.employmentType, 200) && shortText(value.admissionDate, 100) && Number.isSafeInteger(value.revision) && Number(value.revision) > 0
+    && shortText(value.admissionDate, 100)
+    && (value.sourceReadOnly === true
+      ? (value.sectorId === null || identifier(value.sectorId)) && value.employmentType === null && value.revision === null
+      : identifier(value.sectorId) && shortText(value.employmentType, 200) && Number.isSafeInteger(value.revision) && Number(value.revision) > 0)
     && typeof value.status === 'string' && Object.hasOwn(workerStatusLabels, value.status)
     && (value.integrationStatus === undefined || typeof value.integrationStatus === 'string' && Object.hasOwn(integrationStatusLabels, value.integrationStatus))
     && (value.integrationValidUntil === undefined || shortText(value.integrationValidUntil, 100) && (!value.integrationValidUntil || validCivil(value.integrationValidUntil)));
@@ -106,8 +109,8 @@ function WorkersPageContent() {
   if (!unitId) return <EmptyState title="Selecione uma unidade" description="Escolha uma unidade para consultar seus trabalhadores." />;
   const organizationData = workers.failed ? undefined : organization.data, teamData = workers.failed ? undefined : teams.data;
   const companyName = (id: string) => organizationData?.companies.find(item => item.id === id)?.name || 'Empresa';
-  const unitName = (id: string) => organizationData?.units.find(item => item.id === id)?.name || 'Unidade vinculada';
-  const sectorName = (id: string) => organizationData?.sectors.find(item => item.id === id)?.name || 'Setor vinculado';
+  const unitName = (id: string | null) => id ? organizationData?.units.find(item => item.id === id)?.name || 'Unidade vinculada' : 'Unidade não informada';
+  const sectorName = (id: string | null) => id ? organizationData?.sectors.find(item => item.id === id)?.name || 'Setor vinculado' : 'Setor não informado';
   const hasFilters = Boolean(q || status || companyId || teamId || integrationStatus || params.has('page') || filterError);
   const disabledFilters = !unitMatches || Boolean(filterError);
   const appliedFilters: AppliedFilter[] = [
@@ -133,8 +136,8 @@ function WorkersPageContent() {
       }}>
         <div className={styles.primaryFilters}>
         <Field label="Buscar nome ou matrícula"><div className={styles.search}><Search size={16} aria-hidden="true" /><input type="search" value={search} maxLength={200} onChange={event => setSearch(event.target.value)} placeholder="Digite um nome ou matrícula" aria-describedby={hasDraft ? 'worker-search-draft' : undefined} /></div></Field>
-        <Field label="Integração administrativa"><select value={integrationStatus} disabled={disabledFilters} onChange={event => change('integrationStatus', event.target.value)}><option value="">Todas as integrações</option>{integrationStatus && !Object.hasOwn(integrationStatusLabels, integrationStatus) && <option value={integrationStatus}>Integração inválida</option>}{Object.entries(integrationStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>
-        <Field label="Situação cadastral"><select value={status} disabled={disabledFilters} onChange={event => change('status', event.target.value)}><option value="">Todas as situações</option>{status && !Object.hasOwn(workerStatusLabels, status) && <option value={status}>Situação inválida</option>}{Object.entries(workerStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>
+        {API_MODE !== 'api' && <Field label="Integração administrativa"><select value={integrationStatus} disabled={disabledFilters} onChange={event => change('integrationStatus', event.target.value)}><option value="">Todas as integrações</option>{integrationStatus && !Object.hasOwn(integrationStatusLabels, integrationStatus) && <option value={integrationStatus}>Integração inválida</option>}{Object.entries(integrationStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>}
+        <Field label="Situação cadastral"><select value={status} disabled={disabledFilters} onChange={event => change('status', event.target.value)}><option value="">Todas as situações</option>{status && !Object.hasOwn(workerStatusLabels, status) && <option value={status}>Situação inválida</option>}{Object.entries(workerStatusLabels).filter(([value]) => API_MODE !== 'api' || value !== 'ON_LEAVE').map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>
         </div>
         <div className="actions"><Button type="submit" disabled={disabledFilters}><Search size={14} aria-hidden="true" />Pesquisar</Button>{(hasFilters || hasDraft) && <Button variant="ghost" onClick={clear}>Limpar filtros</Button>}{hasDraft && <span id="worker-search-draft" className={styles.draft} role="status">Busca digitada ainda não aplicada. Selecione Pesquisar.</span>}</div>
         {(Boolean(organizationData && organizationData.companies.length > 1) || Boolean(companyId) || Boolean(teamData?.length) || Boolean(teamId)) && <FilterDisclosure open={advancedOpen} onOpenChange={setAdvancedOpen} label="Empresa e equipe" count={Number(Boolean(companyId)) + Number(Boolean(teamId))}>

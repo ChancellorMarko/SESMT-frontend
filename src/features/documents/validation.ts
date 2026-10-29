@@ -4,9 +4,9 @@ export const documentStatuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE', 'EX
 export const statusLabels: Record<string, string> = {
   DRAFT: 'Rascunho', IN_REVIEW: 'Em revisão', APPROVED: 'Aprovado', ACTIVE: 'Vigente',
   EXPIRED: 'Vencido', SUPERSEDED: 'Substituído', ARCHIVED: 'Arquivado',
-  PENDING: 'Em verificação', CLEAN: 'Liberado', REJECTED: 'Rejeitado', VERIFIED: 'Conferido',
+  PENDING: 'Em verificação', CLEAN: 'Liberado', REJECTED: 'Rejeitado', VERIFIED: 'Conferido', ERROR: 'Falha na verificação', UNKNOWN: 'Verificação não informada',
 };
-export const accessLabels: Record<string, string> = { INTERNAL: 'Interno', RESTRICTED: 'Restrito', MEDICAL: 'Médico' };
+export const accessLabels: Record<string, string> = { PUBLIC: 'Público', INTERNAL: 'Interno', RESTRICTED: 'Restrito', MEDICAL: 'Médico' };
 
 export function isCivilDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

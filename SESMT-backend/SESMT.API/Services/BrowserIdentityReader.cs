@@ -5,7 +5,7 @@ using SESMT.Infrastructure.Persistence;
 
 namespace SESMT.API.Services;
 
-public sealed record BrowserIdentity(UserAuthenticationData Authentication, Guid? WorkerId, bool AmbiguousWorker);
+public sealed record BrowserIdentity(UserAuthenticationData Authentication, Guid? WorkerId, bool AmbiguousWorker, BrowserWorkspaceAccess? Workspace = null);
 
 public interface IBrowserIdentityReader
 {
@@ -14,7 +14,8 @@ public interface IBrowserIdentityReader
 
 public sealed class BrowserIdentityReader(
     IUserAuthenticationRepository authentication,
-    SesmtDbContext db) : IBrowserIdentityReader
+    SesmtDbContext db,
+    IBrowserWorkspaceAccessReader workspace) : IBrowserIdentityReader
 {
     public async Task<BrowserIdentity?> FindAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -25,6 +26,7 @@ public sealed class BrowserIdentityReader(
         var workers = await db.Workers.AsNoTracking()
             .Where(worker => worker.UserId == userId && worker.Active && worker.DeletedAt == null)
             .Select(worker => worker.Id).Take(2).ToListAsync(cancellationToken);
-        return new BrowserIdentity(data, workers.Count == 1 ? workers[0] : null, workers.Count > 1);
+        return new BrowserIdentity(data, workers.Count == 1 ? workers[0] : null, workers.Count > 1,
+            await workspace.ReadAsync(userId, cancellationToken));
     }
 }

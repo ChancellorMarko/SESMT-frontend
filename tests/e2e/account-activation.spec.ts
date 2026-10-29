@@ -22,12 +22,12 @@ async function invite(page: Page, { name, email, role, ownOnly = false }: { name
   await person.getByRole('button', { name: 'Consultar convite', exact: true }).click();
   const invitation = page.getByRole('dialog', { name: 'Convite de conta', exact: true });
   await expect(invitation.getByText('Aguardando ativação', { exact: true })).toBeVisible();
-  await expect(invitation.getByText('Demonstração · nenhum e-mail enviado', { exact: true })).toBeVisible();
+  await expect(invitation.getByText('Envio não realizado', { exact: true })).toBeVisible();
   return invitation;
 }
 
 async function beginActivation(page: Page) {
-  await page.getByRole('link', { name: 'Explorar primeiro acesso', exact: true }).click();
+  await page.getByRole('link', { name: 'Definir primeiro acesso', exact: true }).click();
   await expect(page).toHaveURL(/\/ativar-acesso#token=/);
   await expect(page.getByRole('heading', { name: 'Já existe uma conta aberta', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair e continuar', exact: true }).click();

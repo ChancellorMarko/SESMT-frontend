@@ -11,7 +11,7 @@ import { accountInvitationsEnabled } from '../auth/account-invitations';
 import styles from './AccountInvitationPanel.module.css';
 
 const statuses = { PENDING: 'Aguardando ativação', ACCEPTED: 'Convite utilizado', EXPIRED: 'Convite expirado', REVOKED: 'Convite revogado' };
-const deliveries = { PENDING: 'Envio aguardando processamento', SENT: 'Envio registrado pela API', FAILED: 'Falha no envio', SIMULATED: 'Demonstração · nenhum e-mail enviado' };
+const deliveries = { PENDING: 'Aguardando envio', SENT: 'Envio registrado', FAILED: 'Falha no envio', SIMULATED: 'Envio não realizado' };
 
 function checkedSummary(value: unknown, user: UserDto): AccountInvitationSummaryDto {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Não foi possível conferir os dados deste convite.');
@@ -69,7 +69,7 @@ function AccountInvitationContent({ user, allowed, onNavigate }: { user: UserDto
   }, [data, now]);
 
   if (!allowed) return <Feedback tone="warning">Seu acesso não permite consultar convites de conta.</Feedback>;
-  if (!enabled) return <Feedback tone="info">A consulta de convites de conta ainda não está disponível neste ambiente.</Feedback>;
+  if (!enabled) return <Feedback tone="info">Consulta de convites de conta indisponível.</Feedback>;
   if (loading) return <Spinner />;
   if (error) return <div className="stack"><Feedback tone="warning">{error}</Feedback><Button variant="secondary" onClick={() => setAttempt(value => value + 1)}>Consultar convite novamente</Button></div>;
   if (!data) return null;
@@ -79,8 +79,8 @@ function AccountInvitationContent({ user, allowed, onNavigate }: { user: UserDto
     <ol className={styles.steps} aria-label="Etapas do primeiro acesso"><li data-complete="true"><span>1</span><div><strong>Cadastro</strong><small>Identidade e permissões concedidas</small></div></li><li aria-current={status === 'PENDING' ? 'step' : undefined} data-complete={status === 'ACCEPTED'}><span>2</span><div><strong>Definir senha</strong><small>A própria pessoa conclui pelo convite</small></div></li><li aria-current={status === 'ACCEPTED' ? 'step' : undefined}><span>3</span><div><strong>Entrar</strong><small>{data.mfaRequired ? 'Com verificação em duas etapas' : 'Com seu perfil e unidade'}</small></div></li></ol>
     <dl className={styles.facts}><div><dt><Clock3 size={14} aria-hidden="true" />Validade do convite</dt><dd>{formatDate(data.expiresAt)} <small>São Paulo</small></dd></div><div><dt><Mail size={14} aria-hidden="true" />Envio</dt><dd>{deliveries[data.deliveryStatus]}</dd></div></dl>
     {status === 'PENDING' ? <p className={styles.note}>O convite permite definir uma senha pessoal. Cadastrar a conta não ativa o acesso automaticamente e o administrador não precisa conhecer essa senha.</p> : <Feedback tone={status === 'ACCEPTED' ? 'info' : 'warning'}>{status === 'ACCEPTED' ? 'Este convite já foi utilizado. A pessoa deve entrar com sua conta; não reutilize o link para alterar a senha.' : 'Este convite não pode mais ser utilizado. Solicite a regularização ao administrador responsável pelo acesso.'}</Feedback>}
-    {data.mfaRequired && <p className={styles.mfa}><ShieldCheck size={16} aria-hidden="true" /><span>Uma conta administrativa só pode acessar o sistema depois de configurar e verificar o autenticador. Essa configuração depende da integração de identidade.</span></p>}
+    {data.mfaRequired && <p className={styles.mfa}><ShieldCheck size={16} aria-hidden="true" /><span>Configure e verifique o autenticador para acessar a conta administrativa.</span></p>}
     {user.scope.ownOnly && <p className={styles.mfa}><UserRound size={16} aria-hidden="true" /><span>O acesso aos dados próprios depende do vínculo da conta com o trabalhador. Esse vínculo precisa ser confirmado antes de entrar.</span></p>}
-    {status === 'PENDING' && API_MODE === 'demo' && data.demoActivationPath && <div className={styles.demo}><span>Demonstração local</span><p>Explore a definição da senha com este convite fictício. Você sairá da conta atual antes de continuar.</p><Link className="button button--secondary" to={data.demoActivationPath} onClick={onNavigate}>Explorar primeiro acesso<ArrowRight size={16} aria-hidden="true" /></Link></div>}
+    {status === 'PENDING' && API_MODE === 'demo' && data.demoActivationPath && <div className={styles.demo}><span>Primeiro acesso</span><p>Você sairá da conta atual para definir a senha.</p><Link className="button button--secondary" to={data.demoActivationPath} onClick={onNavigate}>Definir primeiro acesso<ArrowRight size={16} aria-hidden="true" /></Link></div>}
   </div>;
 }

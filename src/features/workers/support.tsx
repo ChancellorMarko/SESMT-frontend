@@ -19,7 +19,7 @@ export const integrationStatusTone: Record<string, 'success' | 'warning' | 'dang
 };
 export const movementLabels: Record<string, string> = {
   ADMISSION: 'Admissão', TRANSFER: 'Mudança de vínculo', LEAVE: 'Afastamento',
-  RETURN: 'Retorno', TERMINATION: 'Desligamento',
+  RETURN: 'Retorno', TERMINATION: 'Desligamento', ASSIGNMENT: 'Vínculo registrado',
 };
 export function dateLabel(value?: string) {
   if (!value) return 'Não informado';
