@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
-import { ArrowRight, BriefcaseBusiness, Check, Eye, EyeOff, Flame, HardHat, HeartPulse, KeyRound, LoaderCircle, LockKeyhole, Mail, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Check, ChevronDown, Eye, EyeOff, Flame, HardHat, HeartPulse, KeyRound, LoaderCircle, LockKeyhole, Mail, ScanEye, Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { API_MODE, api, obtainCsrf } from '../../shared/api/client';
@@ -11,6 +11,8 @@ import { Feedback, Field, Spinner } from '../../shared/ui';
 import type { MfaChallengeDto } from '../../shared/contracts';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { LoginPreloader, useLoginArrival, type LoginArrivalPhase } from './LoginArrival';
+import { LoginBackground } from './LoginBackground';
+import { getDemoAccessUrl } from './demo-access';
 import styles from './AuthPages.module.css';
 import { checkedRecoveryMessage, passwordResetTokenFromHash, validPasswordResetToken } from './password-recovery';
 
@@ -43,10 +45,10 @@ export function PasswordVisibility({ shown, onToggle, label = 'senha' }: { shown
   return <button className={styles.showPassword} type="button" onClick={onToggle} aria-label={`${shown ? 'Ocultar' : 'Mostrar'} ${label}`} aria-pressed={shown}>{shown ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button>;
 }
 
-export function AuthCard({ title, description, eyebrow = 'ACESSO AO SISTEMA', icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
+export function AuthCard({ title, description, eyebrow, icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
   return <section className={styles.card}>
     <div className={styles.cardHeader}>
-      <p className={styles.cardEyebrow}><Icon size={12} aria-hidden="true" /> {eyebrow}</p>
+      {eyebrow && <p className={styles.cardEyebrow}><Icon size={12} aria-hidden="true" /> {eyebrow}</p>}
       <h1 className={styles.title}>{title}</h1>
       {description && <p className={styles.description}>{description}</p>}
     </div>
@@ -54,33 +56,23 @@ export function AuthCard({ title, description, eyebrow = 'ACESSO AO SISTEMA', ic
   </section>;
 }
 
-export function AuthLayout({ children, showcase = false, arrival = 'ready' }: { children: ReactNode; showcase?: boolean; arrival?: LoginArrivalPhase }) {
+export function AuthLayout({ children, arrival = 'ready', featured = false }: { children: ReactNode; arrival?: LoginArrivalPhase; featured?: boolean }) {
   const entering = arrival !== 'ready';
-  return <div className={styles.root}>
-    <div className={styles.ambient} aria-hidden="true" />
+  return <div className={`${styles.root} ${featured ? styles.featuredRoot : ''}`}>
+    {featured && <LoginBackground />}
     {entering && <LoginPreloader leaving={arrival === 'leaving'} />}
     <div className={styles.scene} data-auth-scene data-arrival={arrival} inert={entering} aria-hidden={entering || undefined}>
       <header className={styles.masthead}>
-        <Link to="/login" className={styles.brandLink} aria-label="Ampara SESMT — início"><BrandLogo className={styles.brand} /></Link>
-        <span className={styles.mastheadNote}>Segurança que acompanha você.</span>
+        <Link to="/login" className={styles.brandLink} aria-label="Ampara SESMT — início"><BrandLogo priority className={styles.brand} /></Link>
       </header>
-      <main className={`${styles.main} ${showcase ? styles.showcaseLayout : ''}`}>
-        {showcase && <aside className={styles.story} aria-label="Tecnologia que cuida de pessoas">
-          <p className={styles.eyebrow}>SEU ESPAÇO DE SEGURANÇA</p>
-          <h2 className={styles.storyTitle}>Segurança começa<br />com <span>cuidado.</span></h2>
-          <p className={styles.storyDescription}>Pessoas, documentos e rotinas.<br />Tudo mais próximo, em um só lugar.</p>
-          <div className={styles.sculpture} aria-hidden="true">
-            <div className={styles.sculptureHalo} /><div className={styles.sculptureOrbit} /><div className={styles.sculptureShadow} />
-            <div className={styles.sculpturePlate} data-auth-artwork><BrandLogo compact className={styles.sculptureMark} /></div>
-          </div>
-          <p className={styles.storySignature}>TECNOLOGIA QUE CUIDA DE PESSOAS</p>
-        </aside>}
+      <main className={`${styles.main} ${featured ? styles.featuredMain : ''}`}>
+        {featured && <section className={styles.story} aria-labelledby="login-story-title">
+          <p className={styles.storyEyebrow}>SEGURANÇA DO TRABALHO</p>
+          <h2 id="login-story-title"><span>A rotina de SST,</span>{' '}<span>mais organizada.</span></h2>
+          <p className={styles.storyDescription}>Documentos, equipes e informações da operação reunidos em um espaço de trabalho.</p>
+        </section>}
         <div className={styles.surface} data-auth-surface>{children}</div>
       </main>
-      <footer className={styles.footer}>
-        <LockKeyhole size={12} aria-hidden="true" />
-        <p>Acesso conforme perfil e unidade. Dados de saúde exigem autorização específica.</p>
-      </footer>
     </div>
   </div>;
 }
@@ -88,18 +80,22 @@ export function AuthLayout({ children, showcase = false, arrival = 'ready' }: { 
 export function LoginPage() {
   const session = useSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const reducedMotion = useAppReducedMotion();
   const arrival = useLoginArrival();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(() => API_MODE === 'demo' && new URLSearchParams(location.search).get('demonstracao') === 'perfis');
+  const demoPanelId = useId();
+  const demoUrl = API_MODE === 'api' ? getDemoAccessUrl(import.meta.env.VITE_DEMO_URL, window.location.href) : undefined;
   const [returningToLogin, setReturningToLogin] = useState(false);
   const pending = useRef(false);
   const codeHintId = useId();
   const [challenge, setChallenge] = useState<MfaChallengeDto | null>(null);
   const form = useForm<{ email: string; password: string }>({ defaultValues: { email: '', password: '' } });
   const mfa = useForm<{ code: string }>({ defaultValues: { code: '' } });
-  if (session.status === 'restoring') return <AuthLayout showcase arrival={arrival}><AuthCard title="Entrar na sua conta" description="Preparando seu acesso."><Spinner /></AuthCard></AuthLayout>;
+  if (session.status === 'restoring') return <AuthLayout featured arrival={arrival}><AuthCard title="Entrar na sua conta"><Spinner /></AuthCard></AuthLayout>;
   if (session.me) return <Navigate to="/app" replace />;
 
   async function signIn(email: string, password: string) {
@@ -128,9 +124,9 @@ export function LoginPage() {
     setChallenge(null);
   }
 
-  return <AuthLayout showcase arrival={arrival}><AuthCard
+  return <AuthLayout featured arrival={arrival}><AuthCard
     title={challenge ? 'Verifique seu acesso' : 'Entrar na sua conta'}
-    description={challenge ? 'Informe o código do seu autenticador para continuar.' : 'Entre para acompanhar sua operação.'}
+    description={challenge ? 'Informe o código do seu autenticador.' : undefined}
     eyebrow={challenge ? 'VERIFICAÇÃO EM DUAS ETAPAS' : undefined}
     icon={challenge ? ShieldCheck : LockKeyhole}
   >
@@ -162,8 +158,7 @@ export function LoginPage() {
             mfa.setValue('code', code, { shouldDirty: true, shouldValidate: mfa.formState.isSubmitted });
           }} />
       </Field>
-      <p id={codeHintId} className={styles.fieldHint}>Digite os 6 números do aplicativo autenticador.</p>
-      {API_MODE === 'demo' && <Feedback>Ambiente de demonstração: use o código <strong>123456</strong> para continuar.</Feedback>}
+      <p id={codeHintId} className={styles.fieldHint}>{API_MODE === 'demo' ? 'Código de acesso: 123456.' : 'Digite os 6 números do aplicativo autenticador.'}</p>
       <AuthButton type="submit" disabled={busy} busy={busy}>{busy ? 'Verificando…' : <>Verificar e entrar<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
       <AuthButton variant="ghost" disabled={busy} onClick={returnToLogin}>Voltar ao login</AuthButton>
     </form> : <div key="credentials" className={`${styles.loginContent} ${styles.step}`}>
@@ -180,14 +175,10 @@ export function LoginPage() {
         <Link className={styles.recoveryLink} to="/recuperar-acesso">Esqueci minha senha</Link>
         <AuthButton type="submit" disabled={busy} busy={busy}>{busy ? 'Entrando…' : <>Entrar na plataforma<ArrowRight size={17} aria-hidden="true" /></>}</AuthButton>
       </form>
-      {API_MODE === 'demo' && <div className={styles.demo}>
-        <div className={styles.demoHeader}>
-          <span className={styles.demoIcon}><ShieldCheck size={15} aria-hidden="true" /></span>
-          <div>
-            <span className={styles.demoTitle}>AMBIENTE DE DEMONSTRAÇÃO</span>
-            <p className={styles.demoDescription}>Explore com dados fictícios. As alterações duram até recarregar a página.</p>
-          </div>
-        </div>
+      {API_MODE === 'demo' ? <div className={styles.demoAccess}>
+        <button type="button" className={styles.demoTrigger} aria-expanded={demoOpen} aria-controls={demoPanelId} disabled={busy} onClick={() => setDemoOpen(open => !open)}>Ver demonstrações<ChevronDown size={13} aria-hidden="true" /></button>
+        {demoOpen && <div className={styles.demo} id={demoPanelId}>
+        <h2 className={styles.quickAccessTitle}>Escolha um perfil</h2>
         <motion.div
           initial={reducedMotion ? false : 'hidden'}
           animate={arrival === 'ready' ? 'visible' : 'hidden'}
@@ -205,7 +196,7 @@ export function LoginPage() {
             className={styles.profile}
           ><Icon size={15} aria-hidden="true" /><span>{label}</span></motion.button>)}
         </motion.div>
-      </div>}
+      </div>}</div> : demoUrl && <a className={styles.demoTrigger} href={demoUrl} target="_blank" rel="noopener noreferrer" aria-description="Abre o ambiente de demonstração em outra aba.">Ver demonstrações<ArrowRight size={12} aria-hidden="true" /></a>}
     </div>}
   </AuthCard></AuthLayout>;
 }
@@ -263,7 +254,7 @@ export function RecoveryPage() {
     else if (editRequested.current) { editRequested.current = false; form.setFocus('email'); }
   }, [message, form.setFocus]);
   if (session.me) return <Navigate to="/app" replace />;
-  return <AuthLayout><AuthCard title={message ? 'Confira seu e-mail' : 'Recuperar acesso'} eyebrow={message ? 'PRÓXIMO PASSO' : 'VAMOS AJUDAR VOCÊ'} icon={Mail} description={message ? 'Acompanhe sua caixa de entrada e a pasta de spam para continuar.' : 'Informe o e-mail associado à sua conta para solicitar as instruções de recuperação.'}>
+  return <AuthLayout><AuthCard title={message ? 'Confira seu e-mail' : 'Recuperar acesso'} icon={Mail} description={message ? 'Confira a caixa de entrada e a pasta de spam.' : 'Informe o e-mail da sua conta.'}>
     <RecoverySteps current={message ? 1 : 0} />
     {error && <Feedback tone="danger">{error}</Feedback>}
     <form className={formClass} noValidate aria-busy={busy} onSubmit={form.handleSubmit(async v => {
@@ -286,7 +277,7 @@ export function RecoveryPage() {
       {message && <AuthButton variant="ghost" onClick={() => { editRequested.current = true; setMessage(''); setError(''); }}>Usar outro e-mail</AuthButton>}
       <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>
-    {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: nenhuma mensagem é enviada. <Link to="/redefinir-senha">Experimentar redefinição</Link>.</p>}
+    {!message && <Link className={styles.backLink} to="/redefinir-senha">Já tenho um código de recuperação</Link>}
   </AuthCard></AuthLayout>;
 }
 
@@ -316,7 +307,7 @@ function ResetPasswordContent() {
   useEffect(() => { if (done) successAction.current?.focus({ preventScroll: true }); }, [done]);
   useEffect(() => { if (focusCode) form.setFocus('token'); }, [focusCode, form.setFocus]);
   if (session.me) return <Navigate to="/app" replace />;
-  return <AuthLayout><AuthCard title={done ? 'Tudo pronto.' : 'Definir nova senha'} eyebrow={done ? 'ACESSO RECUPERADO' : 'UM NOVO COMEÇO'} icon={done ? ShieldCheck : KeyRound} description={done ? 'Sua senha foi atualizada. Você já pode acessar sua conta.' : 'Use seu código de recuperação e escolha a nova senha de acesso.'}>
+  return <AuthLayout><AuthCard title={done ? 'Tudo pronto.' : 'Definir nova senha'} icon={done ? ShieldCheck : KeyRound} description={done ? 'Sua senha foi atualizada. Entre para continuar.' : 'Informe o código de recuperação e a nova senha.'}>
     <RecoverySteps current={done ? 2 : 1} />
     {error && <Feedback tone="danger">{error}</Feedback>}
     {done ? <div className={`${styles.successState} ${styles.step}`}>
@@ -348,6 +339,5 @@ function ResetPasswordContent() {
       <Link className={styles.recoveryHelp} to="/recuperar-acesso">Precisa de um novo código? Solicitar recuperação</Link>
       <Link className={styles.backLink} to="/login">Voltar ao login</Link>
     </form>}
-    {API_MODE === 'demo' && <p className={styles.demoNote}>Demonstração: esta alteração é simulada e não muda a senha dos perfis de teste.</p>}
   </AuthCard></AuthLayout>;
 }

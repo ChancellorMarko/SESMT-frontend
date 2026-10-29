@@ -68,6 +68,7 @@ for (const width of [320, 390]) {
 
     // SPA login keeps the current demonstration instance, including the public request.
     await page.getByRole('link', { name: 'Entrar com conta', exact: true }).click();
+    await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
     await page.getByRole('button', { name: 'Gestor SESMT', exact: true }).click();
     await expect(page).toHaveURL(/\/app\/dashboard$/);
     await navigateWithinApp(page, `/app/agenda?q=${encodeURIComponent(code)}&status=REQUESTED`);

@@ -84,6 +84,7 @@ test('cancelar a saída mantém sessão e rascunho; confirmar encerra a sessão 
   await page.getByRole('button', { name: 'Sair da plataforma', exact: true }).click();
   await discardDialog(page).getByRole('button', { name: 'Descartar e sair', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
   await expect(page.getByRole('button', { name: 'RH', exact: true })).toBeVisible();
   expect(logouts).toHaveLength(1);
   verify();

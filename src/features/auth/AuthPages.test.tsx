@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { api, obtainCsrf } from '../../shared/api/client';
 import type { MfaChallengeDto } from '../../shared/contracts';
@@ -64,6 +64,7 @@ async function fillRecoveryForm(user: ReturnType<typeof userEvent.setup>, path: 
 }
 
 beforeEach(() => {
+  vi.stubEnv('VITE_DEMO_URL', '');
   runtime.mode = 'demo';
   runtime.contract = 'adapter';
   login.mockReset().mockResolvedValue(challenge);
@@ -75,8 +76,71 @@ beforeEach(() => {
     can: () => false, setUnitId: vi.fn(), login, verifyMfa, logout: vi.fn(), restore: vi.fn(),
   });
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe('continuidade do acesso', () => {
+  it('prioriza credenciais e texto breve, com uma única marca e demonstrações recolhidas', async () => {
+    const user = show();
+    expect(screen.getAllByRole('img', { name: 'Ampara SESMT' })).toHaveLength(1);
+    expect(screen.getByLabelText('E-mail', { exact: true })).toHaveAttribute('autocomplete', 'username');
+    expect(screen.getByLabelText('Senha', { exact: true })).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByRole('heading', { name: /A rotina de SST,\s*mais organizada\./ })).toBeInTheDocument();
+    expect(document.querySelector('[data-login-background]')).toHaveAttribute('aria-hidden', 'true');
+    expect(document.querySelector('[data-auth-artwork]')).not.toBeInTheDocument();
+    const demo = screen.getByRole('button', { name: 'Ver demonstrações' });
+    expect(demo).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Engenheiro' })).not.toBeInTheDocument();
+    await user.click(demo);
+    expect(demo).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { name: 'Escolha um perfil' })).toBeVisible();
+    for (const role of ['Técnico de segurança', 'Bombeiro', 'Engenheiro', 'Gestor SESMT', 'RH', 'Auditor', 'Administrador', 'Trabalhador']) {
+      expect(screen.getByRole('button', { name: role })).toBeEnabled();
+    }
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it('abre e recolhe os perfis sem alterar o preenchimento nem autenticar uma conta', async () => {
+    const user = show();
+    await user.type(screen.getByLabelText('E-mail', { exact: true }), 'conta@empresa.com');
+    await user.type(screen.getByLabelText('Senha', { exact: true }), 'Senha preservada');
+    const toggle = screen.getByRole('button', { name: 'Ver demonstrações' });
+    await user.click(toggle);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Administrador' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail', { exact: true })).toHaveValue('conta@empresa.com');
+    expect(screen.getByLabelText('Senha', { exact: true })).toHaveValue('Senha preservada');
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it('abre o seletor pelo link da demonstração e usa o perfil escolhido somente no modo demo', async () => {
+    const user = show('/login?demonstracao=perfis');
+    expect(screen.getByRole('button', { name: 'Ver demonstrações' })).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('button', { name: 'Engenheiro' }));
+    expect(login).toHaveBeenCalledWith('gestor@demo.sesmt.local', 'Demo123!');
+  });
+
+  it('no modo API aponta a demonstração para uma origem separada sem liberar perfis locais', () => {
+    runtime.mode = 'api';
+    vi.stubEnv('VITE_DEMO_URL', 'https://demo.example.invalid/login');
+    show('/login?demonstracao=perfis');
+    const demo = screen.getByRole('link', { name: 'Ver demonstrações' });
+    expect(demo).toHaveAttribute('href', 'https://demo.example.invalid/login?demonstracao=perfis');
+    expect(demo).toHaveAttribute('target', '_blank');
+    expect(demo).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(screen.queryByRole('button', { name: 'Administrador' })).not.toBeInTheDocument();
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it('não oferece uma demonstração sem destino configurado no modo API', () => {
+    runtime.mode = 'api';
+    show('/login?demonstracao=perfis');
+    expect(screen.queryByRole('link', { name: 'Ver demonstrações' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver demonstrações' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Engenheiro' })).not.toBeInTheDocument();
+    expect(login).not.toHaveBeenCalled();
+  });
+
   it.each([
     { contract: 'native', path: '/recuperar-acesso', endpoint: '/auth/forgot-password', action: 'Solicitar recuperação' },
     { contract: 'adapter', path: '/recuperar-acesso', endpoint: '/auth/password/forgot', action: 'Solicitar recuperação' },

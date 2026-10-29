@@ -156,6 +156,7 @@ test('a preferência persiste após recarregar e entrar com outro perfil sem alt
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'full');
   await expect(page).toHaveURL(/\/login$/);
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
   await page.getByRole('button', { name: 'RH', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/dashboard/);
   await expect(page.getByRole('group', { name: /Perfil:.*Recursos Humanos/ })).toBeVisible();
