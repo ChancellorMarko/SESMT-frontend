@@ -66,6 +66,7 @@ export function App() {
   return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><RoutePresentation contextKey={`${session.sessionKey}:${session.unitId}`} /><Routes>
     <Route path="/login" element={<LoginPage/>}/><Route path="/mfa" element={<Navigate to="/login" replace/>}/>
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
+    <Route path="/reset-password" element={<ResetPasswordPage/>}/>
     <Route path="/ativar-acesso" element={<AccountActivationPage/>}/>
     <Route path="/convite/:token" element={<TeamInvitePage/>}/>
     <Route path="/app/conexao" element={<Guard>{API_MODE === 'api' ? <ConnectedAccountPage/> : <Navigate to="/app" replace/>}</Guard>}/>

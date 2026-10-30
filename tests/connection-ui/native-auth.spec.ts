@@ -37,7 +37,9 @@ test('contrato nativo recupera e redefine a senha em 320px, validando 12 caracte
   await expect(page.getByRole('heading', { name: 'Confira seu e-mail', exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('Se houver uma conta');
 
-  await page.goto('/redefinir-senha#token=fixture-reset-token');
+  // Accept the route used by the API's email configuration, without putting the token in a query.
+  await page.goto('/reset-password#token=fixture-reset-token');
+  await expect(page).toHaveTitle('Definir nova senha — Ampara SESMT');
   const password = page.getByLabel('Nova senha', { exact: true });
   const confirm = page.getByLabel('Confirmar nova senha', { exact: true });
   const resetButton = page.getByRole('button', { name: 'Redefinir senha', exact: true });
