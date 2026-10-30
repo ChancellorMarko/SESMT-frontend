@@ -89,9 +89,31 @@ test('o login apresenta texto breve, fundo decorativo e acesso discreto à demon
   await expect(page.getByRole('button', { name: 'Engenheiro', exact: true })).toHaveCount(0);
   await expect(page.getByText('Explore com dados fictícios.', { exact: false })).toHaveCount(0);
   const action = page.getByRole('button', { name: 'Entrar na plataforma', exact: true });
-  const restingButton = await action.evaluate(element => getComputedStyle(element).transform);
+  await expect.poll(() => action.evaluate(element => {
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      if (node.getAnimations().some(animation => animation.playState === 'running' && animation.effect?.getComputedTiming().iterations !== Infinity)) return false;
+    }
+    return true;
+  })).toBe(true);
+  const restingButton = await action.evaluate(element => ({ color: getComputedStyle(element).backgroundColor, y: element.getBoundingClientRect().y }));
   await action.hover();
-  await expect.poll(() => action.evaluate(element => getComputedStyle(element).transform)).not.toBe(restingButton);
+  await expect.poll(() => action.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(restingButton.color);
+  const frames = await action.evaluate(async element => {
+    const samples: { y: number; hovered: boolean; image: string; opacity: string }[] = [];
+    const started = performance.now();
+    await new Promise<void>(resolve => {
+      function sample() {
+        const style = getComputedStyle(element);
+        samples.push({ y: element.getBoundingClientRect().y, hovered: element.matches(':hover'), image: style.backgroundImage, opacity: style.opacity });
+        if (performance.now() - started >= 600) resolve(); else requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+    return samples;
+  });
+  expect(frames.every(frame => frame.hovered && frame.opacity === '1')).toBe(true);
+  expect(frames.every(frame => Math.abs(frame.y - restingButton.y) < .1)).toBe(true);
+  expect(new Set(frames.map(frame => frame.image)).size).toBe(1);
   await page.mouse.move(0, 0);
   await expectNoOverflow(page);
   await page.screenshot({ path: testInfo.outputPath('login-desktop.png'), fullPage: true, animations: 'disabled' });

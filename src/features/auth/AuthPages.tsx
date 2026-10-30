@@ -30,11 +30,8 @@ const profiles: { role: string; label: string; icon: LucideIcon }[] = [
 ];
 
 export function AuthButton({ children, variant = 'primary', busy = false, className = '', ...props }: Omit<HTMLMotionProps<'button'>, 'children'> & { children: ReactNode; variant?: 'primary' | 'ghost'; busy?: boolean }) {
-  const reducedMotion = useAppReducedMotion();
   return <motion.button
     type="button"
-    whileHover={reducedMotion || props.disabled ? undefined : { y: -1 }}
-    whileTap={reducedMotion || props.disabled ? undefined : { scale: .985 }}
     {...props}
     aria-busy={busy || undefined}
     className={`${styles.button} ${variant === 'primary' ? styles.primary : styles.ghost} ${className}`}
