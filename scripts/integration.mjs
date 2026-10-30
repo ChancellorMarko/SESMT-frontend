@@ -4,7 +4,9 @@ import { createConnection, createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { integrationEnv, localConfig, root } from './integration-config.mjs';
+import { resolveBackendRoot } from './backend-location.mjs';
 
 const children = new Set();
 let stopping = false;
@@ -19,8 +21,8 @@ function shutdown(code = 0) {
 }
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());
-function run(command, args, env, background = false) {
-  const child = spawn(command, args, { cwd: root, env, stdio: 'inherit', windowsHide: true });
+function run(command, args, env, background = false, cwd = root) {
+  const child = spawn(command, args, { cwd, env, stdio: 'inherit', windowsHide: true });
   const done = new Promise((resolve, reject) => {
     child.once('spawn', () => children.add(child));
     child.once('error', () => reject(new Error(`Não foi possível executar ${command}. Confira os requisitos em INTEGRACAO.md.`)));
@@ -75,20 +77,28 @@ async function main() {
     await run('docker', ['compose', '--env-file', '.env.integration.local', '-f', 'compose.integration.yml', 'up', '-d', '--wait', 'database'], env);
     return;
   }
+  const backendRoot = resolveBackendRoot(env);
+  const infrastructure = join(backendRoot, 'SESMT.Infrastructure');
+  const startup = join(backendRoot, 'SESMT.API');
+  if (action === 'test') {
+    await run('dotnet', ['test', join(backendRoot, 'SESMT.slnx'), '--nologo'], env, false, backendRoot);
+    return;
+  }
   if (action === 'schema') {
     await run('dotnet', ['tool', 'restore'], env);
-    await run('dotnet', ['ef', 'migrations', 'has-pending-model-changes', '--project', 'SESMT-backend/SESMT.Infrastructure', '--startup-project', 'SESMT-backend/SESMT.API'], env);
+    await run('dotnet', ['ef', 'migrations', 'has-pending-model-changes', '--project', infrastructure, '--startup-project', startup], env);
     return;
   }
   if (!['dev', 'migrate'].includes(action)) throw new Error('Ação esperada: setup, db, migrate, schema ou dev.');
   await databaseAvailable(env.ConnectionStrings__Sesmt);
   if (action === 'migrate') {
     await run('dotnet', ['tool', 'restore'], env);
-    await run('dotnet', ['ef', 'database', 'update', '--project', 'SESMT-backend/SESMT.Infrastructure', '--startup-project', 'SESMT-backend/SESMT.API'], env);
+    await run('dotnet', ['ef', 'database', 'update', '--project', infrastructure, '--startup-project', startup], env);
     return;
   }
   await freePort(5047); await freePort(5175);
-  run('dotnet', ['run', '--project', 'SESMT-backend/SESMT.API', '--no-launch-profile'], env, true);
+  console.log(`Backend oficial: ${backendRoot}`);
+  run('dotnet', ['run', '--project', startup, '--no-launch-profile'], env, true, backendRoot);
   let ready = false;
   for (let attempt = 0; attempt < 120 && !stopping; attempt++) {
     try { const response = await fetch('http://127.0.0.1:5047/health', { signal: AbortSignal.timeout(1000) }); ready = response.ok; } catch { /* API ainda iniciando. */ }

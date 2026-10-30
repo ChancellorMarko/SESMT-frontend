@@ -2,7 +2,7 @@
 
 Aplicação React e TypeScript para agenda de serviços, gestão documental, equipes e Permissões de Trabalho (PT), Autorizações de Trabalho (AT) e preparação de PETs de espaços confinados. Versão: **0.5.0**.
 
-O backend .NET recebido foi incorporado em `SESMT-backend/`, com a integração iniciada na branch `Teste` e reunida na `main`. A integração começa por login e sessão; os módulos operacionais ainda precisam de adaptação dos contratos. Consulte [INTEGRACAO.md](INTEGRACAO.md) para executar os dois projetos e verificar o que está conectado.
+O frontend e a API usam repositórios separados: [SESMT-frontend](https://github.com/ChancellorMarko/SESMT-frontend) e [SESMT-backend](https://github.com/ChancellorMarko/SESMT-backend). A API oficial reúne os endpoints nativos da equipe e as projeções de navegador; não mantenha uma cópia do backend dentro deste projeto. Consulte [INTEGRACAO.md](INTEGRACAO.md) para executar e desenvolver os dois juntos.
 
 O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 
@@ -85,7 +85,7 @@ Na liberação da PT, uma cópia preserva responsável, horário, agendamento, p
 
 ## Integração com a API
 
-Para o backend incluído nesta branch, use `npm run integration:setup`, prepare o PostgreSQL e execute `npm run integration:migrate` e `npm run dev:integrated`. O frontend integrado abre em `http://127.0.0.1:5175`; a demonstração mantém seu comando habitual. Instruções completas e limitações: [INTEGRACAO.md](INTEGRACAO.md).
+Clone o backend oficial ao lado deste repositório ou configure `SESMT_BACKEND_PATH` em `.env.integration.local`. Use `npm run integration:setup`, prepare o PostgreSQL e execute `npm run integration:migrate` e `npm run dev:integrated`. O comando informa o diretório da API utilizada e abre o frontend em `http://127.0.0.1:5175`; a demonstração mantém seu comando habitual. As projeções usadas pela interface ficam em `/api/v1/browser` na mesma API. Instruções completas e limitações: [INTEGRACAO.md](INTEGRACAO.md).
 
 Copie `.env.example` para `.env.local`, selecione `VITE_API_MODE=api` e configure `VITE_API_BASE_URL`. Para desenvolvimento com proxy, configure `API_PROXY_TARGET`. Reinicie o Vite após alterar variáveis.
 

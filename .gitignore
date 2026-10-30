@@ -4,8 +4,8 @@ dist/
 .env.local
 .env.*.local
 .local/
-# Configuração recebida com o backend; mantém credenciais somente nesta máquina.
-/SESMT-backend/SESMT.API/appsettings.Development.json
+# O backend pertence ao repositório separado; impede reincorporar uma cópia.
+/SESMT-backend/
 *.tsbuildinfo
 coverage/
 playwright-report/

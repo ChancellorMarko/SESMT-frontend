@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { integrationEnv } from './integration-config.mjs';
 
 // Runs against the actual Vite proxy and API. No MSW or replacement repositories.
-const base = 'http://127.0.0.1:5175/api/v1';
+const base = 'http://127.0.0.1:5175/api/v1/browser';
 const cookies = new Map();
 let csrf = '';
 let accessToken = '';
 let requests = 0;
 async function request(method, path, body, withCsrf = true) {
   const headers = { Accept: 'application/json' };
-  const cookieHeader = [...cookies].filter(([, cookie]) => (`/api/v1${path}`).startsWith(cookie.path)).map(([name, cookie]) => `${name}=${cookie.value}`).join('; ');
+  const cookieHeader = [...cookies].filter(([, cookie]) => (`/api/v1/browser${path}`).startsWith(cookie.path)).map(([name, cookie]) => `${name}=${cookie.value}`).join('; ');
   if (cookieHeader) headers.Cookie = cookieHeader;
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (withCsrf && csrf && method !== 'GET') headers['X-CSRF-Token'] = csrf;
@@ -44,7 +44,7 @@ async function main() {
   assert.ok(!('refreshTokenExpiresAtUtc' in login.data), 'Metadados do refresh não podem ser expostos no JSON.');
   const refreshCookie = login.response.headers.getSetCookie().find(cookie => /^(ampara\.refresh|sesmt_refresh)=/.test(cookie));
   assert.ok(refreshCookie && /httponly/i.test(refreshCookie) && /samesite=strict/i.test(refreshCookie)
-    && /(?:^|;)\s*path=\/api\/v1\/auth\/?(?:;|$)/i.test(refreshCookie), 'Cookie de refresh precisa cobrir refresh e logout em /api/v1/auth.');
+    && /(?:^|;)\s*path=\/api\/v1\/browser\/auth\/?(?:;|$)/i.test(refreshCookie), 'Cookie de refresh precisa cobrir refresh e logout em /api/v1/browser/auth.');
   accessToken = login.data.accessToken;
   const authenticatedCsrf = await request('GET', '/auth/csrf');
   assert.equal(authenticatedCsrf.response.status, 200, 'CSRF deve ser ressincronizado após o login.');
