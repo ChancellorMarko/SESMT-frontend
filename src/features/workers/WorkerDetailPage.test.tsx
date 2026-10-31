@@ -117,6 +117,35 @@ function renderPage(options: { state?: unknown; hash?: string } = {}) {
 }
 
 describe('WorkerDetailPage', () => {
+  it('recusa a identidade de outra pessoa antes de consultar documentos ou histórico', async () => {
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path, options) => path === '/workers/worker-1' ? { ...mockWorker, id: 'worker-2' } : original(path, options));
+    renderPage();
+    await screen.findByRole('button', { name: 'Tentar novamente' });
+    expect(screen.queryByRole('heading', { name: mockWorker.fullName })).not.toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([path]) => path === '/documents' || path.endsWith('/movements'))).toBe(false);
+  });
+  it('não cria links para documentos de outro trabalhador', async () => {
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    const document = { id: 'doc-other', code: 'DOC-OUTRO', title: 'Arquivo de outra pessoa', typeId: 'type-a', unitId: 'unit-1', issueDate: '2026-10-01', status: 'ACTIVE', activeVersionIds: [], revision: 1, workerIds: ['worker-2'] };
+    vi.mocked(api.get).mockImplementation(async (path, options) => path === '/documents' ? { items: [document], page: 1, pageSize: 5, total: 1 } : original(path, options));
+    renderPage();
+    const region = await screen.findByRole('region', { name: 'Documentos vinculados' });
+    await within(region).findByRole('button', { name: 'Tentar novamente' });
+    expect(within(region).queryByRole('link', { name: document.title })).not.toBeInTheDocument();
+    expect(within(region).queryByRole('button', { name: 'Próximos documentos' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: mockWorker.fullName })).toBeVisible();
+  });
+  it('confere a página restaurada dos documentos e conserva o retorno à lista', async () => {
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    const doc = { id: 'doc-a', code: 'DOC-1', title: 'Documento da segunda página', typeId: 'type-a', companyId: 'comp-1', unitId: 'unit-1', issueDate: '2026-10-01', status: 'ACTIVE', activeVersionIds: [], revision: 1, workerIds: ['worker-1'] };
+    vi.mocked(api.get).mockImplementation(async (path, options) => path === '/documents' ? { items: [doc], page: options?.query?.page, pageSize: 5, total: 6 } : original(path, options));
+    renderPage({ state: { workerDocumentPageReturnTo: { workerId: 'worker-1', unitId: 'unit-1', sessionKey: 'worker-detail', page: 2 }, workerListReturnTo: { unitId: 'unit-1', sessionKey: 'worker-detail', search: '?unitId=unit-1&q=Juliana&page=3', draftSearch: 'Ainda não pesquisar' } } });
+    expect(await screen.findByRole('link', { name: doc.title })).toHaveAttribute('href', '/app/documentos/doc-a');
+    expect(screen.getByRole('region', { name: 'Documentos vinculados' })).toHaveTextContent('Página 2');
+    expect(screen.getByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', '/app/trabalhadores?unitId=unit-1&q=Juliana&page=3');
+    expect(api.get).toHaveBeenCalledWith('/documents', expect.objectContaining({ query: expect.objectContaining({ workerId: 'worker-1', unitId: 'unit-1', page: 2 }) }));
+  });
   it('preserva a consulta validada nos retornos e nas ações da ficha', async () => {
     const search = '?unitId=unit-1&q=Juliana&status=ACTIVE&page=2';
     renderPage({ state: { workerListReturnTo: { unitId: 'unit-1', sessionKey: 'worker-detail', search } } });
@@ -238,12 +267,13 @@ describe('WorkerDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Voltar à lista' })).toHaveAttribute('href', '/app/trabalhadores');
   });
 
-  it('descarta o retorno se o vínculo do trabalhador não corresponder à unidade ativa', async () => {
+  it('oculta o cadastro e o retorno contextual se o vínculo não corresponder à unidade ativa', async () => {
     const originalGet = vi.mocked(api.get).getMockImplementation()!;
     vi.mocked(api.get).mockImplementation(async (...args) => args[0] === '/workers/worker-1' ? { ...mockWorker, unitId: 'unit-2' } : originalGet(...args));
     renderPage({ state: { integrationReturnTo: { pathname: '/app/pendencias', search: '', unitId: 'unit-1' } } });
 
-    expect(await screen.findByRole('heading', { name: 'Juliana Costa' })).toBeInTheDocument();
+    await screen.findByRole('button', { name: 'Tentar novamente' });
+    expect(screen.queryByRole('heading', { name: 'Juliana Costa' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Voltar às pendências' })).not.toBeInTheDocument();
   });
 

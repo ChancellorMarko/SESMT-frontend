@@ -50,6 +50,72 @@ async function clickEnabled(name: string) {
 }
 
 describe('detalhe de documento', () => {
+  it.each([{ id: 'outro-documento' }, { unitId: 'outra-unidade' }, { availableActions: null }])('recusa detalhe incompatível antes de carregar versões: %j', change => {
+    document = { ...document, ...change } as DocumentDto;
+    show();
+    return screen.findByRole('button', { name: 'Tentar novamente' }).then(() => {
+      expect(screen.queryByRole('heading', { name: metadata.title })).not.toBeInTheDocument();
+      expect(vi.mocked(api.get).mock.calls.some(([path]) => path.includes('/versions') || path.includes('/history'))).toBe(false);
+    });
+  });
+  it('não exibe arquivo, evidências ou comandos de uma versão de outro documento', async () => {
+    version = { ...version, documentId: 'outro-documento', file: { ...version.file, name: 'arquivo-de-outro-documento.pdf' } };
+    show();
+    await screen.findByRole('button', { name: 'Tentar carregar versão selecionada novamente' });
+    expect(screen.queryByText('arquivo-de-outro-documento.pdf', { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aprovar versão' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Consultar v2' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+  it('não exibe evento associado a outro documento', async () => {
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path, options) => path.endsWith('/history') ? page([{ id: 'foreign-event', documentId: 'outro-documento', action: 'CREATED', occurredAt: version.createdAt, actor: { id: userId, displayName: 'Autor de outro documento' } }]) as never : original(path, options));
+    show();
+    await screen.findByRole('button', { name: 'Tentar carregar histórico novamente' });
+    expect(screen.queryByText('Autor de outro documento', { exact: false })).not.toBeInTheDocument();
+  });
+  it('não restaura metadados do cache após negativa até receber nova leitura válida', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    show(client);
+    await screen.findByRole('heading', { name: metadata.title });
+    await screen.findByRole('heading', { name: 'Versão 2' });
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    let denied = true;
+    vi.mocked(api.get).mockImplementation(async (path, options) => { if (path === `/documents/${documentId}` && denied) throw new ApiError(403, { code: 'FORBIDDEN', message: 'Acesso revogado.', requestId: 'test' }); return original(path, options); });
+    await act(async () => { await client.refetchQueries({ queryKey: ['document', 'test-session', documentId, documentId], exact: true }); });
+    await screen.findByRole('button', { name: 'Tentar novamente' });
+    expect(screen.queryByRole('heading', { name: metadata.title })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Versão 2' })).not.toBeInTheDocument();
+    act(() => client.setQueryData(['document', 'test-session', documentId, documentId], document));
+    expect(screen.queryByRole('heading', { name: metadata.title })).not.toBeInTheDocument();
+    denied = false; fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await screen.findByRole('heading', { name: metadata.title });
+    await screen.findByRole('heading', { name: 'Versão 2' });
+  });
+  it('ignora prévia atrasada ao selecionar outra versão e cancela a requisição antiga', async () => {
+    const secondId = '20000000-0000-4000-8000-000000000002';
+    const second = { ...version, id: secondId, versionNumber: 3 };
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path, options) => path.endsWith('/versions') ? page([version, second]) as never : path.endsWith(`/versions/${secondId}`) ? second as never : original(path, options));
+    let finish!: (value: unknown) => void;
+    vi.mocked(api.post).mockImplementation(() => new Promise(resolve => { finish = resolve; }) as never);
+    show();
+    await clickEnabled('Visualizar arquivo');
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const signal = vi.mocked(api.post).mock.calls[0][2]?.signal;
+    fireEvent.click(await screen.findByRole('button', { name: 'Consultar v3' }));
+    await screen.findByRole('heading', { name: 'Versão 3' });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => finish({ url: '/arquivo-antigo.pdf', fileName: 'arquivo-antigo.pdf', mimeType: 'application/pdf', expiresAt: '2099-01-01T00:00:00Z' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Prévia de arquivo-antigo.pdf')).not.toBeInTheDocument();
+  });
+  it('não abre um arquivo quando a autorização de download retorna dados incompletos', async () => {
+    vi.mocked(api.post).mockResolvedValue({ url: '/arquivo.pdf', expiresAt: '2099-01-01T00:00:00Z' } as never);
+    show(); await clickEnabled('Solicitar download');
+    await screen.findByText('O serviço não confirmou um acesso válido ao arquivo. Tente novamente.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
   it('apresenta o cadastro demonstrativo no histórico com rótulo em português', async () => {
     const original = vi.mocked(api.get).getMockImplementation()!;
     vi.mocked(api.get).mockImplementation(async (path, options) => path.endsWith('/history') ? page([{ id: 'history-created', documentId, action: 'DOCUMENT_CREATED', actor: { id: userId, displayName: 'Profissional SESMT' }, occurredAt: '2026-10-19T12:00:00Z' }]) as never : original(path, options));

@@ -79,10 +79,11 @@ function fillEditor(version: boolean) {
     fireEvent.change(screen.getByLabelText('Justificativa da versão *'), { target: { value: 'Versão revisada' } });
   } else fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'Procedimento revisado' } });
 }
-async function cancelEditor(version: boolean) {
+async function cancelEditor(version: boolean, recordAvailable = true) {
   fireEvent.click(screen.getByRole('link', { name: version ? 'Voltar ao documento' : 'Voltar' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Descartar e sair' }));
-  await screen.findByRole('heading', { name: current.title });
+  if (recordAvailable) await screen.findByRole('heading', { name: current.title });
+  else await screen.findByRole('button', { name: 'Tentar novamente' });
 }
 
 describe.each(contexts)('retorno documental à $source', context => {
@@ -128,7 +129,8 @@ describe.each(contexts)('retorno documental à $source', context => {
   it.each([false, true])('abandona a origem da unidade anterior ao cancelar (versão=%s)', async version => {
     const view = await show(origin(context)); await openEditor(version);
     currentUnit = '40000000-0000-4000-8000-000000000001'; view.update();
-    await screen.findByLabelText('Título *'); fillEditor(version); await cancelEditor(version);
+    await screen.findByLabelText('Título *'); fillEditor(version); await cancelEditor(version, false);
+    expect(screen.queryByRole('heading', { name: current.title })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar à central' })).toHaveAttribute('href', '/app/documentos');
     expect(screen.getByLabelText('Origem recebida')).not.toHaveTextContent(context.key);
   });

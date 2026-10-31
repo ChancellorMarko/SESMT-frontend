@@ -29,7 +29,7 @@ const page = <T,>(items: T[]) => ({ items, page: 1, pageSize: 10, total: items.l
 beforeEach(() => {
   vi.clearAllMocks(); current = structuredClone(baseDocument);
   consultationRead = vi.fn(async () => current.title);
-  vi.mocked(useSession).mockReturnValue({ me: null, unitId, sessionKey, can: permission => permission === 'documents.write', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() });
+  vi.mocked(useSession).mockReturnValue({ me: null, unitId, sessionKey, can: permission => ['documents.read', 'documents.write'].includes(permission), status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() });
   vi.mocked(api.get).mockImplementation(async <T,>(path: string): Promise<T> => {
     if (path === `/documents/${current.id}`) return structuredClone(current) as T;
     if (path === '/organization') return organization as T;
