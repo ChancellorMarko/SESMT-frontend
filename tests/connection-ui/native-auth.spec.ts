@@ -101,3 +101,88 @@ test('MFA nativo sem desafio orienta a procurar o administrador e não cria uma 
   expect(observed.paths).not.toContain('GET /api/v1/auth/me');
   expect(observed.errors).toEqual([]);
 });
+
+// Native grants + explicit UI DTO fixture. This tests naming and route guards,
+// not compatibility of the native DocumentsController response or live authorization.
+async function nativeGrants(page: Page, grants: string[], rawDocument = false, scopeUnits?: string[]) {
+  const companyId = '10000000-0000-4000-8000-000000000001';
+  const unitId = '10000000-0000-4000-8000-000000000002';
+  const userId = '10000000-0000-4000-8000-000000000003';
+  const document = { id: '10000000-0000-4000-8000-000000000004', companyId, unitId, sectorId: null, code: 'DOC-API-01', title: 'Documento retornado pela API de teste', typeId: '10000000-0000-4000-8000-000000000005', ownerId: userId, accessClass: 'INTERNAL', issueDate: '2026-10-31', status: 'DRAFT', currentVersionId: null, activeVersionId: null, activeVersionIds: [], workerIds: [], responsibleIds: [], keywords: [], availableActions: [], revision: null, sourceReadOnly: true };
+  let signedIn = false;
+  const state = { grants, usersDenied: false, unexpected: [] as string[] };
+  await page.route('**/api/v1/**', async route => {
+    const url = new URL(route.request().url()), path = url.pathname;
+    const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
+    const session = { accessToken: 'native-grants-test', tokenType: 'Bearer', accessExpiresAt: '2099-01-01T00:00:00Z' };
+    if (path === '/api/v1/auth/csrf') return json({ csrfToken: 'native-grants-csrf' });
+    if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
+    if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', message: 'Entre novamente.', requestId: 'test' }, 401);
+    if (path === '/api/v1/auth/me') return json({ user: { id: userId, displayName: 'Perfil criado no backend', email: 'native@example.invalid' }, roles: ['PERFIL_NOVO'], permissions: state.grants, scope: { companyIds: [companyId], unitIds: scopeUnits ?? [unitId], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
+    if (path === '/api/v1/users') return state.usersDenied ? json({ code: 'FORBIDDEN', message: 'Detalhe do servidor', requestId: 'test' }, 403) : json([{ id: userId, name: 'Pessoa do cadastro nativo', email: 'person@example.invalid', roles: ['PERFIL_NOVO'], scopeIds: [companyId], active: true }]);
+    if (path === '/api/v1/document-types') return json({ items: [], total: 0, page: 1, pageSize: 20 });
+    if (path === '/api/v1/documents') return json({ items: [rawDocument ? { id: document.id, documentTypeId: document.typeId, companyId, unitId, title: document.title, secrecyLevel: 'INTERNO', status: 'RASCUNHO' } : document], page: Number(url.searchParams.get('page')), pageSize: Number(url.searchParams.get('pageSize')), total: 1 });
+    state.unexpected.push(path);
+    return json({ code: 'NOT_CONNECTED', message: 'Rota não conectada.', requestId: 'test' }, 501);
+  });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await enterCredentials(page, 'native@example.invalid');
+  return state;
+}
+
+test('permissão documento:ler de um perfil novo abre a leitura compatível e a revogação remove o acesso', async ({ page }) => {
+  const observed = observe(page);
+  const state = await nativeGrants(page, ['documento:ler']);
+  await expect(page).toHaveURL(/\/app\/documentos/);
+  await expect(page.getByRole('link', { name: 'Documento retornado pela API de teste', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Novo documento', exact: true })).toHaveCount(0);
+  state.grants = [];
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Esta área precisa de autorização.', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Documento retornado pela API de teste', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Voltar ao início', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/conexao$/);
+  expect(state.unexpected).toEqual([]);
+  expect(observed.errors).toEqual([]);
+});
+
+test('permissões sem módulo conhecido não enviam a pessoa para notificações nem criam um atalho circular', async ({ page }) => {
+  const state = await nativeGrants(page, ['recurso_novo:consultar']);
+  await expect(page).toHaveURL(/\/app\/conexao$/);
+  await expect(page.getByRole('heading', { name: 'Nenhum módulo disponível para estes acessos', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Abrir meu espaço de trabalho', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mais informações: Permissões da conta' }).click();
+  await expect(page.getByRole('dialog')).toContainText('recurso_novo:consultar');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Mais informações: Permissões da conta' })).toBeFocused();
+  expect(state.unexpected).toEqual([]);
+});
+
+test('reconhecer a permissão não faz o frontend aceitar um DTO documental incompatível', async ({ page }) => {
+  const state = await nativeGrants(page, ['documento:ler'], true);
+  await expect(page).toHaveURL(/\/app\/documentos/);
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Esta área precisa de autorização.', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Documento retornado pela API de teste', exact: true })).toHaveCount(0);
+  expect(state.unexpected).toEqual([]);
+});
+
+test('usuario:ler abre a lista nativa sem exigir unidade, editar contas ou ignorar uma recusa posterior', async ({ page }, testInfo) => {
+  const observed = observe(page);
+  await page.setViewportSize({ width: 320, height: 900 });
+  const state = await nativeGrants(page, ['usuario:ler', 'usuario:criar', 'documento:ler'], false, []);
+  await expect(page).toHaveURL(/\/app\/configuracoes\/usuarios$/);
+  await expect(page.getByRole('cell', { name: /Pessoa do cadastro nativo/ })).toBeVisible();
+  await expect(page.getByText('Escopo da conta · somente leitura', { exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Unidade de trabalho', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Convidar|Editar|Desativar/ })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('usuarios-nativos-mobile.png'), fullPage: true });
+  state.usersDenied = true;
+  await page.getByRole('button', { name: 'Atualizar usuários', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('A API não autorizou');
+  await expect(page.getByRole('cell', { name: /Pessoa do cadastro nativo/ })).toHaveCount(0);
+  expect(observed.paths.filter(path => /POST.*\/(users|roles)/.test(path))).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+  expect(observed.errors).toEqual([]);
+});

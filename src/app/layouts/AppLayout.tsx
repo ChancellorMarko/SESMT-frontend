@@ -41,7 +41,7 @@ const config = [
   { to: 'minha-representacao', label: 'Minha representação', permission: 'permits.review' },
   { to: 'configuracoes/servicos', label: 'Serviços e templates', permission: 'requirements.read' },
   { to: 'configuracoes/requisitos', label: 'Matriz de requisitos', permission: 'requirements.read' },
-  { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage' },
+  { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage', alternativePermission: 'users.read' },
   { to: 'configuracoes/tipos-documentais', label: 'Tipos documentais', permission: 'documentTypes.write' },
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
@@ -302,14 +302,14 @@ export function AppLayout() {
         <Link to="/app" className={styles.headerBrand} aria-label="Ampara SESMT · Página inicial"><BrandLogo compact /></Link>
       </div>
       <div className={styles.headerActions}>
-        <label className={styles.unit}>
+        {!!s.me?.scope.unitIds.length && <label className={styles.unit}>
           <Building2 size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
           <select aria-label="Unidade de trabalho" value={s.unitId || ''} onChange={e => {
             if (e.target.value === s.unitId) return;
             if (!window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) return;
             s.setUnitId(e.target.value);
           }}>{s.me?.scope.unitIds.map(id => <option key={id} value={id}>{org.data?.units.find(u => u.id === id)?.name || 'Unidade autorizada'}</option>)}</select>
-        </label>
+        </label>}
         <button type="button" onClick={openMenu} className={styles.searchButton} aria-label="Buscar módulos" aria-keyshortcuts="Control+k Meta+k"><span>Buscar módulos</span><kbd><Command size={11} aria-hidden="true" /> K</kbd><i aria-hidden="true"><Search size={16} /></i></button>
         <button type="button" className={`${styles.iconButton} ${styles.motionButton}`} data-motion-mode={reduceMotion ? 'reduced' : 'full'} aria-label="Configurar animações" aria-haspopup="dialog" title="Configurar animações" onClick={() => setMotionSettings(true)}><Sparkles size={18} aria-hidden="true" /></button>
         <HeaderNotifications className={styles.iconButton} />

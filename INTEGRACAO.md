@@ -59,6 +59,14 @@ O JWT fica em memória. O refresh usa cookie HttpOnly, SameSite Strict, caminho 
 
 As capacidades de consulta `organization.read`, `workers.read` e `documents.read` vêm dos grants e escopos ativos no banco. ADMIN não recebe autorização operacional por inferência. Uma conta sem grants efetivos vê a orientação para solicitar acesso. MFA exigido ou vínculo de trabalhador ausente/ambíguo bloqueiam o acesso correspondente.
 
+### Permissões nativas e consulta de usuários
+
+O frontend preserva as permissões recebidas e compara equivalências explícitas em `src/shared/auth/permissions.ts`: `documento:ler` permite a verificação de `documents.read`, `trabalhador:ler` permite `workers.read`, e `usuario:ler` permite `users.read`. A consulta agregada `organization.read` exige as quatro leituras `empresa:ler`, `unidade:ler`, `setor:ler` e `cargo:ler`. Não há autorização pelo nome de um perfil, por wildcard ou por tradução automática de ações. Perfis novos não precisam ser cadastrados no frontend. Permissões de recursos novos são preservadas para comparação exata, mas uma funcionalidade nova precisa de uma tela e de um contrato próprios.
+
+A capacidade `users.read` abre uma tela de consulta para `GET /api/v1/users`, consumindo diretamente a lista nativa `{ id, name, email, roles, scopeIds, active }`. Ela não exige unidade selecionada, não envia filtro de unidade que a rota não suporta e informa que o escopo da listagem é o da conta. Busca e paginação ocorrem sobre a resposta autorizada pela API. Essa tela não envia convites ou edições do contrato legado. A capacidade preexistente `users.manage` continua usando seu fluxo de gestão específico; `usuario:ler` não concede essa capacidade.
+
+Para autenticação nativa, configure `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=native` e `VITE_API_BROWSER_PREFIX=` vazio, além da base e do proxy. Isso seleciona `/auth/me`; não adapta os DTOs dos demais módulos automaticamente. Reconhecer a permissão documental não converte a resposta nativa de documentos no DTO da projeção browser. Para documentos, trabalhadores e organização, use a projeção publicada acima ou conclua os adaptadores de dados antes de considerar a entrega integrada. A ausência de um destino reconhecido leva à conta conectada, sem encaminhar para Notificações sem permissão. A tela permite atualizar o acesso e conferir as permissões recebidas.
+
 A projeção documental também aplica a política de acesso nativa, além dos escopos de empresa, unidade, setor e vínculo próprio. Dados restritos/médicos não são expostos por essa projeção. DTOs de leitura usam `sourceReadOnly: true` e `revision: null`; dados ausentes não são inventados. Escrita, upload, download, aprovação e módulos operacionais precisam de contratos próprios antes de serem habilitados na interface. A existência de endpoints nativos não significa que todos os fluxos da demonstração estejam integrados.
 
 ## Banco existente e validação

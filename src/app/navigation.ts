@@ -9,6 +9,7 @@ export function dashboardPath(can: PermissionCheck) {
 }
 
 export function homePath(can: PermissionCheck) {
+  if (can('users.read')) return '/app/configuracoes/usuarios';
   if (can('dashboard.read')) return dashboardPath(can);
   if (can('documents.read')) return '/app/documentos';
   if (can('appointments.read')) return '/app/agenda';
@@ -25,7 +26,8 @@ export function homePath(can: PermissionCheck) {
     ['documentTypes.write', '/app/configuracoes/tipos-documentais'],
     ['audit.read', '/app/auditoria'],
     ['permits.review', '/app/minha-representacao'],
+    ['notifications.read', '/app/notificacoes'],
   ];
   for (const [permission, path] of destinations) if (can(permission)) return path;
-  return '/app/notificacoes';
+  return '/app/conexao';
 }
