@@ -114,7 +114,8 @@ describe('retorno às pendências após consultar a integração no atendimento'
     const view = show({ pathname: '/app/trabalhadores/worker-a', state: integrationOrigin() });
     await screen.findByRole('link', { name: 'Voltar ao atendimento' });
     session.unitId = 'unit-b'; view.update();
-    await screen.findByRole('heading', { name: 'Ana Teste' });
+    await screen.findByRole('button', { name: 'Tentar novamente' });
+    expect(screen.queryByRole('heading', { name: 'Ana Teste' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Voltar ao atendimento' })).not.toBeInTheDocument();
   });
 });
