@@ -6,6 +6,9 @@
 .table { min-width: 0; table-layout: fixed; }
 .table th:first-child { width: 48%; }
 .table th:last-child { width: 120px; }
+.scroll { max-width: 100%; overflow-x: auto; }
+.commands { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.commands :global(.button) { min-height: 32px; padding: 4px 6px; font-size: 11px; }
 .table td { overflow-wrap: anywhere; }
 .table strong { font-weight: 550; }
 .email { display: block; margin-top: 4px; color: #63758b; font-size: 12px; }

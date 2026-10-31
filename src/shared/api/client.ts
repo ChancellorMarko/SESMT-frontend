@@ -1,6 +1,7 @@
 import type { ErrorDto, SessionDto } from '../contracts';
 import { decodeSessionResponse } from '../auth/session-response';
 import { resolveApiPath } from './browser-path';
+import { AUTH_CONTRACT } from './auth-contract';
 
 export const API_MODE = import.meta.env.VITE_API_MODE === 'api' ? 'api' : 'demo';
 const BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
@@ -54,7 +55,7 @@ function errorDto(value: unknown): ErrorDto {
 async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}, retried = false): Promise<T> {
   const publicInvite = /^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path);
   const requestEpoch = epoch;
-  const url = new URL(`${BASE}${resolveApiPath(path, API_MODE, import.meta.env.VITE_API_BROWSER_PREFIX)}`, window.location.origin);
+  const url = new URL(`${BASE}${resolveApiPath(path, API_MODE, import.meta.env.VITE_API_BROWSER_PREFIX, AUTH_CONTRACT.kind)}`, window.location.origin);
   Object.entries(options.query || {}).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v)); });
   const controller = new AbortController(); controllers.add(controller);
   const abort = () => controller.abort(options.signal?.reason);

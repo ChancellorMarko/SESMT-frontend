@@ -33,6 +33,6 @@ export default defineConfig({
     url: 'http://127.0.0.1:5178/login',
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { VITE_API_MODE: 'api', VITE_AUTH_API_CONTRACT: 'native', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false', VITE_DEMO_URL: 'http://127.0.0.1:5173/login' },
+    env: { VITE_API_MODE: 'api', VITE_AUTH_API_CONTRACT: 'native', VITE_API_BROWSER_PREFIX: '/browser', VITE_API_BASE_URL: '/api/v1', API_PROXY_TARGET: 'http://127.0.0.1:5177', VITE_ACCOUNT_INVITATIONS_ENABLED: 'false', VITE_DEMO_URL: 'http://127.0.0.1:5173/login' },
   }],
 });

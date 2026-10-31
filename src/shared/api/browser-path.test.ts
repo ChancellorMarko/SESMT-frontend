@@ -19,4 +19,11 @@ describe('rotas do adaptador na API oficial', () => {
   it('a demonstração nunca usa a API de navegador', () => {
     expect(resolveApiPath('/documents', 'demo', '/browser')).toBe('/documents');
   });
+  it.each(['/auth/login', '/auth/csrf', '/auth/refresh', '/auth/logout', '/auth/me'])('mantém %s no contrato nativo enquanto projeta as consultas', path => {
+    expect(resolveApiPath(path, 'api', '/browser', 'native')).toBe(path);
+    expect(resolveApiPath('/documents', 'api', '/browser', 'native')).toBe('/browser/documents');
+    expect(resolveApiPath('/organization', 'api', '/browser', 'native')).toBe('/browser/organization');
+    expect(resolveApiPath('/users', 'api', '/browser', 'native')).toBe('/users');
+    expect(resolveApiPath('/notifications', 'api', '/browser', 'native')).toBe('/notifications');
+  });
 });

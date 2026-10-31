@@ -6,6 +6,8 @@ import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { checkedPage, isRecord, shortText } from '../../shared/lib/scoped-page';
 import styles from './HeaderNotifications.module.css';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
+import { useNativeNotifications } from '../../features/notifications/native-notifications';
 
 type UnreadNotice = { id: string; readAt?: undefined };
 
@@ -15,6 +17,22 @@ function isUnreadNotice(value: unknown): value is UnreadNotice {
 
 /** Only the verified total is exposed in the header, never notification contents. */
 export function HeaderNotifications({ className }: { className?: string }) {
+  return NATIVE_MODULES ? <NativeHeaderNotifications className={className}/> : <LegacyHeaderNotifications className={className}/>;
+}
+
+function NativeHeaderNotifications({ className }: { className?: string }) {
+  const { can } = useSession();
+  const unread = useNativeNotifications(), descriptionId = useId();
+  const total = unread.data?.items.filter(item => item.readAt === null).length;
+  if (!can('notifications.read')) return null;
+  return <Link to="/app/notificacoes" className={`${className || ''} ${styles.trigger} relative`} aria-label="Abrir notificações" title="Abrir notificações" aria-describedby={total === undefined ? undefined : descriptionId}>
+    <Bell size={18} className={styles.bell} aria-hidden="true"/>
+    {total !== undefined && <span id={descriptionId} className="sr-only">{total} {total === 1 ? 'notificação não lida' : 'notificações não lidas'}.</span>}
+    {total !== undefined && total > 0 && <span data-notification-count={total} aria-hidden="true" className={`${styles.count} absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[#fffefa] bg-[#4679ee] px-0.5 text-[8px] font-semibold text-white`}>{total > 99 ? '99+' : total}</span>}
+  </Link>;
+}
+
+function LegacyHeaderNotifications({ className }: { className?: string }) {
   const { can, sessionKey, unitId } = useSession();
   const descriptionId = useId();
   const allowed = can('notifications.read');

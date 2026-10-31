@@ -44,20 +44,23 @@ Os endpoints nativos da equipe permanecem disponíveis sob `/api/v1`. As projeç
 
 | Operação | Endpoint |
 | --- | --- |
-| CSRF | `GET /api/v1/browser/auth/csrf` |
-| Login, renovação e logout | `POST /api/v1/browser/auth/login`, `/refresh`, `/logout` |
-| Identidade, capacidades e escopos efetivos | `GET /api/v1/browser/me` |
+| CSRF | `GET /api/v1/auth/csrf` |
+| Login, renovação e logout | `POST /api/v1/auth/login`, `/refresh`, `/logout` |
+| Identidade, permissões e escopos | `GET /api/v1/auth/me` |
 | Estrutura organizacional | `GET /api/v1/browser/organization` |
 | Trabalhadores, detalhe e histórico | `GET /api/v1/browser/workers`, `/{id}`, `/{id}/movements` |
 | Documentos e metadados | `GET /api/v1/browser/documents`, `/{id}`, `/{id}/versions`, `/{id}/versions/{versionId}`, `/{id}/history` |
 | Tipos documentais | `GET /api/v1/browser/document-types`, `/{id}` |
 | Recuperação e redefinição de senha | `POST /api/v1/auth/forgot-password`, `/reset-password` |
+| Usuários | `GET /api/v1/users`, `PATCH /api/v1/users/{id}`, `POST /api/v1/users/{id}/deactivate` |
+| Notificações pessoais | `GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read` |
+| Auditoria | `GET /api/v1/audit-logs` |
 
-`dev:integrated` seleciona explicitamente `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=adapter`, `VITE_API_BROWSER_PREFIX=/browser` e o proxy da API. Para iniciar o Vite manualmente com essa projeção, configure os mesmos valores e `VITE_API_BASE_URL=/api/v1`, `API_PROXY_TARGET=http://127.0.0.1:5047`. O prefixo não é aplicado a outros módulos nem à demonstração. A configuração `native`, sem prefixo browser, continua disponível para consumidores do contrato nativo.
+`dev:integrated` seleciona explicitamente `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=native`, `VITE_API_BROWSER_PREFIX=/browser` e o proxy da API. Para iniciar o Vite manualmente, configure os mesmos valores e `VITE_API_BASE_URL=/api/v1`, `API_PROXY_TARGET=http://127.0.0.1:5047`. A autenticação nativa e as projeções de leitura são escolhas independentes: o prefixo browser atua somente nas consultas de organização, trabalhadores, documentos e tipos documentais. Usuários, notificações e auditoria continuam nos endpoints nativos. Use o backend atualizado com os merges #31 e #32 (referência conferida: `41d31e9`). O comando não atualiza o checkout do backend automaticamente.
 
-O JWT fica em memória. O refresh usa cookie HttpOnly, SameSite Strict, caminho `/api/v1/browser/auth`, Secure obrigatório fora de Development. O antiforgery usa cookie protegido e token no header `X-CSRF-Token`, incluindo login, refresh e logout. Falha ao revogar logout não informa sucesso nem remove o cookie de nova tentativa.
+O JWT fica em memória. No contrato nativo, o refresh usa o cookie `sesmt_refresh`, HttpOnly, SameSite Strict, Secure, caminho `/api/v1/auth`. O cliente sincroniza CSRF e envia `X-CSRF-Token`; o refresh nativo compara o token com o cookie. HTTPS é necessário fora do loopback de desenvolvimento. Falha ao revogar logout não informa sucesso nem remove a possibilidade de nova tentativa.
 
-As capacidades de consulta `organization.read`, `workers.read` e `documents.read` vêm dos grants e escopos ativos no banco. ADMIN não recebe autorização operacional por inferência. Uma conta sem grants efetivos vê a orientação para solicitar acesso. MFA exigido ou vínculo de trabalhador ausente/ambíguo bloqueiam o acesso correspondente.
+O modo alternativo `VITE_AUTH_API_CONTRACT=adapter` com prefixo `/browser` conserva a sessão em `/browser/auth/*` e `/browser/me`, cujo catálogo atual contém apenas leituras de organização, trabalhadores e documentos. Para acessar os módulos nativos, utilize a configuração integrada acima. O frontend não concede acesso a partir do nome ADMIN, de claims decodificadas ou de um perfil fixo. MFA ainda depende de um desafio suportado pelo backend; não há uma etapa fictícia de verificação na interface.
 
 ### Permissões nativas e consulta de usuários
 
@@ -65,9 +68,13 @@ O frontend preserva as permissões recebidas e compara equivalências explícita
 
 O catálogo `PERMISSIONS`/`ROLES` descreve os valores nativos conhecidos para autocomplete e conferência de contrato. `isPermission` e `isRole` classificam esse catálogo; não devem filtrar a identidade nem recusar concessões futuras retornadas pela API. O controle das telas usa `can()`, que também reconhece as capacidades específicas do frontend e as equivalências documentadas acima.
 
-A capacidade `users.read` abre uma tela de consulta para `GET /api/v1/users`, consumindo diretamente a lista nativa `{ id, name, email, roles, scopeIds, active }`. Ela não exige unidade selecionada, não envia filtro de unidade que a rota não suporta e informa que o escopo da listagem é o da conta. Busca e paginação ocorrem sobre a resposta autorizada pela API. Essa tela não envia convites ou edições do contrato legado. A capacidade preexistente `users.manage` continua usando seu fluxo de gestão específico; `usuario:ler` não concede essa capacidade.
+A capacidade `users.read` abre `GET /api/v1/users`, consumindo diretamente a lista nativa `{ id, name, email, roles, scopeIds, active }`. Busca e paginação são locais sobre a lista autorizada, sem filtro fictício de unidade. `usuario:editar` habilita somente `PATCH /users/{id}` com `{ name, email }`; `usuario:excluir` habilita a confirmação de desativação por `POST /users/{id}/deactivate`, sem corpo. A própria conta não pode ser desativada na tela. Conflitos preservam o preenchimento; uma resposta incompatível bloqueia nova tentativa até atualizar a lista. A API continua responsável por conferir perfis e escopos. Cadastro, atribuição de perfis/escopos e convites não são enviados pelo contrato legado no modo nativo: falta uma fonte publicada de opções delegáveis para esses formulários. `usuario:ler` não concede `users.manage`.
 
-Para autenticação nativa, configure `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=native` e `VITE_API_BROWSER_PREFIX=` vazio, além da base e do proxy. Isso seleciona `/auth/me`; não adapta os DTOs dos demais módulos automaticamente. Reconhecer a permissão documental não converte a resposta nativa de documentos no DTO da projeção browser. Para documentos, trabalhadores e organização, use a projeção publicada acima ou conclua os adaptadores de dados antes de considerar a entrega integrada. A ausência de um destino reconhecido leva à conta conectada, sem encaminhar para Notificações sem permissão. A tela permite atualizar o acesso e conferir as permissões recebidas.
+`alerta:ler` habilita notificações pessoais: `GET /notifications` retorna `{ items }`, sem paginação ou filtros de unidade. Filtros de leitura e paginação da tela são locais. Marcar como lida usa POST, espera 204 e relê os avisos para atualizar também o sino; não inventa `readAt` nem resolve a pendência. O DTO não informa unidade/tipo de recurso suficiente para links genéricos, portanto a tela apresenta os identificadores nos detalhes sem inventar destinos. Uma recusa oculta conteúdo e contador até uma nova consulta autorizada.
+
+`auditoria:ler` habilita a tela nativa para `/audit-logs`, com `pageNumber`, `pageSize`, `action`, `resourceType`, `from` e `to`. A API também exige os perfis ADMIN ou AUDITOR. Não se envia `unitId`, nem se consulta um catálogo inexistente de ações. Datas dos filtros são dias UTC; horários visíveis são de Brasília. Respostas, páginas e correspondência dos filtros são verificadas antes de mostrar os registros. Identificadores nulos permanecem explicitamente não informados. Os detalhes mostram somente os campos públicos retornados, sem deduzir nomes de pessoas.
+
+Com `VITE_API_BROWSER_PREFIX=` vazio, documentos, trabalhadores e organização retornam os DTOs nativos, ainda diferentes dos dessas telas. Reconhecer uma permissão não converte o formato dos dados. Prefira a projeção publicada para essas consultas. A ausência de destino reconhecido leva à conta conectada, sem encaminhar para Notificações sem permissão.
 
 A projeção documental também aplica a política de acesso nativa, além dos escopos de empresa, unidade, setor e vínculo próprio. Dados restritos/médicos não são expostos por essa projeção. DTOs de leitura usam `sourceReadOnly: true` e `revision: null`; dados ausentes não são inventados. Escrita, upload, download, aprovação e módulos operacionais precisam de contratos próprios antes de serem habilitados na interface. A existência de endpoints nativos não significa que todos os fluxos da demonstração estejam integrados.
 

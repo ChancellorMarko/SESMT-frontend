@@ -17,7 +17,7 @@ export function integrationEnv() {
     ASPNETCORE_ENVIRONMENT: 'Development',
     ASPNETCORE_URLS: 'http://127.0.0.1:5047',
     VITE_API_MODE: 'api', VITE_API_BASE_URL: '/api/v1',
-    VITE_AUTH_API_CONTRACT: 'adapter',
+    VITE_AUTH_API_CONTRACT: 'native',
     VITE_API_BROWSER_PREFIX: '/browser',
     VITE_DEMO_URL: values.VITE_DEMO_URL ?? process.env.VITE_DEMO_URL ?? 'http://127.0.0.1:5173/login',
     VITE_ACCOUNT_INVITATIONS_ENABLED: 'false',

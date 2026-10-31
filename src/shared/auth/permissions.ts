@@ -135,15 +135,19 @@ export function isRole(value: string): value is Role {
 }
 
 /**
- * The API grants access; this module only names equivalent frontend read checks.
+ * The API grants access; this module only names explicitly integrated capabilities.
  * Native resources/actions come from the official backend's Permission entity and
  * seeder. No role, token claim, wildcard or naming heuristic grants a capability.
  * Writes/workflows need their own route, DTO and action contracts before mapping.
  */
-export const nativeReadRequirements: Readonly<Record<string, readonly string[]>> = {
+export const nativePermissionRequirements: Readonly<Record<string, readonly string[]>> = {
   'documents.read': [PERMISSIONS.documento.ler],
   'workers.read': [PERMISSIONS.trabalhador.ler],
   'users.read': [PERMISSIONS.usuario.ler],
+  'users.edit': [PERMISSIONS.usuario.editar],
+  'users.deactivate': [PERMISSIONS.usuario.excluir],
+  'notifications.read': [PERMISSIONS.alerta.ler],
+  'audit.read': [PERMISSIONS.auditoria.ler],
   // This screen combines four resources; one resource must not unlock the rest.
   'organization.read': [PERMISSIONS.empresa.ler, PERMISSIONS.unidade.ler, PERMISSIONS.setor.ler, PERMISSIONS.cargo.ler],
 };
@@ -151,6 +155,6 @@ export const nativeReadRequirements: Readonly<Record<string, readonly string[]>>
 export function hasPermission(granted: readonly string[], permission: string): boolean {
   if (!permission || !Array.isArray(granted)) return false;
   if (granted.includes(permission)) return true;
-  const requirements = Object.hasOwn(nativeReadRequirements, permission) ? nativeReadRequirements[permission] : undefined;
+  const requirements = Object.hasOwn(nativePermissionRequirements, permission) ? nativePermissionRequirements[permission] : undefined;
   return !!requirements?.length && requirements.every(required => granted.includes(required));
 }

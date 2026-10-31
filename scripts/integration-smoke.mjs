@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { integrationEnv } from './integration-config.mjs';
 
 // Runs against the actual Vite proxy and API. No MSW or replacement repositories.
-const base = 'http://127.0.0.1:5175/api/v1/browser';
+const base = 'http://127.0.0.1:5175/api/v1';
 const cookies = new Map();
 let csrf = '';
 let accessToken = '';
 let requests = 0;
 async function request(method, path, body, withCsrf = true) {
   const headers = { Accept: 'application/json' };
-  const cookieHeader = [...cookies].filter(([, cookie]) => (`/api/v1/browser${path}`).startsWith(cookie.path)).map(([name, cookie]) => `${name}=${cookie.value}`).join('; ');
+  const cookieHeader = [...cookies].filter(([, cookie]) => (`/api/v1${path}`).startsWith(cookie.path)).map(([name, cookie]) => `${name}=${cookie.value}`).join('; ');
   if (cookieHeader) headers.Cookie = cookieHeader;
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (withCsrf && csrf && method !== 'GET') headers['X-CSRF-Token'] = csrf;
@@ -32,9 +32,6 @@ async function main() {
   const token = await request('GET', '/auth/csrf');
   assert.equal(token.response.status, 200, 'A API deve emitir CSRF pelo proxy Vite.');
   assert.equal(typeof token.data.csrfToken, 'string'); csrf = token.data.csrfToken;
-  const denied = await request('POST', '/auth/login', { email: env.Seed__AdminEmail, password: env.Seed__AdminPassword }, false);
-  assert.equal(denied.response.status, 403, 'Login sem CSRF deve ser recusado.');
-  assert.equal(denied.data.code, 'CSRF_INVALID');
   const login = await request('POST', '/auth/login', { email: env.Seed__AdminEmail, password: env.Seed__AdminPassword });
   assert.equal(login.response.status, 200, 'Login local deve funcionar com as credenciais de .env.integration.local.');
   if (login.data.tokenType !== undefined) assert.equal(login.data.tokenType, 'Bearer');
@@ -44,16 +41,28 @@ async function main() {
   assert.ok(!('refreshTokenExpiresAtUtc' in login.data), 'Metadados do refresh não podem ser expostos no JSON.');
   const refreshCookie = login.response.headers.getSetCookie().find(cookie => /^(ampara\.refresh|sesmt_refresh)=/.test(cookie));
   assert.ok(refreshCookie && /httponly/i.test(refreshCookie) && /samesite=strict/i.test(refreshCookie)
-    && /(?:^|;)\s*path=\/api\/v1\/browser\/auth\/?(?:;|$)/i.test(refreshCookie), 'Cookie de refresh precisa cobrir refresh e logout em /api/v1/browser/auth.');
+    && /(?:^|;)\s*path=\/api\/v1\/auth\/?(?:;|$)/i.test(refreshCookie), 'Cookie de refresh precisa cobrir refresh e logout em /api/v1/auth.');
   accessToken = login.data.accessToken;
   const authenticatedCsrf = await request('GET', '/auth/csrf');
   assert.equal(authenticatedCsrf.response.status, 200, 'CSRF deve ser ressincronizado após o login.');
   assert.equal(typeof authenticatedCsrf.data.csrfToken, 'string'); csrf = authenticatedCsrf.data.csrfToken;
-  const me = await request('GET', '/me');
+  const me = await request('GET', '/auth/me');
   assert.equal(me.response.status, 200, 'Identidade deve ser obtida usando JWT real.');
   assert.equal(me.data.user.email, env.Seed__AdminEmail.trim().toLowerCase());
   assert.ok(me.data.roles.includes('ADMIN'), 'O administrador inicial deve ter o perfil real ADMIN.');
   assert.ok(Array.isArray(me.data.permissions) && Array.isArray(me.data.scope.unitIds), 'Contrato MeDto inválido.');
+  assert.ok(me.data.permissions.includes('usuario:ler'), 'Atualize o backend: a identidade deve expor as permissões nativas do administrador.');
+  const users = await request('GET', '/users');
+  assert.equal(users.response.status, 200, 'Consulta nativa de usuários indisponível.');
+  assert.ok(Array.isArray(users.data), 'O contrato nativo de usuários deve ser uma lista.');
+  const notifications = await request('GET', '/notifications');
+  assert.equal(notifications.response.status, 200);
+  assert.ok(Array.isArray(notifications.data.items), 'O contrato de notificações deve conter items.');
+  const organization = await request('GET', '/browser/organization');
+  assert.equal(organization.response.status, 200, 'O JWT nativo precisa acessar a projeção de leitura da mesma API.');
+  assert.ok(Array.isArray(organization.data.companies) && Array.isArray(organization.data.units), 'Contrato de organização inválido.');
+  const deniedRefresh = await request('POST', '/auth/refresh', undefined, false);
+  assert.equal(deniedRefresh.response.status, 403, 'Refresh sem CSRF deve ser recusado.');
   const renewed = await request('POST', '/auth/refresh');
   assert.equal(renewed.response.status, 200, 'Refresh deve usar cookie e CSRF, sem body.');
   accessToken = renewed.data.accessToken;

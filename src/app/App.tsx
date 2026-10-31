@@ -8,6 +8,7 @@ import { AppErrorBoundary } from './AppErrorBoundary';
 import { homePath } from './navigation';
 import { RoutePresentation } from './navigation/RoutePresentation';
 import { API_MODE } from '../shared/api/client';
+import { NATIVE_MODULES } from '../shared/api/native-mode';
 
 const DocumentsPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentsPage})));
 const ExpirationsPage=lazy(()=>import('../features/documents/ExpirationsPage').then(m=>({default:m.ExpirationsPage})));
@@ -24,6 +25,8 @@ const NotificationsPage=lazy(()=>import('../features/notifications').then(m=>({d
 const AuditPage=lazy(()=>import('../features/audit').then(m=>({default:m.AuditPage})));
 const UsersPage=lazy(()=>import('../features/administration').then(m=>({default:m.UsersPage})));
 const NativeUsersPage=lazy(()=>import('../features/administration/NativeUsersPage').then(m=>({default:m.NativeUsersPage})));
+const NativeNotificationsPage=lazy(()=>import('../features/notifications/NativeNotificationsPage').then(m=>({default:m.NativeNotificationsPage})));
+const NativeAuditPage=lazy(()=>import('../features/audit/NativeAuditPage').then(m=>({default:m.NativeAuditPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
@@ -63,7 +66,7 @@ export function Guard({ permission,children }: { permission?: string; children:R
 }
 function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can)}/>; }
 function Connection() { const s=useSession(); const target=homePath(s.can); return API_MODE === 'demo' && target !== '/app/conexao' ? <Navigate replace to={target}/> : <ConnectedAccountPage/>; }
-function UserWorkspace() { const s=useSession(); return s.can('users.manage') ? <Guard permission="users.manage"><UsersPage/></Guard> : <Guard permission="users.read"><NativeUsersPage/></Guard>; }
+function UserWorkspace() { const s=useSession(); return !NATIVE_MODULES && s.can('users.manage') ? <Guard permission="users.manage"><UsersPage/></Guard> : <Guard permission="users.read"><NativeUsersPage/></Guard>; }
 export function App() {
   const location = useLocation(); const session = useSession();
   return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><RoutePresentation contextKey={`${session.sessionKey}:${session.unitId}`} /><Routes>
@@ -115,8 +118,8 @@ export function App() {
       <Route path="trabalhadores/:id/editar" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id/movimentacoes/nova" element={<Guard permission="workers.write"><WorkerMovementPage/></Guard>}/>
       <Route path="organizacao" element={<Guard permission="organization.read"><OrganizationPage/></Guard>}/>
-      <Route path="notificacoes" element={<Guard permission="notifications.read"><NotificationsPage/></Guard>}/>
-      <Route path="auditoria" element={<Guard permission="audit.read"><AuditPage/></Guard>}/>
+      <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>
+      <Route path="auditoria" element={<Guard permission="audit.read">{NATIVE_MODULES ? <NativeAuditPage/> : <AuditPage/>}</Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>
       <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
       <Route path="configuracoes/parametros" element={<Guard><ParametersPage/></Guard>}/>

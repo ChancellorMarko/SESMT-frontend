@@ -110,16 +110,41 @@ async function nativeGrants(page: Page, grants: string[], rawDocument = false, s
   const userId = '10000000-0000-4000-8000-000000000003';
   const document = { id: '10000000-0000-4000-8000-000000000004', companyId, unitId, sectorId: null, code: 'DOC-API-01', title: 'Documento retornado pela API de teste', typeId: '10000000-0000-4000-8000-000000000005', ownerId: userId, accessClass: 'INTERNAL', issueDate: '2026-10-31', status: 'DRAFT', currentVersionId: null, activeVersionId: null, activeVersionIds: [], workerIds: [], responsibleIds: [], keywords: [], availableActions: [], revision: null, sourceReadOnly: true };
   let signedIn = false;
-  const state = { grants, usersDenied: false, unexpected: [] as string[] };
+  const state = {
+    grants, usersDenied: false, auditDenied: false, noticesDenied: false, markDenied: false, patchConflict: false, unexpected: [] as string[],
+    commands: [] as { method: string; path: string; body: unknown }[], queries: [] as string[],
+    users: [{ id: userId, name: 'Pessoa do cadastro nativo', email: 'person@example.invalid', roles: ['PERFIL_NOVO'], scopeIds: [companyId], active: true }],
+    notices: [{ id: '10000000-0000-4000-8000-000000000006', type: 'PT_AGUARDANDO_REVISAO', resourceId: document.id, text: 'Verificar encerramento da atividade', createdAt: '2026-10-31T12:00:00Z', readAt: null as string | null }],
+    audit: [{ id: '10000000-0000-4000-8000-000000000007', atorId: userId, declaranteId: null, empresaId: companyId, acao: 'UPDATE', recursoTipo: 'documento', recursoId: document.id, versao: 1, momento: '2026-10-31T12:00:00Z', resultado: 'SUCCESS', traceId: 'trace-native-fixture' }],
+  };
   await page.route('**/api/v1/**', async route => {
-    const url = new URL(route.request().url()), path = url.pathname;
+    const url = new URL(route.request().url()), path = url.pathname.replace('/api/v1/browser/', '/api/v1/');
+    const method = route.request().method();
+    state.queries.push(`${method} ${url.pathname}${url.search}`);
     const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
     const session = { accessToken: 'native-grants-test', tokenType: 'Bearer', accessExpiresAt: '2099-01-01T00:00:00Z' };
     if (path === '/api/v1/auth/csrf') return json({ csrfToken: 'native-grants-csrf' });
     if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
     if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', message: 'Entre novamente.', requestId: 'test' }, 401);
     if (path === '/api/v1/auth/me') return json({ user: { id: userId, displayName: 'Perfil criado no backend', email: 'native@example.invalid' }, roles: ['PERFIL_NOVO'], permissions: state.grants, scope: { companyIds: [companyId], unitIds: scopeUnits ?? [unitId], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
-    if (path === '/api/v1/users') return state.usersDenied ? json({ code: 'FORBIDDEN', message: 'Detalhe do servidor', requestId: 'test' }, 403) : json([{ id: userId, name: 'Pessoa do cadastro nativo', email: 'person@example.invalid', roles: ['PERFIL_NOVO'], scopeIds: [companyId], active: true }]);
+    if (path === '/api/v1/users') return state.usersDenied ? json({ code: 'FORBIDDEN', message: 'Detalhe do servidor', requestId: 'test' }, 403) : json(state.users);
+    if (path.startsWith('/api/v1/users/') && method !== 'GET') {
+      const target = state.users.find(user => path === `/api/v1/users/${user.id}` || path === `/api/v1/users/${user.id}/deactivate`);
+      state.commands.push({ method, path, body: route.request().postDataJSON() });
+      if (!target) return json({ code: 'NOT_FOUND' }, 404);
+      if (method === 'PATCH') {
+        if (state.patchConflict) return json({ code: 'DUPLICATE_EMAIL', message: 'privado', requestId: 'test' }, 409);
+        Object.assign(target, route.request().postDataJSON()); return json(target);
+      }
+      if (method === 'POST' && path.endsWith('/deactivate')) { target.active = false; return route.fulfill({ status: 204 }); }
+    }
+    if (path === '/api/v1/notifications' && method === 'GET') return state.noticesDenied ? json({ code: 'FORBIDDEN', message: 'privado', requestId: 'test' }, 403) : json({ items: state.notices });
+    if (path === `/api/v1/notifications/${state.notices[0].id}/read` && method === 'POST') {
+      state.commands.push({ method, path, body: route.request().postDataJSON() });
+      if (state.markDenied) return json({ code: 'FORBIDDEN', message: 'privado', requestId: 'test' }, 403);
+      state.notices[0].readAt = '2026-10-31T13:00:00Z'; return route.fulfill({ status: 204 });
+    }
+    if (path === '/api/v1/audit-logs') return state.auditDenied ? json({ code: 'FORBIDDEN', message: 'privado', requestId: 'test' }, 403) : json({ items: state.audit.filter(item => !url.searchParams.get('action') || item.acao === url.searchParams.get('action')), total: url.searchParams.get('action') === 'CREATE' ? 0 : 1, page: Number(url.searchParams.get('pageNumber')), pageSize: Number(url.searchParams.get('pageSize')) });
     if (path === '/api/v1/document-types') return json({ items: [], total: 0, page: 1, pageSize: 20 });
     if (path === '/api/v1/documents') return json({ items: [rawDocument ? { id: document.id, documentTypeId: document.typeId, companyId, unitId, title: document.title, secrecyLevel: 'INTERNO', status: 'RASCUNHO' } : document], page: Number(url.searchParams.get('page')), pageSize: Number(url.searchParams.get('pageSize')), total: 1 });
     state.unexpected.push(path);
@@ -135,6 +160,8 @@ test('permissão documento:ler de um perfil novo abre a leitura compatível e a 
   const state = await nativeGrants(page, ['documento:ler']);
   await expect(page).toHaveURL(/\/app\/documentos/);
   await expect(page.getByRole('link', { name: 'Documento retornado pela API de teste', exact: true })).toBeVisible();
+  expect(observed.paths).toContain('GET /api/v1/browser/documents');
+  expect(observed.paths).not.toContain('POST /api/v1/browser/auth/login');
   await expect(page.getByRole('link', { name: 'Novo documento', exact: true })).toHaveCount(0);
   state.grants = [];
   await page.reload();
@@ -183,6 +210,83 @@ test('usuario:ler abre a lista nativa sem exigir unidade, editar contas ou ignor
   await expect(page.getByRole('alert')).toContainText('A API não autorizou');
   await expect(page.getByRole('cell', { name: /Pessoa do cadastro nativo/ })).toHaveCount(0);
   expect(observed.paths.filter(path => /POST.*\/(users|roles)/.test(path))).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+  expect(observed.errors).toEqual([]);
+});
+
+test('notificações nativas usam POST sem corpo e sincronizam a leitura com o sino', async ({ page }, testInfo) => {
+  const observed = observe(page);
+  await page.setViewportSize({ width: 320, height: 900 });
+  const state = await nativeGrants(page, ['alerta:ler'], false, []);
+  await expect(page).toHaveURL(/\/app\/notificacoes$/);
+  await expect(page.getByRole('button', { name: 'Marcar como lida', exact: true })).toBeVisible();
+  await expect(page.locator('[data-notification-count="1"]')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Leitura', exact: true }).selectOption('false');
+  await page.getByRole('button', { name: 'Marcar como lida', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Nenhuma notificação', exact: true })).toBeVisible();
+  await expect(page.locator('[data-notification-count]')).toHaveCount(0);
+  expect(state.commands).toEqual([{ method: 'POST', path: `/api/v1/notifications/${state.notices[0].id}/read`, body: null }]);
+  expect(state.queries.filter(query => query.startsWith('GET /api/v1/notifications'))).not.toEqual([]);
+  expect(state.queries.filter(query => /notifications\?/.test(query))).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('notificacoes-mobile.png'), fullPage: true });
+  expect(state.unexpected).toEqual([]);
+  expect(observed.errors).toEqual([]);
+});
+
+test('recusa ao marcar aviso oculta conteúdo e contador até uma nova leitura autorizada', async ({ page }) => {
+  const state = await nativeGrants(page, ['alerta:ler']);
+  await expect(page.getByText(state.notices[0].text, { exact: true })).toBeVisible();
+  state.markDenied = true;
+  await page.getByRole('button', { name: 'Marcar como lida', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Não foi possível autorizar');
+  await expect(page.getByText(state.notices[0].text, { exact: true })).toHaveCount(0);
+  await expect(page.locator('[data-notification-count]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Atualizar notificações', exact: true }).click();
+  await expect(page.getByText(state.notices[0].text, { exact: true })).toBeVisible();
+  await expect(page.locator('[data-notification-count="1"]')).toBeVisible();
+});
+
+test('auditoria nativa consulta paginação e filtros reais, confere detalhes e oculta registros recusados', async ({ page }, testInfo) => {
+  const observed = observe(page);
+  const state = await nativeGrants(page, ['auditoria:ler'], false, []);
+  await expect(page).toHaveURL(/\/app\/auditoria$/);
+  await page.getByRole('button', { name: `Ver evento ${state.audit[0].id}`, exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('trace-native-fixture');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: `Ver evento ${state.audit[0].id}`, exact: true })).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath('auditoria-desktop.png'), fullPage: true });
+  await page.getByLabel('Ação', { exact: true }).fill('create');
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Nenhum evento encontrado', exact: true })).toBeVisible();
+  expect(state.queries.some(query => query.includes('pageNumber=1') && query.includes('pageSize=20') && query.includes('action=CREATE'))).toBe(true);
+  expect(state.queries.filter(query => query.includes('audit-logs') && /unitId=|\/actions/.test(query))).toEqual([]);
+  state.auditDenied = true;
+  await page.getByRole('button', { name: 'Limpar', exact: true }).click();
+  await page.getByRole('button', { name: 'Atualizar auditoria', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('A API não autorizou');
+  await expect(page.getByRole('button', { name: /Ver evento/ })).toHaveCount(0);
+  expect(state.unexpected).toEqual([]);
+  expect(observed.errors).toEqual([]);
+});
+
+test('usuários nativos salvam os dados publicados, preservam conflito e impedem desativação própria', async ({ page }) => {
+  const observed = observe(page);
+  const state = await nativeGrants(page, ['usuario:ler', 'usuario:editar', 'usuario:excluir'], false, []);
+  await expect(page.getByRole('button', { name: 'Editar Pessoa do cadastro nativo', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Desativar Pessoa do cadastro nativo', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Editar Pessoa do cadastro nativo', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Nome editado');
+  state.patchConflict = true;
+  await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Este e-mail já está em uso');
+  await expect(page.getByRole('textbox', { name: 'Nome', exact: true })).toHaveValue('Nome editado');
+  state.patchConflict = false;
+  await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: 'Nome editado person@example.invalid', exact: true })).toBeVisible();
+  expect(state.commands).toHaveLength(2);
+  expect(state.commands.every(command => command.method === 'PATCH' && JSON.stringify(command.body) === JSON.stringify({ name: 'Nome editado', email: 'person@example.invalid' }))).toBe(true);
   expect(state.unexpected).toEqual([]);
   expect(observed.errors).toEqual([]);
 });

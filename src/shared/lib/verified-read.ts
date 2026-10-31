@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { ApiError } from '../api/client';
 import { ScopedPageError } from './scoped-page';
 
@@ -8,6 +8,12 @@ export class InvalidReadResponse extends Error {
 }
 export const readIdentifier = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 200 && /^[A-Za-z0-9_-]+$/.test(value);
 type Denial = { error: unknown; proofs: Record<string, number> };
+
+/** A denied command invalidates the same read scope, including header counters. */
+export function denyVerifiedRead(client: QueryClient, scope: QueryKey, error: unknown) {
+  const proofs = Object.fromEntries(client.getQueryCache().findAll({ queryKey: scope }).map(entry => [entry.queryHash, client.getQueryData(['verified-read-proof', ...entry.queryKey]) ?? 0]));
+  client.setQueryData(['verified-read-denial', ...scope], { error, proofs });
+}
 
 /** Validate both fresh responses and cache entries; paging cannot bypass a denied read. */
 export function useVerifiedRead<T>({ queryKey, scope = queryKey, enabled, request, validate, poll }: {
@@ -36,8 +42,7 @@ export function useVerifiedRead<T>({ queryKey, scope = queryKey, enabled, reques
   const denied = error instanceof InvalidReadResponse || error instanceof ScopedPageError || error instanceof ApiError && [401, 403, 404].includes(error.status);
   useEffect(() => {
     if (!enabled || !denied) return;
-    const proofs = Object.fromEntries(client.getQueryCache().findAll({ queryKey: scope }).map(entry => [entry.queryHash, client.getQueryData(['verified-read-proof', ...entry.queryKey]) ?? 0]));
-    client.setQueryData(denialKey, { error, proofs });
+    denyVerifiedRead(client, scope, error);
   }, [client, key, scopeKey, enabled, denied, error]);
   const current = client.getQueryCache().find({ queryKey, exact: true });
   const fresh = enabled && denial.data && !error && current?.state.status === 'success' && current.state.fetchStatus === 'idle'

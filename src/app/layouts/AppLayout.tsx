@@ -5,6 +5,7 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
+import { roleLabels } from '../../shared/auth/role-labels';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { Button, Modal, Spinner } from '../../shared/ui';
 import { MotionPreferencesContent, useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -267,7 +268,7 @@ export function AppLayout() {
 
   const org = useQuery({ queryKey: ['shell-organization', s.sessionKey], queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal }), enabled: s.can('organization.read') });
   const initials = s.me?.user.displayName.split(' ').slice(0, 2).map(v => v[0]).join('');
-  const role = s.me?.roles.includes('AUDITOR') ? 'Auditoria' : s.me?.roles.includes('HR') ? 'Recursos Humanos' : s.me?.roles.includes('WORKER') ? 'Meu acesso' : s.me?.roles.includes('ADMIN') ? 'Administração' : s.me?.roles.includes('TECHNICIAN') ? 'Técnico de segurança' : s.me?.roles.includes('FIREFIGHTER') ? 'Bombeiro' : 'Engenheiro / SESMT';
+  const role = roleLabels(s.me?.roles ?? []);
   const activeArea = areaName ? dashboardArea : null;
   const visibleDockItems = dockItems.filter(item => item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   const shortcuts = nav.filter(item => ['agenda', 'documentos', 'equipes'].includes(item.to) && canNavigate(item));
