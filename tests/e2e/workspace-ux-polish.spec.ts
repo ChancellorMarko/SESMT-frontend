@@ -77,7 +77,7 @@ test('EPIs mantém indicadores compactos e permite desfazer o acompanhamento sem
   const detail = row.getByRole('button', { name: 'Ver conferência: Capacetes', exact: true });
   await detail.click();
   const dialog = page.getByRole('dialog', { name: 'Conferência de capacetes', exact: true });
-  await dialog.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Acompanhar', exact: true }).click();
   await dialog.getByRole('button', { name: 'Fechar', exact: true }).click();
   await expect(row.getByText('3 a conferir', { exact: true })).toBeVisible();
   await expect(row.getByText('Em acompanhamento', { exact: true })).toBeVisible();

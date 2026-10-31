@@ -41,10 +41,10 @@ describe('HealthDashboard', () => {
     expect(screen.getByRole('heading', { name: 'Janelas de renovação' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fila de conferência documental' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Matriz de evidências por equipe' })).not.toBeInTheDocument();
-    expect(screen.getByText('Cenário demonstrativo · dados sintéticos')).toBeInTheDocument();
+    expect(screen.queryByText('Cenário demonstrativo · dados sintéticos')).not.toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     expect(screen.getByRole('heading', { name: 'Capacitações por equipe' })).toBeInTheDocument();
-    expect(screen.getByRole('table')).toHaveAccessibleName(/Equipes fictícias/);
+    expect(screen.getByRole('table')).toHaveAccessibleName(/Arquivos disponíveis e posições previstas por equipe/);
     expect(screen.getByRole('columnheader', { name: 'Trabalho em altura' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Espaço confinado' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Eletricidade' })).toBeInTheDocument();
@@ -86,24 +86,24 @@ describe('HealthDashboard', () => {
     await user.click(opener);
     const dialog = screen.getByRole('dialog', { name: 'Conferir identificação do documento' });
     expect(dialog).toHaveFocus();
-    expect(within(dialog).getByText('Produção · equipe fictícia')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Acompanhar exemplo' }));
-    expect(within(dialog).getByRole('status')).toHaveTextContent('Em acompanhamento local');
+    expect(within(dialog).getByText('Produção')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Acompanhar' }));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Em acompanhamento');
     expect(within(dialog).getByText('A conferir')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Fechar detalhe' }));
     expect(opener).toHaveFocus();
-    expect(screen.getByText('1 exemplo em acompanhamento')).toBeInTheDocument();
+    expect(screen.getByText('1 em acompanhamento')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
     await user.click(screen.getByRole('button', { name: 'Ver detalhe: Planejar orientação da manutenção' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acompanhar exemplo' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acompanhar' }));
     await user.keyboard('{Escape}');
-    expect(screen.getByText('2 exemplos em acompanhamento')).toBeInTheDocument();
+    expect(screen.getByText('2 em acompanhamento')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Saúde ocupacional · atestados de saúde ocupacional (ASO)' }));
     await user.click(opener);
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Retirar acompanhamento' }));
-    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('ainda não está');
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('Acompanhamento pendente.');
     await user.keyboard('{Escape}');
-    expect(screen.getByText('1 exemplo em acompanhamento')).toBeInTheDocument();
+    expect(screen.getByText('1 em acompanhamento')).toBeInTheDocument();
   });
 
   it('restringe consultas pelas permissões e usa filtros suportados pelas páginas existentes', async () => {
@@ -121,18 +121,18 @@ describe('HealthDashboard', () => {
 
   it('não apresenta indicadores sintéticos, filas ou ações locais no modo API', async () => {
     mode.value = 'api'; const user = userEvent.setup(); show('/app/dashboard?area=saude', ['eligibility.read']);
-    expect(screen.getByRole('heading', { name: 'Integração de ASOs ainda não conectada' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sem dados de ASOs' })).toBeInTheDocument();
     expect(screen.queryByText(/dados sintéticos/)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'ASOs a renovar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Ver detalhe/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Buscar documentos de ASO' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Conferir requisitos documentais' })).toHaveAttribute('href', '/app/pendencias');
     await user.click(screen.getByRole('tab', { name: 'Capacitações e normas regulamentadoras (NR)' }));
-    expect(screen.getByRole('heading', { name: 'Integração de capacitações ainda não conectada' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sem dados de capacitações' })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Capacitações por equipe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Comprovantes disponíveis' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Acompanhar exemplo|Ver detalhe/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Acompanhar|Ver detalhe/ })).not.toBeInTheDocument();
   });
 });
 

@@ -73,19 +73,47 @@ test('a abertura libera o mesmo formulário para preenchimento e navegação por
   verify();
 });
 
-test('o volume da marca e o botão apresentam movimento real no modo completo', async ({ page }, testInfo) => {
+test('o login apresenta texto breve, fundo decorativo e acesso discreto à demonstração', async ({ page }, testInfo) => {
   const verify = observeErrors(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/login');
   await waitForLogin(page);
-  const artwork = page.locator('[data-auth-artwork]');
-  const rest = await artwork.evaluate(element => getComputedStyle(element).transform);
-  await expect.poll(() => artwork.evaluate(element => getComputedStyle(element).transform)).not.toBe(rest);
+  await expect(page.locator('[data-auth-artwork]')).toHaveCount(0);
+  await expect(page.locator('[data-login-background]')).toBeVisible();
+  await expect(page.locator('[data-login-background]')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.getByRole('heading', { name: 'A rotina de SST, mais organizada.', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Ampara SESMT', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Ver demonstrações', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('heading', { name: 'Escolha um perfil', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Engenheiro', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Explore com dados fictícios.', { exact: false })).toHaveCount(0);
   const action = page.getByRole('button', { name: 'Entrar na plataforma', exact: true });
-  const restingButton = await action.evaluate(element => getComputedStyle(element).transform);
+  await expect.poll(() => action.evaluate(element => {
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      if (node.getAnimations().some(animation => animation.playState === 'running' && animation.effect?.getComputedTiming().iterations !== Infinity)) return false;
+    }
+    return true;
+  })).toBe(true);
+  const restingButton = await action.evaluate(element => ({ color: getComputedStyle(element).backgroundColor, y: element.getBoundingClientRect().y }));
   await action.hover();
-  await expect.poll(() => action.evaluate(element => getComputedStyle(element).transform)).not.toBe(restingButton);
+  await expect.poll(() => action.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(restingButton.color);
+  const frames = await action.evaluate(async element => {
+    const samples: { y: number; hovered: boolean; image: string; opacity: string }[] = [];
+    const started = performance.now();
+    await new Promise<void>(resolve => {
+      function sample() {
+        const style = getComputedStyle(element);
+        samples.push({ y: element.getBoundingClientRect().y, hovered: element.matches(':hover'), image: style.backgroundImage, opacity: style.opacity });
+        if (performance.now() - started >= 600) resolve(); else requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+    return samples;
+  });
+  expect(frames.every(frame => frame.hovered && frame.opacity === '1')).toBe(true);
+  expect(frames.every(frame => Math.abs(frame.y - restingButton.y) < .1)).toBe(true);
+  expect(new Set(frames.map(frame => frame.image)).size).toBe(1);
   await page.mouse.move(0, 0);
   await expectNoOverflow(page);
   await page.screenshot({ path: testInfo.outputPath('login-desktop.png'), fullPage: true, animations: 'disabled' });
@@ -143,6 +171,13 @@ test('movimento reduzido libera o login sem espera e preserva o preenchimento em
   await expect(email).toBeFocused();
   expect(await email.evaluate(element => element === (window as unknown as { __reducedLoginEmail: Element }).__reducedLoginEmail)).toBe(true);
   await expect(page.getByTestId('login-preloader')).toHaveCount(0);
+  const demo = page.getByRole('button', { name: 'Ver demonstrações', exact: true });
+  await expect(demo).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Engenheiro', exact: true })).toHaveCount(0);
+  await demo.focus();
+  await page.keyboard.press('Enter');
+  await expect(demo).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('heading', { name: 'Escolha um perfil', exact: true })).toBeVisible();
   for (const role of ['Técnico de segurança', 'Bombeiro', 'Engenheiro', 'Gestor SESMT', 'RH', 'Auditor', 'Administrador', 'Trabalhador']) {
     const control = page.getByRole('button', { name: role, exact: true });
     await expect(control).toBeVisible();
@@ -151,6 +186,10 @@ test('movimento reduzido libera o login sem espera e preserva o preenchimento em
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(321);
   }
+  await demo.click();
+  await expect(demo).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Engenheiro', exact: true })).toHaveCount(0);
+  await expect(email).toHaveValue('rascunho@empresa.com');
   await expectNoOverflow(page);
   verify();
 });
@@ -165,7 +204,7 @@ test('recuperação e redefinição continuam operáveis sem a introdução do l
   await email.fill('gestor@demo.sesmt.local');
   await page.getByRole('button', { name: 'Solicitar recuperação', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Se houver uma conta');
-  await page.getByRole('link', { name: 'Experimentar redefinição', exact: true }).click();
+  await page.getByRole('link', { name: 'Já tenho o código', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Definir nova senha', exact: true })).toBeVisible();
   await expect(page.getByTestId('login-preloader')).toHaveCount(0);
   await page.getByLabel('Nova senha', { exact: true }).fill('NovaSenha123!');
@@ -174,6 +213,7 @@ test('recuperação e redefinição continuam operáveis sem a introdução do l
   await expect(page.getByRole('status')).toContainText('Senha redefinida');
   await page.getByRole('link', { name: 'Voltar ao login', exact: true }).click();
   await waitForLogin(page);
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Engenheiro', exact: true })).toBeEnabled();
   verify();
 });

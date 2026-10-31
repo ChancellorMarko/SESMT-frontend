@@ -472,7 +472,6 @@ export function PermitDetailPage() {
       <div className={styles.contextHeader}><PermitStatus operationStatus={permit.operationStatus} reviewStatus={permit.reviewStatus} /><Badge tone={currentScienceCount === permit.appointment.participants.length ? 'success' : 'warning'}>Ciências {currentScienceCount}/{permit.appointment.participants.length}</Badge></div>
       <dl className={styles.contextGrid}><div><dt>Local</dt><dd>{permit.appointment.location}</dd></div><div><dt>Equipe</dt><dd>{permit.appointment.teamName}</dd></div><div><dt>Responsável operacional</dt><dd>{permit.appointment.responsibleName}</dd></div><div><dt>Período agendado</dt><dd>{formatDate(permit.appointment.startsAt)} até {formatDate(permit.appointment.endsAt)}</dd></div><div><dt>Modelo utilizado</dt><dd>{permit.templateVersion}</dd></div><div><dt>Agendamento de origem</dt><dd>{can('appointments.read') ? <Link to={`/app/agenda/${encodeURIComponent(permit.appointment.id)}`} state={appointmentState}>{permit.appointment.code}</Link> : permit.appointment.code}</dd></div></dl>
       <ServiceTemplates templates={permit.serviceTemplates} />
-      <Feedback tone="warning">Modelo escolar ilustrativo. Os requisitos, o checklist e as designações desta demonstração precisam ser substituídos pelos procedimentos aprovados do SESMT antes do uso real.</Feedback>
     </section>
     <PermitOrientation key={`${permit.id}:${permit.version}`} guidance={guidance} sections={sections} initialHash={formBase?.id === permit.id ? location.hash : ''} />
     {permit.reviewStatus === 'RETURNED' && <Feedback tone="warning">A revisão foi devolvida: {permit.reviewComment || 'Consulte o motivo no histórico.'} A atividade continua concluída. Uma correção cria uma nova versão documental, sem iniciar novamente a execução.</Feedback>}
@@ -481,7 +480,7 @@ export function PermitDetailPage() {
     <div id="preparacao">{preparation ? <PermitPreparation key={`${permit.id}:${permit.version}`} value={preparation} editable={has('EDIT_PREPARATION')} pending={writePending || staleForm} dirty={preparationDirty} onChange={value => { setPreparation(value); setNotice(''); }} onSubmit={savePreparation} /> : <section className="panel stack" aria-label="Preparação do modelo PT"><h2>Preparação da PT</h2><Feedback tone="info">Exemplo anterior à digitalização do modelo: esta PT não contém preparação estruturada da planilha recebida.</Feedback></section>}</div>
 
     <section id="conferencia" className="panel stack" aria-labelledby="checklist-title">
-      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ClipboardCheck size={20} aria-hidden="true" /></span><h2 id="checklist-title">Conferência do atendimento</h2><p className="muted">Checklist ilustrativo · {permit.templateVersion}</p></div>{!canEdit && <Badge><LockKeyhole size={12} aria-hidden="true" /> Conteúdo preservado</Badge>}</div>
+      <div className={styles.sectionHeader}><div><span className={styles.sectionIcon}><ClipboardCheck size={20} aria-hidden="true" /></span><h2 id="checklist-title">Conferência do atendimento</h2><p className="muted">Checklist · {permit.templateVersion}</p></div>{!canEdit && <Badge><LockKeyhole size={12} aria-hidden="true" /> Conteúdo preservado</Badge>}</div>
       <PermitChecklist key={`${permit.id}:${permit.version}`} items={checklist} editable={canEdit} pending={writePending} dirty={checklistDirty} stale={staleForm} onChange={editItem} onSubmit={saveChecklist} />
     </section>
 
@@ -547,9 +546,9 @@ export function PermitDetailPage() {
         <div className="panel stack" style={{ background: 'var(--color-bg-subtle, #f8fafc)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1rem' }}>{API_MODE === 'demo' ? 'PDF demonstrativo da versão aprovada' : 'PDF da versão aprovada'}</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>PDF da versão aprovada</h3>
               <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
-                {API_MODE === 'demo' ? 'Arquivo gerado na demonstração, sem persistência ou validade operacional.' : 'Solicite o arquivo da versão aprovada. Confira as informações de emissão e custódia retornadas pelo serviço.'}
+                Consulte ou baixe o arquivo da versão aprovada.
               </p>
             </div>
             <Button variant="secondary" onClick={downloadFinalPdf} disabled={isDownloadingPdf}>
@@ -576,7 +575,7 @@ export function PermitDetailPage() {
         <fieldset className={styles.preparationFieldset} disabled={writePending} aria-label="Dados da confirmação">
         {command === 'science' && <>
           <Feedback tone="info">Declarante: <strong>{selectedParticipant?.name}</strong>. Coletor autenticado: <strong>{me?.user.displayName}</strong>. A conta utilizada no aparelho não autentica automaticamente o participante.</Feedback>
-          <p>Declaração ilustrativa: “Visualizei o contexto, a preparação e o checklist da PT {permit.code}, versão {permit.version}, e confirmo minha ciência sobre este registro.”</p>
+          <p>Declaração de ciência: “Visualizei o contexto, a preparação e o checklist da PT {permit.code}, versão {permit.version}, e confirmo minha ciência sobre este registro.”</p>
           <Field label="Nome de quem declara"><input aria-label="Nome de quem declara" value={declarantName} onChange={event => { setDeclarantName(event.target.value); setConfirmed(false); }} autoComplete="off" maxLength={160} /></Field>
           <fieldset className={styles.methodChoices}><legend>Forma da manifestação</legend><label><input type="radio" name="science-method" checked={method === 'TYPED'} onChange={() => { setMethod('TYPED'); setDrawing(''); setConfirmed(false); }} />Nome digitado</label><label><input type="radio" name="science-method" checked={method === 'DRAWN'} onChange={() => { setMethod('DRAWN'); setDrawing(''); setConfirmed(false); }} />Desenho</label></fieldset>
           {method === 'DRAWN' ? <SignaturePad key={`${workerId}-${method}`} disabled={writePending} onChange={value => { setDrawing(value); setConfirmed(false); }} /> : <div className={styles.typedRepresentation}>{declarantName || 'Nome do participante'}</div>}

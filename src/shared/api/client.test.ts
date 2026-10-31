@@ -10,6 +10,11 @@ beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('cliente HTTP e ciclo da sessão', () => {
+  it.each([null, undefined, 0, -1, 1.5, Number.NaN])('recusa revisão indisponível para escrita: %s', async revision => {
+    const { revisionEtag } = await import('./client');
+    expect(() => revisionEtag(revision)).toThrow('revisão válida');
+    expect(revisionEtag(2)).toBe('"2"');
+  });
   it.each(['/auth/login', '/auth/refresh', '/auth/mfa/verify'])('normaliza o contrato de cookie em %s sem expor refresh ou usar claims como permissões', async path => {
     vi.stubGlobal('fetch', vi.fn(async () => json({
       accessToken: 'cookie-access', expiresAtUtc: '2099-01-01T00:00:00Z',

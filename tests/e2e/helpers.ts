@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 export async function loginDemo(page: Page, role: 'Gestor SESMT' | 'Engenheiro' | 'Técnico de segurança' | 'Bombeiro' | 'RH' | 'Auditor' | 'Administrador' | 'Trabalhador' = 'Gestor SESMT') {
-  await page.goto('/login');
+  await page.goto('/login?demonstracao=perfis');
   await page.getByRole('button', { name: role, exact: true }).click();
   if (role === 'Administrador') {
     await expect(page.getByRole('heading', { name: 'Verifique seu acesso' })).toBeVisible();
@@ -14,6 +14,8 @@ export async function loginDemo(page: Page, role: 'Gestor SESMT' | 'Engenheiro' 
 export async function logout(page: Page) {
   await page.getByRole('button', { name: 'Sair da plataforma' }).click();
   await expect(page).toHaveURL(/\/login$/);
+  // Open the explicit selector for a subsequent profile switch without resetting in-memory records.
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
 }
 
 export async function openModule(page: Page, name: string) {
@@ -28,7 +30,11 @@ export async function navigateWithinApp(page: Page, pathname: string, expectedPa
   const selectedUnit = await page.evaluate(async (target) => {
     const readUnit = () => document.querySelector<HTMLSelectElement>('select[aria-label="Unidade de trabalho"]')?.value;
     const previousUnit = readUnit();
-    const routerUrl = '/src/app/router.tsx';
+    // Reuse the app's exact module URL; Vite may append an HMR timestamp.
+    const routerUrl = performance.getEntriesByType('resource').find(entry => {
+      const url = new URL(entry.name);
+      return url.origin === window.location.origin && url.pathname === '/src/app/router.tsx';
+    })?.name ?? '/src/app/router.tsx';
     const { getAppRouter } = await import(routerUrl);
     await getAppRouter().navigate(target, { flushSync: true });
     return readUnit() || previousUnit;

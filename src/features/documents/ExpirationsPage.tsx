@@ -5,7 +5,7 @@ import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { CalendarClock, ArrowUpRight, FileText, RefreshCw, Search } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { DocumentDto, PageDto } from '../../shared/contracts';
+import type { DocumentReadDto as DocumentDto, PageDto } from '../../shared/contracts';
 import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { AppliedFilters, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { dateOnly, formatDate } from '../../shared/lib/format';
@@ -18,10 +18,10 @@ import styles from './Expirations.module.css';
 const pageSize = 10;
 type Denial = { error: unknown; revisions: Record<string, number> };
 function expirationItem(value: unknown, unitId: string, filters: ReturnType<typeof expiryQuery>): value is DocumentDto {
-  return isRecord(value) && value.unitId === unitId && value.status === filters.status
+  return isRecord(value) && (value.unitId === unitId || value.sourceReadOnly === true && value.unitId === null) && value.status === filters.status
     && shortText(value.title, 1000) && Boolean(value.title.trim()) && shortText(value.code, 200)
-    && Number.isSafeInteger(value.revision) && Number(value.revision) > 0
-    && (value.validUntil === undefined || shortText(value.validUntil, 100) && isCivilDate(value.validUntil))
+    && (value.sourceReadOnly === true ? value.revision === null : Number.isSafeInteger(value.revision) && Number(value.revision) > 0)
+    && (value.validUntil === undefined || value.sourceReadOnly === true && value.validUntil === null || shortText(value.validUntil, 100) && isCivilDate(value.validUntil))
     && (filters.status !== 'ACTIVE' || typeof value.validUntil === 'string' && 'validUntilFrom' in filters && 'validUntilTo' in filters && value.validUntil >= filters.validUntilFrom! && value.validUntil <= filters.validUntilTo!);
 }
 export function ExpirationsPage() {

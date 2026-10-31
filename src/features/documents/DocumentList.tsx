@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { ArrowUpRight, FileText, Layers3 } from 'lucide-react';
-import type { DocumentDto } from '../../shared/contracts';
+import type { DocumentReadDto as DocumentDto } from '../../shared/contracts';
 import { DocumentStatus } from './DocumentStatus';
 import { formatDate } from './validation';
 import type { DocumentNavigation } from './document-navigation';

@@ -25,6 +25,7 @@ test('MFA em 320px mantém a etapa, o foco e um novo desafio limpo após código
   await expect(page.getByRole('heading', { name: 'Entrar na sua conta', exact: true })).toBeVisible();
   await expectNoOverflow(page);
 
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
   await page.getByRole('button', { name: 'Administrador', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Verifique seu acesso', exact: true })).toBeVisible();
   const code = page.getByLabel('Código de verificação', { exact: true });

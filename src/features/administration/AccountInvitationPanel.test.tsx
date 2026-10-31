@@ -43,8 +43,8 @@ describe('consulta de convite de conta', () => {
     expect(screen.getByText('Aguardando ativação')).toBeVisible();
     expect(screen.getByRole('list', { name: 'Etapas do primeiro acesso' })).toHaveTextContent('Cadastro');
     expect(screen.getByText('Definir senha').closest('li')).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByText('Demonstração · nenhum e-mail enviado')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Explorar primeiro acesso' })).toHaveAttribute('href', summary.demoActivationPath);
+    expect(screen.getByText('Envio não realizado')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Definir primeiro acesso' })).toHaveAttribute('href', summary.demoActivationPath);
     expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/users/user-1/invitation', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
@@ -68,7 +68,7 @@ describe('consulta de convite de conta', () => {
     vi.mocked(api.get).mockResolvedValueOnce({ ...summary, status } as never);
     show();
     await screen.findByRole('heading', { name: 'Pessoa Convidada' });
-    expect(screen.queryByRole('link', { name: 'Explorar primeiro acesso' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Definir primeiro acesso' })).not.toBeInTheDocument();
     expect(screen.getByText(status === 'ACCEPTED' ? /Este convite já foi utilizado/ : /Este convite não pode mais ser utilizado/)).toBeVisible();
   });
 
@@ -85,7 +85,7 @@ describe('consulta de convite de conta', () => {
     expect(screen.getByText(/Seu acesso não permite consultar/)).toBeVisible();
     expect(api.get).not.toHaveBeenCalled();
     runtime.allowed = true; runtime.enabled = false; view.update();
-    expect(screen.getByText(/ainda não está disponível neste ambiente/)).toBeVisible();
+    expect(screen.getByText('Consulta de convites de conta indisponível.')).toBeVisible();
     expect(api.get).not.toHaveBeenCalled();
   });
 
@@ -134,14 +134,14 @@ describe('consulta de convite de conta', () => {
     const { demoActivationPath: _path, ...safe } = summary;
     vi.mocked(api.get).mockResolvedValueOnce({ ...safe, deliveryStatus: 'SENT' } as never);
     show();
-    expect(await screen.findByText('Envio registrado pela API')).toBeVisible();
+    expect(await screen.findByText('Envio registrado')).toBeVisible();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('explica a exigência de autenticador sem oferecer configuração ou sessão plena', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({ ...summary, mfaRequired: true } as never);
     show({ ...user, mfaRequired: true });
-    expect(await screen.findByText(/Uma conta administrativa só pode acessar/)).toBeVisible();
+    expect(await screen.findByText('Configure e verifique o autenticador para acessar a conta administrativa.')).toBeVisible();
     expect(screen.getByText('Com verificação em duas etapas')).toBeVisible();
     expect(screen.queryByRole('button', { name: /configurar/i })).not.toBeInTheDocument();
   });

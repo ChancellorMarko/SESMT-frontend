@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
-import { api, API_MODE, revisionEtag } from '../../shared/api/client';
+import { api, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { ConfinedSpacePermitDto, PetAtmosphericReadingDto, PetOptionsDto, PetPersonDto, PetPreparationDto } from '../../shared/contracts/confined-space-permits';
 import type { AppointmentDto } from '../../shared/contracts/work-permits';
@@ -146,7 +146,7 @@ function PetEditor({ record, options, initialAppointmentId, refreshError, refres
   }
   const returnPath = record ? `/app/pets/${record.id}` : preparationListPath(listNavigation, 'pets');
   return <div className="stack"><UnsavedChanges dirty={dirty} busy={busy} /><PageHeader eyebrow="PET · preparação" title={record ? `Preparar ${record.code}` : 'Preparar PET'} description="Organize a identificação do espaço confinado, as pessoas previstas e os registros do modelo recebido. O rascunho pode ser salvo incompleto." actions={<Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath} state={listNavigation}>Voltar</Link>} />
-    <Feedback tone="info">{API_MODE === 'demo' ? 'Rascunho de demonstração, sem validade operacional.' : 'Rascunho de preparação, ainda não emitido.'} Preencher ou salvar esta PET não autoriza entrada nem substitui a avaliação e a emissão pelos responsáveis.</Feedback>
+    <Feedback tone="info">Salvar o rascunho não autoriza entrada. A PET depende da avaliação e emissão pelos responsáveis.</Feedback>
     {Boolean(refreshError) && <Feedback tone="warning">Não foi possível atualizar a consulta. Seu preenchimento local foi preservado. Confira os dados antes de salvar novamente. {petError(refreshError)} <Button variant="secondary" disabled={busy || refreshing} onClick={retry}>Tentar atualizar consulta</Button></Feedback>}
     {refreshing && <p role="status">Conferindo os dados da preparação antes de permitir o salvamento…</p>}
     {!record && <section className="panel stack"><Field label="Atendimento da PET *"><select disabled={busy} value={selectedId} onChange={event => selectAppointment(event.target.value)}><option value="">Selecione um atendimento confirmado ou aberto</option>{options.filter(item => allowedAppointment(item, unitId)).map(item => <option key={item.id} value={item.id}>{item.code} · {item.serviceLabel} · {item.teamName}</option>)}</select></Field>{!options.some(item => allowedAppointment(item, unitId)) && <p className="muted">Nenhum atendimento confirmado ou aberto disponível nesta unidade.</p>}</section>}

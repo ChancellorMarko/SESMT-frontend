@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const localConfig = new URL('../.env.integration.local', import.meta.url);
@@ -17,7 +18,10 @@ export function integrationEnv() {
     ASPNETCORE_URLS: 'http://127.0.0.1:5047',
     VITE_API_MODE: 'api', VITE_API_BASE_URL: '/api/v1',
     VITE_AUTH_API_CONTRACT: 'adapter',
+    VITE_API_BROWSER_PREFIX: '/browser',
+    VITE_DEMO_URL: values.VITE_DEMO_URL ?? process.env.VITE_DEMO_URL ?? 'http://127.0.0.1:5173/login',
     VITE_ACCOUNT_INVITATIONS_ENABLED: 'false',
     API_PROXY_TARGET: 'http://127.0.0.1:5047',
+    Storage__Local__RootPath: resolve(root, values.Storage__Local__RootPath || '.local/storage'),
   };
 }

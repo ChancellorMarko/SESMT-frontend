@@ -285,7 +285,7 @@ describe('interações da PT em campo', () => {
     vi.mocked(api.get).mockImplementation(async path => path.endsWith('/final-pdf') ? pdfReceipt(attempts++ === 0 ? change : {}) : structuredClone(state.permit));
     const user = userEvent.setup(); show();
     const buttons = await screen.findAllByRole('button', { name: /Baixar PDF final/ });
-    expect(screen.getByText('Arquivo gerado na demonstração, sem persistência ou validade operacional.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'PDF da versão aprovada' })).toBeInTheDocument();
     expect(screen.queryByText(/homologado/i)).not.toBeInTheDocument();
     await user.click(buttons[0]);
     expect(await screen.findByRole('alert')).toHaveTextContent(message);

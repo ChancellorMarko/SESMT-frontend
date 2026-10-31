@@ -11,13 +11,12 @@ beforeEach(() => { mode.value = 'demo'; });
 it('distribui os oito registros pendentes em categorias e acompanha sem aprovar comprovantes', () => {
   render(<MemoryRouter><EquipmentDashboard can={() => true} /></MemoryRouter>);
   const counts = screen.getAllByRole('progressbar').map(bar => bar.getAttribute('aria-valuetext'));
-  expect(counts).toEqual(['40 de 43 registros de exemplo', '30 de 33 registros de exemplo', '22 de 24 registros de exemplo']);
+  expect(counts).toEqual(['40 de 43 registros', '30 de 33 registros', '22 de 24 registros']);
   const trigger = screen.getByRole('button', { name: 'Ver conferência: Capacetes' });
   trigger.focus(); fireEvent.click(trigger);
   const dialog = within(screen.getByRole('dialog'));
-  expect(dialog.getByText(/Nenhum comprovante é emitido, assinado ou aprovado/)).toBeInTheDocument();
-  fireEvent.click(dialog.getByRole('button', { name: 'Acompanhar exemplo' }));
-  expect(dialog.getByRole('status')).toHaveTextContent('Lote em acompanhamento neste exemplo.');
+  fireEvent.click(dialog.getByRole('button', { name: 'Acompanhar' }));
+  expect(dialog.getByRole('status')).toHaveTextContent('Lote em acompanhamento.');
   fireEvent.click(dialog.getByRole('button', { name: /^Fechar$/ }));
   expect(trigger).toHaveFocus();
   expect(within(trigger.closest('article')!).getByText('Em acompanhamento', { exact: true })).toBeInTheDocument();
@@ -32,12 +31,12 @@ it('permite retirar o acompanhamento sem alterar pendências, comprovantes ou fo
   const counts = screen.getAllByRole('progressbar').map(bar => bar.getAttribute('aria-valuetext'));
   await user.click(trigger);
   const dialog = within(screen.getByRole('dialog'));
-  await user.click(dialog.getByRole('button', { name: 'Acompanhar exemplo' }));
+  await user.click(dialog.getByRole('button', { name: 'Acompanhar' }));
   const remove = dialog.getByRole('button', { name: 'Retirar acompanhamento' });
   expect(remove).toBeEnabled();
   await user.click(remove);
-  expect(dialog.getByRole('status')).toHaveTextContent('Este lote ainda não está em acompanhamento local.');
-  expect(dialog.getByRole('button', { name: 'Acompanhar exemplo' })).toHaveFocus();
+  expect(dialog.getByRole('status')).toHaveTextContent('Conferência pendente.');
+  expect(dialog.getByRole('button', { name: 'Acompanhar' })).toHaveFocus();
   await user.keyboard('{Escape}');
   expect(trigger).toHaveFocus();
   expect(within(trigger.closest('article')!).queryByText('Em acompanhamento', { exact: true })).not.toBeInTheDocument();
@@ -67,7 +66,7 @@ it('filtra os lotes acompanhados e devolve o foco ao filtro se o lote deixar de 
   render(<MemoryRouter><EquipmentDashboard can={() => true} /></MemoryRouter>);
   const counts = screen.getAllByRole('progressbar').map(bar => bar.getAttribute('aria-valuetext'));
   await user.click(screen.getByRole('button', { name: 'Ver conferência: Capacetes' }));
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acompanhar exemplo' }));
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acompanhar' }));
   await user.keyboard('{Escape}');
   const filter = within(screen.getByRole('group', { name: 'Filtrar lotes de EPIs' })).getByRole('button', { name: 'Em acompanhamento' });
   await user.click(filter);
@@ -87,7 +86,7 @@ it('filtra os lotes acompanhados e devolve o foco ao filtro se o lote deixar de 
 it('não cria índices, filas ou links restritos quando não há integração nem permissão', () => {
   mode.value = 'api';
   render(<MemoryRouter><EquipmentDashboard can={() => false} /></MemoryRouter>);
-  expect(screen.getByRole('heading', { name: 'Entregas de EPIs ainda não conectadas' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Sem entregas disponíveis' })).toBeInTheDocument();
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();

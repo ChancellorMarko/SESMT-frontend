@@ -84,7 +84,7 @@
 
 @layer components {
   .sr-only { position: absolute; top: 0; left: 0; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); clip-path: inset(50%); white-space: nowrap; border: 0; }
-  .page-header { @apply flex items-center justify-between gap-6; margin: 0 0 24px; }
+  .page-header { @apply flex items-center justify-between gap-4; margin: 0 0 18px; }
   .stack > .page-header { margin-bottom: 0; }
   .eyebrow { @apply mb-2.5 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500; }
   .page-description { @apply m-0 max-w-[720px] text-sm text-slate-500; }
@@ -105,9 +105,10 @@
   .button--ghost { @apply bg-transparent text-slate-500 shadow-none; }
   .button--danger { @apply border-rose-200 bg-white/80 text-rose-700; }
   .actions { @apply flex flex-wrap items-center gap-2; }
-  .panel { @apply min-w-0 rounded-3xl border border-white/80 bg-white/85 p-6 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)] backdrop-blur-md; border-style: solid; }
-  .stack { @apply flex flex-col gap-5; }
+  .panel { @apply min-w-0 rounded-3xl border border-white/80 bg-white/85 p-5 shadow-[0_12px_40px_-24px_rgba(68,94,181,.2)] backdrop-blur-md; border-style: solid; }
+  .stack { @apply flex flex-col gap-4; }
   .toolbar { @apply mb-5 flex flex-wrap items-end gap-3; }
+  .stack > .toolbar { margin-bottom: 0; }
   .toolbar > input { max-width: 340px; }
   .toolbar > select { max-width: 220px; }
   .toolbar .field { min-width: 140px; flex: 1; }
@@ -140,7 +141,7 @@
   .feedback--danger { @apply border-rose-100 bg-rose-50 text-rose-800; }
   .feedback--warning { @apply border-amber-100 bg-amber-50 text-amber-900; }
   .feedback--success { @apply border-emerald-100 bg-emerald-50 text-emerald-800; }
-  .empty-state { @apply px-5 py-12 text-center text-slate-500; }
+  .empty-state { @apply px-5 py-8 text-center text-slate-500; }
   .empty-state svg { margin-bottom: 14px; color: #a5b3ca; }
   .empty-state h3 { color: var(--text); }
   .loading { @apply flex items-center justify-center gap-3 p-8 text-xs text-slate-500; }

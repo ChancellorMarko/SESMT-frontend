@@ -108,7 +108,7 @@ test('movimento reduzido entrega os cartões e o gráfico diretamente no estado 
   expect(frames.every(frame => frame.opacity >= .99)).toBe(true);
   expect(new Set(frames.map(frame => `${frame.transform}|${frame.filter}`)).size).toBeLessThanOrEqual(1);
   expect(new Set(frames.map(frame => frame.chart).filter(Boolean)).size).toBeLessThanOrEqual(1);
-  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs no cenário ilustrativo', exact: true })).toHaveAttribute('aria-valuenow', '92');
+  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs', exact: true })).toHaveAttribute('aria-valuenow', '92');
   verify();
 });
 
@@ -119,9 +119,9 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loginDemo(page, 'Engenheiro');
     await expect(page.locator('[data-motion-card]').first()).toBeVisible();
-    const logo = page.getByRole('banner').getByAltText('Ampara SESMT', { exact: true });
+    const logo = page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true });
     await expect(logo).toBeVisible();
-    await expect(logo).toHaveAttribute('src', '/brand/ampara/logo-principal.png');
+    await expect(logo).toHaveAttribute('src', width >= 1024 ? '/brand/ampara/icon.png' : '/brand/ampara/logo-principal.png');
     const rail = page.getByRole('navigation', { name: 'Acesso rápido', exact: true });
     await expect(rail).toBeInViewport();
     const bounds = await rail.boundingBox();

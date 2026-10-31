@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
-import { FileText, FolderOpen, Plus, Search } from 'lucide-react';
+import { FileText, Plus, Search } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { DocumentDto, DocumentTypeDto, PageDto, WorkerDto } from '../../shared/contracts';
+import type { DocumentReadDto as DocumentDto, DocumentTypeReadDto as DocumentTypeDto, PageDto, WorkerReadDto as WorkerDto } from '../../shared/contracts';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { PagedSelect } from '../../shared/ui/PagedSelect';
@@ -123,9 +123,7 @@ function DocumentsPageContent() {
   return <div className={`stack ${styles.workspace}`}>
     <header className={styles.pageHeader}>
       <div className={styles.headerCopy}>
-        <p className={styles.eyebrow}><span><FolderOpen size={15} aria-hidden="true" /></span>REPOSITÓRIO CONTROLADO</p>
         <h1>Documentos</h1>
-        <p className={styles.description}>Consulte vigências, acompanhe versões e encontre as evidências da sua unidade.</p>
       </div>
       <div className={styles.headerActions}>
       {dashboardReturnTo && <Link className="button button--secondary" to={`/app/painel-documental${dashboardReturnTo.search}`}>Voltar ao painel documental</Link>}

@@ -187,7 +187,7 @@ test('janela entra suavemente e continua acessível por teclado', async ({ page 
   await trigger.focus();
   await captureNext(page, '[role="dialog"][aria-modal="true"]');
   await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Sobre esta versão', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Ajuda', exact: true });
   await expect(dialog).toBeFocused();
   const frames = await capturedFrames(page);
   const initialOpacity = Math.min(...frames.map(frame => frame.opacity));
@@ -212,7 +212,7 @@ test('janela entra suavemente e continua acessível por teclado', async ({ page 
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Fechar janela', exact: true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
-  await expect(dialog.getByRole('button', { name: 'Entendi', exact: true })).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Guia de siglas', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();

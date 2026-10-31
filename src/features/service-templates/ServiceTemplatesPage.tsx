@@ -126,7 +126,7 @@ function TemplateEditor({ template, catalog, onSelect, refreshError }: { templat
   return <div className="stack">
     <UnsavedChanges dirty={dirty} busy={busy} protectContext />
     <PageHeader eyebrow="CONFIGURAÇÕES" title="Serviços e templates de PT" description="Configure perguntas por serviço e unidade, com rascunhos e versões publicadas." actions={<Link className="button button--secondary" to="/app/agenda">Consultar agenda</Link>} />
-    <Feedback tone="info">As perguntas iniciais são exemplos de demonstração. A configuração não estabelece critérios legais universais nem autoriza a execução de um serviço.</Feedback>
+    <Feedback tone="info">Defina as perguntas e respostas bloqueadoras para cada serviço.</Feedback>
     <nav className={styles.catalog} aria-label="Selecionar serviço">{catalog.templates.map(entry => <button type="button" key={entry.service.id} className={styles.service} aria-pressed={entry.service.id === template.service.id} disabled={busy} onClick={() => select(entry.service.id)}><strong>{entry.service.name}</strong><small>{entry.published.version}</small><Badge tone={entry.draft ? 'warning' : 'success'}>{entry.draft ? 'Com rascunho' : 'Publicado'}</Badge></button>)}</nav>
     {Boolean(refreshError) && <Feedback tone="warning">Não foi possível atualizar o catálogo. Seu preenchimento foi preservado. {templateErrorMessage(refreshError)}</Feedback>}
     {success && <Feedback tone="success">{success}</Feedback>}

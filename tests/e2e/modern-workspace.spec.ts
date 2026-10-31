@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { loginDemo, logout, openModule } from './helpers';
 
-test('dock, busca por teclado e acompanhamento ilustrativo mantêm ações e retorno de foco', async ({ page }) => {
+test('dock, busca por teclado e acompanhamento mantêm ações e retorno de foco', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -12,16 +12,17 @@ test('dock, busca por teclado e acompanhamento ilustrativo mantêm ações e ret
   expect(railBounds!.height).toBeGreaterThan(railBounds!.width);
   await expect(dock).toBeInViewport();
   for (const name of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) await expect(dock.getByRole('link', { name, exact: true })).toBeVisible();
-  await expect(page.getByText('Cenário ilustrativo de SST', { exact: true })).toBeVisible();
-  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs no cenário ilustrativo' })).toHaveAttribute('aria-valuenow', '92');
+  await expect(page.getByRole('heading', { name: 'Dias sem acidentes', exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs' })).toHaveAttribute('aria-valuenow', '92');
   await dock.getByRole('link', { name: 'Inspeções', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inspeções de segurança', exact: true })).toBeVisible();
   const action = page.getByRole('button', { name: 'Ver achado: Proteção de transmissão', exact: true });
   await action.click();
   const detail = page.getByRole('dialog', { name: 'Proteção de transmissão', exact: true });
-  await expect(detail).toContainText('não altera registros da unidade');
-  await detail.getByRole('button', { name: 'Acompanhar exemplo', exact: true }).click();
-  await expect(detail.getByRole('status')).toContainText('Exemplo incluído no acompanhamento desta sessão');
+  await expect(detail.getByRole('heading', { name: 'Observação', exact: true })).toBeVisible();
+  await expect(detail.getByRole('heading', { name: 'Próximo passo', exact: true })).toBeVisible();
+  await detail.getByRole('button', { name: 'Acompanhar', exact: true }).click();
+  await expect(detail.getByRole('status')).toContainText('Achado em acompanhamento.');
   await page.keyboard.press('Escape');
   await expect(action).toBeFocused();
   await dock.getByRole('link', { name: 'Equipamentos de proteção individual (EPI)', exact: true }).click();
@@ -47,12 +48,14 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loginDemo(page, 'Engenheiro');
-    await expect(page.getByRole('banner').getByAltText('Ampara SESMT', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toBeVisible();
     await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Saúde ocupacional e capacitações', exact: true })).toBeVisible();
     const info = page.getByRole('button', { name: 'Ver detalhe: Conferir identificação do documento', exact: true });
     await info.click();
-    await expect(page.getByRole('dialog')).toContainText('Exemplo fictício');
+    const healthDetail = page.getByRole('dialog', { name: 'Conferir identificação do documento', exact: true });
+    await expect(healthDetail.getByRole('status')).toHaveText('Acompanhamento pendente.');
+    await expect(healthDetail.getByRole('button', { name: 'Acompanhar', exact: true })).toBeEnabled();
     await page.keyboard.press('Escape');
     await expect(info).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

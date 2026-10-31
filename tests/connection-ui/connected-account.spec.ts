@@ -40,7 +40,7 @@ test('modo API entra na conta conectada, restaura sessão e encerra sem abrir m�
   await expect(page).toHaveURL(/\/app\/conexao$/);
   await expect(page.getByRole('heading', { name: 'Sua conta está conectada.' })).toBeVisible();
   await expect(page).toHaveTitle('Conta conectada — Ampara SESMT');
-  await expect(page.getByText('Módulos em preparação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Módulos não liberados', { exact: true })).toBeVisible();
   await mkdir('docs/frontend/qa', { recursive: true });
   await page.screenshot({ path: 'docs/frontend/qa/integration-connected-desktop.png', fullPage: true });
   await page.reload();

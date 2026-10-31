@@ -43,6 +43,9 @@ jobs:
       - name: Run unit and integration tests
         run: npm test
 
+      - name: Check separate backend repository resolution
+        run: npm run test:integration-tools
+
       - name: Build frontend
         run: npm run build
 

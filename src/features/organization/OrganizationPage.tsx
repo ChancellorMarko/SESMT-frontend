@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api, ApiError, revisionEtag } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { AssigneeDto, CompanyClassification, OrganizationDto, OrganizationItemDto } from '../../shared/contracts';
+import type { AssigneeDto, CompanyClassification, OrganizationReadDto as OrganizationDto, OrganizationReadItemDto as OrganizationItemDto } from '../../shared/contracts';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { PagedSelect } from '../../shared/ui/PagedSelect';

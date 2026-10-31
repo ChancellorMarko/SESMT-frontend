@@ -133,7 +133,7 @@ describe('TeamsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Convites por link da equipe Equipe Operacional Ativa' }));
     expect(await screen.findByText('Indisponível · equipe inativa')).toBeVisible();
     expect(screen.queryByText('Revogado')).not.toBeInTheDocument();
-    const link = screen.getByRole('link', { name: 'Abrir convite nesta demonstração' });
+    const link = screen.getByRole('link', { name: 'Abrir convite' });
     expect(link).toHaveAttribute('href', '/convite/tok-abc');
     expect(link).not.toHaveAttribute('target', '_blank');
   });

@@ -156,6 +156,7 @@ test('a preferência persiste após recarregar e entrar com outro perfil sem alt
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'full');
   await expect(page).toHaveURL(/\/login$/);
+  await page.getByRole('button', { name: 'Ver demonstrações', exact: true }).click();
   await page.getByRole('button', { name: 'RH', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/dashboard/);
   await expect(page.getByRole('group', { name: /Perfil:.*Recursos Humanos/ })).toBeVisible();
@@ -188,7 +189,7 @@ test('Reduzidas desativa movimento de CSS, página e janelas apesar do dispositi
     expect(new Set(frames.map(frame => position(frame[region]))).size).toBeLessThanOrEqual(1);
   }
   await page.getByRole('button', { name: 'Ajuda sobre o sistema', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Sobre esta versão', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Ajuda', exact: true });
   expect(await dialog.evaluate(element => getComputedStyle(element).animationName)).toBe('none');
   expect((await appearance(dialog)).opacity).toBe(1);
   await page.keyboard.press('Escape');

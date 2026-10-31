@@ -71,7 +71,11 @@ describe('consulta, versões e impressão da preparação PET', { timeout: 15000
     });
     await user.click(screen.getByRole('link', { name: 'Consultar PET da central' })); await screen.findByRole('heading', { name: 'PET-101' }); await user.click(screen.getByRole('link', { name: 'Editar preparação' }));
     await screen.findByRole('form', { name: 'Preparação da PET' }); const task = screen.getByLabelText('Objetivo da entrada / tarefa prevista'); await user.clear(task); await user.type(task, 'Tarefa editada a partir da central');
-    await user.click(screen.getByRole('button', { name: 'Salvar rascunho da PET' })); await screen.findByRole('heading', { name: 'PET-101' });
+    const save = screen.getByRole('button', { name: 'Salvar rascunho da PET' });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
+    await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
+    await screen.findByRole('heading', { name: 'PET-101' });
     expect(screen.getByRole('article', { name: 'Preparação da PET' })).toHaveTextContent('Tarefa editada a partir da central'); expect(screen.getByText('Rascunho da PET salvo. Este registro não autoriza a entrada.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar à consulta' })).toHaveAttribute('href', centralPath); await user.click(screen.getByRole('link', { name: 'Voltar à consulta' }));
     expect(screen.getByLabelText('Endereço atual')).toHaveTextContent(centralPath); expect(api.patch).toHaveBeenCalledOnce(); expect(api.post).not.toHaveBeenCalled();
