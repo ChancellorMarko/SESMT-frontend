@@ -4,12 +4,13 @@ import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { Button, InfoButton } from '../../shared/ui';
 import { homePath } from '../../app/navigation';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import styles from './ConnectedAccountPage.module.css';
 
 export function ConnectedAccountPage() {
   const session = useSession();
   if (!session.me) return null;
-  const target = homePath(session.can);
+  const target = homePath(session.can, NATIVE_MODULES);
   const hasModules = target !== '/app/conexao';
   const hasGrants = session.me.permissions.length > 0;
   return <main className={styles.page}>

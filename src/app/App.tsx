@@ -27,6 +27,7 @@ const UsersPage=lazy(()=>import('../features/administration').then(m=>({default:
 const NativeUsersPage=lazy(()=>import('../features/administration/NativeUsersPage').then(m=>({default:m.NativeUsersPage})));
 const NativeNotificationsPage=lazy(()=>import('../features/notifications/NativeNotificationsPage').then(m=>({default:m.NativeNotificationsPage})));
 const NativeAuditPage=lazy(()=>import('../features/audit/NativeAuditPage').then(m=>({default:m.NativeAuditPage})));
+const NativeDashboardPage=lazy(()=>import('../features/dashboard/NativeDashboardPage').then(m=>({default:m.NativeDashboardPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
@@ -64,8 +65,8 @@ export function Guard({ permission,children }: { permission?: string; children:R
   if(permission&&!s.can(permission)) return <div className="error-page"><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
   return children;
 }
-function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can)}/>; }
-function Connection() { const s=useSession(); const target=homePath(s.can); return API_MODE === 'demo' && target !== '/app/conexao' ? <Navigate replace to={target}/> : <ConnectedAccountPage/>; }
+function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can, NATIVE_MODULES)}/>; }
+function Connection() { const s=useSession(); const target=homePath(s.can, NATIVE_MODULES); return API_MODE === 'demo' && target !== '/app/conexao' ? <Navigate replace to={target}/> : <ConnectedAccountPage/>; }
 function UserWorkspace() { const s=useSession(); return !NATIVE_MODULES && s.can('users.manage') ? <Guard permission="users.manage"><UsersPage/></Guard> : <Guard permission="users.read"><NativeUsersPage/></Guard>; }
 export function App() {
   const location = useLocation(); const session = useSession();
@@ -80,7 +81,7 @@ export function App() {
       <Route index element={<Home/>}/>
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
       <Route path="minha-representacao" element={<Guard permission="permits.review"><SignatureProfilePage/></Guard>}/>
-      <Route path="dashboard" element={<Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
+      <Route path="dashboard" element={NATIVE_MODULES ? <Guard><NativeDashboardPage/></Guard> : <Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
       <Route path="agenda/novo" element={<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>

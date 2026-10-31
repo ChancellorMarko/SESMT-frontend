@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useAnimationControls } from 'framer-motion';
 import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
 import { api } from '../../shared/api/client';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { roleLabels } from '../../shared/auth/role-labels';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
@@ -167,7 +168,7 @@ export function AppLayout() {
   const [motionReplay, setMotionReplay] = useState(0);
   const closeMotionSettings = () => { setMotionSettings(false); setMotionReplay(value => value + 1); };
   useContentMotion(contentRef, `${pageContext}:${s.sessionKey}:${s.unitId}:${motionReplay}`, reduceMotion, Boolean(location.hash));
-  const canNavigate = (item: { permission: string; alternativePermissions?: string[] }) => s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
+  const canNavigate = (item: { permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES && item.permission === 'dashboard.read' || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
   const canConfigure = (item: { permission: string; alternativePermission?: string }) => s.can(item.permission) || Boolean(item.alternativePermission && s.can(item.alternativePermission));
   const navigationContext = `${pageContext}:${s.sessionKey}:${s.unitId}`;
   const [guideContext, setGuideContext] = useState<string | null>(null);
@@ -270,7 +271,7 @@ export function AppLayout() {
   const initials = s.me?.user.displayName.split(' ').slice(0, 2).map(v => v[0]).join('');
   const role = roleLabels(s.me?.roles ?? []);
   const activeArea = areaName ? dashboardArea : null;
-  const visibleDockItems = dockItems.filter(item => item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
+  const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   const shortcuts = nav.filter(item => ['agenda', 'documentos', 'equipes'].includes(item.to) && canNavigate(item));
 
   // Resolve the home redirect before exposing controls tied to a temporary /app location.
@@ -339,7 +340,7 @@ export function AppLayout() {
         {search && <button type="button" aria-label="Limpar busca" onClick={() => { setSearch(''); navigationInput.current?.focus({ preventScroll: true }); }}><X size={16} aria-hidden="true" /></button>}
       </div>
       <div ref={navigationResults} className={navigationStyles.results} data-navigation-results onKeyDown={handleNavigationKeys}>
-        <WorkspaceNavigation canNavigate={canNavigate} canConfigure={canConfigure} canReadAreas={canReadOperationsDashboard(s.can)} onNavigate={closeMenu} onSearch={value => { setSearch(value); navigationInput.current?.focus({ preventScroll: true }); }} search={search} overviewPath={dashboardPath(s.can)} />
+        <WorkspaceNavigation canNavigate={canNavigate} canConfigure={canConfigure} canReadAreas={!NATIVE_MODULES && canReadOperationsDashboard(s.can)} onNavigate={closeMenu} onSearch={value => { setSearch(value); navigationInput.current?.focus({ preventScroll: true }); }} search={search} overviewPath={dashboardPath(s.can, NATIVE_MODULES)} />
       </div>
       <div className={navigationStyles.footer}><p id="navigation-search-hint"><kbd>↑ ↓</kbd> escolher <span>·</span> <kbd>Enter</kbd> abrir <span>·</span> <kbd>Esc</kbd> fechar<span className="sr-only">. Tab percorre os controles. Na busca, Enter abre somente um resultado único. Home e End vão ao primeiro e ao último destino quando um resultado está em foco.</span></p><div className={navigationStyles.helpActions}><button type="button" onClick={openTerminology}><BookOpen size={15} aria-hidden="true" />Guia de siglas</button><button type="button" onClick={openGuide}><Sparkles size={15} aria-hidden="true" />Guia Ampara<ArrowUpRight size={13} aria-hidden="true" /></button></div></div>
     </Modal>

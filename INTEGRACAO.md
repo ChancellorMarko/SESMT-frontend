@@ -55,6 +55,7 @@ Os endpoints nativos da equipe permanecem disponíveis sob `/api/v1`. As projeç
 | Usuários | `GET /api/v1/users`, `PATCH /api/v1/users/{id}`, `POST /api/v1/users/{id}/deactivate` |
 | Notificações pessoais | `GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read` |
 | Auditoria | `GET /api/v1/audit-logs` |
+| Dashboard operacional | `GET /api/v1/dashboard/summary`, `/appointments`, `/document-pendencies`, `/review-pendencies`, `/activity-evolution` |
 
 `dev:integrated` seleciona explicitamente `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=native`, `VITE_API_BROWSER_PREFIX=/browser` e o proxy da API. Para iniciar o Vite manualmente, configure os mesmos valores e `VITE_API_BASE_URL=/api/v1`, `API_PROXY_TARGET=http://127.0.0.1:5047`. A autenticação nativa e as projeções de leitura são escolhas independentes: o prefixo browser atua somente nas consultas de organização, trabalhadores, documentos e tipos documentais. Usuários, notificações e auditoria continuam nos endpoints nativos. Use o backend atualizado com os merges #31 e #32 (referência conferida: `41d31e9`). O comando não atualiza o checkout do backend automaticamente.
 
@@ -74,7 +75,19 @@ A capacidade `users.read` abre `GET /api/v1/users`, consumindo diretamente a lis
 
 `auditoria:ler` habilita a tela nativa para `/audit-logs`, com `pageNumber`, `pageSize`, `action`, `resourceType`, `from` e `to`. A API também exige os perfis ADMIN ou AUDITOR. Não se envia `unitId`, nem se consulta um catálogo inexistente de ações. Datas dos filtros são dias UTC; horários visíveis são de Brasília. Respostas, páginas e correspondência dos filtros são verificadas antes de mostrar os registros. Identificadores nulos permanecem explicitamente não informados. Os detalhes mostram somente os campos públicos retornados, sem deduzir nomes de pessoas.
 
-Com `VITE_API_BROWSER_PREFIX=` vazio, documentos, trabalhadores e organização retornam os DTOs nativos, ainda diferentes dos dessas telas. Reconhecer uma permissão não converte o formato dos dados. Prefira a projeção publicada para essas consultas. A ausência de destino reconhecido leva à conta conectada, sem encaminhar para Notificações sem permissão.
+Com `VITE_API_BROWSER_PREFIX=` vazio, documentos, trabalhadores e organização retornam os DTOs nativos, ainda diferentes dos dessas telas. Reconhecer uma permissão não converte o formato dos dados. Prefira a projeção publicada para essas consultas. No contrato nativo, o dashboard autenticado é o destino de retorno quando não há outro módulo inicial reconhecido; nos demais contratos, a ausência de destino continua levando à conta conectada.
+
+### Dashboard operacional nativo
+
+No contrato `native`, `/app/dashboard` usa exclusivamente os cinco endpoints de dashboard listados acima. `DashboardController` exige autenticação, e `DashboardRepository` decide quais atividades, PTs e designações o ator pode consultar. A navegação espelha essa política, sem inventar `dashboard.read`, atribuir perfil ADMIN ou liberar os comandos de agenda/PT. O contrato da demonstração conserva seus controles e endpoints próprios. Inspeções, saúde e EPIs do dashboard antigo não são exibidos como módulos integrados nessa tela.
+
+O período padrão cobre doze meses civis, terminando no último dia do mês atual em UTC. As cinco consultas recebem os mesmos `from`/`to` UTC; o limite de 36 meses da série histórica é validado antes do envio. Por padrão a abrangência é a conta. Escolher “Unidade selecionada” envia o UUID da unidade como `localId` (o backend usa Units para esses locais); trocar a unidade recompõe o contexto e cancela a consulta anterior. Não são enviados `unitId`, filtros textuais de local ou opções do contrato legado. Os parâmetros de URL aceitos são `from`, `to` e `scope=account|unit`; outros critérios precisam ser limpos, em vez de serem ignorados silenciosamente.
+
+Indicadores e listas são exibidos apenas após validar o conjunto das cinco respostas. Recusas e dados incompatíveis ocultam os indicadores e registros anteriores; erros não viram zeros. Cada endpoint realiza sua própria leitura, então os totais não são artificialmente igualados entre consultas de instantes distintos. Atividades são filtradas pela data de início; requisitos, pela criação da PT; revisões, pelo encerramento. O gráfico contabiliza transições de estado, não PTs únicas. Seu detalhamento mensal em tabela é acessível por teclado.
+
+Os requisitos são somados como requisitos faltantes, sem inventar número de trabalhadores ou arquivos. Identificadores e metadados ficam nos detalhes; não são criados códigos ou nomes ausentes nos DTOs, nem links para telas de agenda/PT com contratos ainda diferentes. O retorno vazio informa somente a ausência de registros consultados, sem declarar conformidade.
+
+Limite atual da API: o repositório calcula empresas autorizadas a partir de UserScopes EMPRESA e não aplica nessa consulta o fallback global de `/auth/me`. ADMIN sem esses escopos, ou conta com somente escopo UNIDADE/SETOR, pode receber um conjunto vazio. Um `localId` fora de AllowedLocalIds recebe 403, inclusive quando a identidade lista a unidade. A interface respeita esses retornos; a revisão da política efetiva pertence ao backend.
 
 A projeção documental também aplica a política de acesso nativa, além dos escopos de empresa, unidade, setor e vínculo próprio. Dados restritos/médicos não são expostos por essa projeção. DTOs de leitura usam `sourceReadOnly: true` e `revision: null`; dados ausentes não são inventados. Escrita, upload, download, aprovação e módulos operacionais precisam de contratos próprios antes de serem habilitados na interface. A existência de endpoints nativos não significa que todos os fluxos da demonstração estejam integrados.
 

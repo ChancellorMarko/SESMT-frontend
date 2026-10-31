@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { emptyNativeDashboard } from './fixtures/native-dashboard';
 
 // Native-contract browser QA: real Vite proxy/cookies with fictitious HTTP services.
 // These scenarios do not run the independent .NET API or its database.
@@ -145,6 +146,12 @@ async function nativeGrants(page: Page, grants: string[], rawDocument = false, s
       state.notices[0].readAt = '2026-10-31T13:00:00Z'; return route.fulfill({ status: 204 });
     }
     if (path === '/api/v1/audit-logs') return state.auditDenied ? json({ code: 'FORBIDDEN', message: 'privado', requestId: 'test' }, 403) : json({ items: state.audit.filter(item => !url.searchParams.get('action') || item.acao === url.searchParams.get('action')), total: url.searchParams.get('action') === 'CREATE' ? 0 : 1, page: Number(url.searchParams.get('pageNumber')), pageSize: Number(url.searchParams.get('pageSize')) });
+    if (path.startsWith('/api/v1/dashboard/')) {
+      const data = emptyNativeDashboard(url.searchParams.get('from')!, url.searchParams.get('to')!);
+      const endpoints = { summary: data.summary, appointments: data.appointments, 'document-pendencies': data.documents, 'review-pendencies': data.reviews, 'activity-evolution': data.evolution };
+      const key = path.split('/').at(-1)!;
+      if (Object.hasOwn(endpoints, key)) return json(endpoints[key as keyof typeof endpoints]);
+    }
     if (path === '/api/v1/document-types') return json({ items: [], total: 0, page: 1, pageSize: 20 });
     if (path === '/api/v1/documents') return json({ items: [rawDocument ? { id: document.id, documentTypeId: document.typeId, companyId, unitId, title: document.title, secrecyLevel: 'INTERNO', status: 'RASCUNHO' } : document], page: Number(url.searchParams.get('page')), pageSize: Number(url.searchParams.get('pageSize')), total: 1 });
     state.unexpected.push(path);
@@ -168,20 +175,21 @@ test('permissão documento:ler de um perfil novo abre a leitura compatível e a 
   await expect(page.getByRole('heading', { name: 'Esta área precisa de autorização.', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Documento retornado pela API de teste', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Voltar ao início', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/conexao$/);
+  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect(page.getByRole('heading', { name: 'Nenhuma atividade encontrada', exact: true })).toBeVisible();
   expect(state.unexpected).toEqual([]);
   expect(observed.errors).toEqual([]);
 });
 
-test('permissões sem módulo conhecido não enviam a pessoa para notificações nem criam um atalho circular', async ({ page }) => {
+test('o dashboard nativo autenticado é acessível sem presumir concessões para outros módulos', async ({ page }) => {
   const state = await nativeGrants(page, ['recurso_novo:consultar']);
-  await expect(page).toHaveURL(/\/app\/conexao$/);
-  await expect(page.getByRole('heading', { name: 'Nenhum módulo disponível para estes acessos', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir meu espaço de trabalho', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Mais informações: Permissões da conta' }).click();
-  await expect(page.getByRole('dialog')).toContainText('recurso_novo:consultar');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Mais informações: Permissões da conta' })).toBeFocused();
+  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect(page.getByRole('heading', { name: 'Nenhuma atividade encontrada', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('link', { name: 'Visão geral', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Documentos', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Notificações', exact: true })).toHaveCount(0);
+  expect(state.grants).toEqual(['recurso_novo:consultar']);
   expect(state.unexpected).toEqual([]);
 });
 

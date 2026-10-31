@@ -14,4 +14,13 @@ describe('destino inicial sem concessão presumida', () => {
   ] as const)('escolhe uma tela correspondente a %j', (permissions, destination) => {
     expect(homePath(permission => hasPermission(permissions, permission))).toBe(destination);
   });
+
+  it('oferece o dashboard autenticado somente no contrato nativo, sem inventar uma permissão', () => {
+    const permissions = ['recurso_novo:consultar'];
+    const can = (permission: string) => hasPermission(permissions, permission);
+    expect(homePath(can, true)).toBe('/app/dashboard');
+    expect(homePath(can, false)).toBe('/app/conexao');
+    expect(can('dashboard.read')).toBe(false);
+    expect(permissions).toEqual(['recurso_novo:consultar']);
+  });
 });
