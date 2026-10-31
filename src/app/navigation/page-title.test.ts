@@ -11,6 +11,7 @@ describe('título da página', () => {
     expect(pageTitle('/mfa')).toBe(title('Verificar acesso'));
     expect(pageTitle('/recuperar-acesso')).toBe(title('Recuperar acesso'));
     expect(pageTitle('/redefinir-senha')).toBe(title('Definir nova senha'));
+    expect(pageTitle('/reset-password')).toBe(title('Definir nova senha'));
     expect(pageTitle('/convite/token-secreto-de-equipe')).toBe(title('Convite de equipe'));
   });
 

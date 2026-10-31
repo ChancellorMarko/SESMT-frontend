@@ -15,6 +15,7 @@ test('técnico prepara PET, conserva revisões e imprime rascunho sem alterar at
   await page.getByRole('link', { name: 'Preparar PET', exact: true }).click();
   await expect(page.getByLabel('Atendimento da PET *', { exact: true })).toHaveValue(appointmentId);
   const form = page.getByRole('form', { name: 'Preparação da PET' });
+  expect(await form.getByRole('link', { name: 'Cancelar preenchimento', exact: true }).evaluate(cancel => Boolean(cancel.compareDocumentPosition(cancel.closest('form')!.querySelector('button[type="submit"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
   await form.getByLabel('Identificação do espaço confinado', { exact: true }).fill('EC-DEMO-01');
   await form.getByLabel('Descrição do espaço e dos acessos', { exact: true }).fill('Espaço fictício para avaliação do formulário.');
   await form.getByLabel('Objetivo da entrada / tarefa prevista', { exact: true }).fill('Inspeção sintética da revisão inicial');

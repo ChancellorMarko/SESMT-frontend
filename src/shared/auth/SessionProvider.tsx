@@ -4,14 +4,14 @@ import type { MeDto, MfaChallengeDto, SessionDto } from '../contracts';
 import { api, ApiError, cancelAllRequests, clearCredentials, obtainCsrf, renewSession, setAccessToken, setExpiredHandler } from '../api/client';
 import { AUTH_CONTRACT } from '../api/auth-contract';
 import { decodeIdentityResponse } from './identity-response';
-import type { Permission } from './permissions';
+import { hasPermission } from './permissions';
 
 const incompleteIdentityMessage = 'Seu acesso foi reconhecido, mas não foi possível carregar seu perfil e suas permissões. Procure o administrador.';
 
 interface SessionContextValue {
   me: MeDto | null; unitId: string | undefined; sessionKey: string;
   status: 'restoring' | 'anonymous' | 'authenticated'; sessionError: string | null;
-  can: (permission: Permission) => boolean; setUnitId: (id: string) => void;
+  can: (permission: string) => boolean; setUnitId: (id: string) => void;
   login: (email: string, password: string) => Promise<MfaChallengeDto | null>;
   verifyMfa: (challengeId: string, code: string) => Promise<void>;
   logout: () => Promise<void>; restore: () => Promise<void>;
@@ -124,6 +124,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     finally { if (operation === generation.current) clear(); }
   };
   const setUnitId = (id: string) => { if (id === unitId || !me?.scope.unitIds.includes(id)) return; cancelAllRequests(); void client.cancelQueries(); client.clear(); changeUnit(id); };
-  return <Context.Provider value={{me,unitId,sessionKey,status,sessionError,can:p => !!me?.permissions.includes(p),setUnitId,login,verifyMfa,logout,restore}}>{children}</Context.Provider>;
+  return <Context.Provider value={{me,unitId,sessionKey,status,sessionError,can:p => !!me && hasPermission(me.permissions, p),setUnitId,login,verifyMfa,logout,restore}}>{children}</Context.Provider>;
 }
 export function useSession() { const value=useContext(Context); if(!value) throw new Error('SessionProvider não encontrado.'); return value; }

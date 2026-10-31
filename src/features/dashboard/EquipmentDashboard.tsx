@@ -63,7 +63,7 @@ export function EquipmentDashboard({ can }: { can: (permission: string) => boole
       </div>
       <div className={styles.columns}>
         <motion.section {...reveal} className={styles.card} aria-labelledby="equipment-deliveries">
-          <header><span className={styles.eyebrow}>CICLO DE ENTREGA</span><h2 id="equipment-deliveries">Entregas e comprovantes</h2><p>O que já foi conferido e o que falta em cada categoria.</p></header>
+          <header><h2 id="equipment-deliveries">Entregas e comprovantes</h2><p>O que já foi conferido e o que falta em cada categoria.</p></header>
           <div className={styles.total}><strong>{completion}<span>%</span></strong><p>do ciclo com comprovante conferido<small>{confirmed} de {expected} registros</small></p></div>
           <div className={styles.categories}>{conferences.map(item => <div className={styles.category} key={item.id}>
             <div><strong><item.icon size={16} aria-hidden="true" />{item.category}</strong><span>{item.confirmed} / {item.expected}</span></div>
@@ -73,7 +73,7 @@ export function EquipmentDashboard({ can }: { can: (permission: string) => boole
           <p className={styles.note}>Cada comprovante é contado uma vez. Uma conferência documental não comprova adequação do equipamento à atividade.</p>
         </motion.section>
         <motion.section {...reveal} className={`${styles.card} ${styles.queue}`} aria-labelledby="equipment-conferences">
-          <header className={styles.queueHeader}><div><span className={styles.eyebrow}>CONFERÊNCIAS</span><h2 id="equipment-conferences">Conferências de EPIs</h2><p>Organize os oito registros pendentes por lote e equipe.</p></div><span className={styles.queueMark} aria-hidden="true"><ClipboardCheck size={22} /></span></header>
+          <header className={styles.queueHeader}><div><h2 id="equipment-conferences">Conferências de EPIs</h2><p>Organize os oito registros pendentes por lote e equipe.</p></div><span className={styles.queueMark} aria-hidden="true"><ClipboardCheck size={22} /></span></header>
           <div className={styles.filters} role="group" aria-label="Filtrar lotes de EPIs">
             <button ref={allFilter} type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todos os lotes<span aria-hidden="true">{conferences.length}</span></button>
             <button ref={followingFilter} type="button" aria-pressed={filter === 'following'} onClick={() => setFilter('following')}>Em acompanhamento<span aria-hidden="true">{followed.length}</span></button>

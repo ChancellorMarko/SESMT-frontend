@@ -23,6 +23,7 @@ const DashboardPage=lazy(()=>import('../features/dashboard').then(m=>({default:m
 const NotificationsPage=lazy(()=>import('../features/notifications').then(m=>({default:m.NotificationsPage})));
 const AuditPage=lazy(()=>import('../features/audit').then(m=>({default:m.AuditPage})));
 const UsersPage=lazy(()=>import('../features/administration').then(m=>({default:m.UsersPage})));
+const NativeUsersPage=lazy(()=>import('../features/administration/NativeUsersPage').then(m=>({default:m.NativeUsersPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
@@ -57,18 +58,21 @@ const ConnectedAccountPage=lazy(()=>import('../features/auth/ConnectedAccountPag
 export function Guard({ permission,children }: { permission?: string; children:ReactNode }) {
   const s=useSession(); if(s.status==='restoring') return <Spinner/>;
   if(!s.me) return <Navigate to="/login" replace/>;
-  if(permission&&!s.can(permission)) return <div className="error-page"><p className="eyebrow">ACESSO RESTRITO</p><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
+  if(permission&&!s.can(permission)) return <div className="error-page"><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
   return children;
 }
-function Home() { const s=useSession(); return <Navigate replace to={API_MODE === 'api' && !s.me?.permissions.length ? '/app/conexao' : homePath(s.can)}/>; }
+function Home() { const s=useSession(); return <Navigate replace to={homePath(s.can)}/>; }
+function Connection() { const s=useSession(); const target=homePath(s.can); return API_MODE === 'demo' && target !== '/app/conexao' ? <Navigate replace to={target}/> : <ConnectedAccountPage/>; }
+function UserWorkspace() { const s=useSession(); return s.can('users.manage') ? <Guard permission="users.manage"><UsersPage/></Guard> : <Guard permission="users.read"><NativeUsersPage/></Guard>; }
 export function App() {
   const location = useLocation(); const session = useSession();
   return <AppErrorBoundary resetKey={`${location.key}:${session.sessionKey}:${session.unitId}`}><Suspense fallback={<Spinner/>}><RoutePresentation contextKey={`${session.sessionKey}:${session.unitId}`} /><Routes>
     <Route path="/login" element={<LoginPage/>}/><Route path="/mfa" element={<Navigate to="/login" replace/>}/>
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
+    <Route path="/reset-password" element={<ResetPasswordPage/>}/>
     <Route path="/ativar-acesso" element={<AccountActivationPage/>}/>
     <Route path="/convite/:token" element={<TeamInvitePage/>}/>
-    <Route path="/app/conexao" element={<Guard>{API_MODE === 'api' ? <ConnectedAccountPage/> : <Navigate to="/app" replace/>}</Guard>}/>
+    <Route path="/app/conexao" element={<Guard><Connection/></Guard>}/>
     <Route path="/app" element={<Guard><AppLayout/></Guard>}>
       <Route index element={<Home/>}/>
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
@@ -113,7 +117,7 @@ export function App() {
       <Route path="organizacao" element={<Guard permission="organization.read"><OrganizationPage/></Guard>}/>
       <Route path="notificacoes" element={<Guard permission="notifications.read"><NotificationsPage/></Guard>}/>
       <Route path="auditoria" element={<Guard permission="audit.read"><AuditPage/></Guard>}/>
-      <Route path="configuracoes/usuarios" element={<Guard permission="users.manage"><UsersPage/></Guard>}/>
+      <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>
       <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
       <Route path="configuracoes/parametros" element={<Guard><ParametersPage/></Guard>}/>
       <Route path="configuracoes/requisitos" element={<Guard permission="requirements.read"><RequirementMatrixPage/></Guard>}/>

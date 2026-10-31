@@ -66,7 +66,9 @@ it('mantém os indicadores sem atalhos de documentos quando o perfil só pode co
 it('não transforma indicador de vencimento sem janela fornecida em consulta genérica', async () => {
   const data = payload(); data.indicators[0].code = 'DOCUMENTS_EXPIRING'; data.indicators[0].label = 'A vencer em 30 dias';
   vi.mocked(api.get).mockResolvedValue(data as never); show();
-  await screen.findByText('A vencer em 30 dias');
+  await screen.findByRole('heading', { name: 'A vencer' });
+  fireEvent.click(screen.getByRole('button', { name: 'Mais informações: A vencer em 30 dias' }));
+  expect(screen.getByRole('dialog', { name: 'A vencer em 30 dias' })).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Consultar documentos →' })).not.toBeInTheDocument();
   expect(screen.getByText('Consulta detalhada indisponível para este indicador.')).toBeInTheDocument();
 });

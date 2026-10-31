@@ -1,4 +1,4 @@
-.workspace { min-width: 0; gap: 22px; }
+.workspace { min-width: 0; gap: 14px; }
 .pageHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; min-width: 0; min-height: 44px; }
 .headerCopy { flex: 1 1 200px; min-width: 0; }
 .pageHeader h1 { position: relative; margin: 0; color: #183b68; font-size: 30px; font-weight: 550; letter-spacing: -.045em; line-height: 1.2; }
@@ -6,14 +6,14 @@
 .pageHeader h1[data-page-focus]:focus::before { position: absolute; top: 3px; bottom: 3px; left: -14px; width: 3px; border-radius: 3px; background: #4679ee; content: ''; }
 .headerActions { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .headerActions:empty { display: none; }
-.workspace .filterPanel { padding: 23px 25px; border-color: #e0e7ef; border-radius: 23px; background: #fffefa; box-shadow: 0 9px 28px -24px #183b6840; }
+.workspace .filterPanel { padding: 16px 18px; border-color: #e0e7ef; border-radius: 12px; background: #fffefa; box-shadow: 0 9px 28px -24px #183b6840; }
 .filterPanel :global(.field) > label, .filterPanel :global(.field) > span > label { color: #5e7592; font-size: 11px; font-weight: 550; }
 .filterPanel :global(.field) input, .filterPanel :global(.field) select { border-color: #dfe6f0; background: #fdfefd; }
 .filterPanel :global(.field) input:focus, .filterPanel :global(.field) select:focus { border-color: #7fa2df; background: #fff; }
 .filterActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .draftNotice { margin-left: 5px; color: #946319; font-size: 11px; line-height: 1.7; }
-.resultsPanel { min-width: 0; overflow: hidden; border: 1px solid #dce5ef; border-radius: 24px; background: #fffefa; box-shadow: 0 12px 30px -25px #183b6845; }
-.resultsHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 19px 23px; border-bottom: 1px solid #e7edf3; background: linear-gradient(100deg, #fffefa, #f6f9fe); }
+.resultsPanel { min-width: 0; overflow: hidden; border: 1px solid #dce5ef; border-radius: 12px; background: #fffefa; box-shadow: 0 12px 30px -25px #183b6845; }
+.resultsHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e7edf3; background: #fffefa; }
 .resultsHeading > div { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .resultsIcon { display: grid; width: 34px; height: 34px; flex-shrink: 0; place-items: center; border: 1px solid #e0e9f7; border-radius: 11px; background: #edf3fc; color: #4679ee; }
 .resultsHeading h2 { margin: 0; color: #2c4d76; font-size: 15px; font-weight: 600; line-height: 1.5; }
@@ -22,7 +22,7 @@
 .documentTable .documentRow > td { border-bottom-color: #e8edf3; line-height: 1.8; }
 .documentTable :global(.badge) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .documentMark { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin-top: 2px; flex-shrink: 0; border: 1px solid #e2ebfa; border-radius: 12px; background: linear-gradient(135deg, #f2f6fd, #e8effb); color: #5a7fb1; }
-.documentCode { margin-bottom: 3px; color: #5d728e; font-size: 10px; font-weight: 600; letter-spacing: .05em; line-height: 1.7; overflow-wrap: anywhere; }
+.documentCode { margin-bottom: 0; color: #5d728e; font-size: 10px; font-weight: 600; letter-spacing: .01em; line-height: 1.7; overflow-wrap: anywhere; }
 .documentLink { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; min-height: 44px; color: #244d7d; font-size: 13px; font-weight: 600; line-height: 1.7; text-decoration: none; }
 .documentLink > svg { flex-shrink: 0; color: #8095b1; transition: color var(--motion-fast), translate var(--motion-normal) var(--motion-ease); }
 .documentLink:hover, .documentLink:focus-visible { text-decoration: underline; text-underline-offset: 4px; }
@@ -30,13 +30,13 @@
 .documentTable time { color: #506c8e; font-variant-numeric: tabular-nums; }
 .versionCount { display: inline-flex; align-items: center; gap: 7px; min-height: 26px; padding: 2px 8px; border: 1px solid #e2e9f3; border-radius: 8px; background: #f4f7fc; color: #526e91; font-size: 12px; font-variant-numeric: tabular-nums; }
 .versionCount svg { flex-shrink: 0; color: #7c92ae; }
-.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 23px; border-top: 1px solid #e7edf3; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #e7edf3; }
 .pagination > span { color: #586f8d; font-size: 11px; line-height: 1.6; }
 @media (hover:hover) and (pointer:fine) { .documentTable .documentRow:hover > td { background: #f7faff; }.documentLink:hover > svg { color: #4679ee; translate: 2px -2px; } }
 
-@media (max-width: 767px) { .documentTable tbody { padding: 13px!important; background: #f3f6fa!important; }.documentTable .documentRow { border-color: #e0e7f0; border-radius: 18px; background: #fffefa; box-shadow: 0 4px 15px -13px #183b6855; }.documentTable .documentRow > td { background: transparent; }.documentMark { width: 32px; height: 32px; border-radius: 10px; }.documentLink { font-size: 14px; }.resultsHeading { padding: 18px; }.pagination { padding: 18px; } }
-@media (max-width: 599px) { .workspace { gap: 18px; }.headerActions { width: 100%; }.pageHeader h1 { font-size: 28px; }.headerActions > :global(.button) { width: 100%; justify-content: space-between; }.workspace .filterPanel { padding: 19px; border-radius: 21px; }.draftNotice { flex-basis: 100%; margin: 3px 0 0; }.resultsHeading h2 { font-size: 14px; }.resultsPanel { border-radius: 21px; } }
-@media (max-width: 359px) { .documentMark { display: none; }.documentTable tbody { padding: 10px!important; } }
+@media (max-width: 767px) { .documentTable .documentRow > td { background: transparent; }.documentTable .documentRow:last-child { border-bottom: 0; }.documentMark { display: none; }.documentLink { font-size: 13px; line-height: 1.5; }.resultsHeading, .pagination { padding: 12px; } }
+@media (max-width: 599px) { .workspace { gap: 12px; }.headerActions { width: 100%; }.pageHeader h1 { font-size: 28px; }.headerActions > :global(.button) { width: 100%; justify-content: space-between; }.workspace .filterPanel { padding: 14px; }.draftNotice { flex-basis: 100%; margin: 3px 0 0; }.resultsHeading h2 { font-size: 14px; }.resultsPanel { border-radius: 12px; } }
+
 @media (prefers-reduced-motion: reduce) { :global(:root:not([data-motion=full])) .documentLink > svg { transition: none; translate: none; } }
 :global(:root[data-motion=reduced]) .documentLink > svg { transition: none; translate: none; }
 @media print { .pageHeader, .resultsPanel { border-color: #becbdc; background: #fff; box-shadow: none; }.pageHeader { break-inside: avoid; }.pageHeader::before, .pageHeader h1::before, .headerActions, .workspace .filterPanel, .pagination { display: none; }.pageHeader h1 { font-size: 26px; }.resultsHeading { background: #fff; }.documentTable tbody { background: #fff!important; }.documentTable .documentRow { box-shadow: none; break-inside: avoid; }.documentLink > svg { translate: none; } }

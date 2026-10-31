@@ -29,6 +29,16 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('isolamento do ciclo da sessão', () => {
+  it('aceita o catálogo nativo de uma função nova, preserva o contrato original e não concede escrita', async () => {
+    const native = { ...identity, roles: ['PERFIL_CRIADO_NA_API'], permissions: ['documento:ler', 'recurso_novo:consultar'] };
+    http.get.mockResolvedValue(native);
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    expect(current.me?.permissions).toEqual(native.permissions);
+    expect(current.can('documents.read')).toBe(true);
+    expect(current.can('recurso_novo:consultar')).toBe(true);
+    expect(current.can('documents.write')).toBe(false);
+    expect(current.can('users.manage')).toBe(false);
+  });
   it.each([{ kind: 'native', path: '/auth/me' }, { kind: 'adapter', path: '/me' }])('consulta a identidade pelo contrato $kind configurado', async ({ kind, path }) => {
     authContract.kind = kind; authContract.mePath = path;
     mount(); await waitFor(() => expect(current.status).toBe('authenticated'));

@@ -10,7 +10,7 @@ import { preparationListPath, preparationOrigin } from '../../shared/lib/prepara
 import { invalidateConsultation } from '../../shared/lib/consultation-cache';
 import { appointmentInstant, appointmentLocal } from '../agenda/support';
 import { UnsavedChanges } from '../workers/UnsavedChanges';
-import { canonicalPetPreparation, createPetPreparation, PET_CONTROLS, PET_EQUIPMENT, PET_SOURCE, petIdentificationLabels, petRoleLabels, preparationPending, validatePetPreparation } from './model';
+import { canonicalPetPreparation, createPetPreparation, PET_CONTROLS, PET_EQUIPMENT, petIdentificationLabels, petRoleLabels, preparationPending, validatePetPreparation } from './model';
 import { PetAppointment, PetSourceChecks } from './PetFormCommon';
 import { petError, petKey } from './support';
 import styles from './confined-space.module.css';
@@ -188,8 +188,7 @@ function PetEditor({ record, options, initialAppointmentId, refreshError, refres
         <Field label={`Observações da leitura ${index + 1}`}><textarea value={reading.notes} maxLength={1000} rows={2} onChange={event => updateReading(reading.id, { notes: event.target.value })} /></Field>
       </div><div className="actions"><Button variant="ghost" aria-label={`Remover leitura ${index + 1}`} onClick={() => setValues(current => ({ ...current, atmosphere: current.atmosphere.filter(item => item.id !== reading.id) }))}>Remover leitura</Button></div></fieldset>)}</div><div className="actions"><Button variant="secondary" disabled={values.atmosphere.length >= 100} onClick={() => setValues(current => ({ ...current, atmosphere: [...current.atmosphere, { id: crypto.randomUUID(), phase: current.atmosphere.length ? 'FOLLOW_UP' : 'INITIAL', measuredAt: '', instrument: '', responsibleName: '', oxygenPercent: '', carbonMonoxidePpm: '', flammabilityPercentLel: '', otherAgent: '', otherValue: '', otherUnit: '', notes: '' }] }))}>Adicionar leitura atmosférica</Button></div></fieldset>
       <section className="stack" aria-label="Pendências da preparação"><h2>Pendências de preenchimento</h2>{pending.length ? <><p className="muted">{pending.length} itens ainda precisam de registro. Você pode salvar e continuar depois.</p><details><summary className={styles.summary}>Conferir pendências</summary><ul>{pending.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></details></> : <p className="muted">Os registros de preparação foram preenchidos. Este rascunho continua sem autorizar entrada.</p>}</section>
-      <small className={styles.hash}>Origem: {PET_SOURCE.sourceId} · revisão {PET_SOURCE.sourceRevision}. O rótulo de um controle administrativo da célula B38 foi adaptado; o texto original permanece no catálogo de origem.</small>
-      <div className="actions"><Button type="submit" disabled={busy || consultationUnavailable || conflict || Boolean(latest) || !editable || !record && !allowedAppointment(appointment, unitId)}>{saving ? 'Salvando…' : 'Salvar rascunho da PET'}</Button><Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath} state={listNavigation}>Cancelar preenchimento</Link></div>
+      <div className="actions"><Link className="button button--secondary" aria-disabled={busy || undefined} to={returnPath} state={listNavigation}>Cancelar preenchimento</Link><Button type="submit" disabled={busy || consultationUnavailable || conflict || Boolean(latest) || !editable || !record && !allowedAppointment(appointment, unitId)}>{saving ? 'Salvando…' : 'Salvar rascunho da PET'}</Button></div>
     </form></>}
   </div>;
 }

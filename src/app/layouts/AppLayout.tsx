@@ -41,7 +41,7 @@ const config = [
   { to: 'minha-representacao', label: 'Minha representação', permission: 'permits.review' },
   { to: 'configuracoes/servicos', label: 'Serviços e templates', permission: 'requirements.read' },
   { to: 'configuracoes/requisitos', label: 'Matriz de requisitos', permission: 'requirements.read' },
-  { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage' },
+  { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage', alternativePermission: 'users.read' },
   { to: 'configuracoes/tipos-documentais', label: 'Tipos documentais', permission: 'documentTypes.write' },
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
@@ -250,7 +250,7 @@ export function AppLayout() {
     content.addEventListener('focusin', settle);
     return () => { observer.disconnect(); pageMotion.stop(); content.removeEventListener('pointerdown', settle, true); content.removeEventListener('focusin', settle); };
   }, [pageContext, location.hash, s.unitId, pageMotion, reduceMotion, motionReplay]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'k' || event.defaultPrevented) return;
       const target = event.target;
@@ -278,7 +278,7 @@ export function AppLayout() {
   return <div className={styles.shell}>
     <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <motion.aside className={styles.rail} aria-label="Navegação do espaço de trabalho" initial={reduceMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .4 }}>
-      <button type="button" className={styles.railMark} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><img src="/brand/ampara/icon.png" alt="Ampara SESMT" width="36" height="36" /></button>
+      <Link to="/app" className={styles.railMark} aria-label="Ampara SESMT · Página inicial"><img src="/brand/ampara/icon.png" alt="Ampara SESMT" width="36" height="36" /></Link>
       <div className={styles.railSurface}>
         <nav aria-label="Acesso rápido" className={styles.railItems}>
           {visibleDockItems.map(item => {
@@ -299,17 +299,17 @@ export function AppLayout() {
 
     <motion.header className={styles.header} initial={reduceMotion ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}>
       <div className={styles.headerIdentity}>
-        <button type="button" className={styles.headerBrand} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><BrandLogo /></button>
+        <Link to="/app" className={styles.headerBrand} aria-label="Ampara SESMT · Página inicial"><BrandLogo compact /></Link>
       </div>
       <div className={styles.headerActions}>
-        <label className={styles.unit}>
+        {!!s.me?.scope.unitIds.length && <label className={styles.unit}>
           <Building2 size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
           <select aria-label="Unidade de trabalho" value={s.unitId || ''} onChange={e => {
             if (e.target.value === s.unitId) return;
             if (!window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) return;
             s.setUnitId(e.target.value);
           }}>{s.me?.scope.unitIds.map(id => <option key={id} value={id}>{org.data?.units.find(u => u.id === id)?.name || 'Unidade autorizada'}</option>)}</select>
-        </label>
+        </label>}
         <button type="button" onClick={openMenu} className={styles.searchButton} aria-label="Buscar módulos" aria-keyshortcuts="Control+k Meta+k"><span>Buscar módulos</span><kbd><Command size={11} aria-hidden="true" /> K</kbd><i aria-hidden="true"><Search size={16} /></i></button>
         <button type="button" className={`${styles.iconButton} ${styles.motionButton}`} data-motion-mode={reduceMotion ? 'reduced' : 'full'} aria-label="Configurar animações" aria-haspopup="dialog" title="Configurar animações" onClick={() => setMotionSettings(true)}><Sparkles size={18} aria-hidden="true" /></button>
         <HeaderNotifications className={styles.iconButton} />

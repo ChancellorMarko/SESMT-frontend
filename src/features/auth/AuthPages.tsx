@@ -42,10 +42,9 @@ export function PasswordVisibility({ shown, onToggle, label = 'senha' }: { shown
   return <button className={styles.showPassword} type="button" onClick={onToggle} aria-label={`${shown ? 'Ocultar' : 'Mostrar'} ${label}`} aria-pressed={shown}>{shown ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button>;
 }
 
-export function AuthCard({ title, description, eyebrow, icon: Icon = LockKeyhole, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
+export function AuthCard({ title, description, children }: { title: string; description?: string; eyebrow?: string; icon?: LucideIcon; children: ReactNode }) {
   return <section className={styles.card}>
     <div className={styles.cardHeader}>
-      {eyebrow && <p className={styles.cardEyebrow}><Icon size={12} aria-hidden="true" /> {eyebrow}</p>}
       <h1 className={styles.title}>{title}</h1>
       {description && <p className={styles.description}>{description}</p>}
     </div>
@@ -64,9 +63,8 @@ export function AuthLayout({ children, arrival = 'ready', featured = false }: { 
       </header>
       <main className={`${styles.main} ${featured ? styles.featuredMain : ''}`}>
         {featured && <section className={styles.story} aria-labelledby="login-story-title">
-          <p className={styles.storyEyebrow}>SEGURANÇA DO TRABALHO</p>
-          <h2 id="login-story-title"><span>A rotina de SST,</span>{' '}<span>mais organizada.</span></h2>
-          <p className={styles.storyDescription}>Documentos, equipes e informações da operação reunidos em um espaço de trabalho.</p>
+          <h2 id="login-story-title">Gestão de SST</h2>
+          <p className={styles.storyDescription}>Documentos, pessoas e prazos da sua unidade.</p>
         </section>}
         <div className={styles.surface} data-auth-surface>{children}</div>
       </main>

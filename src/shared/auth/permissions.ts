@@ -5,7 +5,8 @@
 // (SeedRolesAndPermissionsAsync) + AuthController.Me, que concatena
 // `Resource + ":" + Action`.
 //
-// Se o seeder mudar, `permissions.test.ts` quebra até este arquivo ser atualizado.
+// Catálogo conhecido para autocomplete e conferência de contrato. Não filtra a
+// identidade nem impede que o servidor envie novos perfis ou permissões.
 
 export const PERMISSIONS = {
   documento: {
@@ -94,7 +95,7 @@ export const PERMISSIONS = {
 
 type ValuesOf<T> = T[keyof T];
 
-/** União literal de toda permissão válida. `can()` só aceita isto. */
+/** União das permissões nativas conhecidas; não limita concessões futuras da API. */
 export type Permission = ValuesOf<{
   [K in keyof typeof PERMISSIONS]: ValuesOf<(typeof PERMISSIONS)[K]>;
 }>;
@@ -131,4 +132,25 @@ export type Role = (typeof ROLES)[number];
 const roleSet: ReadonlySet<string> = new Set(ROLES);
 export function isRole(value: string): value is Role {
   return roleSet.has(value);
+}
+
+/**
+ * The API grants access; this module only names equivalent frontend read checks.
+ * Native resources/actions come from the official backend's Permission entity and
+ * seeder. No role, token claim, wildcard or naming heuristic grants a capability.
+ * Writes/workflows need their own route, DTO and action contracts before mapping.
+ */
+export const nativeReadRequirements: Readonly<Record<string, readonly string[]>> = {
+  'documents.read': [PERMISSIONS.documento.ler],
+  'workers.read': [PERMISSIONS.trabalhador.ler],
+  'users.read': [PERMISSIONS.usuario.ler],
+  // This screen combines four resources; one resource must not unlock the rest.
+  'organization.read': [PERMISSIONS.empresa.ler, PERMISSIONS.unidade.ler, PERMISSIONS.setor.ler, PERMISSIONS.cargo.ler],
+};
+
+export function hasPermission(granted: readonly string[], permission: string): boolean {
+  if (!permission || !Array.isArray(granted)) return false;
+  if (granted.includes(permission)) return true;
+  const requirements = Object.hasOwn(nativeReadRequirements, permission) ? nativeReadRequirements[permission] : undefined;
+  return !!requirements?.length && requirements.every(required => granted.includes(required));
 }

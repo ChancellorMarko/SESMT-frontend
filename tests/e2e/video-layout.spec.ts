@@ -67,6 +67,7 @@ test('entrada e gráfico realmente animam, hover responde e o diálogo devolve o
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await observeMotion(page);
   await loginDemo(page, 'Engenheiro');
+  await page.getByText('Ver gráficos de segurança', { exact: true }).click();
   await expect(page.locator('[data-motion-card]').first()).toBeVisible();
   await expect(page.locator('main[data-motion-page]')).toBeVisible();
   const frames = await motionFrames(page);
@@ -119,9 +120,9 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loginDemo(page, 'Engenheiro');
     await expect(page.locator('[data-motion-card]').first()).toBeVisible();
-    const logo = page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true });
+    const logo = page.getByRole('link', { name: 'Ampara SESMT · Página inicial', exact: true }).getByAltText('Ampara SESMT', { exact: true });
     await expect(logo).toBeVisible();
-    await expect(logo).toHaveAttribute('src', width >= 1024 ? '/brand/ampara/icon.png' : '/brand/ampara/logo-principal.png');
+    await expect(logo).toHaveAttribute('src', '/brand/ampara/icon.png');
     const rail = page.getByRole('navigation', { name: 'Acesso rápido', exact: true });
     await expect(rail).toBeInViewport();
     const bounds = await rail.boundingBox();

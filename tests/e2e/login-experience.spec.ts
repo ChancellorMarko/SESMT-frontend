@@ -82,7 +82,7 @@ test('o login apresenta texto breve, fundo decorativo e acesso discreto à demon
   await expect(page.locator('[data-auth-artwork]')).toHaveCount(0);
   await expect(page.locator('[data-login-background]')).toBeVisible();
   await expect(page.locator('[data-login-background]')).toHaveAttribute('aria-hidden', 'true');
-  await expect(page.getByRole('heading', { name: 'A rotina de SST, mais organizada.', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestão de SST', exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Ampara SESMT', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Ver demonstrações', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('heading', { name: 'Escolha um perfil', exact: true })).toHaveCount(0);

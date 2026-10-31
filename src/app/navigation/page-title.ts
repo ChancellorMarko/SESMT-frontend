@@ -9,6 +9,7 @@ const routes = [
   { path: '/mfa', title: 'Verificar acesso' },
   { path: '/recuperar-acesso', title: 'Recuperar acesso' },
   { path: '/redefinir-senha', title: 'Definir nova senha' },
+  { path: '/reset-password', title: 'Definir nova senha' },
   { path: '/ativar-acesso', title: 'Ativar minha conta' },
   { path: '/convite/:token', title: 'Convite de equipe' },
   { path: '/app/consulta', title: 'Central de consulta' },

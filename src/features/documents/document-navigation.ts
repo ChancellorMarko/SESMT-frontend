@@ -26,14 +26,21 @@ function checkedOrigin(value: unknown, unitId: string, pathname: string, keys: S
   return { unitId, search };
 }
 
-function validList(params: URLSearchParams, unitId: string) {
-  if (params.has('unitId') && params.get('unitId') !== unitId) return false;
-  if (['typeId', 'workerId', 'responsibleId'].some(key => params.get(key) && !identifier(params.get(key)!))) return false;
+export function documentCriteriaError(params: URLSearchParams, browserProjection = false) {
+  if (Array.from(params.keys()).some(key => params.getAll(key).length !== 1)) return 'O endereço contém filtros repetidos. Limpe os filtros ou aplique uma nova busca.';
+  if (Array.from(params.keys()).some(key => !listKeys.has(key))) return 'O endereço contém filtros incompatíveis com documentos. Limpe os filtros ou aplique uma nova busca.';
+  if (['unitId', 'typeId', 'workerId', 'responsibleId'].some(key => params.get(key) && !identifier(params.get(key)!))) return 'O endereço contém uma identificação inválida. Limpe os filtros ou selecione outra opção.';
   const query = params.get('q') ?? '', status = params.get('status') ?? '';
-  return query.length <= 200 && !/[\u0000-\u001f\u007f]/.test(query)
-    && (!status || documentStatuses.some(candidate => candidate === status))
-    && isSafePage(params.get('page'), 10)
-    && validRange(params, 'validUntilFrom', 'validUntilTo') && validRange(params, 'issueDateFrom', 'issueDateTo');
+  if (query.length > 200 || /[\u0000-\u001f\u007f]/.test(query)) return 'A busca deve ter até 200 caracteres, sem caracteres de controle.';
+  if (status && !documentStatuses.some(candidate => candidate === status)) return 'Selecione uma situação documental válida.';
+  if (!isSafePage(params.get('page'), 10)) return 'O endereço contém uma página de documentos inválida. Limpe os filtros ou aplique uma nova busca.';
+  if (!validRange(params, 'validUntilFrom', 'validUntilTo') || !validRange(params, 'issueDateFrom', 'issueDateTo')) return 'Informe intervalos de datas válidos para a consulta.';
+  if (browserProjection && params.get('responsibleId')) return 'O filtro por responsável não está disponível nesta consulta. Remova esse filtro para continuar.';
+  return '';
+}
+
+function validList(params: URLSearchParams, unitId: string) {
+  return (!params.has('unitId') || params.get('unitId') === unitId) && !documentCriteriaError(params);
 }
 
 /** Keep validated queries only; every destination route is fixed by the receiving screen. */

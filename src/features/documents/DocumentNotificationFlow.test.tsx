@@ -71,11 +71,12 @@ function fillEditor(version: boolean) {
     fireEvent.change(screen.getByLabelText('Justificativa da versão *'), { target: { value: 'Versão revisada' } });
   } else fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'Procedimento revisado' } });
 }
-async function cancelEditor(version: boolean) {
+async function cancelEditor(version: boolean, recordAvailable = true) {
   fireEvent.click(screen.getByRole('link', { name: version ? 'Voltar ao documento' : 'Voltar' }));
   const discard = screen.queryByRole('button', { name: 'Descartar e sair' });
   if (discard) fireEvent.click(discard);
-  await screen.findByRole('heading', { name: current.title });
+  if (recordAvailable) await screen.findByRole('heading', { name: current.title });
+  else await screen.findByRole('button', { name: 'Tentar novamente' });
 }
 
 describe('retorno às notificações após consultar documentos', () => {
@@ -154,7 +155,8 @@ describe('retorno às notificações após consultar documentos', () => {
     const view = await show(); await openEditor(version);
     currentUnit = '40000000-0000-4000-8000-000000000001'; view.update();
     await screen.findByLabelText('Título *');
-    await cancelEditor(version);
+    await cancelEditor(version, false);
+    expect(screen.queryByRole('heading', { name: current.title })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Voltar às notificações' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Origem recebida')).not.toHaveTextContent('notificationReturnTo');
   });

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
-import { FileText, Plus, Search } from 'lucide-react';
-import { api } from '../../shared/api/client';
+import { FileText, Plus, RefreshCw, Search } from 'lucide-react';
+import { api, API_MODE } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import type { DocumentReadDto as DocumentDto, DocumentTypeReadDto as DocumentTypeDto, PageDto, WorkerReadDto as WorkerDto } from '../../shared/contracts';
+import type { DocumentTypeReadDto as DocumentTypeDto, WorkerReadDto as WorkerDto } from '../../shared/contracts';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
 import { PagedSelect } from '../../shared/ui/PagedSelect';
@@ -13,7 +13,8 @@ import { AppliedFilters, FilterDisclosure, type AppliedFilter } from '../../shar
 import { DocumentList } from './DocumentList';
 import { documentStatuses, errorMessage, formatDate, isCivilDate, statusLabels } from './validation';
 import { positivePage } from './expiry';
-import { documentNavigation } from './document-navigation';
+import { documentCriteriaError, documentNavigation } from './document-navigation';
+import { checkedDocumentPage } from './document-page';
 import styles from './DocumentWorkspace.module.css';
 
 const filterKeys = ['q', 'typeId', 'status', 'workerId', 'responsibleId', 'validUntilFrom', 'validUntilTo', 'issueDateFrom', 'issueDateTo'] as const;
@@ -59,7 +60,7 @@ function DocumentsPageContent() {
   const urlUnit = searchParams.get('unitId');
   const contextReady = Boolean(unitId) && (!urlUnit || urlUnit === unitId);
   const canRead = can('documents.read');
-  const appliedError = filterError(filters);
+  const appliedError = filterError(filters) || documentCriteriaError(searchParams, API_MODE === 'api' && import.meta.env.VITE_API_BROWSER_PREFIX === '/browser');
   useEffect(() => { setSearch(filters.q); setDraftFilters(filters); setFailure(''); }, [filters]);
   useEffect(() => { if (advancedKeys.some(key => filters[key])) setAdvancedOpen(true); }, [filters]);
   useEffect(() => {
@@ -70,35 +71,34 @@ function DocumentsPageContent() {
   }, [unitId, urlUnit, searchParams, setSearchParams]);
   const list = useQuery({
     queryKey: ['documents', sessionKey, unitId, page, filters],
-    queryFn: ({ signal }) => api.get<PageDto<DocumentDto>>('/documents', { signal, query: { unitId, page, pageSize: 10, ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) } }),
+    queryFn: async ({ signal }) => checkedDocumentPage(await api.get<unknown>('/documents', { signal, query: { unitId, page, pageSize: 10, ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) } }), page, unitId!),
     enabled: canRead && contextReady && !appliedError,
   });
-  const rowTypeIds = !list.isError && contextReady ? list.data?.items.map(document => document.typeId) ?? [] : [];
+  const rowTypeIds = !list.isError && contextReady && !appliedError ? list.data?.items.map(document => document.typeId) ?? [] : [];
   const types = usePagedLookup<DocumentTypeDto>({
     queryKey: ['document-types', sessionKey, unitId, 'document-filter'], path: '/document-types', query: { activeOnly: true },
-    selectedIds: selectedIds(filters.typeId, draftFilters.typeId, ...rowTypeIds), enabled: canRead && contextReady,
+    selectedIds: selectedIds(filters.typeId, draftFilters.typeId, ...rowTypeIds), enabled: canRead && contextReady && !appliedError,
   });
   const workers = usePagedLookup<WorkerDto>({
     queryKey: ['workers', 'document-filter', sessionKey, unitId], path: '/workers', query: { unitId },
-    selectedIds: selectedIds(filters.workerId, draftFilters.workerId), enabled: canRead && can('workers.read') && contextReady,
+    selectedIds: selectedIds(filters.workerId, draftFilters.workerId), enabled: canRead && can('workers.read') && contextReady && !appliedError,
   });
   const assignees = usePagedLookup<{ id: string; displayName: string }>({
     queryKey: ['assignees', 'document-filter', sessionKey, unitId], path: '/assignees', query: { unitId, purpose: 'DOCUMENT_RESPONSIBLE' },
-    selectedIds: selectedIds(filters.responsibleId, draftFilters.responsibleId), enabled: canRead && can('documents.write') && contextReady,
+    selectedIds: selectedIds(filters.responsibleId, draftFilters.responsibleId), enabled: canRead && can('documents.write') && contextReady && !appliedError,
   });
   function searchDocuments(event: FormEvent) {
     event.preventDefault();
     if (!canRead || !contextReady) return;
     const invalid = filterError(draftFilters);
     if (invalid) { setFailure(invalid); return; }
-    const next = new URLSearchParams(searchParams);
-    filterKeys.forEach(key => next.delete(key)); next.delete('page');
+    const next = new URLSearchParams();
     Object.entries({ ...draftFilters, q: search.trim() }).forEach(([key, value]) => { if (value) next.set(key, value); });
     if (unitId) next.set('unitId', unitId);
     setFailure(''); setSearchParams(next);
   }
   function clearFilters() {
-    const next = new URLSearchParams(searchParams); filterKeys.forEach(key => next.delete(key)); next.delete('page');
+    const next = new URLSearchParams(unitId ? { unitId } : {});
     setSearch(''); setDraftFilters(readFilters(next)); setAdvancedOpen(false); setFailure(''); setSearchParams(next);
   }
   function removeFilter(key: string) {
@@ -126,6 +126,7 @@ function DocumentsPageContent() {
         <h1>Documentos</h1>
       </div>
       <div className={styles.headerActions}>
+      <Button variant="secondary" disabled={!contextReady || Boolean(appliedError) || list.isFetching} onClick={() => void list.refetch()}><RefreshCw size={16} aria-hidden="true" />{list.isFetching ? 'Atualizando…' : 'Atualizar'}</Button>
       {dashboardReturnTo && <Link className="button button--secondary" to={`/app/painel-documental${dashboardReturnTo.search}`}>Voltar ao painel documental</Link>}
       {can('documents.write') && <Link className="button button--primary" to="/app/documentos/novo" state={documentOrigin}><Plus size={16} aria-hidden="true" />Novo documento</Link>}
       </div>
@@ -136,7 +137,6 @@ function DocumentsPageContent() {
         <PagedSelect lookup={types} label="Tipo documental" noun="tipos documentais" value={draftFilters.typeId} onChange={value => setDraftFilters(current => ({ ...current, typeId: String(value) }))} getLabel={type => type.name} emptyLabel="Todos os tipos" />
         <Field label="Situação"><select value={draftFilters.status} onChange={event => setDraftFilters(current => ({ ...current, status: event.target.value }))}><option value="">Todas as situações</option>{draftFilters.status && !documentStatuses.some(status => status === draftFilters.status) && <option value={draftFilters.status}>Situação inválida</option>}{documentStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
       </div>
-      <div className={styles.filterActions}><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className={styles.draftNotice}>Alterações ainda não aplicadas à lista.</span>}</div>
       <FilterDisclosure open={advancedOpen} onOpenChange={setAdvancedOpen} count={advancedCount}>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {can('workers.read') && <PagedSelect lookup={workers} label="Trabalhador" noun="trabalhadores" value={draftFilters.workerId} onChange={value => setDraftFilters(current => ({ ...current, workerId: String(value) }))} getLabel={worker => `${worker.fullName} · ${worker.registration}`} emptyLabel="Todos os trabalhadores" />}
@@ -147,6 +147,7 @@ function DocumentsPageContent() {
         <Field label="Emissão até"><input type="date" value={draftFilters.issueDateTo} onChange={event => setDraftFilters(current => ({ ...current, issueDateTo: event.target.value }))} /></Field>
       </div>
       </FilterDisclosure>
+      <div className={styles.filterActions}><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className={styles.draftNotice}>Alterações ainda não aplicadas à lista.</span>}</div>
       <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />
       {(failure || appliedError) && <Feedback tone="danger">{failure || `O endereço contém filtros inválidos. ${appliedError} Corrija os critérios e aplique a busca.`}</Feedback>}
     </form>
@@ -155,7 +156,7 @@ function DocumentsPageContent() {
         <div><span className={styles.resultsIcon}><FileText size={17} aria-hidden="true" /></span><h2>Acervo da unidade</h2></div>
         <p role="status">{list.isFetching ? 'Atualizando lista…' : `${new Intl.NumberFormat('pt-BR').format(list.data?.total ?? 0)} documento(s) encontrado(s)`}</p>
       </div>
-      {!list.data?.items.length ? <div><EmptyState title="Nenhum documento encontrado" description={page > 1 ? 'Esta página não possui resultados. Volte à primeira página para consultar os documentos.' : 'Ajuste os filtros ou cadastre o primeiro documento autorizado para esta unidade.'} />{page > 1 && <div className="px-5 pb-5"><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div>}</div> : <>
+      {!list.data?.items.length ? <div><EmptyState title="Nenhum documento encontrado" description={page > 1 ? 'Esta página não possui resultados. Volte à primeira página para consultar os documentos.' : can('documents.write') ? 'Ajuste os filtros ou cadastre o primeiro documento autorizado para esta unidade.' : 'Nenhum documento disponível para consulta com os filtros atuais.'} />{page > 1 && <div className="px-5 pb-5"><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div>}</div> : <>
         <DocumentList documents={list.data.items} typeNames={typeNames} origin={documentOrigin} />
         <nav aria-label="Paginação de documentos" className={styles.pagination}><span>Página {page} de {Math.max(1, Math.ceil(list.data.total / 10))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1 || list.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * 10 >= list.data.total || list.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
       </>}

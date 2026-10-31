@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
 import { ArrowUpRight, CalendarDays, CalendarClock, FileSearch, Layers3, SlidersHorizontal } from 'lucide-react';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, InfoButton, Spinner } from '../../shared/ui';
 import { TerminologyHelp } from '../../shared/ui/TerminologyGuide';
 import { SafetyOverview, getSafetyArea } from './SafetyOverview';
 import { InspectionDashboard } from './InspectionDashboard';
@@ -129,7 +129,6 @@ function GeneralOperationsDashboard() {
     <motion.section {...reveal(.08)} className={styles.operation} aria-label="Operação da unidade selecionada">
       <div className={styles.sectionHeader}>
         <div>
-          <span className={styles.sectionLabel}><Layers3 size={12} aria-hidden="true" />OPERAÇÃO DA UNIDADE SELECIONADA</span>
           <h2>Agenda e permissões</h2>
 
         </div>
@@ -142,12 +141,12 @@ function GeneralOperationsDashboard() {
           { label: 'Permissões em atendimento', value: dashboard.data.activePermits, help: 'Permissões de trabalho (PT) · unidade e equipe selecionadas', to: permitsPath, visible: s.can('permits.read'), icon: FileSearch },
           { label: 'Pendências documentais', value: dashboard.data.blockedAppointments, help: 'Solicitados ou confirmados com requisito pendente', to: blockedAgendaPath, visible: s.can('eligibility.read'), icon: Layers3 },
           { label: 'Encerramentos para revisão', value: dashboard.data.pendingReviews, help: 'PTs aguardando validação final', to: pendingReviewsPath, visible: s.can('permits.read'), icon: CalendarClock },
-        ].filter(metric => metric.visible).map((metric, index) => <motion.div {...reveal(index * .08)} whileHover={reduce ? undefined : { y: -7, scale: 1.015 }} className={styles.metricSlot} key={metric.label}>
+        ].filter(metric => metric.visible).map((metric, index) => <motion.div {...reveal(index * .08)} className={styles.metricSlot} key={metric.label}>
           <Link className={styles.metric} to={metric.to}>
-            <span className={styles.metricTop}>{metric.label}<ArrowUpRight size={13} aria-hidden="true" /></span>
-            <span className={styles.metricValue}><span className={styles.metricIcon}><metric.icon size={15} aria-hidden="true" /></span><strong>{metric.value.toLocaleString('pt-BR')}</strong></span>
-            <small>{metric.help}</small>
+            <span className={styles.metricTop}>{metric.label}</span>
+            <span className={styles.metricValue}><span className={styles.metricIcon}><metric.icon size={15} aria-hidden="true" /></span><strong>{metric.value.toLocaleString('pt-BR')}</strong><ArrowUpRight size={13} aria-hidden="true" /></span>
           </Link>
+          <div className={styles.metricInfo}><InfoButton title={metric.label}><p>{metric.help}</p></InfoButton></div>
         </motion.div>)}
       </div>}
 

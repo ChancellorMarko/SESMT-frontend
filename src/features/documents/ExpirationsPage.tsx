@@ -108,7 +108,7 @@ function ExpirationsContextPage() {
   return <div className={`stack ${styles.workspace}`}>
     <header className={styles.pageHeader}>
       <div className={styles.headerCopy}>
-        <p className={styles.eyebrow}><span aria-hidden="true"><CalendarClock size={15} /></span>Planejamento documental</p>
+
         <h1>Vencimentos</h1>
         <p className={styles.description}>Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.</p>
       </div>

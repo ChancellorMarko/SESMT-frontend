@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { WorkerIntegrationPanel } from './WorkerIntegrationPanel';
 import { Link, useLocation, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Building2, FileText, History, UsersRound, UserRound, ClipboardCheck } from 'lucide-react';
 import { api } from '../../shared/api/client';
+import { readIdentifier, useVerifiedRead } from '../../shared/lib/verified-read';
+import { checkedDocumentPage } from '../documents/document-page';
+import { checkedOrganization, checkedWorkerDetail, checkedWorkerMovements } from './worker-read';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { integrationReturnDestination } from './worker-integration-navigation';
 import { restoredWorkerDocumentPage, workerDocumentNavigation } from './worker-document-navigation';
 import type {
-  WorkerReadDto as WorkerDto,
-  WorkerMovementReadDto as WorkerMovementDto,
   OrganizationDto,
-  PageDto,
-  DocumentReadDto as DocumentDto,
   WorkerAssignmentReadDto as WorkerAssignment,
 } from '../../shared/contracts';
 import { Badge, Button, EmptyState, Feedback, PageHeader, Spinner } from '../../shared/ui';
@@ -37,11 +36,12 @@ const documentLabels: Record<string, string> = {
 
 export function WorkerDetailPage() {
   const { id } = useParams();
-  const { unitId, sessionKey } = useSession();
-  return <WorkerDetailContent key={JSON.stringify([id, unitId, sessionKey])} />;
+  const { unitId, sessionKey, can } = useSession();
+  return <WorkerDetailContent key={JSON.stringify([id, unitId, sessionKey, can('workers.read'), can('documents.read')])} />;
 }
 
 function WorkerDetailContent() {
+  const client = useQueryClient();
   const { id } = useParams();
   const { can, unitId, sessionKey } = useSession();
   const location = useLocation();
@@ -51,37 +51,51 @@ function WorkerDetailContent() {
   const canReadWorker = can('workers.read');
   const listOrigin = workerNavigation(location.state, sessionKey, unitId);
 
-  const worker = useQuery({
+  const worker = useVerifiedRead({
     queryKey: ['worker', sessionKey, unitId, id],
-    queryFn: ({ signal }) => api.get<WorkerDto>(`/workers/${id}`, { signal }),
-    enabled: canReadWorker && Boolean(id),
+    request: signal => api.get<unknown>(`/workers/${encodeURIComponent(id!)}`, { signal }),
+    validate: value => checkedWorkerDetail(value, id!, unitId!),
+    enabled: canReadWorker && readIdentifier(id) && readIdentifier(unitId),
   });
 
-  const organization = useQuery({
+  const organization = useVerifiedRead({
     queryKey: ['organization', sessionKey, unitId],
-    queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal, query: { unitId: unitId || undefined } }),
-    enabled: can('organization.read'),
+    request: signal => api.get<unknown>('/organization', { signal, query: { unitId: unitId || undefined } }),
+    validate: checkedOrganization,
+    enabled: Boolean(worker.data) && can('organization.read'),
   });
 
-  const movements = useQuery({
+  const movements = useVerifiedRead({
     queryKey: ['worker-movements', sessionKey, unitId, id, movementPage],
-    queryFn: ({ signal }) =>
-      api.get<PageDto<WorkerMovementDto>>(`/workers/${id}/movements`, {
+    scope: ['worker-movements', sessionKey, unitId, id],
+    request: signal =>
+      api.get<unknown>(`/workers/${id}/movements`, {
         signal,
         query: { page: movementPage, pageSize: 5, sort: 'effectiveDate:desc' },
       }),
+    validate: value => checkedWorkerMovements(value, id!, movementPage),
     enabled: Boolean(worker.data) && can('workers.read'),
   });
 
-  const documents = useQuery({
+  const documents = useVerifiedRead({
     queryKey: ['worker-documents', sessionKey, unitId, id, documentPage],
-    queryFn: ({ signal }) =>
-      api.get<PageDto<DocumentDto>>('/documents', {
+    scope: ['worker-documents', sessionKey, unitId, id],
+    request: signal =>
+      api.get<unknown>('/documents', {
         signal,
         query: { workerId: id, unitId: unitId || undefined, page: documentPage, pageSize: 5 },
       }),
+    validate: value => checkedDocumentPage(value, documentPage, unitId!, 5, id, worker.data?.companyId),
     enabled: Boolean(worker.data) && can('documents.read'),
   });
+
+  useEffect(() => {
+    if (!worker.isError) return;
+    for (const resource of ['worker-documents', 'worker-movements']) {
+      const queryKey = [resource, sessionKey, unitId, id];
+      void client.cancelQueries({ queryKey }); client.removeQueries({ queryKey });
+    }
+  }, [client, worker.isError, sessionKey, unitId, id]);
 
   useEffect(() => {
     if (location.hash !== '#integracao' || !canReadWorker || worker.isError || worker.data?.id !== id) return;
@@ -97,8 +111,10 @@ function WorkerDetailContent() {
   }, [id, location.hash, location.key, canReadWorker, worker.data?.id, worker.isError]);
 
   if (!canReadWorker) return <EmptyState title="Acesso restrito" description="Seu perfil não pode consultar este cadastro." />;
+  if (!readIdentifier(id)) return <EmptyState title="Trabalhador inválido" description="Abra o cadastro pela consulta da unidade." />;
+  if (!readIdentifier(unitId)) return <EmptyState title="Selecione uma unidade" />;
   if (worker.isPending) return <Spinner />;
-  if (worker.isError) return <QueryError error={worker.error} retry={() => void worker.refetch()} />;
+  if (worker.isError) return <div className="stack"><QueryError error={worker.error} retry={() => void worker.refetch()} /><Link className="button button--secondary" to={listOrigin ? `/app/trabalhadores${listOrigin.workerListReturnTo.search}` : '/app/trabalhadores'} state={listOrigin}>Voltar à lista</Link></div>;
   if (!worker.data) return null;
 
   const data = worker.data;
@@ -172,6 +188,7 @@ function WorkerDetailContent() {
           </Badge>
         </div>
         <dl className={styles.assignment}>
+          <div><dt className="muted">Matrícula</dt><dd>{data.registration}</dd></div>
           <div>
             <dt className="muted">Empresa</dt>
             <dd>{name('companies', data.companyId)}</dd>
@@ -290,7 +307,7 @@ function WorkerDetailContent() {
                       {documents.data.items.map(document => (
                         <tr role="row" key={document.id}>
                           <td role="cell" className={styles.fullCell}>
-                            <Link to={`/app/documentos/${document.id}`} state={documentOrigin}>{document.title}</Link>
+                            <Link to={`/app/documentos/${encodeURIComponent(document.id)}`} state={documentOrigin}>{document.title}</Link>
                             <span className="muted" style={{ display: 'block' }}>
                               {document.code}
                             </span>
