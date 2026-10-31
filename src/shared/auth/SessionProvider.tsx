@@ -4,13 +4,14 @@ import type { MeDto, MfaChallengeDto, SessionDto } from '../contracts';
 import { api, ApiError, cancelAllRequests, clearCredentials, obtainCsrf, renewSession, setAccessToken, setExpiredHandler } from '../api/client';
 import { AUTH_CONTRACT } from '../api/auth-contract';
 import { decodeIdentityResponse } from './identity-response';
+import type { Permission } from './permissions';
 
 const incompleteIdentityMessage = 'Seu acesso foi reconhecido, mas não foi possível carregar seu perfil e suas permissões. Procure o administrador.';
 
 interface SessionContextValue {
   me: MeDto | null; unitId: string | undefined; sessionKey: string;
   status: 'restoring' | 'anonymous' | 'authenticated'; sessionError: string | null;
-  can: (permission: string) => boolean; setUnitId: (id: string) => void;
+  can: (permission: Permission) => boolean; setUnitId: (id: string) => void;
   login: (email: string, password: string) => Promise<MfaChallengeDto | null>;
   verifyMfa: (challengeId: string, code: string) => Promise<void>;
   logout: () => Promise<void>; restore: () => Promise<void>;
