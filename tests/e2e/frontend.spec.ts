@@ -4,7 +4,7 @@ import { openModule, createDocument, loginDemo, logout, navigateWithinApp, publi
 test('gestor acessa painel e combina busca com filtros documentais', async ({ page }) => {
   await loginDemo(page);
   await expect(page.getByRole('heading', { name: 'Visão geral', exact: true })).toBeVisible();
-  await expect(page.getByText('Dados fictícios em memória.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Dados fictícios em memória.', { exact: false })).toHaveCount(0);
   await openModule(page, 'Documentos');
   await expect(page.getByRole('heading', { name: 'Documentos', exact: true })).toBeVisible();
   await page.getByLabel('Buscar por título ou código', { exact: true }).fill('PROC-2026-001');

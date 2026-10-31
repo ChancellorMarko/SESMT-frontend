@@ -9,6 +9,10 @@ export async function loginDemo(page: Page, role: 'Gestor SESMT' | 'Engenheiro' 
     await page.getByRole('button', { name: 'Verificar e entrar' }).click();
   }
   await expect(page).toHaveURL(/\/app\/(dashboard|documentos)/);
+  // The home redirect updates the URL before the lazy workspace has committed.
+  // Wait for that workspace before using shortcuts or capturing its DOM identity.
+  await expect(page.locator('main#conteudo')).toBeVisible();
+  await expect(page.locator('main#conteudo').getByRole('heading', { level: 1 })).toBeVisible();
 }
 
 export async function logout(page: Page) {

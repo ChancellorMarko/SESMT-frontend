@@ -4,7 +4,7 @@ import { decodeIdentityResponse } from './identity-response';
 
 const identity: MeDto = {
   user: { id: 'account-1', displayName: 'Conta de teste', email: 'account@example.invalid' },
-  roles: ['ADMIN'], permissions: ['workers.read'], accessExpiresAt: '2099-01-01T00:00:00Z',
+  roles: ['ADMIN'], permissions: ['documento:ler'], accessExpiresAt: '2099-01-01T00:00:00Z',
   scope: { companyIds: ['company-1'], unitIds: ['unit-1'], sectorIds: [], teamIds: [], ownOnly: false },
 };
 
@@ -38,7 +38,7 @@ describe('resposta de identidade', () => {
     { ...identity, user: null }, { ...identity, user: { ...identity.user, id: '' } },
     { ...identity, user: { ...identity.user, displayName: '' } }, { ...identity, user: { ...identity.user, email: null } },
     { ...identity, roles: 'ADMIN' }, { ...identity, roles: [1] },
-    { ...identity, permissions: undefined }, { ...identity, permissions: [''] }, { ...identity, permissions: ['workers.read admin'] },
+    { ...identity, permissions: undefined }, { ...identity, permissions: [''] }, { ...identity, permissions: ['documento:ler admin'] },
     { ...identity, scope: null }, { ...identity, scope: { ...identity.scope, unitIds: undefined } },
     { ...identity, scope: { ...identity.scope, companyIds: [1] } }, { ...identity, scope: { ...identity.scope, teamIds: {} } },
     { ...identity, scope: { ...identity.scope, sectorIds: [''] } }, { ...identity, scope: { ...identity.scope, ownOnly: 'false' } },

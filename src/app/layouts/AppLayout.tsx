@@ -250,7 +250,7 @@ export function AppLayout() {
     content.addEventListener('focusin', settle);
     return () => { observer.disconnect(); pageMotion.stop(); content.removeEventListener('pointerdown', settle, true); content.removeEventListener('focusin', settle); };
   }, [pageContext, location.hash, s.unitId, pageMotion, reduceMotion, motionReplay]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'k' || event.defaultPrevented) return;
       const target = event.target;

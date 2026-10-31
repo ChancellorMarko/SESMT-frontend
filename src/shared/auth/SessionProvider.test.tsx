@@ -16,7 +16,7 @@ import { ApiError } from '../api/client';
 
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (value: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; }
 const session: SessionDto = { accessToken: 'access-token', tokenType: 'Bearer', accessExpiresAt: '2099-01-01T00:00:00Z' };
-const identity: MeDto = { user: { id: 'user-new', displayName: 'Usuário atual', email: 'atual@example.test' }, roles: ['TECHNICIAN'], permissions: ['worker.read'], scope: { companyIds: ['company-1'], unitIds: ['unit-1', 'unit-2'], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt };
+const identity: MeDto = { user: { id: 'user-new', displayName: 'Usuário atual', email: 'atual@example.test' }, roles: ['TECNICO'], permissions: ['trabalhador:ler'], scope: { companyIds: ['company-1'], unitIds: ['unit-1', 'unit-2'], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt };
 let current!: ReturnType<typeof useSession>;
 function Probe() { current = useSession(); return <><output aria-label="Status">{current.status}</output><output aria-label="Identidade">{current.me?.user.displayName}</output><output aria-label="Erro">{current.sessionError}</output></>; }
 function mount() { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); return render(<QueryClientProvider client={client}><SessionProvider><Probe/></SessionProvider></QueryClientProvider>); }
@@ -52,16 +52,16 @@ describe('isolamento do ciclo da sessão', () => {
     mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
     expect(current.sessionError).toContain('carregar seu perfil e suas permissões');
     expect(current.me).toBeNull(); expect(current.unitId).toBeUndefined();
-    expect(current.can('worker.read')).toBe(false); expect(http.clear).toHaveBeenCalled();
+    expect(current.can('trabalhador:ler')).toBe(false); expect(http.clear).toHaveBeenCalled();
   });
 
   it('remove identidade e permissões anteriores se o novo login não carrega um perfil completo', async () => {
     mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
-    expect(current.can('worker.read')).toBe(true);
+    expect(current.can('trabalhador:ler')).toBe(true);
     http.clear.mockClear(); http.get.mockResolvedValueOnce({ userId: 'another-account', roles: ['ADMIN'] });
     await act(async () => { await expect(current.login('outro@example.test', 'secret')).rejects.toThrow('carregar seu perfil e suas permissões'); });
     expect(current.status).toBe('anonymous'); expect(current.me).toBeNull();
-    expect(current.unitId).toBeUndefined(); expect(current.can('worker.read')).toBe(false);
+    expect(current.unitId).toBeUndefined(); expect(current.can('trabalhador:ler')).toBe(false);
     expect(http.clear).toHaveBeenCalledTimes(2);
   });
 
@@ -92,7 +92,7 @@ describe('isolamento do ciclo da sessão', () => {
     http.get.mockResolvedValue({ ...identity, scope: { ...identity.scope, expiresAt: '2020-01-01T00:00:00Z' } });
     mount(); await waitFor(() => expect(current.status).toBe('anonymous'));
     expect(current.sessionError).toContain('concessão de acesso expirou');
-    expect(current.me).toBeNull(); expect(current.can('worker.read')).toBe(false);
+    expect(current.me).toBeNull(); expect(current.can('trabalhador:ler')).toBe(false);
   });
 
   it.each(['login', 'mfa'] as const)('sincroniza o CSRF rotacionado após %s antes de buscar a identidade', async method => {
@@ -158,7 +158,7 @@ describe('isolamento do ciclo da sessão', () => {
     expect(http.post).toHaveBeenCalledWith('/auth/logout');
     expect(screen.getByLabelText('Status')).toHaveTextContent('anonymous');
     expect(screen.getByLabelText('Identidade')).toBeEmptyDOMElement();
-    expect(current.can('worker.read')).toBe(false);
+    expect(current.can('trabalhador:ler')).toBe(false);
     expect(http.token).toHaveBeenLastCalledWith(null);
     await act(async () => { remote.reject(new TypeError('Failed to fetch')); await logout; });
     expect(screen.getByLabelText('Erro')).toHaveTextContent('revogação na API não foi confirmada');
@@ -217,7 +217,7 @@ describe('isolamento do ciclo da sessão', () => {
     await act(async () => { oldIdentity.resolve(identity); });
     expect(screen.getByLabelText('Status')).toHaveTextContent('anonymous');
     expect(screen.getByLabelText('Identidade')).toBeEmptyDOMElement();
-    expect(current.can('worker.read')).toBe(false);
+    expect(current.can('trabalhador:ler')).toBe(false);
   });
 
   it('não aceita unidade fora do escopo e cancela as consultas ao mudar para outra permitida', async () => {
