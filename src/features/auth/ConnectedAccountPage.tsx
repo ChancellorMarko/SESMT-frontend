@@ -13,7 +13,7 @@ export function ConnectedAccountPage() {
     <header className={styles.header}><BrandLogo /><Button variant="secondary" onClick={() => void session.logout()}><LogOut size={16} aria-hidden="true" />Sair da conta</Button></header>
     <section className={styles.card} aria-labelledby="connection-title">
       <span className={styles.icon}><PlugZap size={28} aria-hidden="true" /></span>
-      <p className="eyebrow">MINHA CONTA</p>
+
       <h1 id="connection-title">Sua conta está conectada.</h1>
       <p className={styles.description}>{session.me.user.displayName}</p>
       <dl className={styles.identity}><div><dt>Conta</dt><dd>{session.me.user.email}</dd></div><div><dt>Perfis cadastrados</dt><dd>{session.me.roles.length ? session.me.roles.join(' · ') : 'Nenhum perfil atribuído'}</dd></div></dl>

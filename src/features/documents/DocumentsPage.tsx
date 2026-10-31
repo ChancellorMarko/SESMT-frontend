@@ -137,7 +137,6 @@ function DocumentsPageContent() {
         <PagedSelect lookup={types} label="Tipo documental" noun="tipos documentais" value={draftFilters.typeId} onChange={value => setDraftFilters(current => ({ ...current, typeId: String(value) }))} getLabel={type => type.name} emptyLabel="Todos os tipos" />
         <Field label="Situação"><select value={draftFilters.status} onChange={event => setDraftFilters(current => ({ ...current, status: event.target.value }))}><option value="">Todas as situações</option>{draftFilters.status && !documentStatuses.some(status => status === draftFilters.status) && <option value={draftFilters.status}>Situação inválida</option>}{documentStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></Field>
       </div>
-      <div className={styles.filterActions}><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className={styles.draftNotice}>Alterações ainda não aplicadas à lista.</span>}</div>
       <FilterDisclosure open={advancedOpen} onOpenChange={setAdvancedOpen} count={advancedCount}>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {can('workers.read') && <PagedSelect lookup={workers} label="Trabalhador" noun="trabalhadores" value={draftFilters.workerId} onChange={value => setDraftFilters(current => ({ ...current, workerId: String(value) }))} getLabel={worker => `${worker.fullName} · ${worker.registration}`} emptyLabel="Todos os trabalhadores" />}
@@ -148,6 +147,7 @@ function DocumentsPageContent() {
         <Field label="Emissão até"><input type="date" value={draftFilters.issueDateTo} onChange={event => setDraftFilters(current => ({ ...current, issueDateTo: event.target.value }))} /></Field>
       </div>
       </FilterDisclosure>
+      <div className={styles.filterActions}><Button type="submit"><Search size={14} aria-hidden="true" />Buscar</Button><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button>{hasDraftChanges && <span className={styles.draftNotice}>Alterações ainda não aplicadas à lista.</span>}</div>
       <AppliedFilters filters={appliedFilters} onRemove={removeFilter} />
       {(failure || appliedError) && <Feedback tone="danger">{failure || `O endereço contém filtros inválidos. ${appliedError} Corrija os critérios e aplique a busca.`}</Feedback>}
     </form>

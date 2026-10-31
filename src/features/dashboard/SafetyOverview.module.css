@@ -29,6 +29,10 @@
 .priorityAction{ display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:30px; margin-top:auto; text-align:left; font-size:9px; line-height:1.4; color:#e4edfa; }
 .priorityAction svg{ flex-shrink:0; }
 .bento{ display:grid; grid-template-columns:minmax(0,1.65fr) minmax(0,.9fr) minmax(0,.85fr); min-width:0; gap:12px; align-items:stretch; }
+.moreIndicators { min-width: 0; }
+.moreIndicators > summary { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 44px; color: #4f7099; font-size: 12px; cursor: pointer; list-style: none; }
+.moreIndicators > summary::-webkit-details-marker { display: none; }
+.moreIndicators[open] > summary { margin-bottom: 10px; }
 .card{ min-width:0; border:1px solid #e2e7ed; background:#fffefa; box-shadow:0 8px 26px -22px #183b6835; padding:20px; border-radius: 12px; }
 .cardHeader{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; color:#5a789d; }
 .cardHeader h3{ margin:0; font-size:14px; font-weight:600; color:#263e5c; }
@@ -81,7 +85,7 @@
 .illustration{ display:block; width:100%; height:100%; }
 .posterTag{ position:absolute; right:10px; top:10px; }
 .posterCode{ position:absolute; left:11px; bottom:10px; font-size:8px; font-weight:600; letter-spacing:.06em; color:#527297; }
-.priority{ display:inline-flex; align-items:center; gap:4px; border-radius:20px; padding:4px 7px; font-size:8px; line-height:1.4; font-weight:500; white-space:nowrap; }
+.priority{ display:inline-flex; align-items:center; gap:4px; border-radius:20px; padding:4px 7px; font-size:10px; line-height:1.4; font-weight:500; white-space:nowrap; }
 .priority>span{ width:4px; height:4px; border-radius:50%; background:currentColor; flex-shrink:0; }
 .critical{ background:#fff4efcc; color:#a36149; }.attention{ background:#fffaeacc; color:#9b7f46; }.routine{ background:#eef7edcc; color:#5f8060; }
 .occurrenceBody{ min-width:0; display:flex; flex-direction:column; flex:1; padding:12px 10px 5px; }

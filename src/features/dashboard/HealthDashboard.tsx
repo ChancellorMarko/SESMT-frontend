@@ -118,7 +118,7 @@ export function HealthDashboard({ can }: { can: Access }) {
     {localCount > 0 && <span className={styles.localCount}><CheckCheck size={13} aria-hidden="true" />{localCount} em acompanhamento</span>}
 
     <motion.section id={`${prefix}-panel-asos`} role="tabpanel" aria-labelledby={`${prefix}-tab-asos`} tabIndex={0} hidden={view !== 'asos'} className={styles.tabPanel} initial={false} animate={{ opacity: view === 'asos' ? 1 : 0, y: view === 'asos' || reduce ? 0 : 14 }} transition={{ duration: reduce ? 0 : .38 }}>
-      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Saúde ocupacional</span><h2>Atestados de saúde ocupacional (ASO)</h2><p>Acompanhe renovações, conferências de arquivos e a organização do atendimento.</p></div><span className={styles.sectionIcon}><HeartPulse size={26} strokeWidth={1.5} aria-hidden="true" /></span></header>
+      <header className={styles.sectionTitle}><div><h2>Atestados de saúde ocupacional (ASO)</h2><p>Acompanhe renovações, conferências de arquivos e a organização do atendimento.</p></div><span className={styles.sectionIcon}><HeartPulse size={26} strokeWidth={1.5} aria-hidden="true" /></span></header>
       {!isDemo ? <Disconnected view="asos" can={can} /> : <>
         <div className={styles.metrics}>
           <Metric title="ASOs a renovar" value={healthScenario.asoRenewals} note="Próximas janelas de renovação" icon={<FileClock size={18} />} featured />
@@ -148,7 +148,7 @@ export function HealthDashboard({ can }: { can: Access }) {
     </motion.section>
 
     <motion.section id={`${prefix}-panel-nrs`} role="tabpanel" aria-labelledby={`${prefix}-tab-nrs`} tabIndex={0} hidden={view !== 'nrs'} className={styles.tabPanel} initial={false} animate={{ opacity: view === 'nrs' ? 1 : 0, y: view === 'nrs' || reduce ? 0 : 14 }} transition={{ duration: reduce ? 0 : .38 }}>
-      <header className={styles.sectionTitle}><div><span className={styles.eyebrow}>Capacitações</span><h2>Capacitações por equipe</h2><p>Organize comprovantes, lacunas de registro e turmas. A associação às normas regulamentadoras (NR) depende da matriz homologada.</p></div><span className={styles.sectionIcon}><GraduationCap size={28} strokeWidth={1.5} aria-hidden="true" /></span></header>
+      <header className={styles.sectionTitle}><div><h2>Capacitações por equipe</h2><p>Organize comprovantes, lacunas de registro e turmas. A associação às normas regulamentadoras (NR) depende da matriz homologada.</p></div><span className={styles.sectionIcon}><GraduationCap size={28} strokeWidth={1.5} aria-hidden="true" /></span></header>
       {!isDemo ? <Disconnected view="nrs" can={can} /> : <>
         <div className={styles.metrics}>
           <Metric title="Comprovantes disponíveis" value={healthScenario.trainingEvidence} note={`De ${healthScenario.trainingExpected} posições previstas`} icon={<BookOpen size={18} />} featured />
@@ -163,7 +163,7 @@ export function HealthDashboard({ can }: { can: Access }) {
         </article>
         <div className={styles.trainingGrid}>
           <article className={styles.card}><header className={styles.cardHeader}><div><h3>Planejamento de capacitações</h3><p>Próximos grupos para organizar</p></div><Users size={18} aria-hidden="true" /></header><ul className={styles.queue}>{trainingPlanningQueue.map(item => <ExampleRow key={item.id} example={item} followed={Boolean(followed[item.id])} onOpen={() => setDetail(item)} />)}</ul></article>
-          <article className={`${styles.card} ${styles.renewalCallout}`}><span className={styles.calloutIcon}><CalendarClock size={24} aria-hidden="true" /></span><span className={styles.eyebrow}>Próximo ciclo</span><h3>Renovações previstas</h3><p>Confira os comprovantes com renovação prevista e organize os próximos passos.</p>{followed[trainingRenewal.id] && <span className={styles.followed}><Check size={13} aria-hidden="true" />Em acompanhamento</span>}<button type="button" className={styles.calloutButton} aria-label={`Ver detalhe: ${trainingRenewal.title}`} onClick={() => setDetail(trainingRenewal)}>Ver renovações<ArrowUpRight size={15} aria-hidden="true" /></button></article>
+          <article className={`${styles.card} ${styles.renewalCallout}`}><span className={styles.calloutIcon}><CalendarClock size={24} aria-hidden="true" /></span><h3>Renovações previstas</h3><p>Confira os comprovantes com renovação prevista e organize os próximos passos.</p>{followed[trainingRenewal.id] && <span className={styles.followed}><Check size={13} aria-hidden="true" />Em acompanhamento</span>}<button type="button" className={styles.calloutButton} aria-label={`Ver detalhe: ${trainingRenewal.title}`} onClick={() => setDetail(trainingRenewal)}>Ver renovações<ArrowUpRight size={15} aria-hidden="true" /></button></article>
         </div>
         <Resources view="nrs" can={can} />
       </>}

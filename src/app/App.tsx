@@ -57,7 +57,7 @@ const ConnectedAccountPage=lazy(()=>import('../features/auth/ConnectedAccountPag
 export function Guard({ permission,children }: { permission?: string; children:ReactNode }) {
   const s=useSession(); if(s.status==='restoring') return <Spinner/>;
   if(!s.me) return <Navigate to="/login" replace/>;
-  if(permission&&!s.can(permission)) return <div className="error-page"><p className="eyebrow">ACESSO RESTRITO</p><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
+  if(permission&&!s.can(permission)) return <div className="error-page"><h1>Esta área precisa de autorização.</h1><p>Seu perfil não possui acesso a esta funcionalidade. Solicite a concessão ao responsável.</p><Link to="/app" className="button button--primary">Voltar ao início</Link></div>;
   return children;
 }
 function Home() { const s=useSession(); return <Navigate replace to={API_MODE === 'api' && !s.me?.permissions.length ? '/app/conexao' : homePath(s.can)}/>; }

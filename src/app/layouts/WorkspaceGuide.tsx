@@ -28,7 +28,7 @@ export function WorkspaceGuide({ can, displayName, role, onSearch, onTerminology
     <Modal open={open} title="Guia Ampara" onClose={onClose} className={styles.drawer}>
       <div className={styles.intro}>
         <span className={styles.orb} aria-hidden="true"><span /><span /></span>
-        <span className={styles.eyebrow}>SEU ESPAÇO, MAIS PERTO</span>
+
         <h3>Por onde vamos, {firstName}?</h3>
         <p>Encontre os próximos passos e os atalhos do seu dia de trabalho.</p>
       </div>

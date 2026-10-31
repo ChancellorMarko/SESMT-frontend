@@ -8,7 +8,7 @@ test('painel documental recupera data inválida e mantém filtros ao abrir docum
   await expect(page.getByText('O intervalo na URL é inválido. Corrija as datas para consultar o painel.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Atualizar', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Pendências para acompanhar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pendências documentais' })).toBeVisible();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

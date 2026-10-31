@@ -1,4 +1,4 @@
-.workspace { display: flex; min-width: 0; flex-direction: column; gap: 20px; }
+.workspace { display: flex; min-width: 0; flex-direction: column; gap: 14px; }
 .workspace > :global(.page-header) { margin-bottom: 0; }
 .sections { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid #fff; border-radius: 20px; background: #ffffffb3; }
 .sections a { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 1px solid transparent; border-radius: 13px; color: #526179; font-size: 12px; font-weight: 500; text-decoration: none; }
@@ -8,9 +8,9 @@
 .sectionHeader h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; line-height: 1.6; }
 .sectionHeader h2 svg { flex-shrink: 0; color: #6582b0; }
 .sectionHeader p { margin: 6px 0 0; }
-.assignment { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; margin: 0; }
-.assignment > div { min-width: 0; padding: 16px 0; border-top: 1px solid #eef2f6; }
-.assignment dt { margin: 0 0 7px; font-size: 11px; }
+.assignment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin: 0; }
+.assignment > div { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(0, 1.2fr); align-items: baseline; gap: 12px; min-width: 0; padding: 9px 0; border-top: 1px solid #eef2f6; }
+.assignment dt { margin: 0; font-size: 11px; }
 .assignment dd { margin: 0; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .tableWrap { min-width: 0; overflow-x: auto; }
 .relatedTable { min-width: 600px; }
@@ -23,7 +23,7 @@
 .timeline li > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .timeline time { color: #526179; font-size: 12px; }
 .timeline p { margin: 6px 0 0; font-size: 13px; line-height: 1.7; }
-@media (max-width: 900px) { .assignment { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .assignment { grid-template-columns: 1fr; } }
 @media (max-width: 767px) {
   .sections a { flex: 1 1 auto; padding-inline: 12px; }
   .relatedTable { display: block; min-width: 0; }

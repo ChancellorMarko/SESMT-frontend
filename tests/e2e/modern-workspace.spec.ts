@@ -48,7 +48,7 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loginDemo(page, 'Engenheiro');
-    await expect(page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Ampara SESMT · Página inicial', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toBeVisible();
     await page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Saúde e capacitações', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Saúde ocupacional e capacitações', exact: true })).toBeVisible();
     const info = page.getByRole('button', { name: 'Ver detalhe: Conferir identificação do documento', exact: true });

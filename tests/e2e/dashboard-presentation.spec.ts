@@ -86,7 +86,7 @@ for (const width of [320, 1440]) {
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     }
-    await expect(page.getByRole('button', { name: 'Ampara SESMT · Abrir menu', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toHaveAttribute('src', width >= 1024 ? '/brand/ampara/icon.png' : '/brand/ampara/logo-principal.png');
+    await expect(page.getByRole('link', { name: 'Ampara SESMT · Página inicial', exact: true }).getByAltText('Ampara SESMT', { exact: true })).toHaveAttribute('src', '/brand/ampara/icon.png');
     await page.screenshot({ path: testInfo.outputPath(`design-${width}.png`) });
     expect(errors).toEqual([]);
   });

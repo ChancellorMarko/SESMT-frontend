@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, useLayoutEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
+import { Children, cloneElement, isValidElement, useLayoutEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { X, LoaderCircle, Inbox } from 'lucide-react';
 import motionStyles from './ui-motion.module.css';
@@ -6,8 +6,12 @@ import motionStyles from './ui-motion.module.css';
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
   return <button type="button" {...props} className={`button button--${variant} ${className}`} />;
 }
-export function PageHeader({ eyebrow = 'GESTÃO DOCUMENTAL', title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
-  return <div className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1>{description && <p className="muted page-description">{description}</p>}</div>{actions && <div className="actions">{actions}</div>}</div>;
+export function InfoButton({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <><button type="button" className="info-button" aria-label={`Mais informações: ${title}`} title={`Mais informações: ${title}`} aria-haspopup="dialog" onClick={() => setOpen(true)}><span aria-hidden="true">?</span></button><Modal open={open} title={title} onClose={() => setOpen(false)}><div className="info-content">{children}</div></Modal></>;
+}
+export function PageHeader({ title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
+  return <div className="page-header"><div className="page-heading"><h1>{title}</h1>{description && <InfoButton title={title}><p>{description}</p></InfoButton>}</div>{actions && <div className="actions">{actions}</div>}</div>;
 }
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) { return <span className={`badge badge--${tone}`}>{children}</span>; }

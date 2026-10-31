@@ -109,7 +109,7 @@ export function PermitAttachments({ permit, disabled = false, onBusyChange, sect
   const conflict = stale || upload.error instanceof ApiError && upload.error.status === 412;
 
   return <section id={sectionId} className="panel stack" aria-label="Anexos de acompanhamento da PT" aria-busy={busy}>
-    <div className={styles.heading}><div><p className="eyebrow">Acompanhamento em campo</p><h2><Paperclip size={20} aria-hidden="true" /> Anexos da PT</h2><p className="muted">Fotos e arquivos preservados com a versão, a descrição e quem registrou.</p></div><Badge>{currentCount}/{PERMIT_ATTACHMENT_MAX_PER_VERSION} nesta versão</Badge></div>
+    <div className={styles.heading}><div><h2><Paperclip size={20} aria-hidden="true" /> Anexos da PT</h2><p className="muted">Fotos e arquivos preservados com a versão, a descrição e quem registrou.</p></div><Badge>{currentCount}/{PERMIT_ATTACHMENT_MAX_PER_VERSION} nesta versão</Badge></div>
     <p className="muted">Estes anexos registram o acompanhamento da atividade. A documentação e a elegibilidade dos participantes são conferidas na seção própria.</p>
     {notice && <Feedback tone="success">{notice}</Feedback>}
     {list.isPending ? <Spinner /> : list.isError ? <Feedback tone="danger">{errorMessage(list.error)} <Button variant="ghost" onClick={() => void list.refetch()}>Tentar novamente</Button></Feedback>

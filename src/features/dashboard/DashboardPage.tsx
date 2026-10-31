@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
+import { Button, EmptyState, Feedback, Field, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { isCivilDate } from '../documents/validation';
 import { documentNavigation } from '../documents/document-navigation';
 import { scopedQueryError } from '../../shared/lib/scoped-page';
@@ -10,19 +10,17 @@ import { checkedDocumentDashboard, documentDashboardLink } from './document-resp
 import { DocumentPendingList } from './DocumentPendingList';
 import { useDashboardQuery } from './use-dashboard-query';
 const styles = {
-  filters: 'items-end justify-start gap-3 rounded-3xl p-5 [&>.field]:min-w-0 [&>.field]:flex-[0_1_230px] max-sm:[&>.field]:basis-full',
+  filters: 'items-end justify-start gap-3 [&>.field]:min-w-0 [&>.field]:flex-[0_1_230px] max-sm:[&>.field]:basis-full',
   meta: 'flex flex-wrap items-center justify-between gap-x-6 gap-y-3',
-  contextLabel: 'text-[12px] font-semibold text-[#496683]',
   timestamp: 'text-[10px] leading-5 text-slate-400',
-  metrics: 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4',
-  metric: 'flex min-w-0 flex-col gap-3 rounded-3xl border border-white bg-white/85 p-6 shadow-[0_6px_24px_-14px_rgba(24,59,104,0.15)] [&>a]:mt-auto [&>a]:pt-2 [&>a]:text-[11px] [&>a]:font-semibold [&>a]:text-[#54799e] [&>a]:no-underline',
-  label: 'text-[12px] font-medium leading-5 text-slate-500',
-  value: 'text-[36px] font-semibold leading-none tracking-[-.045em] text-[#315884]',
-  detail: 'text-[11px] leading-6 text-slate-500',
-  criteria: 'text-[10px] leading-6 text-slate-400 [&>summary]:min-h-8 [&>summary]:cursor-pointer [&>span]:block',
-  pending: 'gap-0 overflow-hidden rounded-3xl p-0',
-  sectionHeading: 'border-b border-slate-100 px-6 py-6 [&_h2]:text-[16px] [&_h2]:text-[#315884] [&_p]:mt-2 [&_p]:mb-0 [&_p]:text-[11px] [&>a]:text-[11px] [&>a]:font-semibold [&>a]:text-[#54799e] [&>a]:no-underline',
+  metrics: 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4',
+  metric: 'grid min-w-0 grid-rows-[auto_1fr_auto] gap-3 rounded-xl border border-slate-200 bg-[#fffefa] p-4 [&>a]:flex [&>a]:min-h-8 [&>a]:items-center [&>a]:text-xs [&>a]:font-medium [&>a]:text-[#54799e] [&>a]:no-underline',
+  label: 'm-0 min-w-0 text-sm font-medium leading-5 text-slate-600',
+  value: 'text-[32px] font-semibold leading-none tracking-[-.045em] text-[#315884] tabular-nums',
+  pending: 'gap-0 overflow-hidden !p-0',
+  sectionHeading: 'border-b border-slate-100 px-4 py-3 [&_h2]:m-0 [&_h2]:text-base [&_h2]:text-[#315884] [&>a]:flex [&>a]:min-h-11 [&>a]:items-center [&>a]:text-xs [&>a]:font-medium [&>a]:text-[#54799e] [&>a]:no-underline',
 };
+const indicatorTitles: Record<string, string> = { DOCUMENTS_ACTIVE: 'Documentos vigentes', DOCUMENTS_EXPIRED: 'Documentos vencidos', DOCUMENTS_IN_REVIEW: 'Em revisão', DOCUMENTS_EXPIRING: 'A vencer' };
 
 function dateTime(value: string) {
   const date = new Date(value);
@@ -74,22 +72,19 @@ export function DashboardPage() {
     {dashboard.isPending && !invalidRange && <Spinner />}
     {dashboard.isError && !invalidRange && <Feedback tone="danger">{scopedQueryError(dashboard.error, 'painel documental')} <Button variant="ghost" onClick={() => void dashboard.retry()} disabled={dashboard.isFetching}>Tentar novamente</Button></Feedback>}
     {dashboard.data && !dashboard.isError && !invalidRange && <>
-      <div className={styles.meta}><span className={styles.contextLabel}>Documentos e alertas</span><span className={styles.timestamp}>Atualizado em {dateTime(dashboard.data.generatedAt)} · America/Sao_Paulo</span></div>
+      <div className={styles.meta}><span className={styles.timestamp}>Atualizado em {dateTime(dashboard.data.generatedAt)} · Horário de Brasília</span></div>
       {dashboard.data.indicators.length ? <div className={styles.metrics}>{dashboard.data.indicators.map((indicator) => {
         const target = documentDashboardLink(indicator, { unitId, from, to });
         return <article className={styles.metric} key={indicator.code}>
-        <span className={styles.label}>{indicator.label}</span>
+        <div className="flex min-h-10 items-center justify-between gap-2"><h2 className={styles.label}>{indicatorTitles[indicator.code] ?? indicator.label}</h2><InfoButton title={indicator.label}><p>{indicator.formula}</p><p>Fonte: {indicator.source}<br />Período: {indicator.period}<br />Atualização: {dateTime(indicator.updatedAt)}</p></InfoButton></div>
         <strong className={styles.value}>{new Intl.NumberFormat('pt-BR').format(indicator.value)}</strong>
-        <span className={`muted ${styles.detail}`}>{indicator.formula}</span>
-        <details className={styles.criteria}><summary>Critérios do indicador</summary><span>Fonte: {indicator.source} · {indicator.period}</span><span>Atualização: {dateTime(indicator.updatedAt)}</span></details>
         {can('documents.read') && (target ? <Link to={target} state={documentOrigin}>Consultar documentos →</Link> : <span className="text-[10px] leading-5 text-slate-400">Consulta detalhada indisponível para este indicador.</span>)}
       </article>;
       })}</div> : <EmptyState title="Indicadores indisponíveis" description="A API ainda não retornou indicadores para este contexto." />}
       <section className={`panel stack ${styles.pending}`}>
-        <div className={`${styles.meta} ${styles.sectionHeading}`}><div><h2>Pendências para acompanhar</h2><p className="muted">Ações e prazos informados pelo serviço documental.</p></div>{can('documents.read') && <Link to="/app/documentos" state={documentOrigin}>Abrir central →</Link>}</div>
+        <div className={`${styles.meta} ${styles.sectionHeading}`}><div className="flex items-center gap-2"><h2>Pendências documentais</h2><InfoButton title="Pendências documentais"><p>Ações e prazos informados pelo serviço documental. O painel cobre apenas os módulos e o escopo consultados; a ausência de pendências não representa conformidade geral de SST.</p></InfoButton></div>{can('documents.read') && <Link to="/app/documentos" state={documentOrigin}>Abrir central →</Link>}</div>
         {dashboard.data.pendingItems.length ? <DocumentPendingList items={dashboard.data.pendingItems} canReadDocuments={can('documents.read')} origin={documentOrigin} /> : <EmptyState title="Nenhuma pendência retornada" description="O painel reflete apenas os módulos e o escopo consultados." />}
       </section>
-      <Feedback tone="info">Riscos, saúde ocupacional, EPI e treinamentos serão incorporados nas próximas fases. A ausência desses módulos não representa conformidade.</Feedback>
     </>}
   </div>;
 }

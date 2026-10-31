@@ -103,7 +103,7 @@ export function PermitLifecycleActions({ permit: value, disabled = false, onBusy
   const visible = has('suspend') || has('resume') || has('cancel') || permit.lifecycle || notice;
   if (!visible) return null;
   return <section id={sectionId} className="panel stack" aria-label="Interrupção e retomada da PT" aria-busy={busy}>
-    <div><p className="eyebrow">Controle da operação</p><h2>Interrupção e retomada</h2><p className="muted">Registre uma interrupção, confira as condições para retomar ou encerre a permissão por cancelamento.</p></div>
+    <div><h2>Interrupção e retomada</h2><p className="muted">Registre uma interrupção, confira as condições para retomar ou encerre a permissão por cancelamento.</p></div>
     {notice && <Feedback tone="success">{notice}</Feedback>}
     {permit.operationStatus === 'SUSPENDED' && <Feedback tone="warning"><strong>Operação suspensa.</strong> {permit.lifecycle?.suspensionReason}<p className="muted">{permit.lifecycle?.suspendedByName} · {formatDate(permit.lifecycle?.suspendedAt)}. Retomar exige a mesma equipe, as condições conferidas e elegibilidade documental atual.</p></Feedback>}
     {permit.operationStatus === 'CANCELED' && <Feedback><strong>PT cancelada.</strong> {permit.lifecycle?.cancellationReason}<p className="muted">Registro preservado para consulta. Uma nova atividade precisa de uma nova PT.</p></Feedback>}

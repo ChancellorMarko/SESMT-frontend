@@ -278,7 +278,7 @@ export function AppLayout() {
   return <div className={styles.shell}>
     <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <motion.aside className={styles.rail} aria-label="Navegação do espaço de trabalho" initial={reduceMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .4 }}>
-      <button type="button" className={styles.railMark} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><img src="/brand/ampara/icon.png" alt="Ampara SESMT" width="36" height="36" /></button>
+      <Link to="/app" className={styles.railMark} aria-label="Ampara SESMT · Página inicial"><img src="/brand/ampara/icon.png" alt="Ampara SESMT" width="36" height="36" /></Link>
       <div className={styles.railSurface}>
         <nav aria-label="Acesso rápido" className={styles.railItems}>
           {visibleDockItems.map(item => {
@@ -299,7 +299,7 @@ export function AppLayout() {
 
     <motion.header className={styles.header} initial={reduceMotion ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}>
       <div className={styles.headerIdentity}>
-        <button type="button" className={styles.headerBrand} aria-label="Ampara SESMT · Abrir menu" aria-expanded={open} aria-haspopup="dialog" onClick={openMenu}><BrandLogo /></button>
+        <Link to="/app" className={styles.headerBrand} aria-label="Ampara SESMT · Página inicial"><BrandLogo compact /></Link>
       </div>
       <div className={styles.headerActions}>
         <label className={styles.unit}>

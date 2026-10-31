@@ -188,6 +188,7 @@ function WorkerDetailContent() {
           </Badge>
         </div>
         <dl className={styles.assignment}>
+          <div><dt className="muted">Matrícula</dt><dd>{data.registration}</dd></div>
           <div>
             <dt className="muted">Empresa</dt>
             <dd>{name('companies', data.companyId)}</dd>

@@ -228,6 +228,7 @@ function DocumentDetailContent() {
         {hasDocumentAction('documents.archive', 'ARCHIVE') && <Button variant="danger" onClick={() => openCommand('archive')}><Archive size={16} aria-hidden="true" />Arquivar</Button>}
       </div></div>
       <dl className={styles.metadata}>
+        <div><dt>Código</dt><dd>{doc.code}</dd></div>
         <div><dt>Tipo documental</dt><dd>{type?.name ?? 'Tipo cadastrado'}</dd></div><div><dt>Unidade</dt><dd>{doc.unitId ? organization.data?.units.find((item) => item.id === doc.unitId)?.name ?? 'Unidade autorizada' : 'Abrangência da empresa'}</dd></div>
         <div><dt>Setor</dt><dd>{doc.sectorId ? organization.data?.sectors.find((item) => item.id === doc.sectorId)?.name ?? 'Setor vinculado' : 'Sem setor específico'}</dd></div><div><dt>Proprietário</dt><dd>{doc.ownerId === me?.user.id ? me.user.displayName : 'Proprietário cadastrado'}</dd></div>
         <div><dt>Emissão</dt><dd>{formatDate(doc.issueDate)}</dd></div><div><dt>Vigência</dt><dd>{formatDate(doc.validFrom)} a {formatDate(doc.validUntil)}</dd></div>

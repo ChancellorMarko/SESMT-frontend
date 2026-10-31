@@ -69,7 +69,7 @@ export function InspectionDashboard({ can }: { can: (permission: string) => bool
 
     <div className={styles.insightGrid}>
       <motion.section className={styles.panel} variants={reveal} aria-labelledby="inspection-findings-title">
-        <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>Distribuição por área</span><h2 id="inspection-findings-title">Onde estão os achados</h2></div><span className={styles.totalPill}>{summary.openFindings.length} em aberto</span></div>
+        <div className={styles.sectionHeading}><div><h2 id="inspection-findings-title">Onde estão os achados</h2></div><span className={styles.totalPill}>{summary.openFindings.length} em aberto</span></div>
         <p className={styles.sectionDescription}>Compare as áreas para organizar o acompanhamento das correções.</p>
         <figure className={styles.chart} aria-labelledby="inspection-chart-caption">
           <figcaption id="inspection-chart-caption">Achados em aberto por área</figcaption>
@@ -82,7 +82,7 @@ export function InspectionDashboard({ can }: { can: (permission: string) => bool
 
       <motion.section className={styles.returnPanel} variants={reveal} aria-labelledby="inspection-returns-title">
         <div className={styles.returnIcon}><RotateCcw size={23} aria-hidden="true" /></div>
-        <span className={styles.eyebrow}>Reinspeções</span>
+
         <h2 id="inspection-returns-title">Reinspeções previstas</h2>
         <p>Acompanhe os retornos agendados.</p>
         <ul className={styles.returnList}>{summary.reinspections.map(visit => <li key={visit.id}>
@@ -94,7 +94,7 @@ export function InspectionDashboard({ can }: { can: (permission: string) => bool
     </div>
 
     <motion.section className={styles.panel} variants={reveal} aria-labelledby="inspection-actions-title">
-      <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>Ações corretivas</span><h2 id="inspection-actions-title">Plano de ação das inspeções</h2></div><span className={styles.totalPill}>{filteredFindings.length} {filteredFindings.length === 1 ? 'ação' : 'ações'}</span></div>
+      <div className={styles.sectionHeading}><div><h2 id="inspection-actions-title">Plano de ação das inspeções</h2></div><span className={styles.totalPill}>{filteredFindings.length} {filteredFindings.length === 1 ? 'ação' : 'ações'}</span></div>
       <div className={styles.filterRow} role="group" aria-label="Filtrar ações de inspeção">
         {([{ value: 'all', label: 'Todas' }, { value: 'high', label: 'Alta prioridade' }, { value: 'in-progress', label: 'Em andamento' }] as const).map(item => <button key={item.value} type="button" className={styles.filterButton} aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>{item.label}</button>)}
       </div>
@@ -110,7 +110,7 @@ export function InspectionDashboard({ can }: { can: (permission: string) => bool
     </motion.section>
 
     <motion.section className={styles.panel} variants={reveal} aria-labelledby="inspection-route-title">
-      <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>Cobertura em campo</span><h2 id="inspection-route-title">Roteiro de vistorias</h2></div><CalendarDays size={22} aria-hidden="true" /></div>
+      <div className={styles.sectionHeading}><div><h2 id="inspection-route-title">Roteiro de vistorias</h2></div><CalendarDays size={22} aria-hidden="true" /></div>
       <p className={styles.sectionDescription}>Locais visitados e itens conferidos.</p>
       <ul className={styles.visitList}>{inspectionVisits.map(visit => {
         const open = summary.openFindings.filter(finding => finding.inspectionId === visit.id).length;

@@ -2,9 +2,10 @@ import { useId, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { useAppReducedMotion } from '../../shared/motion/MotionPreferences';
-import { ArrowUpRight, Check, CheckCheck, ChevronRight, CircleHelp, ClipboardCheck, Clock3, HardHat, HeartPulse, Layers3, ShieldCheck, Unplug } from 'lucide-react';
+import { ArrowUpRight, Check, CheckCheck, CircleHelp, ClipboardCheck, Clock3, HardHat, HeartPulse, Layers3, ShieldCheck, Unplug } from 'lucide-react';
 import { API_MODE } from '../../shared/api/client';
 import { Button, Modal } from '../../shared/ui';
+import tableStyles from './OccurrenceTable.module.css';
 import { AnimatedNumber } from '../../shared/ui/animated-number';
 import { Progress } from '../../shared/ui/progress';
 import { safetyOccurrences, safetyPriorityLabels, safetyScenario, type SafetyArea, type SafetyOccurrence, type SafetyPriority } from './safety-scenario';
@@ -28,13 +29,14 @@ function reveal(reduce: boolean | null) {
   };
 }
 
-function PriorityTag({ priority }: { priority: SafetyPriority }) {
-  return <span className={`${styles.priority} ${styles[priority]}`}><span aria-hidden="true" />{safetyPriorityLabels[priority]}</span>;
+function PriorityTag({ priority, compact = false }: { priority: SafetyPriority; compact?: boolean }) {
+  const shortLabels = { critical: 'Alta', attention: 'Atenção', routine: 'Rotina' };
+  return <span className={`${styles.priority} ${styles[priority]}`} aria-label={safetyPriorityLabels[priority]} title={compact ? safetyPriorityLabels[priority] : undefined}><span aria-hidden="true" />{compact ? shortLabels[priority] : safetyPriorityLabels[priority]}</span>;
 }
 
 function KpiCard({ title, icon, children, featured = false, onDetails }: { title: string; icon: ReactNode; children: ReactNode; featured?: boolean; onDetails: () => void }) {
   const reduce = useAppReducedMotion();
-  return <motion.article data-motion-card variants={reveal(reduce)} whileHover={reduce ? undefined : { y: -7, scale: 1.015 }} transition={{ duration: .32 }} className={`${styles.kpi} ${featured ? styles.featuredKpi : ''}`}>
+  return <motion.article data-motion-card variants={reveal(reduce)} whileHover={reduce ? undefined : { y: -2 }} transition={{ duration: .32 }} className={`${styles.kpi} ${featured ? styles.featuredKpi : ''}`}>
     <div className={styles.kpiTitle}><span className={styles.kpiIcon} aria-hidden="true">{icon}</span><h3>{title}</h3></div>
     <button type="button" className={styles.info} aria-label={`Sobre o indicador: ${title}`} onClick={onDetails}><CircleHelp size={14} aria-hidden="true" /></button>
     {children}
@@ -65,26 +67,20 @@ function EquipmentGauge() {
 function WorkflowCard({ canReadDocuments }: { canReadDocuments: boolean }) {
   const reduce = useAppReducedMotion();
   return <motion.article variants={reveal(reduce)} className={`${styles.card} ${styles.workflowCard}`}>
-    <span className={styles.workflowIcon} aria-hidden="true"><ShieldCheck size={25} strokeWidth={1.4} /></span><span className={styles.eyebrow}>Documentação</span><h3>Conferência<br />da unidade</h3><p>Consulte vigências, versões e responsáveis.</p>
+    <span className={styles.workflowIcon} aria-hidden="true"><ShieldCheck size={25} strokeWidth={1.4} /></span><h3>Documentos da unidade</h3><p>Consulte vigências, versões e responsáveis.</p>
     <div className={styles.workflowSteps}><span><Check size={12} aria-hidden="true" />Conferir</span><span><Check size={12} aria-hidden="true" />Liberar</span><span><Check size={12} aria-hidden="true" />Acompanhar</span></div>
     {canReadDocuments && <Link className={styles.workflowLink} to="/app/documentos">Consultar documentos da unidade<ArrowUpRight size={14} aria-hidden="true" /></Link>}
   </motion.article>;
 }
 
-function OccurrenceIllustration({ area }: { area: SafetyArea }) {
-  return <svg viewBox="0 0 280 130" aria-hidden="true" className={styles.illustration}>
-    <ellipse cx="141" cy="113" rx="78" ry="9" fill="#183b68" opacity=".08" />
-    {area === 'epis' ? <g><path d="M88 89c0-32 19-55 49-55s51 23 51 55" fill="#88b0eb" /><path d="M103 89c0-27 13-48 34-48s35 21 35 48" fill="#bfd3f2" /><path d="M132 31h12v57h-12z" fill="#4679ee" /><path d="M77 87h121c4 0 7 5 4 9-7 11-31 17-65 17-29 0-53-6-64-15-5-4-2-11 4-11" fill="#285b9e" /><path d="M80 87h115c2 0 3 3 1 4-15 8-88 9-116 0-2-1-2-4 0-4" fill="#638fd1" /><path d="M101 61c4-9 11-17 20-20" stroke="#eef5ff" strokeWidth="5" strokeLinecap="round" /></g> : area === 'saude' ? <g transform="translate(91 13) rotate(-7 50 55)"><rect x="9" y="8" width="92" height="100" rx="9" fill="#c8d4e4" /><rect width="92" height="100" rx="9" fill="#fffefa" /><rect x="14" y="17" width="33" height="5" rx="2.5" fill="#a9b8cc" /><path d="M15 68h14l9-13 11 28 11-18h18" fill="none" stroke="#4679ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /><path d="M15 32h62M15 40h46" stroke="#e0e7ed" strokeWidth="4" strokeLinecap="round" /><circle cx="77" cy="18" r="11" fill="#e6eefc" /><path d="M77 13v10m-5-5h10" stroke="#4679ee" strokeWidth="2.5" strokeLinecap="round" /></g> : <g><rect x="93" y="34" width="89" height="71" rx="9" fill="#6b83a0" /><rect x="101" y="42" width="73" height="40" rx="5" fill="#c9d6e3" /><circle cx="126" cy="62" r="13" fill="#edf2f8" /><circle cx="126" cy="62" r="6" fill="#6b83a0" /><rect x="150" y="49" width="12" height="25" rx="3" fill="#9ab1ca" /><rect x="84" y="80" width="108" height="8" rx="3" fill="#35577e" /><path d="M90 88v21m94-21v21" stroke="#35577e" strokeWidth="7" strokeLinecap="round" /><path d="M199 45v54M208 45v54M199 54h9m-9 12h9m-9 12h9m-9 12h9" stroke="#d5ad6c" strokeWidth="3" strokeLinecap="round" /><circle cx="186" cy="26" r="10" fill="#edcd92" /></g>}
-    <circle cx="213" cy="27" r="13" fill="#fffefa" opacity=".42" /><circle cx="65" cy="55" r="5" fill="#fffefa" opacity=".54" />
-  </svg>;
-}
-
-function OccurrenceCard({ occurrence, reviewed, onOpen }: { occurrence: SafetyOccurrence; reviewed: boolean; onOpen: () => void }) {
+function OccurrenceRow({ occurrence, reviewed, onOpen }: { occurrence: SafetyOccurrence; reviewed: boolean; onOpen: () => void }) {
   const reduce = useAppReducedMotion();
-  return <motion.article layout={!reduce} variants={reveal(reduce)} whileHover={reduce ? undefined : { y: -7, scale: 1.01 }} transition={{ duration: .32 }} className={styles.occurrence}>
-    <div className={`${styles.poster} ${styles[occurrence.area]}`}><OccurrenceIllustration area={occurrence.area} /><span className={styles.posterTag}><PriorityTag priority={occurrence.priority} /></span><span className={styles.posterCode}>{occurrence.id}</span></div>
-    <div className={styles.occurrenceBody}><span className={styles.eyebrow}>{occurrence.category}</span><h3>{occurrence.title}</h3><p>{occurrence.description}</p><div className={styles.owner}><span aria-hidden="true">{occurrence.initials}</span><div><strong>{occurrence.team}</strong><small>{occurrence.location}</small></div></div><button type="button" className={styles.occurrenceAction} aria-label={`Ver detalhes: ${occurrence.title}`} onClick={onOpen}>{reviewed ? <><span><CheckCheck size={14} aria-hidden="true" />Em acompanhamento</span><ChevronRight size={14} aria-hidden="true" /></> : <>Ver detalhes<ArrowUpRight size={14} aria-hidden="true" /></>}</button></div>
-  </motion.article>;
+  return <motion.tr role="row" variants={reveal(reduce)}>
+    <td role="cell"><strong>{occurrence.title}</strong><small>{occurrence.id}</small>{reviewed && <small>Em acompanhamento</small>}</td>
+    <td role="cell" className={tableStyles.location}>{occurrence.team}<small>{occurrence.location}</small></td>
+    <td role="cell"><PriorityTag priority={occurrence.priority} compact /></td>
+    <td role="cell"><button type="button" className="info-button" aria-label={`Ver detalhes: ${occurrence.title}`} title={`Ver detalhes: ${occurrence.title}`} aria-haspopup="dialog" onClick={onOpen}><span aria-hidden="true">?</span></button></td>
+  </motion.tr>;
 }
 
 export function SafetyOverview({ canReadDocuments }: { canReadDocuments: boolean }) {
@@ -118,11 +114,11 @@ export function SafetyOverview({ canReadDocuments }: { canReadDocuments: boolean
       </KpiCard>
     </motion.div>
 
-    {demo && <motion.div className={styles.bento} variants={{ hidden: {}, visible: { transition: { staggerChildren: reduce ? 0 : .08 } } }}><PreventionChart /><EquipmentGauge /><WorkflowCard canReadDocuments={canReadDocuments} /></motion.div>}
+    {demo && <details className={styles.moreIndicators}><summary><CircleHelp size={16} aria-hidden="true" />Ver gráficos de segurança</summary><motion.div className={styles.bento} variants={{ hidden: {}, visible: { transition: { staggerChildren: reduce ? 0 : .08 } } }}><PreventionChart /><EquipmentGauge /><WorkflowCard canReadDocuments={canReadDocuments} /></motion.div></details>}
 
-    <div className={styles.preventive}><header className={styles.sectionHeader}><div><span className={styles.eyebrow}>Acompanhamento preventivo</span><h2>{area ? currentAreaLabel : 'Ocorrências e vistorias'}</h2></div></header>
+    <div className={styles.preventive}><header className={styles.sectionHeader}><div><h2>{area ? currentAreaLabel : 'Ocorrências e vistorias'}</h2></div></header>
       <div className={styles.filters} aria-label="Filtrar registros por área">{areas.map(item => <button key={item.id} type="button" aria-pressed={area === item.id} onClick={() => { const next = new URLSearchParams(params); if (item.id) next.set('area', item.id); else next.delete('area'); setParams(next, { replace: true }); }}><item.icon size={14} aria-hidden="true" /><span>{item.label}</span>{area === item.id && <motion.span aria-hidden="true" layoutId={`${tabsId}-area`} className={styles.activeFilter} transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 34 }} />}</button>)}</div>
-      {demo ? <motion.div className={`${styles.occurrences} ${area ? styles.filteredOccurrences : ''}`} variants={{ hidden: {}, visible: { transition: { staggerChildren: reduce ? 0 : .08 } } }}>{occurrences.map(item => <OccurrenceCard key={item.id} occurrence={item} reviewed={reviewed.includes(item.id)} onOpen={() => { setSelected(item); setFeedback(''); }} />)}</motion.div> : <div className={styles.disconnected}><Unplug size={25} strokeWidth={1.5} aria-hidden="true" /><h3>Sem registros disponíveis</h3>{canReadDocuments && <Link to="/app/documentos">Consultar documentos<ArrowUpRight size={14} aria-hidden="true" /></Link>}</div>}
+      {demo ? <div className={tableStyles.wrap}><table role="table" aria-label="Ocorrências e vistorias" className={`data-table ${tableStyles.table}`}><thead role="rowgroup"><tr role="row"><th scope="col">Registro</th><th scope="col" className={tableStyles.location}>Equipe e local</th><th scope="col">Prioridade</th><th scope="col"><span className="sr-only">Ver detalhes</span></th></tr></thead><motion.tbody role="rowgroup" variants={{ hidden: {}, visible: { transition: { staggerChildren: reduce ? 0 : .05 } } }}>{occurrences.map(item => <OccurrenceRow key={item.id} occurrence={item} reviewed={reviewed.includes(item.id)} onOpen={() => { setSelected(item); setFeedback(''); }} />)}</motion.tbody></table></div> : <div className={styles.disconnected}><Unplug size={25} strokeWidth={1.5} aria-hidden="true" /><h3>Sem registros disponíveis</h3>{canReadDocuments && <Link to="/app/documentos">Consultar documentos<ArrowUpRight size={14} aria-hidden="true" /></Link>}</div>}
     </div>
 
     <Modal open={Boolean(indicator)} title={indicator ?? ''} onClose={() => setIndicator(null)}>
@@ -130,7 +126,7 @@ export function SafetyOverview({ canReadDocuments }: { canReadDocuments: boolean
     </Modal>
 
     <Modal open={Boolean(selected)} title={selected?.title ?? 'Detalhes do registro'} onClose={() => { setSelected(null); setFeedback(''); }}>
-      {selected && <div className="space-y-5"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700">{selected.id}</span><PriorityTag priority={selected.priority} /></div><p className="text-sm leading-7 text-slate-600">{selected.detail}</p>{feedback && <p role="status" className="flex items-start gap-2 rounded-2xl bg-emerald-50 p-4 text-xs leading-6 text-emerald-800"><CheckCheck size={16} className="mt-1 shrink-0" aria-hidden="true" />{feedback}</p>}<div className="flex flex-wrap gap-2"><Button disabled={reviewed.includes(selected.id)} onClick={() => { setReviewed(current => current.includes(selected.id) ? current : [...current, selected.id]); setFeedback('Registro em acompanhamento.'); }}><Check size={15} />{reviewed.includes(selected.id) ? 'Em acompanhamento' : 'Acompanhar'}</Button><Button variant="secondary" onClick={() => setSelected(null)}>Fechar</Button></div></div>}
+      {selected && <div className="space-y-4"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-medium text-slate-600">{selected.id} · {selected.category}</span><PriorityTag priority={selected.priority} /></div><p className="text-sm text-slate-600">{selected.team} · {selected.location}</p><p className="text-sm leading-7 text-slate-600">{selected.detail}</p>{feedback && <p role="status" className="flex items-start gap-2 rounded-xl bg-emerald-50 p-4 text-xs leading-6 text-emerald-800"><CheckCheck size={16} className="mt-1 shrink-0" aria-hidden="true" />{feedback}</p>}<div className="flex flex-wrap gap-2"><Button disabled={reviewed.includes(selected.id)} onClick={() => { setReviewed(current => current.includes(selected.id) ? current : [...current, selected.id]); setFeedback('Registro em acompanhamento.'); }}><Check size={15} />{reviewed.includes(selected.id) ? 'Em acompanhamento' : 'Acompanhar'}</Button><Button variant="secondary" onClick={() => setSelected(null)}>Fechar</Button></div></div>}
     </Modal>
   </motion.section>;
 }
