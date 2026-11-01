@@ -168,7 +168,7 @@ export function AppLayout() {
   const [motionReplay, setMotionReplay] = useState(0);
   const closeMotionSettings = () => { setMotionSettings(false); setMotionReplay(value => value + 1); };
   useContentMotion(contentRef, `${pageContext}:${s.sessionKey}:${s.unitId}:${motionReplay}`, reduceMotion, Boolean(location.hash));
-  const canNavigate = (item: { permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES && (['dashboard.read','appointments.read'].includes(item.permission) || item.permission==='teams.read'&&s.can('equipe:ler')) || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
+  const canNavigate = (item: { to: string; permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES && (['dashboard.read','appointments.read'].includes(item.permission) || item.to==='pts' || item.permission==='teams.read'&&s.can('equipe:ler')) || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
   const canConfigure = (item: { permission: string; alternativePermission?: string }) => s.can(item.permission) || Boolean(item.alternativePermission && s.can(item.alternativePermission));
   const navigationContext = `${pageContext}:${s.sessionKey}:${s.unitId}`;
   const [guideContext, setGuideContext] = useState<string | null>(null);

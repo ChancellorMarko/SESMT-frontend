@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { dashboardCompany, dashboardOtherUnit, dashboardUnit, emptyNativeDashboard, nativeDashboardFixture } from './fixtures/native-dashboard';
+import { dashboardCompany, dashboardOtherUnit, dashboardUnit, dashboardPermit, emptyNativeDashboard, nativeDashboardFixture } from './fixtures/native-dashboard';
 
 // HTTP contract tests against Vite. The real .NET API/PostgreSQL is not replaced
 // or declared homologated by these browser scenarios.
@@ -49,6 +49,7 @@ test('dashboard nativo apresenta indicadores, listas e histórico nos endpoints 
   const state = await openDashboard(page);
   const activity = page.getByRole('region', { name: 'Atividades no período', exact: true });
   await expect(activity.getByRole('cell', { name: /Inspeção da caldeira/ })).toBeVisible();
+  await expect(activity.getByRole('link', { name: 'Inspeção da caldeira', exact: true })).toHaveAttribute('href', `/app/pts/${dashboardPermit}`);
   await expect(activity.getByRole('row')).toHaveCount(6);
   await activity.getByRole('button', { name: 'Próxima', exact: true }).click();
   await expect(activity.getByText('Atividade 6', { exact: true })).toBeVisible();
@@ -69,7 +70,8 @@ test('dashboard nativo apresenta indicadores, listas e histórico nos endpoints 
   const navigation = page.getByRole('dialog', { name: 'Navegação', exact: true });
   await expect(navigation.getByRole('link', { name: 'Visão geral', exact: true })).toBeVisible();
   await expect(navigation.getByRole('link', { name: 'Inspeções de segurança', exact: true })).toHaveCount(0);
-  await expect(navigation.getByRole('link', { name: 'Permissões de trabalho', exact: true })).toHaveCount(0);
+  await expect(navigation.getByRole('link', { name: 'Permissões de trabalho', exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Modelo de permissão de trabalho', exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByText('Ver dados por mês', { exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath('dashboard-nativo-desktop.png'), fullPage: true });

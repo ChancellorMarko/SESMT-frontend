@@ -34,6 +34,9 @@ const NativeCreationPage=lazy(()=>import('../features/native-operations/NativeCr
 const NativeTeamsPage=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamsPage})));
 const NativeTeamCommandUnavailable=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamCommandUnavailable})));
 const NativeDesignationsPage=lazy(()=>import('../features/native-operations/NativeDesignationsPage').then(m=>({default:m.NativeDesignationsPage})));
+const NativePermitsPage=lazy(()=>import('../features/native-permits/NativePermitsPage').then(m=>({default:m.NativePermitsPage})));
+const NativePermitDetail=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitDetail})));
+const NativePermitPrintPage=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitPrintPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
@@ -95,9 +98,9 @@ export function App() {
       <Route path="equipes" element={NATIVE_MODULES?<Guard permission="equipe:ler"><NativeTeamsPage/></Guard>:<Guard permission="teams.read"><TeamsPage/></Guard>}/>
       <Route path="equipes/novo" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
       <Route path="equipes/:id/editar" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
-      <Route path="pts" element={<Guard permission="permits.read"><PermitsPage/></Guard>}/>
-      <Route path="pts/:id" element={<Guard permission="permits.read"><PermitDetailPage/></Guard>}/>
-      <Route path="pts/:id/imprimir" element={<Guard permission="permits.read"><PermitPrintPage/></Guard>}/>
+      <Route path="pts" element={NATIVE_MODULES?<Guard><NativePermitsPage/></Guard>:<Guard permission="permits.read"><PermitsPage/></Guard>}/>
+      <Route path="pts/:id" element={NATIVE_MODULES?<Guard><NativePermitDetail/></Guard>:<Guard permission="permits.read"><PermitDetailPage/></Guard>}/>
+      <Route path="pts/:id/imprimir" element={NATIVE_MODULES?<Guard><NativePermitPrintPage/></Guard>:<Guard permission="permits.read"><PermitPrintPage/></Guard>}/>
       <Route path="designacoes" element={NATIVE_MODULES?<Guard><NativeDesignationsPage/></Guard>:<Guard permission="appointments.read"><DesignationsPage/></Guard>}/>
       <Route path="designacoes/nova" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="designation"/></Guard>:<Guard permission="appointments.write"><DesignationFormPage/></Guard>}/>
       <Route path="designacoes/:id" element={NATIVE_MODULES?<Guard><NativeDesignationsPage/></Guard>:<Guard permission="appointments.read"><DesignationDetailPage/></Guard>}/>

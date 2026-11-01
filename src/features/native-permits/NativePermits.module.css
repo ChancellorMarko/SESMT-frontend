@@ -1,0 +1,9 @@
+.summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.summary dl { grid-template-columns: minmax(80px, .8fr) minmax(0, 1.4fr); gap: 10px; font-size: 14px; }
+.summary dl dt { font-size: 12px; }
+.summary dl dd { margin-bottom: 0; }
+.inset { padding: 12px 16px; overflow-wrap: anywhere; }
+.issueTable { table-layout: fixed; width: 100%; }
+.issueTable td { overflow-wrap: anywhere; }
+.issueTable th:last-child { width: 52px; }
+@media print { .summary { break-inside: avoid; } }

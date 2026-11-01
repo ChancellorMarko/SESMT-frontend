@@ -59,6 +59,8 @@ Os endpoints nativos da equipe permanecem disponíveis sob `/api/v1`. As projeç
 | Agenda | `GET/POST /api/v1/appointments`, `GET /{id}`, `POST /{id}/confirm`, `/reschedule`, `/cancel`, `PUT /{id}/context` |
 | Equipes (consulta nativa) | `GET /api/v1/teams?locationId=...&pageNumber=...&pageSize=10`, `GET /api/v1/teams/{id}` |
 | Designações | `GET/POST /api/v1/designations`, `POST /api/v1/designations/{id}/revoke` |
+| PTs (consulta nativa) | `GET /api/v1/work-permits/search`, `GET /api/v1/work-permits/{id}`, `/{id}/history`, `/{id}/eligibility`, `/{id}/declarations` |
+| PTs (operação nativa) | `POST /api/v1/work-permits/{id}/release`, `/start`, `/suspend`, `/resume`, `/cancel`, `/observations` |
 
 `dev:integrated` seleciona explicitamente `VITE_API_MODE=api`, `VITE_AUTH_API_CONTRACT=native`, `VITE_API_BROWSER_PREFIX=/browser` e o proxy da API. Para iniciar o Vite manualmente, configure os mesmos valores e `VITE_API_BASE_URL=/api/v1`, `API_PROXY_TARGET=http://127.0.0.1:5047`. A autenticação nativa e as projeções de leitura são escolhas independentes: o prefixo browser atua somente nas consultas de organização, trabalhadores, documentos e tipos documentais. Usuários, notificações e auditoria continuam nos endpoints nativos. Use o backend atualizado com os merges #31 e #32 (referência conferida: `41d31e9`). O comando não atualiza o checkout do backend automaticamente.
 
@@ -106,7 +108,19 @@ Designações usam PersonId=Worker.Id, ServiceIds, LocationIds, Type (`atender/l
 
 Os editores mantêm a versão existente na abertura, mesmo se ocorrer nova leitura em segundo plano. Conflitos preservam o preenchimento e bloqueiam reenvio até atualizar; o frontend não incrementa a versão para tentar sobrescrever dados. Respostas incompatíveis e falhas de conclusão ambígua também bloqueiam repetição automática. Sucesso exige conferir os campos retornados e reler as consultas relacionadas, incluindo o dashboard. Testes com HTTP controlado não homologam a autorização, persistência ou idempotência da API real.
 
-A projeção documental também aplica a política de acesso nativa, além dos escopos de empresa, unidade, setor e vínculo próprio. Dados restritos/médicos não são expostos por essa projeção. DTOs de leitura usam `sourceReadOnly: true` e `revision: null`; dados ausentes não são inventados. Escrita, upload, download, aprovação e módulos operacionais precisam de contratos próprios antes de serem habilitados na interface. A existência de endpoints nativos não significa que todos os fluxos da demonstração estejam integrados.
+### Permissões de trabalho nativas
+
+A lista usa GET `/work-permits/search`, paginação real e filtros de título/serviço, estado, empresa, local, participante e período de sobreposição do agendamento. `locationId` é o filtro nativo opcional de unidade, não `unitId`; as datas da busca são dias UTC, incluindo o dia final. O detalhe usa WorkPermitResponse, com estados portugueses, Version e ContentVersion distintos, participantes por User.Id e modelos fixados por ID de versão. O retorno à lista preserva somente consultas internas válidas. Atalhos das filas do dashboard levam à PT ou ao agendamento nativo correspondente.
+
+Histórico, elegibilidade e declarações são consultas independentes verificadas. Declarações precisam corresponder à PT, versões de registro/conteúdo, agendamento e conjunto de modelos fixados. Elegibilidade é uma avaliação administrativa do servidor, não um cálculo local nem uma confirmação automática de liberação. Ela não fornece versão no DTO atual; o comando continua reavaliando os requisitos no servidor. A interface não cria uma avaliação positiva quando a consulta falha.
+
+Liberação, início, suspensão, retomada, cancelamento e observações enviam expectedVersion da abertura do editor. A janela de liberação usa Brasília na entrada e UTC na API, precisa estar contida no agendamento e exige confirmação explícita. Ações dependem dos grants explícitos `pt:liberar`, `pt:iniciar` ou `pt:editar`, do estado recebido e das regras do servidor; perfis por nome não concedem direitos na interface. Os comandos de liberação/início/retomada ficam indisponíveis enquanto a elegibilidade é desconhecida ou pendente. Conflitos, respostas incompatíveis e resultados ambíguos preservam o preenchimento e bloqueiam repetição automática. Sucesso exige resposta compatível e atualização das consultas relacionadas.
+
+Criação, checklist, ciência, encerramento e impressão completa da PT ainda são próximos incrementos nativos. O catálogo de modelos atual exige CONFIG, mas não há leitura das perguntas fixadas para um solicitante/operador sem esse perfil. Os participantes da agenda são Worker.Id; os da PT são User.Id e não devem ser convertidos por suposição. A declaração canônica gravada inclui campos ausentes do DTO de apresentação. Esses contratos precisam ser alinhados; não se reutiliza a estrutura ilustrativa/assinaturas/snapshots/PDF da demonstração para preenchê-los. A URL antiga de impressão informa indisponibilidade sem chamar endpoints incompatíveis.
+
+As leituras da PT usam empresas explícitas de UserScopes EMPRESA. Não implementam automaticamente os escopos UNIDADE/SETOR/ownOnly ou o fallback global de /auth/me; essa política deve ser homologada/alinhada pela equipe do backend, antes de afirmar isolamento por esses critérios. Testes com HTTP controlado não validam autorização, persistência ou regras da API/banco reais.
+
+A projeção documental também aplica a política de acesso nativa, além dos escopos de empresa, unidade, setor e vínculo próprio. Dados restritos/médicos não são expostos por essa projeção. DTOs de leitura usam `sourceReadOnly: true` e `revision: null`; dados ausentes não são inventados. Escrita, upload, download e aprovação documentais precisam de contratos próprios antes de serem habilitados na interface. A existência de endpoints nativos não significa que todos os fluxos da demonstração estejam integrados.
 
 ## Banco existente e validação
 
