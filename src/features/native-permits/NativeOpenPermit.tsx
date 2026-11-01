@@ -36,9 +36,10 @@ export function NativeOpenPermit({ appointment, onClose, onOpened }: { appointme
       || JSON.stringify(verified.models) !== JSON.stringify(selection.models)) throw new NativeContextConflict('Os vínculos ou modelos foram alterados. Seus dados foram mantidos. Feche a janela e atualize a consulta antes de continuar.');
     const receipt = checkedOpeningReceipt(await api.post<unknown>(`/work-permits/appointments/${appointment.id}/pt`, {
       templateVersoes: selection.models.map(model => ({ templateId: model.templateId, versao: model.versao })), participanteIds: selection.userIds,
+      expectedAppointmentVersion: appointment.version,
     }, { signal }), selection);
     const permit = checkedOpenedPermit(await api.get<unknown>(`/work-permits/${receipt.id}`, { signal }), appointment, receipt, selection);
-    // The API currently has no expected appointment version in this command; detect changes without replaying creation.
+    // Preserve the post-write check as well as the server's appointment-version precondition.
     assertSameAppointment(await api.get<unknown>(`/appointments/${appointment.id}`, { signal }), appointment);
     opened.current = permit.id;
   }

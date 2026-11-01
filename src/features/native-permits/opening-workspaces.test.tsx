@@ -39,7 +39,7 @@ async function choose() {
 it('abre com o contrato português e os usuários vinculados, sem exigir consulta administrativa de usuários', async () => {
   const done = show(); await choose(); fireEvent.click(screen.getByRole('button', { name: 'Abrir PT em verificação' }));
   await waitFor(() => expect(done).toHaveBeenCalledWith(ids.permit));
-  expect(api.post).toHaveBeenCalledWith(`/work-permits/appointments/${ids.appointment}/pt`, { templateVersoes: [{ templateId: ids.template, versao: 2 }], participanteIds: [ids.user] }, expect.anything());
+  expect(api.post).toHaveBeenCalledWith(`/work-permits/appointments/${ids.appointment}/pt`, { templateVersoes: [{ templateId: ids.template, versao: 2 }], participanteIds: [ids.user], expectedAppointmentVersion: appointment.version }, expect.anything());
   expect(api.get).not.toHaveBeenCalledWith('/users', expect.anything()); expect(api.post).toHaveBeenCalledTimes(1);
 });
 it('não escolhe a versão mais recente nem envia antes da confirmação explícita', async () => {

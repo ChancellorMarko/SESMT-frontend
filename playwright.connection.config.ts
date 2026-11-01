@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// native-workspace.spec.ts exercises browser projections with the adapter identity.
+const nativeSpecs = ['**/native-auth.spec.ts', '**/native-dashboard.spec.ts', '**/native-operations.spec.ts', '**/native-permits.spec.ts', '**/native-opening.spec.ts', '**/native-documents.spec.ts'];
+
 export default defineConfig({
   testDir: './tests/connection-ui',
   outputDir: './test-results-connection-ui',
@@ -14,8 +17,8 @@ export default defineConfig({
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
   },
   projects: [
-    { name: 'chromium', testIgnore: ['**/native-auth.spec.ts', '**/native-dashboard.spec.ts', '**/native-operations.spec.ts', '**/native-permits.spec.ts', '**/native-opening.spec.ts'], use: { ...devices['Desktop Chrome'] } },
-    { name: 'chromium-native', testMatch: ['**/native-auth.spec.ts', '**/native-dashboard.spec.ts', '**/native-operations.spec.ts', '**/native-permits.spec.ts', '**/native-opening.spec.ts'], use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:5178' } },
+    { name: 'chromium', testIgnore: nativeSpecs, use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium-native', testMatch: nativeSpecs, use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:5178' } },
   ],
   webServer: [{
     command: 'node tests/connection-ui/fixtures/cookie-api-server.mjs',

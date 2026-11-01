@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { FileText, Plus, RefreshCw, Search } from 'lucide-react';
 import { api, API_MODE } from '../../shared/api/client';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { DocumentTypeReadDto as DocumentTypeDto, WorkerReadDto as WorkerDto } from '../../shared/contracts';
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
@@ -128,7 +129,7 @@ function DocumentsPageContent() {
       <div className={styles.headerActions}>
       <Button variant="secondary" disabled={!contextReady || Boolean(appliedError) || list.isFetching} onClick={() => void list.refetch()}><RefreshCw size={16} aria-hidden="true" />{list.isFetching ? 'Atualizando…' : 'Atualizar'}</Button>
       {dashboardReturnTo && <Link className="button button--secondary" to={`/app/painel-documental${dashboardReturnTo.search}`}>Voltar ao painel documental</Link>}
-      {can('documents.write') && <Link className="button button--primary" to="/app/documentos/novo" state={documentOrigin}><Plus size={16} aria-hidden="true" />Novo documento</Link>}
+      {(NATIVE_MODULES ? can('documento:criar') : can('documents.write')) && <Link className="button button--primary" to="/app/documentos/novo" state={documentOrigin}><Plus size={16} aria-hidden="true" />Novo documento</Link>}
       </div>
     </header>
     <form className={`panel flex flex-col gap-4 ${styles.filterPanel}`} onSubmit={searchDocuments} aria-label="Filtros de documentos">

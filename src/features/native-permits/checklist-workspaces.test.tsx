@@ -20,6 +20,7 @@ beforeEach(() => {
   vi.clearAllMocks(); current = permitFixture(); denied = false; models = [templateFixture(), laterTemplateFixture()]; state.grants = ['pt:editar', 'pt:concluir'];
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-31T12:00:00Z'));
   vi.mocked(api.get).mockImplementation(async path => {
+    if (path === `/work-permits/pts/${ids.permit}`) return { id: current.id, versao: current.version, statusOperacional: current.status.toLowerCase(), statusRevisao: current.reviewStatus.toLowerCase(), participanteIds: current.participants.map(p => p.userId), templateVersionIds: current.templateVersionIds } as never;
     if (path === '/work-permits/pt-templates') { if (denied) throw new ApiError(403, { code: 'FORBIDDEN', message: 'Privado', requestId: 'test' }); return structuredClone(models) as never; }
     if (path.endsWith('/history')) return historyFixture() as never;
     if (path.endsWith('/declarations')) return declarationFixture(current) as never;

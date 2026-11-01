@@ -2,10 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { declarationFixture, historyFixture, permitFixture, permitIds as ids } from './fixtures/native-permits';
 import { nativeOrganizationFixture, nativeResponsibleFixture } from './fixtures/native-operations';
 import { checklistIds, templateFixture, laterTemplateFixture } from './fixtures/native-checklists';
+import { scienceFixture, scienceParticipantFixture } from './fixtures/native-science';
 import type { NativePermit } from '../../src/features/native-permits/contracts';
 
 // HTTP contracts are controlled; this suite does not homologate .NET/PostgreSQL.
-async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:editar'], options: { executing?: boolean; modelsDenied?: boolean; missingPinned?: boolean; noClosing?: boolean } = {}) {
+async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:editar'], options: { executing?: boolean; modelsDenied?: boolean; missingPinned?: boolean; noClosing?: boolean; completeContract?: boolean } = {}) {
   const state = { item: permitFixture(), ready: true, conflict: false, denied: false, wrongItem: false,
     modelsDenied: options.modelsDenied ?? false,
     requests: [] as string[], commands: [] as { path: string; body: Record<string, unknown> }[], unexpected: [] as string[], errors: [] as string[] };
@@ -29,6 +30,10 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
       const model = options.noClosing ? { ...templateFixture(), closingQuestions: [] } : templateFixture();
       return json(options.missingPinned ? [laterTemplateFixture()] : [model, laterTemplateFixture()]);
     }
+    if (path === `/api/v1/work-permits/pts/${ids.permit}` && method === 'GET') return json({ id: state.item.id, versao: state.item.version,
+      statusOperacional: state.item.status.toLowerCase(), statusRevisao: state.item.reviewStatus.toLowerCase(),
+      participanteIds: state.item.participants.map(p => p.userId), templateVersionIds: state.item.templateVersionIds,
+      ...(options.completeContract ? { pinnedTemplates: [templateFixture()] } : {}) });
     if (path === '/api/v1/work-permits/search' && method === 'GET') {
       if (state.denied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
       const matches = (!url.searchParams.get('status') || state.item.status === url.searchParams.get('status')) && (!url.searchParams.get('q') || `${state.item.title} ${state.item.serviceCode}`.toLowerCase().includes(url.searchParams.get('q')!.toLowerCase()));
@@ -39,14 +44,20 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
       if (state.denied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
       if (path === base) return json({ ...state.item, id: state.wrongItem ? ids.team : state.item.id });
       if (path === `${base}/history`) return json(historyFixture());
-      if (path === `${base}/declarations`) return json(declarationFixture(state.item));
+      if (path === `${base}/declarations`) return json(options.completeContract ? scienceFixture(state.item) : declarationFixture(state.item));
       if (path === `${base}/eligibility`) return json({ ready: state.ready, issues: state.ready ? [] : [{ code: 'CIENCIA_PENDENTE', participantUserId: ids.user, documentTypeId: null, serviceCode: null }] });
     }
     if (path.startsWith(base + '/') && (method === 'POST' || method === 'PATCH')) {
       const body = route.request().postDataJSON() as Record<string, unknown>; state.commands.push({ path, body });
       if (state.conflict || body.expectedVersion !== state.item.version) return json({ code: 'DOMAIN_VIOLATION', message: 'Informação privada', requestId: 'test' }, 409);
       const action = path.split('/').at(-1)!;
-      if (action === 'release') state.item = { ...state.item, status: 'LIBERADA', releasedAt: '2026-10-31T12:00:00Z', authorizedFrom: String(body.authorizedFrom), authorizedUntil: String(body.authorizedUntil), releaseConditions: String(body.conditions) };
+      if (action === 'acknowledge') {
+        expect(options.completeContract).toBe(true); expect(body.contentHash).toBe(scienceFixture(state.item).contentHash);
+        expect(route.request().headers()['idempotency-key']).toBeUndefined();
+        const participant = scienceParticipantFixture(state.item, String(body.confirmedName));
+        state.item = { ...state.item, version: state.item.version + 1, participants: [participant] }; return json(participant);
+      }
+      else if (action === 'release') state.item = { ...state.item, status: 'LIBERADA', releasedAt: '2026-10-31T12:00:00Z', authorizedFrom: String(body.authorizedFrom), authorizedUntil: String(body.authorizedUntil), releaseConditions: String(body.conditions) };
       else if (action === 'start') state.item = { ...state.item, status: 'EM_EXECUCAO', startedAt: '2026-10-31T12:00:00Z' };
       else if (action === 'suspend') state.item = { ...state.item, status: 'SUSPENSA', suspendedAt: '2026-10-31T12:00:00Z', suspensionReason: String(body.reason) };
       else if (action === 'resume') state.item = { ...state.item, status: 'EM_EXECUCAO' };
@@ -175,4 +186,33 @@ test('checklist em 320px aceita decimal local e mantém o formulário dentro da 
   const dialog = page.getByRole('dialog', { name: 'Preencher checklist', exact: true }); await dialog.getByLabel('Isolamento realizado?', { exact: true }).selectOption('true'); await dialog.getByLabel('Medição registrada', { exact: true }).fill('1,25');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true); await page.screenshot({ path: testInfo.outputPath('checklist-nativo-mobile.png'), fullPage: true });
   await dialog.getByRole('button', { name: 'Salvar respostas', exact: true }).click(); await expect(dialog).toHaveCount(0); expect((state.commands[0].body.answers as { valor: string }[])[1].valor).toBe('1.25'); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+
+test('operador consulta perguntas fixadas sem CONFIG e registra sua ciência integral', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  const state = await setup(page, ['pt:editar'], { modelsDenied: true, completeContract: true }); await detail(page); await loadChecklists(page);
+  await page.getByText('Visualizar perguntas e respostas', { exact: true }).click();
+  await expect(page.getByText('Isolamento realizado?', { exact: true })).toBeVisible();
+  expect(state.requests.some(request => request.includes('/pt-templates'))).toBe(false);
+  await page.getByRole('button', { name: 'Registrar minha ciência', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Registrar minha ciência', exact: true });
+  await expect(dialog.getByText(scienceFixture().declarations[0].text, { exact: true })).toBeVisible();
+  await dialog.getByRole('checkbox', { name: /Li as declarações/ }).check();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('ciencia-nativa-mobile.png'), fullPage: true });
+  await dialog.getByRole('button', { name: 'Confirmar minha ciência', exact: true }).click();
+  await expect(dialog).toHaveCount(0); await expect(page.getByText('Sua ciência está registrada para o conteúdo atual.', { exact: true })).toBeVisible();
+  expect(state.commands).toEqual([{ path: `/api/v1/work-permits/${ids.permit}/acknowledge`, body: {
+    expectedVersion: 4, contentVersion: 3, participantUserId: ids.user, confirmedName: 'Pessoa da operação', identificationMethod: 'Sessão autenticada', confirmation: true, contentHash: scienceFixture().contentHash,
+  } }]);
+  expect(state.item.status).toBe('EM_VERIFICACAO'); expect(state.item.contentVersion).toBe(3); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+
+test('conflito de ciência conserva o nome e não repete a confirmação', async ({ page }) => {
+  const state = await setup(page, ['pt:editar'], { completeContract: true }); await detail(page);
+  await page.getByRole('button', { name: 'Registrar minha ciência', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Registrar minha ciência', exact: true });
+  await dialog.getByLabel('Seu nome completo', { exact: true }).fill('Pessoa da operação conferida'); await dialog.getByRole('checkbox', { name: /Li as declarações/ }).check(); state.conflict = true;
+  await dialog.getByRole('button', { name: 'Confirmar minha ciência', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('Seus dados foram mantidos');
+  await expect(dialog.getByLabel('Seu nome completo', { exact: true })).toHaveValue('Pessoa da operação conferida'); await expect(dialog.getByRole('button', { name: 'Confirmar minha ciência', exact: true })).toBeDisabled();
+  expect(state.commands).toHaveLength(1); expect(state.item.participants[0].acknowledgedAt).toBeNull(); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });

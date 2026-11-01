@@ -51,7 +51,7 @@ async function fill(page: Page) {
 test('abre PT com usuários vinculados e versões explícitas, retornando à agenda com filtros', async ({ page }) => {
   const state = await setup(page), dialog = await fill(page); await dialog.getByRole('button', { name: 'Abrir PT em verificação', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/app/pts/${ids.permit}$`)); await expect(page.getByRole('heading', { name: state.appointment.title, exact: true })).toBeVisible();
-  expect(state.commands).toEqual([{ path: `/api/v1/work-permits/appointments/${ids.appointment}/pt`, body: { templateVersoes: [{ templateId: ids.template, versao: 2 }], participanteIds: [ids.user] } }]);
+  expect(state.commands).toEqual([{ path: `/api/v1/work-permits/appointments/${ids.appointment}/pt`, body: { templateVersoes: [{ templateId: ids.template, versao: 2 }], participanteIds: [ids.user], expectedAppointmentVersion: state.appointment.version } }]);
   expect(state.requests.indexOf(`GET /api/v1/browser/workers/${ids.worker}`)).toBeLessThan(state.requests.indexOf(`GET /api/v1/workers/${ids.worker}`));
   await page.getByRole('link', { name: 'Voltar ao agendamento', exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/app/agenda/${ids.appointment}$`)); await page.getByRole('link', { name: 'Voltar à agenda', exact: true }).click();
   await expect(page.getByLabel('Buscar por título')).toHaveValue('Inspeção'); await expect(page.getByLabel('Situação', { exact: true })).toHaveValue('CONFIRMED'); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { api, ApiError } from '../../shared/api/client';
+import { ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { Button, Feedback, Spinner } from '../../shared/ui';
-import { checkedPinnedTemplates, checklistDraft, type NativeTemplate } from './checklists';
+import { checkedPinnedTemplates, checklistDraft, loadPinnedTemplates, type NativeTemplate } from './checklists';
 import type { NativePermit } from './contracts';
 import { NativeChecklistEditor } from './NativeChecklistEditor';
 import { NativeChecklistFields } from './NativeChecklistFields';
@@ -12,8 +12,8 @@ export function NativePermitChecklists({ item, refreshing, onDone }: { item: Nat
   const { sessionKey, can } = useSession();
   const [loaded, load] = useState(false), [closingView, setView] = useState(false);
   const [editing, edit] = useState<{ item: NativePermit; templates: NativeTemplate[]; closing: boolean }>();
-  const models = useVerifiedRead({ queryKey: ['native-permit-templates', sessionKey, item.id, item.companyId, item.serviceCode, item.templateVersionIds], scope: ['native-permit-templates', sessionKey, item.id], enabled: loaded && !refreshing && Boolean(item.templateVersionIds.length),
-    request: signal => api.get<unknown>('/work-permits/pt-templates', { query: { companyId: item.companyId }, signal }), validate: value => checkedPinnedTemplates(value, item) });
+  const models = useVerifiedRead({ queryKey: ['native-permit-templates', sessionKey, item.id, item.version, item.companyId, item.serviceCode, item.templateVersionIds], scope: ['native-permit-templates', sessionKey, item.id], enabled: loaded && !refreshing && Boolean(item.templateVersionIds.length),
+    request: signal => loadPinnedTemplates(item, signal), validate: value => checkedPinnedTemplates(value, item) });
   let opening, closing, invalid = false;
   if (models.data) {
     try { opening = checklistDraft(models.data.flatMap(model => model.perguntas), item.checklistAnswers); closing = checklistDraft(models.data.flatMap(model => model.closingQuestions), item.closingAnswers ?? []); }
