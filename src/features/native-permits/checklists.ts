@@ -19,12 +19,17 @@ export type NativeQuestion = z.infer<typeof nativeQuestion>;
 export type NativeTemplate = z.infer<typeof template>;
 export type NativeAnswer = NativePermit['checklistAnswers'][number];
 export type ChecklistDraft = Record<string, { value: string; justification: string }>;
-export function checkedPinnedTemplates(value: unknown, permit: Pick<NativePermit, 'companyId' | 'templateVersionIds' | 'serviceCode'>) {
+export function checkedTemplates(value: unknown, companyId: string) {
   const parsed = z.array(template).safeParse(value);
-  if (!parsed.success || !permit.templateVersionIds.length || new Set(parsed.data.map(item => item.id)).size !== parsed.data.length
-    || new Set(parsed.data.map(item => `${item.templateId}:${item.versao}`)).size !== parsed.data.length
-    || parsed.data.some(item => item.companyId !== permit.companyId)) throw new InvalidReadResponse();
-  const pinned = permit.templateVersionIds.map(id => parsed.data.find(item => item.id === id));
+  if (!parsed.success || parsed.data.some(item => item.companyId !== companyId.toLowerCase())
+    || new Set(parsed.data.map(item => item.id)).size !== parsed.data.length
+    || new Set(parsed.data.map(item => `${item.templateId}:${item.versao}`)).size !== parsed.data.length) throw new InvalidReadResponse();
+  return parsed.data;
+}
+export function checkedPinnedTemplates(value: unknown, permit: Pick<NativePermit, 'companyId' | 'templateVersionIds' | 'serviceCode'>) {
+  const templates = checkedTemplates(value, permit.companyId);
+  if (!permit.templateVersionIds.length) throw new InvalidReadResponse();
+  const pinned = permit.templateVersionIds.map(id => templates.find(item => item.id === id));
   if (pinned.some(item => !item)) throw new InvalidReadResponse();
   const result = pinned as NativeTemplate[], opening = result.flatMap(item => item.perguntas);
   if (new Set(result.map(item => item.templateId)).size !== result.length || new Set(opening.map(item => item.id)).size !== opening.length

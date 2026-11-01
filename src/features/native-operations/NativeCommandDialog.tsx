@@ -7,6 +7,7 @@ import { useEditorRequest } from '../administration/useEditorRequest';
 import styles from './NativeForms.module.css';
 
 export class NativeFormError extends Error {}
+export class NativeContextConflict extends Error {}
 /** A conflict or ambiguous result must be re-read, never replayed with a guessed version. */
 export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar' }: {
   title: string; dirty: boolean; disabled?: boolean; onClose: () => void;
@@ -22,7 +23,7 @@ export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, 
       if (!request.isActive()) return;
       const retryable = failure instanceof NativeFormError || failure instanceof ApiError && [400, 422].includes(failure.status);
       setBlocked(!retryable);
-      setError(failure instanceof NativeFormError ? failure.message
+      setError(failure instanceof NativeFormError || failure instanceof NativeContextConflict ? failure.message
         : failure instanceof ApiError && failure.status === 409 ? 'O registro ou as condições da operação mudaram. Seus dados foram mantidos. Feche a janela e atualize a consulta antes de tentar novamente.'
         : failure instanceof ApiError && [401, 403, 404].includes(failure.status) ? 'A API não autorizou ou não encontrou este registro. Atualize a consulta antes de tentar novamente.'
         : failure instanceof InvalidReadResponse ? 'A resposta não confirmou os dados desta operação. Atualize a consulta antes de repetir.'

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { Feedback, PageHeader } from '../../shared/ui';
 import { NativeCreationDialog } from './NativeCreationDialog';
-import { nativeAgendaReturn } from './NativeAppointmentDetail';
+import { nativeAgendaReturn } from './agenda-navigation';
 
 export function NativeCreationPage({ kind }: { kind: 'appointment'|'designation' }) {
   const { sessionKey, can } = useSession(), navigate = useNavigate(), location = useLocation(), client = useQueryClient();

@@ -52,10 +52,10 @@ function errorDto(value: unknown): ErrorDto {
   };
 }
 
-async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}, retried = false): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}, retried = false, nativeWorker = false): Promise<T> {
   const publicInvite = /^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path);
   const requestEpoch = epoch;
-  const url = new URL(`${BASE}${resolveApiPath(path, API_MODE, import.meta.env.VITE_API_BROWSER_PREFIX, AUTH_CONTRACT.kind)}`, window.location.origin);
+  const url = new URL(`${BASE}${nativeWorker ? path : resolveApiPath(path, API_MODE, import.meta.env.VITE_API_BROWSER_PREFIX, AUTH_CONTRACT.kind)}`, window.location.origin);
   Object.entries(options.query || {}).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v)); });
   const controller = new AbortController(); controllers.add(controller);
   const abort = () => controller.abort(options.signal?.reason);
@@ -73,7 +73,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
     if (controller.signal.aborted) throw controller.signal.reason;
     let response: Response;
     try {
-      response = await waitFor(fetch(url, { method, headers, credentials: publicInvite ? 'omit' : 'include', signal: controller.signal, body: body === undefined ? undefined : form ? body : JSON.stringify(body) }), controller.signal);
+      response = await waitFor(fetch(url, { method, headers, credentials: publicInvite ? 'omit' : 'include', signal: controller.signal, ...(nativeWorker ? { cache: 'no-store' as const } : {}), body: body === undefined ? undefined : form ? body : JSON.stringify(body) }), controller.signal);
     } catch (error) {
       if (controller.signal.aborted) throw controller.signal.reason || error;
       throw new Error('Não foi possível conectar à API. Verifique a conexão e tente novamente.');
@@ -91,7 +91,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
         try {
           await waitFor(renewSession(), controller.signal);
           if (requestEpoch !== epoch || options.signal?.aborted) throw new DOMException('Requisição cancelada.', 'AbortError');
-          return request<T>(method, path, body, options, true);
+          return request<T>(method, path, body, options, true, nativeWorker);
         } catch (error) {
           if (requestEpoch === epoch && error instanceof ApiError && error.status === 401) { clearCredentials(); onExpired(); }
           throw error;
@@ -131,6 +131,12 @@ export const api = {
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
 };
+/** Read the existing native worker DTO; callers must first verify its browser-scoped ID. */
+export function readNativeWorker<T>(id: string, options?: RequestOptions): Promise<T> {
+  if (API_MODE !== 'api' || AUTH_CONTRACT.kind !== 'native' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    || id === '00000000-0000-0000-0000-000000000000') throw new Error('Consulta nativa de trabalhador indisponível neste contexto.');
+  return request<T>('GET', `/workers/${id.toLowerCase()}`, undefined, options, false, true);
+}
 export async function obtainCsrf() {
   const sessionEpoch = epoch;
   const result = await api.get<{ csrfToken: string }>('/auth/csrf');

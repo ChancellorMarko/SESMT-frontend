@@ -7,6 +7,7 @@ import { formatDate } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
 import { Badge, Button, EmptyState, Feedback, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { nativeId } from '../native-operations/contracts';
+import { nativeAgendaReturn } from '../native-operations/agenda-navigation';
 import { checkedDeclarations, checkedEligibility, checkedPermit, checkedPermitHistory, permitReturn, permitReviewLabels, permitStatusLabels, type NativePermit, type PermitDeclarations } from './contracts';
 import { actionNeedsReadiness, NativePermitAction, permitActionAllowed, permitActions, type PermitAction } from './NativePermitAction';
 import { NativePermitChecklists } from './NativePermitChecklists';
@@ -32,6 +33,7 @@ function Detail({ id }: { id: string }) {
   const query = useVerifiedRead({ queryKey: ['native-permit', sessionKey, id], scope: ['native-permit', sessionKey, id], enabled: validId,
     request: signal => api.get<unknown>(`/work-permits/${id}`, { signal }), validate: value => checkedPermit(value, id) });
   const item = query.data, enabled = Boolean(item && !query.isFetching), revision = item?.version;
+  const fromAppointment = Boolean(item?.appointmentId && location.state?.nativeSourceAppointmentId === item.appointmentId);
   const history = useVerifiedRead({ queryKey: ['native-permit-history', sessionKey, id, revision], scope: ['native-permit-history', sessionKey, id], enabled,
     request: signal => api.get<unknown>(`/work-permits/${id}/history`, { signal }), validate: value => checkedPermitHistory(value, item!) });
   const readiness = useVerifiedRead({ queryKey: ['native-permit-eligibility', sessionKey, id, revision], scope: ['native-permit-eligibility', sessionKey, id], enabled,
@@ -50,7 +52,7 @@ function Detail({ id }: { id: string }) {
   const busy = query.isFetching || history.isFetching || readiness.isFetching || declarations.isFetching;
   const issues = readiness.data?.issues ?? [], issuePages = Math.max(1, Math.ceil(issues.length / 10)), currentIssuePage = Math.min(issuePage, issuePages);
   return <div className="stack">
-    <div className="actions"><Link className="button button--ghost" to={permitReturn(location.state?.nativePermitReturnTo)}>Voltar às PTs</Link><Button variant="secondary" disabled={!validId || busy} onClick={() => void refresh()}>Atualizar PT</Button></div>
+    <div className="actions"><Link className="button button--ghost" to={fromAppointment ? `/app/agenda/${item!.appointmentId}` : permitReturn(location.state?.nativePermitReturnTo)} state={fromAppointment ? { nativeReturnTo: nativeAgendaReturn(location.state?.nativeAgendaReturnTo) } : undefined}>{fromAppointment ? 'Voltar ao agendamento' : 'Voltar às PTs'}</Link><Button variant="secondary" disabled={!validId || busy} onClick={() => void refresh()}>Atualizar PT</Button></div>
     <PageHeader title={item?.title ?? 'Permissão de trabalho'} description="Situação e requisitos retornados pela API. Liberação, início e retomada revalidam as condições no servidor. Uma consulta sem pendências não substitui a decisão de liberação."/>
     {query.isPending && <Spinner/>}{(!validId || query.isError) && <Feedback tone="danger">{query.error instanceof ApiError && [403, 404].includes(query.error.status) ? 'PT não encontrada ou não autorizada para esta conta.' : 'Não foi possível conferir esta PT.'}</Feedback>}
     {item && <>

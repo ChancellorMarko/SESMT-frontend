@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useVerifiedRead, InvalidReadResponse } from '../../shared/lib/verified-read';
@@ -8,23 +8,21 @@ import { formatDate } from '../../shared/lib/format';
 import { Badge, Button, Feedback, Field, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { checkedNativeUsers } from '../administration/native-users';
 import { appointmentInstant, appointmentLocal } from '../agenda/support';
-import { checkedNativeAppointment, nativeAgendaCriteria, nativeAppointmentLabels, nativeId, type NativeAppointment } from './contracts';
+import { checkedNativeAppointment, nativeAppointmentLabels, nativeId, type NativeAppointment } from './contracts';
+import { nativeAgendaReturn } from './agenda-navigation';
+import { NativeOpenPermit } from '../native-permits/NativeOpenPermit';
 import { NativeCommandDialog, NativeFormError } from './NativeCommandDialog';
 import { NativeCreationDialog } from './NativeCreationDialog';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
-export function nativeAgendaReturn(value: unknown) {
-  if (typeof value !== 'string' || value.length > 2000) return '/app/agenda';
-  try { const url = new URL(value, 'https://workspace.invalid');
-    return url.origin === 'https://workspace.invalid' && url.pathname === '/app/agenda' && !url.hash && nativeAgendaCriteria(url.searchParams) ? `${url.pathname}${url.search}` : '/app/agenda';
-  } catch { return '/app/agenda'; }
-}
+export { nativeAgendaReturn } from './agenda-navigation';
 export function NativeAppointmentDetail() {
   const { id = '' } = useParams(), { sessionKey } = useSession();
   return <Detail key={`${sessionKey}:${id}`} id={id}/>;
 }
 function Detail({ id }: { id: string }) {
-  const { sessionKey, can } = useSession(), location = useLocation(), client = useQueryClient();
+  const { sessionKey, can } = useSession(), location = useLocation(), client = useQueryClient(), navigate = useNavigate();
+  const [opening, setOpening] = useState<NativeAppointment>();
   type Action='confirm'|'reschedule'|'cancel'|'context';
   const [editing, setEditing] = useState<{kind:Action;item:NativeAppointment}>(), [confirmation, setConfirmation] = useState('');
   const validId = nativeId.safeParse(id).success;
@@ -43,8 +41,10 @@ function Detail({ id }: { id: string }) {
       <InfoButton title="Identificadores do agendamento"><dl className={styles.details}><dt>Agendamento</dt><dd>{item.id}</dd><dt>Empresa</dt><dd>{item.companyId}</dd><dt>Local</dt><dd>{item.locationId ?? 'Não informado'}</dd><dt>Equipe</dt><dd>{item.teamId ?? 'Não informada'}</dd><dt>Responsável (usuário)</dt><dd>{item.responsibleId ?? 'Não definido'}</dd><dt>Trabalhadores</dt><dd>{item.participantIds.join(' · ') || 'Não informados'}</dd></dl></InfoButton></section>
       {can('pt:editar') && item.status !== 'CANCELLED' && <div className="actions">{item.status === 'REQUESTED' && <>{can('users.read') && <Button disabled={appointment.isFetching} onClick={() => setAction('confirm')}>Confirmar agendamento</Button>}<Button variant="secondary" disabled={appointment.isFetching} onClick={()=>setAction('context')}>Alterar equipe e participantes</Button></>}<Button variant="secondary" disabled={appointment.isFetching} onClick={() => setAction('reschedule')}>Reagendar</Button><Button variant="danger" disabled={appointment.isFetching} onClick={() => setAction('cancel')}>Cancelar agendamento</Button></div>}
       {confirmation && <Feedback tone="success">{confirmation}</Feedback>}
+      {can('pt:criar') && item.status === 'CONFIRMED' && <div className="actions"><Button disabled={appointment.isFetching} onClick={() => setOpening(item)}>Abrir PT</Button></div>}
       <section className={styles.results} aria-label="Histórico do agendamento"><div className={styles.footer}><h2>Histórico</h2></div><div className={styles.scroll} role="region" aria-label="Tabela do histórico" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Data e hora</th><th scope="col">Evento</th><th scope="col">Motivo</th></tr></thead><tbody>{item.history.map((event, index) => <tr key={`${event.version}:${event.action}:${index}`}><td>{formatDate(event.occurredAt)}</td><td>{({ REQUESTED: 'Solicitado', CONFIRMED: 'Confirmado', RESCHEDULED: 'Reagendado', CANCELLED: 'Cancelado', CONTEXT_CHANGED: 'Contexto alterado' } as Record<string,string>)[event.action] ?? event.action}<small>Versão {event.version}</small></td><td>{event.reason ?? 'Não informado'}</td></tr>)}</tbody></table></div></section>
       {action && editing && can('pt:editar') && (action==='context'?<NativeCreationDialog kind="context" initial={editing.item} onClose={()=>setAction(undefined)} onDone={async()=>{setAction(undefined);setConfirmation('Contexto confirmado pela API.');await Promise.all([client.invalidateQueries({queryKey:['native-appointment',sessionKey]}),client.invalidateQueries({queryKey:['native-agenda',sessionKey]}),client.invalidateQueries({queryKey:['native-dashboard',sessionKey]})]);}}/>:<AppointmentAction key={`${action}:${editing.item.version}`} item={editing.item} action={action} onClose={() => setAction(undefined)} onDone={async () => { setAction(undefined); setConfirmation('Alteração confirmada pela API.'); await Promise.all([client.invalidateQueries({ queryKey: ['native-appointment', sessionKey] }), client.invalidateQueries({ queryKey: ['native-agenda', sessionKey] }), client.invalidateQueries({ queryKey: ['native-dashboard', sessionKey] })]); }}/ >)}
+      {opening && can('pt:criar') && <NativeOpenPermit appointment={opening} onClose={() => setOpening(undefined)} onOpened={permitId => { setOpening(undefined); void navigate(`/app/pts/${permitId}`, { state: { nativeSourceAppointmentId: opening.id, nativeAgendaReturnTo: back } }); }}/ >}
     </>}
   </div>;
 }

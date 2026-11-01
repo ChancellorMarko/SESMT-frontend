@@ -1,0 +1,4 @@
+.table:global(.data-table) { width: 100%; min-width: 0; table-layout: fixed; }
+.table th:last-child { width: 62px; }
+.table th, .table td { padding: 10px 8px; overflow-wrap: anywhere; }
+.registration { display: block; margin-top: 4px; font-size: 12px; color: #63758b; }
