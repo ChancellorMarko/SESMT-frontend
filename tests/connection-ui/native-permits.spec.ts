@@ -1,11 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { declarationFixture, historyFixture, permitFixture, permitIds as ids } from './fixtures/native-permits';
 import { nativeOrganizationFixture, nativeResponsibleFixture } from './fixtures/native-operations';
+import { checklistIds, templateFixture, laterTemplateFixture } from './fixtures/native-checklists';
+import type { NativePermit } from '../../src/features/native-permits/contracts';
 
 // HTTP contracts are controlled; this suite does not homologate .NET/PostgreSQL.
-async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:editar']) {
+async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:editar'], options: { executing?: boolean; modelsDenied?: boolean; missingPinned?: boolean; noClosing?: boolean } = {}) {
   const state = { item: permitFixture(), ready: true, conflict: false, denied: false, wrongItem: false,
+    modelsDenied: options.modelsDenied ?? false,
     requests: [] as string[], commands: [] as { path: string; body: Record<string, unknown> }[], unexpected: [] as string[], errors: [] as string[] };
+  if (options.executing) state.item = { ...state.item, status: 'EM_EXECUCAO', startedAt: '2026-10-31T11:00:00Z' };
   let signedIn = false;
   await page.clock.setFixedTime(new Date('2026-10-31T12:00:00Z'));
   await page.emulateMedia({ reducedMotion: 'reduce' }); page.on('pageerror', error => state.errors.push(error.message));
@@ -20,6 +24,11 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
     if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['ADMIN'], permissions: ['usuario:ler', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', ...grants], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/organization') return json({ ...nativeOrganizationFixture, establishments: [], sectors: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/users') return json([nativeResponsibleFixture]);
+    if (path === '/api/v1/work-permits/pt-templates' && method === 'GET') {
+      if (state.modelsDenied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
+      const model = options.noClosing ? { ...templateFixture(), closingQuestions: [] } : templateFixture();
+      return json(options.missingPinned ? [laterTemplateFixture()] : [model, laterTemplateFixture()]);
+    }
     if (path === '/api/v1/work-permits/search' && method === 'GET') {
       if (state.denied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
       const matches = (!url.searchParams.get('status') || state.item.status === url.searchParams.get('status')) && (!url.searchParams.get('q') || `${state.item.title} ${state.item.serviceCode}`.toLowerCase().includes(url.searchParams.get('q')!.toLowerCase()));
@@ -33,7 +42,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
       if (path === `${base}/declarations`) return json(declarationFixture(state.item));
       if (path === `${base}/eligibility`) return json({ ready: state.ready, issues: state.ready ? [] : [{ code: 'CIENCIA_PENDENTE', participantUserId: ids.user, documentTypeId: null, serviceCode: null }] });
     }
-    if (path.startsWith(base + '/') && method === 'POST') {
+    if (path.startsWith(base + '/') && (method === 'POST' || method === 'PATCH')) {
       const body = route.request().postDataJSON() as Record<string, unknown>; state.commands.push({ path, body });
       if (state.conflict || body.expectedVersion !== state.item.version) return json({ code: 'DOMAIN_VIOLATION', message: 'Informação privada', requestId: 'test' }, 409);
       const action = path.split('/').at(-1)!;
@@ -43,6 +52,8 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
       else if (action === 'resume') state.item = { ...state.item, status: 'EM_EXECUCAO' };
       else if (action === 'cancel') state.item = { ...state.item, status: 'CANCELADA', cancelledAt: '2026-10-31T12:00:00Z', cancellationReason: String(body.reason) };
       else if (action === 'observations') state.item = { ...state.item, observations: [...state.item.observations!, { id: ids.event, actorId: ids.user, recordedAt: '2026-10-31T12:00:00Z', text: String(body.observation) }] };
+      else if (action === 'checklist' && method === 'PATCH') { state.item = { ...state.item, contentVersion: state.item.contentVersion + 1, checklistAnswers: body.answers as NativePermit['checklistAnswers'] }; state.ready = false; }
+      else if (action === 'complete') state.item = { ...state.item, status: 'CONCLUIDA', reviewStatus: 'AGUARDANDO_REVISAO', completedAt: '2026-10-31T12:00:00Z', actualEnd: String(body.actualEnd), completionSummary: String(body.summary), closingAnswers: body.closingAnswers as NativePermit['checklistAnswers'] };
       else { state.unexpected.push(`${method} ${path}`); return json({}, 404); }
       state.item.version++; return json(state.item);
     }
@@ -107,4 +118,61 @@ test('detalhe e liberação cabem em 320px com validação de janela antes do PO
   await page.getByRole('button', { name: 'Liberar PT', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Liberar PT', exact: true }); await dialog.getByLabel('Condições da liberação').fill('Condições conferidas'); await dialog.getByLabel('Autorizada até (Brasília)').fill('2026-10-31T23:00'); await dialog.getByRole('checkbox', { name: /Confirmo/ }).check();
   await dialog.getByRole('button', { name: 'Confirmar operação' }).click(); await expect(dialog.getByRole('alert')).toContainText('dentro do agendamento'); expect(state.commands).toEqual([]); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('liberacao-pt-mobile.png'), fullPage: true }); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+});
+
+async function loadChecklists(page: Page) {
+  await page.getByRole('button', { name: 'Carregar checklists', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Abertura', exact: true })).toBeVisible();
+}
+test('checklist fixado usa PATCH, preserva precisão decimal e não libera a operação ao salvar', async ({ page }) => {
+  const state = await setup(page); await detail(page); expect(state.requests.some(request => request.includes('/pt-templates'))).toBe(false);
+  await loadChecklists(page); await page.getByRole('button', { name: 'Preencher checklist', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Preencher checklist', exact: true });
+  await expect(dialog).toContainText('Manutenção em altura · versão 2'); await expect(dialog).not.toContainText('Pergunta da versão posterior');
+  await dialog.getByLabel('Isolamento realizado?', { exact: true }).selectOption('false'); await dialog.getByLabel('Medição registrada', { exact: true }).fill('9007199254740993');
+  await dialog.getByLabel('Condições observadas', { exact: true }).fill('Conferência em andamento');
+  await dialog.getByRole('button', { name: 'Salvar respostas', exact: true }).click(); await expect(page.getByText('Operação confirmada pela API.', { exact: true })).toBeVisible();
+  expect(state.commands[0].body).toEqual({ expectedVersion: 4, answers: [{ perguntaId: checklistIds.boolean, valor: 'false', justificativa: null }, { perguntaId: checklistIds.number, valor: '9007199254740993', justificativa: null }, { perguntaId: checklistIds.text, valor: 'Conferência em andamento', justificativa: null }] });
+  expect(state.requests.some(request => request === `PATCH /api/v1/work-permits/${ids.permit}/checklist`)).toBe(true); expect(state.item.status).toBe('EM_VERIFICACAO'); expect(state.item.contentVersion).toBe(4);
+  await expect(page.getByText('Ciência pendente', { exact: true })).toBeVisible(); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+});
+test('preenchimento parcial não inventa respostas e conflito conserva o rascunho', async ({ page }) => {
+  const state = await setup(page); await detail(page); await loadChecklists(page); await page.getByRole('button', { name: 'Preencher checklist', exact: true }).click();
+  let dialog = page.getByRole('dialog', { name: 'Preencher checklist', exact: true }); await dialog.getByRole('button', { name: 'Salvar respostas', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  expect(state.commands[0].body).toEqual({ expectedVersion: 4, answers: [] });
+  await page.getByRole('button', { name: 'Preencher checklist', exact: true }).click(); dialog = page.getByRole('dialog', { name: 'Preencher checklist', exact: true });
+  await dialog.getByLabel('Condições observadas', { exact: true }).fill('Rascunho preservado'); state.conflict = true;
+  await dialog.getByRole('button', { name: 'Salvar respostas', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('Seus dados foram mantidos'); await expect(dialog.getByLabel('Condições observadas', { exact: true })).toHaveValue('Rascunho preservado'); await expect(dialog.getByRole('button', { name: 'Salvar respostas', exact: true })).toBeDisabled();
+  expect(state.commands[1].body.expectedVersion).toBe(5); expect(state.commands).toHaveLength(2); expect(state.errors).toEqual([]);
+});
+test('encerramento exige verificações e término válido, concluindo com revisão pendente', async ({ page }) => {
+  const state = await setup(page, ['pt:concluir'], { executing: true }); await detail(page); await loadChecklists(page); await page.getByRole('button', { name: 'Encerrar serviço', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Encerrar serviço', exact: true });
+  await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('obrigatória'); expect(state.commands).toEqual([]);
+  await dialog.getByLabel('Área conferida após o serviço?', { exact: true }).selectOption('false'); await dialog.getByLabel('Quantidade conferida', { exact: true }).fill('0'); await dialog.getByLabel('Condição final', { exact: true }).fill('Área limpa');
+  await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('impede o encerramento'); expect(state.commands).toEqual([]);
+  await dialog.getByLabel('Área conferida após o serviço?', { exact: true }).selectOption('true'); await dialog.getByLabel('Resumo do encerramento', { exact: true }).fill('Serviço concluído e área conferida'); await dialog.getByLabel('Término efetivo (Brasília)', { exact: true }).fill('2026-10-31T10:00'); await dialog.getByRole('checkbox', { name: /Confirmo as verificações/ }).check();
+  await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('entre o início do serviço e agora'); expect(state.commands).toEqual([]);
+  await dialog.getByLabel('Término efetivo (Brasília)', { exact: true }).fill('2026-10-31T08:30:45'); await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Aguardando revisão', { exact: true })).toBeVisible(); expect(state.commands[0]).toEqual({ path: `/api/v1/work-permits/${ids.permit}/complete`, body: { expectedVersion: 4, summary: 'Serviço concluído e área conferida', actualEnd: '2026-10-31T11:30:45.000Z', closingAnswers: [{ perguntaId: checklistIds.closingBoolean, valor: 'true', justificativa: null }, { perguntaId: checklistIds.closingNumber, valor: '0', justificativa: null }, { perguntaId: checklistIds.closingText, valor: 'Área limpa', justificativa: null }] } });
+  expect(state.item.status).toBe('CONCLUIDA'); expect(state.item.contentVersion).toBe(3); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+test('recusa do catálogo não bloqueia a consulta da PT nem concede edição', async ({ page }) => {
+  const state = await setup(page, [], { modelsDenied: true }); await detail(page); await page.getByRole('button', { name: 'Carregar checklists', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('não autorizou a leitura dos modelos'); await expect(page.getByRole('heading', { name: state.item.title, exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: /Preencher checklist|Encerrar serviço/ })).toHaveCount(0);
+  await expect(page.getByText('Isolamento realizado?', { exact: true })).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+});
+test('modelo fixado ausente não é substituído pela versão nova', async ({ page }) => {
+  const state = await setup(page, ['pt:editar'], { missingPinned: true }); await detail(page); await page.getByRole('button', { name: 'Carregar checklists', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Não foi possível conferir as versões fixadas'); await expect(page.getByRole('button', { name: 'Preencher checklist', exact: true })).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
+});
+test('modelos sem perguntas de encerramento não habilitam conclusão', async ({ page }) => {
+  const state = await setup(page, ['pt:concluir'], { executing: true, noClosing: true }); await detail(page); await loadChecklists(page);
+  await expect(page.getByRole('button', { name: 'Encerrar serviço', exact: true })).toBeDisabled(); await page.getByRole('button', { name: 'Encerramento', exact: true }).click(); await expect(page.getByText('Há modelo sem verificações de encerramento. A conclusão depende dessas perguntas no backend.')).toBeVisible(); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
+});
+test('checklist em 320px aceita decimal local e mantém o formulário dentro da tela', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 }); const state = await setup(page); await detail(page); await loadChecklists(page); await page.getByRole('button', { name: 'Preencher checklist', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Preencher checklist', exact: true }); await dialog.getByLabel('Isolamento realizado?', { exact: true }).selectOption('true'); await dialog.getByLabel('Medição registrada', { exact: true }).fill('1,25');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true); await page.screenshot({ path: testInfo.outputPath('checklist-nativo-mobile.png'), fullPage: true });
+  await dialog.getByRole('button', { name: 'Salvar respostas', exact: true }).click(); await expect(dialog).toHaveCount(0); expect((state.commands[0].body.answers as { valor: string }[])[1].valor).toBe('1.25'); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
