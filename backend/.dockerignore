@@ -1,0 +1,14 @@
+**/bin
+**/obj
+**/.git
+**/.vs
+**/.idea
+**/.vscode
+**/*.user
+**/.env*
+**/appsettings.*.Local.json
+.local
+SESMT.API/storage
+TestResults
+**/*.trx
+**/*.log

@@ -4,8 +4,10 @@ dist/
 .env.local
 .env.*.local
 .local/
-# O backend pertence ao repositório separado; impede reincorporar uma cópia.
+# Nome antigo reservado; a API desta branch fica em backend/.
 /SESMT-backend/
+/backend/.local/
+/backend/SESMT.API/storage/
 *.tsbuildinfo
 coverage/
 playwright-report/

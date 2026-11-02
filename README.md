@@ -1,8 +1,22 @@
-# Ampara SESMT — Frontend
+# Ampara SESMT — Frontend e Backend
 
 Aplicação React e TypeScript para agenda de serviços, gestão documental, equipes e Permissões de Trabalho (PT), Autorizações de Trabalho (AT) e preparação de PETs de espaços confinados. Versão: **0.5.0**.
 
-O frontend e a API usam repositórios separados: [SESMT-frontend](https://github.com/ChancellorMarko/SESMT-frontend) e [SESMT-backend](https://github.com/ChancellorMarko/SESMT-backend). A API oficial reúne os endpoints nativos da equipe e as projeções de navegador; não mantenha uma cópia do backend dentro deste projeto. Consulte [INTEGRACAO.md](INTEGRACAO.md) para executar e desenvolver os dois juntos.
+Esta branch reúne o frontend na raiz e a API .NET completa em [`backend/`](backend/README.md), incluindo as correções de integração, autorização, documentos, equipes e vínculo inicial de contas. Os dois projetos podem ser executados a partir deste checkout. Consulte [INTEGRACAO.md](INTEGRACAO.md) para configuração, migrações, contratos e limitações de homologação.
+
+Para executar a versão integrada, com Node.js >=22.12, SDK .NET 10 e PostgreSQL disponíveis:
+
+A API recente usa uma migration inicial consolidada. Os passos abaixo atendem uma instalação nova com banco vazio. Se houver dados e histórico de migrations anteriores, confira a orientação de [banco existente](INTEGRACAO.md#banco-existente-e-validação) antes de migrar.
+
+```sh
+npm ci
+npm run integration:setup
+npm run integration:db
+npm run integration:migrate
+npm run dev:integrated
+```
+
+`integration:db` usa Docker Compose; dispense essa etapa se já houver PostgreSQL configurado. O login integrado abre em `http://127.0.0.1:5175/login`. Credenciais e chaves são geradas em `.env.integration.local`, fora do Git. Os comandos desta branch usam `backend/`; confira o banco configurado antes de aplicar migrations em dados existentes.
 
 O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 
