@@ -60,7 +60,8 @@ Os endpoints nativos da equipe permanecem disponíveis sob `/api/v1`. As projeç
 | Documentos e metadados | `GET /api/v1/browser/documents`, `/{id}`, `/{id}/versions`, `/{id}/versions/{versionId}`, `/{id}/history` |
 | Tipos documentais | `GET /api/v1/browser/document-types`, `/{id}` |
 | Recuperação e redefinição de senha | `POST /api/v1/auth/forgot-password`, `/reset-password` |
-| Usuários | `GET /api/v1/users`, `PATCH /api/v1/users/{id}`, `POST /api/v1/users/{id}/deactivate` |
+| Usuários | `GET/POST /api/v1/users`, `GET /users/management-context?action=criar\|editar&userId=...`, `PUT /users/{id}/access`, `PATCH /users/{id}`, `POST /users/{id}/deactivate` |
+| Cadastros organizacionais | `GET /api/v1/organization-management`, `POST /companies`, `/locations`, `/departments`, `/positions` e `GET /{recurso}/{id}` para conferência |
 | Notificações pessoais | `GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read` |
 | Auditoria | `GET /api/v1/audit-logs` |
 | Dashboard operacional | `GET /api/v1/dashboard/summary`, `/appointments`, `/document-pendencies`, `/review-pendencies`, `/activity-evolution` |
@@ -86,7 +87,23 @@ O frontend preserva as permissões recebidas e compara equivalências explícita
 
 O catálogo `PERMISSIONS`/`ROLES` descreve os valores nativos conhecidos para autocomplete e conferência de contrato. `isPermission` e `isRole` classificam esse catálogo; não devem filtrar a identidade nem recusar concessões futuras retornadas pela API. O controle das telas usa `can()`, que também reconhece as capacidades específicas do frontend e as equivalências documentadas acima.
 
-A capacidade `users.read` abre `GET /api/v1/users`, consumindo diretamente a lista nativa `{ id, name, email, roles, scopeIds, active }`. Busca e paginação são locais sobre a lista autorizada, sem filtro fictício de unidade. `usuario:editar` habilita somente `PATCH /users/{id}` com `{ name, email }`; `usuario:excluir` habilita a confirmação de desativação por `POST /users/{id}/deactivate`, sem corpo. A própria conta não pode ser desativada na tela. Conflitos preservam o preenchimento; uma resposta incompatível bloqueia nova tentativa até atualizar a lista. A API continua responsável por conferir perfis e escopos. Cadastro, atribuição de perfis/escopos e convites não são enviados pelo contrato legado no modo nativo: falta uma fonte publicada de opções delegáveis para esses formulários. `usuario:ler` não concede `users.manage`.
+A capacidade `users.read` abre `GET /api/v1/users`, consumindo diretamente `{ id, name, email, roles, scopeIds, active }`. Busca e paginação são locais sobre a lista autorizada. `usuario:criar` habilita cadastro; `usuario:editar`, identificação e acessos; `usuario:excluir`, a confirmação de desativação. O formulário de identificação envia somente nome/e-mail, com limite de 200 caracteres conforme o banco. `usuario:ler` não concede `users.manage`.
+
+`GET /users/management-context?action=criar` publica perfis ativos e locais delegáveis. Na edição, `action=editar&userId={id}` inclui a conta consultada e `accessVersion`. O servidor confere a ação efetiva, a conta ativa, todos os escopos do destino e a hierarquia ativa. Somente um vínculo ADMIN global com a permissão solicitada concede administração global. A existência de uma permissão no catálogo ou um papel customizado sem empresa não concede esse acesso. A política atual permite atribuir perfis customizados ativos dentro dos escopos autorizados; a interface conserva seus códigos exatos.
+
+`POST /users` recebe nome, e-mail, perfis e locais. A senha inicial não é informada, retornada ou guardada no navegador: o cadastro gera um segredo impraticável e a pessoa deve usar “Esqueci minha senha”. Isso exige o serviço de e-mail configurado; criar a conta não significa que uma mensagem foi enviada. Convites e entrega de primeiro acesso continuam separados.
+
+`PUT /users/{id}/access` recebe `{ roles, scopeIds, expectedVersion, confirmation: true }`. Uma transação substitui os dois conjuntos juntos, associa os perfis às empresas dos novos locais e registra auditoria com o alcance anterior e posterior. O token de versão corresponde aos vínculos consultados; duas edições da mesma versão resultam em uma gravação e um conflito. As rotas legadas de perfis/escopos compartilham a trava de conta. O formulário protege a própria conta e contas com concessões globais, preserva alterações em conflitos e bloqueia repetição de um resultado ambíguo. Confere o recibo e relê a lista antes de confirmar sucesso. A pessoa afetada deve entrar novamente. Os novos eventos manuais de usuários usam o JSON normalizado pelo PostgreSQL antes do hash, sem reescrever eventos históricos.
+
+`/auth/me` usa o mesmo leitor de hierarquia dos recursos nativos. Escopo de empresa inclui unidades/setores ativos; escopo de unidade/setor inclui os ancestrais necessários aos seletores, sem conceder gestão da empresa inteira. O trabalhador conserva somente sua localização e `ownOnly`; ausência de vínculo verificável falha com `WORKSPACE_UNAVAILABLE`. O login escolhe o destino pelas capacidades: administração de usuários → contas; operação de PT → dashboard; gestão de trabalhadores → trabalhadores; auditoria → auditoria; consulta documental → documentos. Nomes de cargo não concedem direitos.
+
+### Cadastros organizacionais nativos
+
+`GET /organization-management` oferece empresas, unidades, setores e cargos autorizados, com capacidades específicas de criação. Funciona em uma instalação vazia para que o administrador global cadastre a primeira empresa. A tela nativa usa tabelas compactas e somente esses quatro recursos; os cadastros adicionais da demonstração não são apresentados como integrações prontas.
+
+Criação usa `POST /companies`, `/locations`, `/departments` e `/positions` com os DTOs nativos. Empresa exige administração global; unidade/cargo exigem alcance da empresa inteira; setor exige alcance da unidade inteira. O contexto é relido antes do comando; o recibo e o recurso persistido são conferidos depois. Empresa/unidade novas atualizam a sessão para recompor os seletores. Não há edição/desativação organizacional nesta tela. Formulários legados não são enviados a essas rotas.
+
+Para preparar uma instalação: entre com o administrador de bootstrap, abra Organização, cadastre empresa/unidade e os setores/cargos necessários; em Usuários e acesso, crie as contas e atribua perfis/locais; em Trabalhadores, cadastre os vínculos profissionais e associe as contas. Funções operacionais de PT também dependem de designações, vigência e requisitos; um cargo por si só não libera trabalho.
 
 `alerta:ler` habilita notificações pessoais: `GET /notifications` retorna `{ items }`, sem paginação ou filtros de unidade. Filtros de leitura e paginação da tela são locais. Marcar como lida usa POST, espera 204 e relê os avisos para atualizar também o sino; não inventa `readAt` nem resolve a pendência. O DTO não informa unidade/tipo de recurso suficiente para links genéricos, portanto a tela apresenta os identificadores nos detalhes sem inventar destinos. Uma recusa oculta conteúdo e contador até uma nova consulta autorizada.
 
@@ -190,7 +207,7 @@ A migration `20261102020948_AddWorkerAccountBindingConcurrency` acrescenta `core
 
 ## Banco existente e validação
 
-O backend conciliado desta branch, com a inicial consolidada mais recente, passou por build Release e pelos 417 testes, sem falhas ou testes ignorados, incluindo os 134 testes relacionais com PostgreSQL 17.11 descartável. A fixture aplicou as migrations e validou o schema em uma base exclusiva de QA. As migrações de revisão da equipe e do trabalhador foram testadas com downgrade/upgrade e preservação dos registros. Duplicidade histórica de conta impede a nova migration sem descartar os vínculos. Disputas entre editores e entre contas/trabalhadores não sobrescrevem o vencedor. Essa execução não homologou a configuração de implantação, as contas operacionais nem o fluxo navegador → API com os dados reais da equipe.
+O backend conciliado desta branch, com a inicial consolidada mais recente e a gestão nativa de acessos, passou por build Release e pelos 434 testes, sem falhas ou testes ignorados, incluindo testes relacionais com PostgreSQL 17.11 descartável. A fixture aplicou as migrations e validou o schema em uma base exclusiva de QA. As migrações de revisão da equipe e do trabalhador foram testadas com downgrade/upgrade e preservação dos registros. Duplicidade histórica de conta impede a nova migration sem descartar os vínculos. Disputas entre editores e entre contas/trabalhadores não sobrescrevem o vencedor. Esses testes não homologam a configuração de implantação ou as contas/dados reais da equipe.
 
 A equipe consolidou o histórico anterior em `20261101172752_InitialCreate`. A cadeia desta branch é essa inicial, seguida de `20261102014333_AddTeamOptimisticConcurrency` e `20261102020948_AddWorkerAccountBindingConcurrency`. A instalação em banco vazio foi testada. Uma base já preenchida que possua IDs antigos em `__EFMigrationsHistory` não reconhece automaticamente a nova inicial como aplicada: é necessário comparar o schema e conciliar o baseline de forma administrativa após backup, antes de executar `integration:migrate`. Preserve tabelas, dados e histórico; não use uma recriação do banco como correção automática.
 
@@ -207,6 +224,16 @@ npm run build
 `test:backend` executa os testes da solução em `backend/`. Os cenários PostgreSQL exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para o banco de manutenção `postgres` de uma instância local; cada fixture cria e remove apenas sua própria base isolada. Sem essa variável, esses cenários são explicitamente ignorados. `integration:smoke` exige os servidores integrados ativos e verifica sessão real pelo proxy; não usa MSW. Testes de navegador com respostas controladas são verificações de contrato, não substituem a integração real.
 
 Para validar o frontend localmente, execute `npm test`, `npm run test:connection-ui` e `npm run build` em sequência. Reservar os recursos da máquina para cada etapa evita que a execução conjunta de navegador/build faça testes de interação excederem seus limites, sem precisar alterar as verificações ou os tempos dos testes.
+
+A entrega de cadastros/acessos passou pelos 3.643 testes do frontend, 70 cenários de navegador com HTTP controlado e build. O teste real descrito abaixo passou por 27 verificações em base descartável. As fixtures de módulos usam uma concessão explícita de administração de usuários para manter a tela de preparação estável; os destinos por cargo são conferidos separadamente com contas reais e não são presumidos pelo nome ADMIN.
+
+### Verificação real de cadastros e cargos
+
+`npm run test:access:real` compila a API e verifica o fluxo navegador → API → PostgreSQL sem interceptação de requisições. Exige `.env.integration.local`, o cluster local em `127.0.0.1:5434`, SDK .NET, ferramentas PostgreSQL (`createdb`, `psql`, `dropdb`) e Chrome/Chromium. Defina `PG_BIN_DIR` se as ferramentas não estiverem no PATH; no Windows a instalação portátil em `.local/tools/postgresql-17.11/pgsql/bin` é reconhecida. `PLAYWRIGHT_CHANNEL` seleciona outro canal de navegador.
+
+O teste usa somente uma base nova `ampara_uiqa_{identificador}`, com credenciais de QA e e-mail externo desabilitado. Usa as portas exclusivas 5059/5185, confere se estão disponíveis e remove apenas sua base ao finalizar. Não aplica migrations nem cria contas no banco configurado da equipe. Os registros, relatórios e capturas ficam em `.local/access-ui-qa`, fora do Git.
+
+Os cenários incluem empresa → unidade → setor/cargo → usuário → alteração atômica de acessos, além de login de gestor, técnico, RH, auditor, médico e trabalhador vinculado. Também verificam bloqueio de cadastro administrativo na tela e por chamada direta à API, atualização dos seletores e largura de 390px. As senhas desses cenários são preparadas apenas no banco descartável; a entrega real de primeiro acesso por SMTP não é homologada por esse teste. A existência de um destino para médico/trabalhador não representa integração completa de ASO, EPI, AT ou PET.
 
 ## Trabalho da equipe
 

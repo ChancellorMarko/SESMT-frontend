@@ -1,3 +1,4 @@
+// Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect, test, type Page } from '@playwright/test';
 import { openingAppointmentFixture, openingBrowserWorker, openingNativeWorker, openedPermitFixture, openingReceiptFixture } from './fixtures/native-opening';
 import { templateFixture, laterTemplateFixture, checklistIds as ids } from './fixtures/native-checklists';
@@ -17,7 +18,7 @@ async function setup(page: Page, options: { unlinked?: boolean; deniedWorker?: b
     if (path === '/api/v1/auth/csrf') return json({ csrfToken: 'opening-csrf' });
     if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
     if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', message: 'Entre novamente', requestId: 'test' }, 401);
-    if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['PERFIL_OPERACIONAL'], permissions: ['usuario:ler', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'pt:criar', 'trabalhador:ler'], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
+    if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['PERFIL_OPERACIONAL'], permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'pt:criar', 'trabalhador:ler'], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/browser/organization') return json({ ...nativeOrganizationFixture, establishments: [], sectors: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/users') return json([nativeResponsibleFixture]);
     if (path === `/api/v1/browser/workers/${ids.worker}`) return options.deniedWorker ? json({ code: 'FORBIDDEN', message: 'Privado', requestId: 'test' }, 403) : json(openingBrowserWorker);

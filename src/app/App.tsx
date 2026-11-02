@@ -24,6 +24,7 @@ const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/Native
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
+const NativeOrganizationPage=lazy(()=>import('../features/organization/NativeOrganizationPage').then(m=>({default:m.NativeOrganizationPage})));
 const DashboardPage=lazy(()=>import('../features/dashboard').then(m=>({default:m.DashboardPage})));
 const NotificationsPage=lazy(()=>import('../features/notifications').then(m=>({default:m.NotificationsPage})));
 const AuditPage=lazy(()=>import('../features/audit').then(m=>({default:m.AuditPage})));
@@ -132,7 +133,7 @@ export function App() {
       <Route path="trabalhadores/:id/conta" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerAccountPage/></Guard> : <Navigate to="/app/trabalhadores" replace/>}/>
       <Route path="trabalhadores/:id/editar" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id/movimentacoes/nova" element={<Guard permission="workers.write"><WorkerMovementPage/></Guard>}/>
-      <Route path="organizacao" element={<Guard permission="organization.read"><OrganizationPage/></Guard>}/>
+      <Route path="organizacao" element={<Guard permission="organization.read">{NATIVE_MODULES ? <NativeOrganizationPage/> : <OrganizationPage/>}</Guard>}/>
       <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>
       <Route path="auditoria" element={<Guard permission="audit.read">{NATIVE_MODULES ? <NativeAuditPage/> : <AuditPage/>}</Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>

@@ -4,6 +4,8 @@ Aplicação React e TypeScript para agenda de serviços, gestão documental, equ
 
 Esta branch reúne o frontend na raiz e a API .NET completa em [`backend/`](backend/README.md), incluindo as correções de integração, autorização, documentos, equipes e vínculo inicial de contas. Os dois projetos podem ser executados a partir deste checkout. Consulte [INTEGRACAO.md](INTEGRACAO.md) para configuração, migrações, contratos e limitações de homologação.
 
+No modo integrado, a administração permite cadastrar usuários, atribuir perfis/locais e cadastrar empresas, unidades, setores e cargos. Os perfis vêm do banco. O login seleciona a tela inicial pelas permissões efetivas, e os seletores usam a hierarquia autorizada de empresas/unidades/setores. A demonstração conserva seus dados e fluxos separados; a presença de uma tela nesse modo não comprova integração completa do módulo.
+
 Para executar a versão integrada, com Node.js >=22.12, SDK .NET 10 e PostgreSQL disponíveis:
 
 A API recente usa uma migration inicial consolidada. Os passos abaixo atendem uma instalação nova com banco vazio. Se houver dados e histórico de migrations anteriores, confira a orientação de [banco existente](INTEGRACAO.md#banco-existente-e-validação) antes de migrar.

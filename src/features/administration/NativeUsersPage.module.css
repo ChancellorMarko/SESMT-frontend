@@ -4,13 +4,23 @@
 .results { min-width: 0; overflow: hidden; border: 1px solid #e0e6ed; border-radius: 12px; background: #fffefa; }
 .count { margin: 0; padding: 12px 16px; color: #63758b; font-size: 12px; border-bottom: 1px solid #e0e6ed; }
 .table { min-width: 0; table-layout: fixed; }
-.table th:first-child { width: 48%; }
-.table th:last-child { width: 120px; }
+.table th:first-child { width: 42%; }
+.table th:last-child { width: 230px; }
 .scroll { max-width: 100%; overflow-x: auto; }
 .commands { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .commands :global(.button) { min-height: 32px; padding: 4px 6px; font-size: 11px; }
 .table td { overflow-wrap: anywhere; }
 .table strong { font-weight: 550; }
 .email { display: block; margin-top: 4px; color: #63758b; font-size: 12px; }
+.identityFields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.selection { min-width: 0; margin: 0; padding: 12px; border: 1px solid #e0e6ed; border-radius: 10px; }
+.selection legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+.options { max-height: 200px; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 8px; }
+.option { display: flex; align-items: flex-start; gap: 10px; padding: 6px 2px; font-size: 13px; cursor: pointer; }
+.option input[type='checkbox'] { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 2px; accent-color: #174779; }
+.option span { min-width: 0; overflow-wrap: anywhere; }
+.option small { display: block; margin-top: 3px; font-size: 11px; color: #63758b; }
+.accessHint { margin: 8px 0 0; color: #63758b; font-size: 12px; line-height: 1.5; }
+@media (max-width: 599px) { .identityFields { grid-template-columns: 1fr; } }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; font-size: 12px; }
-@media (max-width: 599px) { .table th, .table td { padding: 10px 8px; font-size: 11px; }.table th:first-child { width: 45%; }.table th:last-child { width: 70px; }.email { font-size: 11px; } }
+@media (max-width: 599px) { .table { min-width: 600px; }.table th, .table td { padding: 10px 8px; font-size: 11px; }.table th:first-child { width: 40%; }.table th:last-child { width: 210px; }.email { font-size: 11px; } }

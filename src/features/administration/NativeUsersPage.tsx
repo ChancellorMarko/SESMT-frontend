@@ -9,10 +9,11 @@ import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { useEditorRequest } from './useEditorRequest';
 import { useEditorProtection } from './useEditorProtection';
 import styles from './NativeUsersPage.module.css';
+import { NativeUserAccessEditor } from './NativeUserAccessEditor';
 
 export function NativeUsersPage() {
   const { sessionKey, can } = useSession();
-  return <Users key={JSON.stringify([sessionKey, can('users.read'), can('users.edit'), can('users.deactivate')])}/>;
+  return <Users key={JSON.stringify([sessionKey, can('users.read'), can('users.edit'), can('users.deactivate'), can('usuario:criar')])}/>;
 }
 function Users() {
   const { sessionKey, can, me } = useSession(), client = useQueryClient();
@@ -21,6 +22,7 @@ function Users() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<{ user: NativeUser; action: 'edit' | 'deactivate' }>();
   const [confirmation, setConfirmation] = useState('');
+  const [accessEditor, setAccessEditor] = useState<{ userId?: string }>();
   const users = useVerifiedRead({
     queryKey: ['native-users', sessionKey], enabled: allowed,
     request: signal => api.get<unknown>('/users', { signal }), validate: checkedNativeUsers,
@@ -37,17 +39,18 @@ function Users() {
       ? 'A consulta de usuários não está disponível nesta API.'
       : 'Não foi possível conferir a lista de usuários. Tente atualizar a consulta.';
   return <div className="stack">
-    <PageHeader title="Usuários e acesso" description="Consulta das contas autorizadas pela API. A relação segue os escopos da sua conta e não é filtrada pela unidade selecionada no cabeçalho." actions={<Button variant="secondary" disabled={users.isFetching} onClick={() => void users.refetch()}>Atualizar usuários</Button>} />
-    <div className={`panel ${styles.filters}`}><Field label="Buscar por nome, e-mail ou perfil"><input type="search" value={search} maxLength={200} onChange={event => { setSearch(event.target.value); setPage(1); }} /></Field><Badge>{can('users.edit') || can('users.deactivate') ? 'Escopo da conta' : 'Escopo da conta · somente leitura'}</Badge></div>
+    <PageHeader title="Usuários e acesso" description="Contas, perfis e locais autorizados. A relação segue os escopos da sua conta." actions={<><Button variant="secondary" disabled={users.isFetching} onClick={() => void users.refetch()}>Atualizar usuários</Button>{can('usuario:criar') && <Button onClick={() => { setConfirmation(''); setAccessEditor({}); }}>Cadastrar usuário</Button>}</>} />
+    <div className={`panel ${styles.filters}`}><Field label="Buscar por nome, e-mail ou perfil"><input type="search" value={search} maxLength={200} onChange={event => { setSearch(event.target.value); setPage(1); }} /></Field><Badge>{can('users.edit') || can('users.deactivate') || can('usuario:criar') ? 'Escopo da conta' : 'Escopo da conta · somente leitura'}</Badge></div>
     {confirmation && !users.isError && <Feedback tone="success">{confirmation}</Feedback>}
     {users.isPending ? <Spinner/> : users.isError ? <Feedback tone="danger">{failure}</Feedback> : users.data && <section className={styles.results} aria-label="Contas autorizadas" aria-busy={users.isFetching}>
       <p role="status" className={styles.count}>{matching.length} conta(s) encontrada(s)</p>
       {!matching.length ? <EmptyState title="Nenhuma conta encontrada" description="Ajuste a busca ou confira os acessos atribuídos na API." /> : <>
-        <div className={styles.scroll}><table role="table" className={`data-table ${styles.table}`} aria-label="Lista de usuários"><thead role="rowgroup"><tr role="row"><th scope="col">Pessoa e e-mail</th><th scope="col">Perfis</th><th scope="col">Situação e ações</th></tr></thead><tbody role="rowgroup">{visible.map(user => <tr role="row" key={user.id}><td role="cell"><strong>{user.name}</strong><span className={styles.email}>{user.email}</span></td><td role="cell">{user.roles.length ? user.roles.join(' · ') : 'Sem perfil atribuído'}</td><td role="cell"><Badge tone={user.active ? 'success' : 'neutral'}>{user.active ? 'Ativo' : 'Inativo'}</Badge><div className={styles.commands}>{can('users.edit') && <Button variant="ghost" disabled={users.isFetching} aria-label={`Editar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'edit' }); }}>Editar</Button>}{can('users.deactivate') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Desativar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'deactivate' }); }}>Desativar</Button>}</div></td></tr>)}</tbody></table></div>
+        <div className={styles.scroll}><table role="table" className={`data-table ${styles.table}`} aria-label="Lista de usuários"><thead role="rowgroup"><tr role="row"><th scope="col">Pessoa e e-mail</th><th scope="col">Perfis</th><th scope="col">Situação e ações</th></tr></thead><tbody role="rowgroup">{visible.map(user => <tr role="row" key={user.id}><td role="cell"><strong>{user.name}</strong><span className={styles.email}>{user.email}</span></td><td role="cell">{user.roles.length ? user.roles.join(' · ') : 'Sem perfil atribuído'}</td><td role="cell"><Badge tone={user.active ? 'success' : 'neutral'}>{user.active ? 'Ativo' : 'Inativo'}</Badge><div className={styles.commands}>{can('users.edit') && <Button variant="ghost" disabled={users.isFetching} aria-label={`Editar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'edit' }); }}>Editar</Button>}{can('users.edit') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Acessos de ${user.name}`} onClick={() => { setConfirmation(''); setAccessEditor({ userId: user.id }); }}>Acessos</Button>}{can('users.deactivate') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Desativar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'deactivate' }); }}>Desativar</Button>}</div></td></tr>)}</tbody></table></div>
         <nav className={styles.pagination} aria-label="Paginação de usuários"><span>Página {currentPage} de {pageCount}</span><div className="actions"><Button variant="secondary" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><Button variant="secondary" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</Button></div></nav>
       </>}
     </section>}
     {selected && users.data?.some(user => user.id === selected.user.id) && <NativeUserEditor key={`${selected.action}:${selected.user.id}`} user={selected.user} action={selected.action} onClose={() => setSelected(undefined)} onSaved={async () => { setSelected(undefined); setConfirmation(selected.action === 'edit' ? 'Dados atualizados.' : 'Conta desativada.'); await client.invalidateQueries({ queryKey: ['native-users', sessionKey] }); }}/>}
+    {accessEditor && <NativeUserAccessEditor key={accessEditor.userId ?? 'new'} userId={accessEditor.userId} onClose={() => { setAccessEditor(undefined); client.removeQueries({ queryKey: ['native-user-management', sessionKey] }); }} onSaved={async created => { setAccessEditor(undefined); setConfirmation(created ? 'Conta cadastrada. A definição da senha está disponível em “Esqueci minha senha”.' : 'Acessos atualizados. A pessoa deve entrar novamente.'); client.removeQueries({ queryKey: ['native-user-management', sessionKey] }); await client.invalidateQueries({ queryKey: ['native-users', sessionKey] }); }}/>}
   </div>;
 }
 

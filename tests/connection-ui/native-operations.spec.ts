@@ -1,3 +1,4 @@
+// Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect,test,type Page } from '@playwright/test';
 import { appointmentFixture,appointmentState,designationFixture,teamFixture,operationIds as ids,nativePersonFixture,nativeOrganizationFixture,nativeServicesFixture,nativeResponsibleFixture } from './fixtures/native-operations';
 
@@ -13,7 +14,7 @@ async function setup(page:Page){
     if(path==='/api/v1/auth/csrf')return json({csrfToken:'native-operation-csrf'});
     if(path==='/api/v1/auth/login'){signedIn=true;return json(session);}
     if(path==='/api/v1/auth/refresh')return signedIn?json(session):json({code:'SESSION_EXPIRED',message:'Entre novamente.',requestId:'test'},401);
-    if(path==='/api/v1/auth/me')return json({user:{id:ids.user,displayName:'Pessoa da operação',email:'operacao@example.invalid'},roles:['PERFIL_PERSONALIZADO'],permissions:['empresa:ler','unidade:ler','setor:ler','cargo:ler','trabalhador:ler','equipe:ler','pt:criar','pt:editar','usuario:ler'],scope:{companyIds:[ids.company],unitIds:[ids.unit],sectorIds:[],teamIds:[],ownOnly:false},accessExpiresAt:session.accessExpiresAt});
+    if(path==='/api/v1/auth/me')return json({user:{id:ids.user,displayName:'Pessoa da operação',email:'operacao@example.invalid'},roles:['PERFIL_PERSONALIZADO'],permissions:['empresa:ler','unidade:ler','setor:ler','cargo:ler','trabalhador:ler','equipe:ler','pt:criar','pt:editar','usuario:ler', 'usuario:editar'],scope:{companyIds:[ids.company],unitIds:[ids.unit],sectorIds:[],teamIds:[],ownOnly:false},accessExpiresAt:session.accessExpiresAt});
     if(path==='/api/v1/organization')return json({...nativeOrganizationFixture,establishments:[],sectors:[],jobs:[],jobFunctions:[],workCenters:[]});
     if(path==='/api/v1/users')return json([nativeResponsibleFixture]);
     if(path==='/api/v1/work-permits/services')return json(nativeServicesFixture);

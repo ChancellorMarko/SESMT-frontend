@@ -1,3 +1,4 @@
+// Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect, test, type Page } from '@playwright/test';
 import { workerDirectory, workerDraft, workerIds as ids, workerProfile, workerReceipt, workerScope } from './fixtures/native-workers';
 
@@ -14,7 +15,7 @@ async function setup(page: Page, writable = true) {
     if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
     if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', requestId: 'test' }, 401);
     if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa Fictícia', email: 'workers@example.invalid' }, roles: ['ADMIN'],
-      permissions: ['usuario:ler', 'trabalhador:ler', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', ...(writable ? ['trabalhador:criar'] : [])], scope: workerScope, accessExpiresAt: session.accessExpiresAt });
+      permissions: ['usuario:ler', 'usuario:editar', 'trabalhador:ler', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', ...(writable ? ['trabalhador:criar'] : [])], scope: workerScope, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/users') return json([]);
     if (path === '/api/v1/browser/organization') return json(workerDirectory);
     if (path === '/api/v1/browser/workers' && method === 'GET') return json({ items: state.created ? [workerProfile()] : [], page: Number(url.searchParams.get('page') || 1), pageSize: Number(url.searchParams.get('pageSize') || 10), total: state.created ? 1 : 0 });

@@ -1,3 +1,4 @@
+// Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect, test, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { documentIds as ids, documentDirectory, documentScope, documentFilePolicy, nativeDocumentFixture, nativeVersionFixture, nativeTypeFixture, pdfContent, pdfHash } from './fixtures/native-documents';
@@ -17,7 +18,7 @@ async function setup(page: Page, options: { pending?: boolean; readOnly?: boolea
     if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
     if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', requestId: 'fixture' }, 401);
     if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa Fictícia', email: 'documentos@example.invalid' }, roles: ['ADMIN'],
-      permissions: ['usuario:ler', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'documento:ler', ...(options.readOnly ? [] : ['documento:criar', 'documento:editar', 'documento:aprovar'])], scope: documentScope, accessExpiresAt: session.accessExpiresAt });
+      permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'documento:ler', ...(options.readOnly ? [] : ['documento:criar', 'documento:editar', 'documento:aprovar'])], scope: documentScope, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/users') return json([]);
     if (path === '/api/v1/browser/organization') return json({ ...documentDirectory, establishments: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/document-types' && method === 'GET') return json([nativeTypeFixture()]);

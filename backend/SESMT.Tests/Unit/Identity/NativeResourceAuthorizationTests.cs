@@ -180,7 +180,8 @@ public sealed class NativeResourceAuthorizationTests
     {
         await using var f = await Fixture.Create(roleCode: "ADMIN");
         var before = await f.Identity();
-        Assert.Empty(before.GetProperty("scope").GetProperty("companyIds").EnumerateArray());
+        // An ancestor company ID enables dependent selectors, without granting full-company access.
+        Assert.Equal(f.CompanyA.Id, Assert.Single(before.GetProperty("scope").GetProperty("companyIds").EnumerateArray()).GetGuid());
         Assert.Single(before.GetProperty("scope").GetProperty("unitIds").EnumerateArray());
         Assert.NotEmpty(before.GetProperty("permissions").EnumerateArray());
         f.Role.MarkAsDeleted(); await f.Db.SaveChangesAsync();
@@ -198,6 +199,31 @@ public sealed class NativeResourceAuthorizationTests
         Assert.Equal(f.CompanyA.Id, Assert.Single(identity.GetProperty("scope").GetProperty("companyIds").EnumerateArray()).GetGuid());
         Assert.DoesNotContain(identity.GetProperty("scope").GetProperty("unitIds").EnumerateArray(), u => u.GetGuid() == f.Units[2].Id);
         await f.Access().RequireGlobalCompanyCreationAsync(default);
+    }
+
+    [Theory]
+    [InlineData("EMPRESA", 2, 3)]
+    [InlineData("UNIDADE", 1, 2)]
+    [InlineData("SETOR", 1, 1)]
+    public async Task IdentityScopeMatchesAuthorizedHierarchyForDependentSelectors(string scope, int unitCount, int sectorCount)
+    {
+        await using var f = await Fixture.Create(scope);
+        var identity = await f.Identity(); var actual = identity.GetProperty("scope");
+        Assert.Equal(f.CompanyA.Id, Assert.Single(actual.GetProperty("companyIds").EnumerateArray()).GetGuid());
+        Assert.Equal(unitCount, actual.GetProperty("unitIds").GetArrayLength());
+        Assert.Equal(sectorCount, actual.GetProperty("sectorIds").GetArrayLength());
+        Assert.DoesNotContain(actual.GetProperty("unitIds").EnumerateArray(), unit => unit.GetGuid() == f.Units[2].Id);
+        Assert.False(actual.GetProperty("ownOnly").GetBoolean());
+    }
+
+    [Fact]
+    public async Task WorkerIdentityKeepsOnlyItsOwnLocationEvenWithACompanyScope()
+    {
+        await using var f = await Fixture.Create("EMPRESA", "TRABALHADOR");
+        var identity = await f.Identity(); var actual = identity.GetProperty("scope");
+        Assert.True(actual.GetProperty("ownOnly").GetBoolean());
+        Assert.Equal(f.Units[0].Id, Assert.Single(actual.GetProperty("unitIds").EnumerateArray()).GetGuid());
+        Assert.Equal(f.Sectors[0].Id, Assert.Single(actual.GetProperty("sectorIds").EnumerateArray()).GetGuid());
     }
 
     [Fact]
