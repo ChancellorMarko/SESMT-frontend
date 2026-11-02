@@ -4,6 +4,15 @@ const worker = '64000000-0000-4000-8000-000000000001';
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 beforeEach(() => { vi.resetModules(); vi.stubEnv('VITE_API_MODE', 'api'); vi.stubEnv('VITE_AUTH_API_CONTRACT', 'native'); vi.stubEnv('VITE_API_BROWSER_PREFIX', '/browser'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+it('o editor profissional usa somente sua rota nativa, revisão no corpo e no-store', async () => {
+  const fetchMock = vi.fn(async () => json({})); vi.stubGlobal('fetch', fetchMock);
+  const { nativeWorkerProfileApi, setAccessToken } = await import('./client'); setAccessToken('profile-fixture-token');
+  await nativeWorkerProfileApi.context(worker); await nativeWorkerProfileApi.update(worker, { expectedRevision: 4, name: 'Pessoa da Equipe' });
+  const calls = fetchMock.mock.calls as unknown as [URL, RequestInit][];
+  expect(String(calls[0][0])).toContain(`/api/v1/workers/${worker}/professional-profile`); expect(String(calls[0][0])).not.toContain('/browser/'); expect(calls[0][1].cache).toBe('no-store');
+  expect(calls[1][1].method).toBe('PATCH'); expect(calls[1][1].body).toBe(JSON.stringify({ expectedRevision: 4, name: 'Pessoa da Equipe' }));
+  expect(() => nativeWorkerProfileApi.context('../users')).toThrow(); expect(fetchMock).toHaveBeenCalledTimes(2);
+});
 it('separa a leitura nativa de UserId da projeção browser sem alterar as outras consultas', async () => {
   const fetchMock = vi.fn(async () => json({ id: worker })); vi.stubGlobal('fetch', fetchMock);
   const { api, readNativeWorker, setAccessToken } = await import('./client'); setAccessToken('native-worker-token');
@@ -39,4 +48,22 @@ it('cancela a consulta nativa ao trocar o contexto de sessão', async () => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done; })));
   const { readNativeWorker, cancelAllRequests } = await import('./client'); const pending = readNativeWorker(worker); cancelAllRequests(); resolve(json({ id: worker }));
   await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+});
+
+it('vínculo usa rotas nativas sem browser, CPF, cache ou idempotência presumida', async () => {
+  const fetchMock = vi.fn(async () => json({ ok: true })); vi.stubGlobal('fetch', fetchMock); const { nativeWorkerAccountApi, setAccessToken } = await import('./client'); setAccessToken('binding-token');
+  const account = '73000000-0000-4000-8000-000000000001';
+  await nativeWorkerAccountApi.context(worker); await nativeWorkerAccountApi.search(worker, 'Pessoa', 2); await nativeWorkerAccountApi.candidate(worker, account); await nativeWorkerAccountApi.link(worker, { expectedVersion: 1, userId: account });
+  const calls = fetchMock.mock.calls as unknown as [URL, RequestInit][];
+  expect(calls.map(([url]) => url.pathname)).toEqual([`/api/v1/workers/${worker}/account-binding`, `/api/v1/workers/${worker}/account-binding/candidates`, `/api/v1/workers/${worker}/account-binding/candidates/${account}`, `/api/v1/workers/${worker}/account-binding`]);
+  expect(calls[1][0].searchParams.get('page')).toBe('2'); expect(calls.every(([, init]) => init.cache === 'no-store')).toBe(true);
+  expect(calls[3][1].method).toBe('PUT'); expect(new Headers(calls[3][1].headers).get('Idempotency-Key')).toBeNull(); expect(new Headers(calls[3][1].headers).get('Authorization')).toBe('Bearer binding-token');
+});
+it('não repete PUT de vínculo após 401 ou resultado perdido', async () => {
+  const fetchMock = vi.fn(async () => json({ code: 'SESSION_EXPIRED', message: 'Entre novamente', requestId: 'test' }, 401)); vi.stubGlobal('fetch', fetchMock);
+  const { nativeWorkerAccountApi } = await import('./client'); await expect(nativeWorkerAccountApi.link(worker, {})).rejects.toMatchObject({ status: 401 }); expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+it('identificadores de vínculo não permitem escapar para outra rota', async () => {
+  const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock); const { nativeWorkerAccountApi } = await import('./client');
+  expect(() => nativeWorkerAccountApi.context('../../users')).toThrow(); expect(() => nativeWorkerAccountApi.candidate(worker, '../outra')).toThrow(); expect(fetchMock).not.toHaveBeenCalled();
 });

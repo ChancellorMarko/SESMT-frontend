@@ -23,4 +23,15 @@ describe('destino inicial sem concessão presumida', () => {
     expect(can('dashboard.read')).toBe(false);
     expect(permissions).toEqual(['recurso_novo:consultar']);
   });
+  it.each([
+    [['usuario:ler', 'usuario:criar', 'pt:editar'], '/app/configuracoes/usuarios'],
+    [['pt:criar', 'documento:ler'], '/app/dashboard'],
+    [['pt:iniciar', 'trabalhador:editar'], '/app/dashboard'],
+    [['trabalhador:ler', 'trabalhador:editar', 'documento:ler'], '/app/trabalhadores'],
+    [['usuario:ler', 'auditoria:ler', 'documento:ler'], '/app/auditoria'],
+    [['documento:ler', 'trabalhador:ler'], '/app/documentos'],
+    [['usuario:ler'], '/app/configuracoes/usuarios'],
+  ] as const)('prioriza a atividade autorizada na API real: %j', (permissions, destination) => {
+    expect(homePath(permission => hasPermission(permissions, permission), true)).toBe(destination);
+  });
 });

@@ -8,7 +8,8 @@ export async function loadNativeTeams(context: { unitId: string; companyIds: rea
   const summaries = checkedTeamSummaries(await api.get<unknown>('/teams', { query: { locationId: context.unitId, pageNumber: context.page, pageSize: 10 }, signal }));
   const items = await Promise.all(summaries.map(async summary => {
     const item = checkedNativeTeam(await api.get<unknown>(`/teams/${encodeURIComponent(summary.id)}`, { signal }), { ...context, id: summary.id });
-    if (item.organizationId !== summary.organizationId) throw new InvalidReadResponse();
+    if (item.organizationId !== summary.organizationId || item.name !== summary.name || item.chiefId !== summary.chiefId || item.active !== summary.active
+      || summary.version !== undefined && item.version !== summary.version) throw new InvalidReadResponse();
     return item;
   }));
   return { items, count: summaries.length };

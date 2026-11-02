@@ -8,7 +8,7 @@ import { NativePermitsPage } from './NativePermitsPage';
 import { declarationFixture, historyFixture, permitFixture, permitIds as ids } from '../../../tests/connection-ui/fixtures/native-permits';
 
 const state = vi.hoisted(() => ({ grants: ['pt:editar', 'pt:liberar', 'pt:iniciar'] }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'pt-test', unitId: ids.unit, me: { roles: ['ADMIN'] }, can: (permission: string) => state.grants.includes(permission) }) }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'pt-test', unitId: ids.unit, me: { roles: ['ADMIN'], user: { id: ids.user, displayName: 'Pessoa da operação' } }, can: (permission: string) => state.grants.includes(permission) }) }));
 vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(), api: { get: vi.fn(), post: vi.fn() } }));
 let current = permitFixture(), ready = true;
 function show(path = `/app/pts/${ids.permit}`) {

@@ -15,11 +15,17 @@ const ExpirationsPage=lazy(()=>import('../features/documents/ExpirationsPage').t
 const DocumentFormPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentFormPage})));
 const DocumentDetailPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentDetailPage})));
 const VersionFormPage=lazy(()=>import('../features/documents').then(m=>({default:m.VersionFormPage})));
+const NativeDocumentCreate=lazy(()=>import('../features/native-documents/NativeDocumentCreate').then(m=>({default:m.NativeDocumentCreate})));
+const NativeDocumentDetail=lazy(()=>import('../features/native-documents/NativeDocumentDetail').then(m=>({default:m.NativeDocumentDetail})));
 const WorkersPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkersPage})));
 const WorkerFormPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerFormPage})));
+const NativeWorkerCreate=lazy(()=>import('../features/native-workers/NativeWorkerCreate').then(m=>({default:m.NativeWorkerCreate})));
+const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/NativeWorkerAccountPage').then(m=>({default:m.NativeWorkerAccountPage})));
+const NativeWorkerProfessionalPage=lazy(()=>import('../features/native-workers/NativeWorkerProfessionalPage').then(m=>({default:m.NativeWorkerProfessionalPage})));
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
+const NativeOrganizationPage=lazy(()=>import('../features/organization/NativeOrganizationPage').then(m=>({default:m.NativeOrganizationPage})));
 const DashboardPage=lazy(()=>import('../features/dashboard').then(m=>({default:m.DashboardPage})));
 const NotificationsPage=lazy(()=>import('../features/notifications').then(m=>({default:m.NotificationsPage})));
 const AuditPage=lazy(()=>import('../features/audit').then(m=>({default:m.AuditPage})));
@@ -32,7 +38,7 @@ const NativeAgendaPage=lazy(()=>import('../features/native-operations/NativeAgen
 const NativeAppointmentDetail=lazy(()=>import('../features/native-operations/NativeAppointmentDetail').then(m=>({default:m.NativeAppointmentDetail})));
 const NativeCreationPage=lazy(()=>import('../features/native-operations/NativeCreationPage').then(m=>({default:m.NativeCreationPage})));
 const NativeTeamsPage=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamsPage})));
-const NativeTeamCommandUnavailable=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamCommandUnavailable})));
+const NativeTeamFormPage=lazy(()=>import('../features/native-teams/NativeTeamFormPage').then(m=>({default:m.NativeTeamFormPage})));
 const NativeDesignationsPage=lazy(()=>import('../features/native-operations/NativeDesignationsPage').then(m=>({default:m.NativeDesignationsPage})));
 const NativePermitsPage=lazy(()=>import('../features/native-permits/NativePermitsPage').then(m=>({default:m.NativePermitsPage})));
 const NativePermitDetail=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitDetail})));
@@ -96,8 +102,8 @@ export function App() {
       <Route path="agenda/novo" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="appointment"/></Guard>:<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>
       <Route path="agenda/:id" element={NATIVE_MODULES?<Guard><NativeAppointmentDetail/></Guard>:<Guard permission="appointments.read"><AppointmentDetailPage/></Guard>}/>
       <Route path="equipes" element={NATIVE_MODULES?<Guard permission="equipe:ler"><NativeTeamsPage/></Guard>:<Guard permission="teams.read"><TeamsPage/></Guard>}/>
-      <Route path="equipes/novo" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
-      <Route path="equipes/:id/editar" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
+      <Route path="equipes/novo" element={NATIVE_MODULES?<Guard permission="equipe:criar"><NativeTeamFormPage/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
+      <Route path="equipes/:id/editar" element={NATIVE_MODULES?<Guard permission="equipe:editar"><NativeTeamFormPage/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
       <Route path="pts" element={NATIVE_MODULES?<Guard><NativePermitsPage/></Guard>:<Guard permission="permits.read"><PermitsPage/></Guard>}/>
       <Route path="pts/:id" element={NATIVE_MODULES?<Guard><NativePermitDetail/></Guard>:<Guard permission="permits.read"><PermitDetailPage/></Guard>}/>
       <Route path="pts/:id/imprimir" element={NATIVE_MODULES?<Guard><NativePermitPrintPage/></Guard>:<Guard permission="permits.read"><PermitPrintPage/></Guard>}/>
@@ -118,16 +124,17 @@ export function App() {
       <Route path="pets/:id/imprimir" element={<Guard permission="pet.read"><PetPrintPage/></Guard>}/>
       <Route path="documentos" element={<Guard permission="documents.read"><DocumentsPage/></Guard>}/>
       <Route path="vencimentos" element={<Guard permission="documents.read"><ExpirationsPage/></Guard>}/>
-      <Route path="documentos/novo" element={<Guard permission="documents.write"><DocumentFormPage/></Guard>}/>
-      <Route path="documentos/:id" element={<Guard permission="documents.read"><DocumentDetailPage/></Guard>}/>
-      <Route path="documentos/:id/editar" element={<Guard permission="documents.write"><DocumentFormPage/></Guard>}/>
-      <Route path="documentos/:id/versoes/nova" element={<Guard permission="documents.write"><VersionFormPage/></Guard>}/>
+      <Route path="documentos/novo" element={NATIVE_MODULES ? <Guard permission="documento:criar"><NativeDocumentCreate/></Guard> : <Guard permission="documents.write"><DocumentFormPage/></Guard>}/>
+      <Route path="documentos/:id" element={<Guard permission="documents.read">{NATIVE_MODULES ? <NativeDocumentDetail/> : <DocumentDetailPage/>}</Guard>}/>
+      <Route path="documentos/:id/editar" element={NATIVE_MODULES ? <Guard permission="documento:editar"><NativeDocumentDetail initialEdit/></Guard> : <Guard permission="documents.write"><DocumentFormPage/></Guard>}/>
+      <Route path="documentos/:id/versoes/nova" element={NATIVE_MODULES ? <Guard permission="documento:editar"><NativeDocumentDetail initialUpload/></Guard> : <Guard permission="documents.write"><VersionFormPage/></Guard>}/>
       <Route path="trabalhadores" element={<Guard permission="workers.read"><WorkersPage/></Guard>}/>
-      <Route path="trabalhadores/novo" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
+      <Route path="trabalhadores/novo" element={NATIVE_MODULES ? <Guard permission="trabalhador:criar"><NativeWorkerCreate/></Guard> : <Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id" element={<Guard permission="workers.read"><WorkerDetailPage/></Guard>}/>
-      <Route path="trabalhadores/:id/editar" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
+      <Route path="trabalhadores/:id/conta" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerAccountPage/></Guard> : <Navigate to="/app/trabalhadores" replace/>}/>
+      <Route path="trabalhadores/:id/editar" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerProfessionalPage/></Guard> : <Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id/movimentacoes/nova" element={<Guard permission="workers.write"><WorkerMovementPage/></Guard>}/>
-      <Route path="organizacao" element={<Guard permission="organization.read"><OrganizationPage/></Guard>}/>
+      <Route path="organizacao" element={<Guard permission="organization.read">{NATIVE_MODULES ? <NativeOrganizationPage/> : <OrganizationPage/>}</Guard>}/>
       <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>
       <Route path="auditoria" element={<Guard permission="audit.read">{NATIVE_MODULES ? <NativeAuditPage/> : <AuditPage/>}</Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>

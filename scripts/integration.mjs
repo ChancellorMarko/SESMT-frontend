@@ -61,6 +61,7 @@ async function main() {
     const databasePassword = randomBytes(24).toString('hex');
     writeFileSync(localConfig, [
       '# Exclusivo do ambiente de integração local. Não versionar.',
+      'SESMT_BACKEND_PATH=backend',
       `INTEGRATION_DB_PASSWORD=${databasePassword}`,
       `ConnectionStrings__Sesmt=Host=127.0.0.1;Port=5434;Database=ampara_integration;Username=ampara;Password=${databasePassword}`,
       `Jwt__SigningKey=${randomBytes(48).toString('hex')}`,
@@ -73,6 +74,8 @@ async function main() {
     return;
   }
   const env = integrationEnv();
+  // Select the API in this branch even when an older local file points elsewhere.
+  if (process.argv.includes('--bundled')) env.SESMT_BACKEND_PATH = 'backend';
   if (action === 'db') {
     await run('docker', ['compose', '--env-file', '.env.integration.local', '-f', 'compose.integration.yml', 'up', '-d', '--wait', 'database'], env);
     return;
@@ -97,7 +100,7 @@ async function main() {
     return;
   }
   await freePort(5047); await freePort(5175);
-  console.log(`Backend oficial: ${backendRoot}`);
+  console.log(`Backend selecionado: ${backendRoot}`);
   run('dotnet', ['run', '--project', startup, '--no-launch-profile'], env, true, backendRoot);
   let ready = false;
   for (let attempt = 0; attempt < 120 && !stopping; attempt++) {

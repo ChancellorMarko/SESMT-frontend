@@ -205,7 +205,7 @@ test('reconhecer a permissão não faz o frontend aceitar um DTO documental inco
 test('usuario:ler abre a lista nativa sem exigir unidade, editar contas ou ignorar uma recusa posterior', async ({ page }, testInfo) => {
   const observed = observe(page);
   await page.setViewportSize({ width: 320, height: 900 });
-  const state = await nativeGrants(page, ['usuario:ler', 'usuario:criar', 'documento:ler'], false, []);
+  const state = await nativeGrants(page, ['usuario:ler'], false, []);
   await expect(page).toHaveURL(/\/app\/configuracoes\/usuarios$/);
   await expect(page.getByRole('cell', { name: /Pessoa do cadastro nativo/ })).toBeVisible();
   await expect(page.getByText('Escopo da conta · somente leitura', { exact: true })).toBeVisible();

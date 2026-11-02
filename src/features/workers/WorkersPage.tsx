@@ -4,6 +4,7 @@ import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { Plus, Search, UsersRound } from 'lucide-react';
 import { api, ApiError, API_MODE } from '../../shared/api/client';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { PageDto, WorkerReadDto as WorkerDto, OrganizationDto } from '../../shared/contracts';
 import type { TeamDto } from '../../shared/contracts/work-permits';
@@ -71,7 +72,7 @@ export function WorkersPage() {
 }
 function WorkersPageContent() {
   const { unitId, sessionKey, can } = useSession();
-  const allowed = can('workers.read');
+  const allowed = can('workers.read'), mayCreate = NATIVE_MODULES ? can('trabalhador:criar') : can('workers.write');
   const location = useLocation();
   const restored = workerNavigation(location.state, sessionKey, unitId)?.workerListReturnTo;
   const restore = restored?.search === location.search ? restored : undefined;
@@ -123,7 +124,7 @@ function WorkersPageContent() {
   const hasDraft = search.trim() !== q;
   const origin = enabled ? workerNavigation({ workerListReturnTo: { unitId, sessionKey, search: location.search, draftSearch: search, advancedOpen } }, sessionKey, unitId) : undefined;
   return <div className={styles.workspace}>
-    <PageHeader eyebrow="Pessoas e vínculos" title="Trabalhadores" description="Encontre cadastros, situação de integração, equipes operacionais e documentos permitidos." actions={can('workers.write') && <Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Novo trabalhador</Link>} />
+    <PageHeader eyebrow="Pessoas e vínculos" title="Trabalhadores" description="Encontre cadastros, situação de integração, equipes operacionais e documentos permitidos." actions={mayCreate && <Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Novo trabalhador</Link>} />
     <section className={`panel ${styles.filters}`} aria-label="Pesquisa de trabalhadores">
       <form className={styles.filters} aria-label="Filtros de trabalhadores" onSubmit={event => {
         event.preventDefault();
@@ -159,7 +160,7 @@ function WorkersPageContent() {
         {workers.data.items.length ? <>
           <WorkerList workers={workers.data.items} companyName={companyName} unitName={unitName} sectorName={sectorName} origin={origin} />
           <nav className={styles.pagination} aria-label="Paginação de trabalhadores"><p>{workers.data.total} registro(s) · Página {page} de {Math.max(1, Math.ceil(workers.data.total / pageSize))}</p><div className="actions"><Button variant="secondary" disabled={page <= 1 || workers.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * pageSize >= workers.data.total || workers.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
-        </> : <><EmptyState title={page > 1 ? 'Esta página não possui resultados' : hasFilters ? 'Nenhum resultado para estes filtros' : 'Nenhum trabalhador cadastrado'} description={page > 1 ? 'Volte à primeira página para consultar os trabalhadores com os filtros atuais.' : hasFilters ? 'Revise a busca ou limpe os filtros para consultar outros registros.' : 'Cadastre o primeiro vínculo para organizar os documentos da equipe.'} />{page > 1 ? <div className={styles.emptyAction}><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div> : !hasFilters && can('workers.write') && <div className={styles.emptyAction}><Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Cadastrar primeiro trabalhador</Link></div>}</>}
+        </> : <><EmptyState title={page > 1 ? 'Esta página não possui resultados' : hasFilters ? 'Nenhum resultado para estes filtros' : 'Nenhum trabalhador cadastrado'} description={page > 1 ? 'Volte à primeira página para consultar os trabalhadores com os filtros atuais.' : hasFilters ? 'Revise a busca ou limpe os filtros para consultar outros registros.' : 'Cadastre o primeiro vínculo para organizar os documentos da equipe.'} />{page > 1 ? <div className={styles.emptyAction}><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div> : !hasFilters && mayCreate && <div className={styles.emptyAction}><Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Cadastrar primeiro trabalhador</Link></div>}</>}
       </section>}
       <p className={styles.notice}>A integração exibida é administrativa. A liberação do trabalho depende da conferência dos requisitos e da autorização operacional.</p>
   </div>;

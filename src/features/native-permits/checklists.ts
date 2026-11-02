@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { api } from '../../shared/api/client';
 import { nativeId, nativeIds } from '../native-operations/contracts';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { NativeFormError } from '../native-operations/NativeCommandDialog';
@@ -35,6 +36,26 @@ export function checkedPinnedTemplates(value: unknown, permit: Pick<NativePermit
   if (new Set(result.map(item => item.templateId)).size !== result.length || new Set(opening.map(item => item.id)).size !== opening.length
     || !same([...new Set(result.flatMap(item => item.serviceCodes))], permit.serviceCode.split(','))) throw new InvalidReadResponse();
   return result;
+}
+
+/** The PT-scoped definitions do not require the privilege to administer the model catalog. */
+export async function loadPinnedTemplates(permit: NativePermit, signal: AbortSignal) {
+  const value = await api.get<unknown>(`/work-permits/pts/${permit.id}`, { signal });
+  const receipt = z.object({ id: nativeId, versao: z.number().int().positive(),
+    statusOperacional: z.string(), statusRevisao: z.string(), participanteIds: nativeIds, templateVersionIds: nativeIds,
+    pinnedTemplates: z.unknown().optional(),
+  }).safeParse(value);
+  if (!receipt.success || receipt.data.id !== permit.id || receipt.data.versao !== permit.version
+    || receipt.data.statusOperacional.toUpperCase() !== permit.status || receipt.data.statusRevisao.toUpperCase() !== permit.reviewStatus
+    || !same(receipt.data.participanteIds, permit.participants.map(person => person.userId))
+    || !same(receipt.data.templateVersionIds, permit.templateVersionIds)) throw new InvalidReadResponse();
+  if (Object.hasOwn(value as object, 'pinnedTemplates')) {
+    const models = checkedPinnedTemplates(receipt.data.pinnedTemplates, permit);
+    if (models.length !== (receipt.data.pinnedTemplates as unknown[]).length) throw new InvalidReadResponse();
+    return models;
+  }
+  // Compatibility only with an older, valid receipt. Denials and malformed data never fall back.
+  return checkedPinnedTemplates(await api.get<unknown>('/work-permits/pt-templates', { query: { companyId: permit.companyId }, signal }), permit);
 }
 
 // Keep decimal strings exact: converting through Number can round the 96-bit .NET decimal.

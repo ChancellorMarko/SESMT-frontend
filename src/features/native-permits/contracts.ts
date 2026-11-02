@@ -101,9 +101,10 @@ export function checkedEligibility(value: unknown) {
   return parsed.data;
 }
 const declarations = z.object({ permitId: nativeId, expectedVersion: version, contentVersion: version,
-  declarations: z.array(z.object({ templateVersionId: nativeId, version, text })),
+  declarations: z.array(z.object({ templateVersionId: nativeId, version, text, templateId: nativeId.optional() })),
   context: z.object({ appointmentId: nativeId, version, locationId: nativeId.nullable(), responsibleId: nativeId.nullable(),
-    from: instant, until: instant, serviceCodes: z.array(text), participantIds: nativeIds }).nullable(),
+    from: instant, until: instant, serviceCodes: z.array(text), participantIds: nativeIds, teamId: nativeId.nullable().optional() }).nullable(),
+  canonicalContent: z.string().min(1).max(1000000).optional(), contentHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 });
 export type PermitDeclarations = z.infer<typeof declarations>;
 export function checkedDeclarations(value: unknown, permit: NativePermit) {
@@ -114,3 +115,12 @@ export function checkedDeclarations(value: unknown, permit: NativePermit) {
   return parsed.data;
 }
 export function same(a: readonly string[], b: readonly string[]) { return a.length === b.length && new Set(a).size === a.length && a.every(id => b.includes(id)); }
+
+export function checkedScienceParticipant(value: unknown, permit: NativePermit, userId: string, name: string, declaration: string) {
+  const parsed = participant.safeParse(value);
+  if (!parsed.success || parsed.data.userId !== userId || parsed.data.acknowledgedVersion !== permit.contentVersion
+    || !parsed.data.acknowledgedAt || !parsed.data.acknowledgements?.some(record => record.participantUserId === userId
+      && record.collectorId === userId && record.contentVersion === permit.contentVersion && record.confirmedName === name
+      && record.identificationMethod === 'Sessão autenticada' && record.declaration === declaration)) throw new InvalidReadResponse();
+  return parsed.data;
+}

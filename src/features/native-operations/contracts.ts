@@ -51,7 +51,7 @@ export function checkedNativeAgenda(value: unknown, criteria: NativeAgendaCriter
   return result;
 }
 
-export const nativeTeamSummary = z.object({ id: nativeId, organizationId: nativeId, name: z.string().trim().min(1).max(150), chiefId: nativeId.nullable(), active: z.boolean() });
+export const nativeTeamSummary = z.object({ id: nativeId, organizationId: nativeId, name: z.string().trim().min(1).max(150), chiefId: nativeId.nullable(), active: z.boolean(), version: version.optional() });
 export const nativeTeam = nativeTeamSummary.extend({ companyId: nativeId.nullable(), localId: nativeId.nullable(), description: z.string().max(1000).nullable(), participantIds: nativeIds });
 export type NativeTeam = z.infer<typeof nativeTeam>;
 export function checkedNativeTeam(value: unknown, expected: { id: string; unitId: string; companyIds: readonly string[] }) {
