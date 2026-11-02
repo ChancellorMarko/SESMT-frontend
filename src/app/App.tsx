@@ -35,7 +35,7 @@ const NativeAgendaPage=lazy(()=>import('../features/native-operations/NativeAgen
 const NativeAppointmentDetail=lazy(()=>import('../features/native-operations/NativeAppointmentDetail').then(m=>({default:m.NativeAppointmentDetail})));
 const NativeCreationPage=lazy(()=>import('../features/native-operations/NativeCreationPage').then(m=>({default:m.NativeCreationPage})));
 const NativeTeamsPage=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamsPage})));
-const NativeTeamCommandUnavailable=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamCommandUnavailable})));
+const NativeTeamFormPage=lazy(()=>import('../features/native-teams/NativeTeamFormPage').then(m=>({default:m.NativeTeamFormPage})));
 const NativeDesignationsPage=lazy(()=>import('../features/native-operations/NativeDesignationsPage').then(m=>({default:m.NativeDesignationsPage})));
 const NativePermitsPage=lazy(()=>import('../features/native-permits/NativePermitsPage').then(m=>({default:m.NativePermitsPage})));
 const NativePermitDetail=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitDetail})));
@@ -99,8 +99,8 @@ export function App() {
       <Route path="agenda/novo" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="appointment"/></Guard>:<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>
       <Route path="agenda/:id" element={NATIVE_MODULES?<Guard><NativeAppointmentDetail/></Guard>:<Guard permission="appointments.read"><AppointmentDetailPage/></Guard>}/>
       <Route path="equipes" element={NATIVE_MODULES?<Guard permission="equipe:ler"><NativeTeamsPage/></Guard>:<Guard permission="teams.read"><TeamsPage/></Guard>}/>
-      <Route path="equipes/novo" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
-      <Route path="equipes/:id/editar" element={NATIVE_MODULES?<Guard><NativeTeamCommandUnavailable/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
+      <Route path="equipes/novo" element={NATIVE_MODULES?<Guard permission="equipe:criar"><NativeTeamFormPage/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
+      <Route path="equipes/:id/editar" element={NATIVE_MODULES?<Guard permission="equipe:editar"><NativeTeamFormPage/></Guard>:<Guard permission="teams.write"><TeamFormPage/></Guard>}/>
       <Route path="pts" element={NATIVE_MODULES?<Guard><NativePermitsPage/></Guard>:<Guard permission="permits.read"><PermitsPage/></Guard>}/>
       <Route path="pts/:id" element={NATIVE_MODULES?<Guard><NativePermitDetail/></Guard>:<Guard permission="permits.read"><PermitDetailPage/></Guard>}/>
       <Route path="pts/:id/imprimir" element={NATIVE_MODULES?<Guard><NativePermitPrintPage/></Guard>:<Guard permission="permits.read"><PermitPrintPage/></Guard>}/>
