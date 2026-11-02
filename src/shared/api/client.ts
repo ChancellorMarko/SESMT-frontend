@@ -183,6 +183,12 @@ export const nativeWorkerAccountApi = {
   link: <T>(id: string, body: unknown, signal?: AbortSignal) => request<T>('PUT', workerAccountPath(id), body, { signal }, false, true),
 };
 
+/** Versioned professional fields only; the browser projection remains read-only. */
+export const nativeWorkerProfileApi = {
+  context: <T>(id: string, signal?: AbortSignal) => request<T>('GET', workerAccountPath(id).replace('/account-binding', '/professional-profile'), undefined, { signal }, false, true),
+  update: <T>(id: string, body: unknown, signal?: AbortSignal) => request<T>('PATCH', workerAccountPath(id).replace('/account-binding', '/professional-profile'), body, { signal }, false, true),
+};
+
 type NativeDocumentOptions = Pick<RequestOptions, 'query' | 'signal'>;
 export interface NativeDocumentFile { blob: Blob; mimeType: string }
 const documentIdPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';

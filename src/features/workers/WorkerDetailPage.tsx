@@ -164,6 +164,7 @@ function WorkerDetailContent() {
             {NATIVE_MODULES && data.sourceReadOnly && can('trabalhador:editar') && can('usuario:ler') && can('usuario:editar') && (
               <Link className="button button--secondary" to={`/app/trabalhadores/${id}/conta`} state={origin}>Conta de acesso</Link>
             )}
+            {NATIVE_MODULES && data.sourceReadOnly && can('trabalhador:editar') && data.status === 'ACTIVE' && <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`} state={origin}>Editar cadastro profissional</Link>}
             {can('workers.write') && !data.sourceReadOnly && (
               <>
                 <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`} state={origin}>

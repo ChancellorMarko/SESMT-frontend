@@ -21,6 +21,7 @@ const WorkersPage=lazy(()=>import('../features/workers').then(m=>({default:m.Wor
 const WorkerFormPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerFormPage})));
 const NativeWorkerCreate=lazy(()=>import('../features/native-workers/NativeWorkerCreate').then(m=>({default:m.NativeWorkerCreate})));
 const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/NativeWorkerAccountPage').then(m=>({default:m.NativeWorkerAccountPage})));
+const NativeWorkerProfessionalPage=lazy(()=>import('../features/native-workers/NativeWorkerProfessionalPage').then(m=>({default:m.NativeWorkerProfessionalPage})));
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
@@ -131,7 +132,7 @@ export function App() {
       <Route path="trabalhadores/novo" element={NATIVE_MODULES ? <Guard permission="trabalhador:criar"><NativeWorkerCreate/></Guard> : <Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id" element={<Guard permission="workers.read"><WorkerDetailPage/></Guard>}/>
       <Route path="trabalhadores/:id/conta" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerAccountPage/></Guard> : <Navigate to="/app/trabalhadores" replace/>}/>
-      <Route path="trabalhadores/:id/editar" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
+      <Route path="trabalhadores/:id/editar" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerProfessionalPage/></Guard> : <Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id/movimentacoes/nova" element={<Guard permission="workers.write"><WorkerMovementPage/></Guard>}/>
       <Route path="organizacao" element={<Guard permission="organization.read">{NATIVE_MODULES ? <NativeOrganizationPage/> : <OrganizationPage/>}</Guard>}/>
       <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>

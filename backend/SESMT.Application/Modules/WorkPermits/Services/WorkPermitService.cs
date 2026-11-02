@@ -403,6 +403,7 @@ public sealed class WorkPermitService : IWorkPermitService
     {
         var companyIds = await _repository.GetAccessibleCompanyIdsAsync(actorId, cancellationToken);
         var permits = await _repository.ListAsync(companyIds, cancellationToken);
+        if (await _repository.IsOwnOnlyAsync(actorId, cancellationToken)) permits = permits.Where(p => p.CreatedBy == actorId || p.Participants.Any(person => person.UserId == actorId && person.Active && person.DeletedAt == null)).ToArray();
         return permits.Select(WorkPermitResponse.From).ToArray();
     }
 
@@ -425,7 +426,8 @@ public sealed class WorkPermitService : IWorkPermitService
             companyIds = [request.CompanyId.Value];
         }
         if (companyIds.Count == 0) return new([], 0, request.Page, request.PageSize);
-        var page = await _repository.SearchAsync(request, companyIds, cancellationToken);
+        var ownOnly = await _repository.IsOwnOnlyAsync(actorId, cancellationToken);
+        var page = await _repository.SearchAsync(request, companyIds, cancellationToken, ownOnly ? actorId : null);
         return new(page.Items.Select(WorkPermitResponse.From).ToArray(), page.Total, page.Page, page.PageSize);
     }
 
@@ -560,7 +562,11 @@ public sealed class WorkPermitService : IWorkPermitService
         if (companyIds.Count == 0)
             throw new NotFoundException("Permissão de trabalho não encontrada.");
 
-        return await _repository.GetByIdAsync(permitId, companyIds, cancellationToken)
+        var permit = await _repository.GetByIdAsync(permitId, companyIds, cancellationToken)
             ?? throw new NotFoundException("Permissão de trabalho não encontrada.");
+        if (await _repository.IsOwnOnlyAsync(actorId, cancellationToken) && permit.CreatedBy != actorId
+            && !permit.Participants.Any(person => person.UserId == actorId && person.Active && person.DeletedAt == null))
+            throw new NotFoundException("Permissão de trabalho não encontrada.");
+        return permit;
     }
 }

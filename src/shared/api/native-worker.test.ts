@@ -4,6 +4,15 @@ const worker = '64000000-0000-4000-8000-000000000001';
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 beforeEach(() => { vi.resetModules(); vi.stubEnv('VITE_API_MODE', 'api'); vi.stubEnv('VITE_AUTH_API_CONTRACT', 'native'); vi.stubEnv('VITE_API_BROWSER_PREFIX', '/browser'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+it('o editor profissional usa somente sua rota nativa, revisão no corpo e no-store', async () => {
+  const fetchMock = vi.fn(async () => json({})); vi.stubGlobal('fetch', fetchMock);
+  const { nativeWorkerProfileApi, setAccessToken } = await import('./client'); setAccessToken('profile-fixture-token');
+  await nativeWorkerProfileApi.context(worker); await nativeWorkerProfileApi.update(worker, { expectedRevision: 4, name: 'Pessoa da Equipe' });
+  const calls = fetchMock.mock.calls as unknown as [URL, RequestInit][];
+  expect(String(calls[0][0])).toContain(`/api/v1/workers/${worker}/professional-profile`); expect(String(calls[0][0])).not.toContain('/browser/'); expect(calls[0][1].cache).toBe('no-store');
+  expect(calls[1][1].method).toBe('PATCH'); expect(calls[1][1].body).toBe(JSON.stringify({ expectedRevision: 4, name: 'Pessoa da Equipe' }));
+  expect(() => nativeWorkerProfileApi.context('../users')).toThrow(); expect(fetchMock).toHaveBeenCalledTimes(2);
+});
 it('separa a leitura nativa de UserId da projeção browser sem alterar as outras consultas', async () => {
   const fetchMock = vi.fn(async () => json({ id: worker })); vi.stubGlobal('fetch', fetchMock);
   const { api, readNativeWorker, setAccessToken } = await import('./client'); setAccessToken('native-worker-token');

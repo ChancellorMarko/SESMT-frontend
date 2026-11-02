@@ -15,6 +15,7 @@
     "test:integration-tools": "node --test scripts/*.test.mjs",
     "test:connection-ui": "playwright test --config playwright.connection.config.ts",
     "test:access:real": "node scripts/integration-access-ui.mjs",
+    "seed:local-examples": "node scripts/seed-local-examples.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b",

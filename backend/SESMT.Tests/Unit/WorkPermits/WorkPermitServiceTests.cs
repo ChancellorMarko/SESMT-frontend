@@ -562,6 +562,8 @@ public class WorkPermitServiceTests
 
         public Task<IReadOnlyList<Guid>> GetAccessibleCompanyIdsAsync(Guid userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Guid>>(_companyIds);
+        public Task<bool> IsOwnOnlyAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(!_roles.Any() || _roles.All(role => role is "WORKER" or "TRABALHADOR"));
 
         public Task<bool> HasRoleInCompanyAsync(Guid userId, Guid companyId, string roleCode, CancellationToken cancellationToken = default) =>
             Task.FromResult(_companyIds.Contains(companyId) && _roles.Contains(roleCode));
@@ -572,9 +574,10 @@ public class WorkPermitServiceTests
         public Task<IReadOnlyList<WorkPermit>> ListAsync(IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<WorkPermit>>(Permits.Where(permit => companyIds.Contains(permit.CompanyId)).ToArray());
 
-        public Task<WorkPermitSearchResult> SearchAsync(WorkPermitSearchRequest request, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default)
+        public Task<WorkPermitSearchResult> SearchAsync(WorkPermitSearchRequest request, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default, Guid? ownActorId = null)
         {
             var query = Permits.Where(permit => companyIds.Contains(permit.CompanyId));
+            if (ownActorId.HasValue) query = query.Where(permit => permit.CreatedBy == ownActorId || permit.Participants.Any(p => p.UserId == ownActorId));
             if (!string.IsNullOrEmpty(request.Search)) query = query.Where(permit => permit.Title.Contains(request.Search, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrEmpty(request.Status)) query = query.Where(permit => permit.Status == request.Status);
             var array = query.OrderBy(permit => permit.Id).ToArray();

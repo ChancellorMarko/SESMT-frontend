@@ -115,6 +115,18 @@ try {
     check(denied, `Server boundary: ${role} cannot create accounts through direct API calls`);
     await rolePage.close();
   }
+  await page.goto(`http://127.0.0.1:5185/app/trabalhadores?unitId=${qaUnit}`);
+  await page.getByRole('link', { name: 'Pessoa QA Trabalhador', exact: true }).click();
+  await page.getByRole('link', { name: 'Editar cadastro profissional', exact: true }).click();
+  const professional = page.getByRole('dialog', { name: 'Editar cadastro profissional', exact: true });
+  await professional.getByLabel('Nome completo', { exact: true }).fill('Pessoa QA Atualizada');
+  await professional.getByLabel('Matrícula', { exact: true }).fill('QA-WORKER-EDIT');
+  await professional.getByLabel('Motivo da alteração', { exact: true }).fill('Correção fictícia para testar o cadastro profissional');
+  await professional.getByRole('checkbox', { name: /Confirmo as alterações/ }).check();
+  check(await professional.getByLabel('CPF', { exact: true }).count() === 0, 'Professional editor: CPF is not requested or exposed');
+  await professional.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await page.getByRole('heading', { name: 'Pessoa QA Atualizada', exact: true }).waitFor();
+  check(true, 'Real API: professional worker edit confirmed in the browser');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://127.0.0.1:5185/app/organizacao'); await page.getByRole('heading', { name: 'Organização', exact: true }).waitFor();
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile: no page overflow at 390px');

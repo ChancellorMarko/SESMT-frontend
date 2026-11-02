@@ -6,6 +6,7 @@ using SESMT.Domain.Modules.Documents.Constants;
 using SESMT.Domain.Modules.Documents.Entities;
 using SESMT.Domain.Modules.Notifications.Entities;
 using SESMT.Application.Modules.WorkPermits.DTOs;
+using SESMT.Infrastructure.Persistence.Queries;
 
 namespace SESMT.Infrastructure.Persistence.Repositories.WorkPermits;
 
@@ -15,11 +16,12 @@ public sealed class WorkPermitRepository : IWorkPermitRepository
 
     public WorkPermitRepository(SesmtDbContext dbContext) => _dbContext = dbContext;
 
-    public async Task<WorkPermitSearchResult> SearchAsync(WorkPermitSearchRequest request, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default)
+    public async Task<WorkPermitSearchResult> SearchAsync(WorkPermitSearchRequest request, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default, Guid? ownActorId = null)
     {
         request = request.Validated();
         // Scope is applied before every filter, count and page operation.
         var query = _dbContext.WorkPermits.AsNoTracking().Where(item => companyIds.Contains(item.CompanyId) && item.Active && item.DeletedAt == null);
+        if (ownActorId.HasValue) query = query.Where(item => item.CreatedBy == ownActorId || item.Participants.Any(p => p.UserId == ownActorId && p.Active && p.DeletedAt == null));
         if (request.CompanyId.HasValue) query = query.Where(item => item.CompanyId == request.CompanyId);
         if (!string.IsNullOrEmpty(request.Search))
         {
@@ -209,8 +211,9 @@ public sealed class WorkPermitRepository : IWorkPermitRepository
         }
     }
 
-    public async Task<IReadOnlyList<Guid>> GetAccessibleCompanyIdsAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        await _dbContext.UserScopes
+    public async Task<IReadOnlyList<Guid>> GetAccessibleCompanyIdsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var scoped = await _dbContext.UserScopes
             .Where(scope => scope.UserId == userId
                 && scope.ScopeType == ScopeType.EMPRESA
                 && scope.ReferenceId.HasValue
@@ -221,6 +224,15 @@ public sealed class WorkPermitRepository : IWorkPermitRepository
             .Select(scope => scope.ReferenceId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
+        return scoped.Concat(await GlobalAdministrationScope.CompanyIdsAsync(_dbContext, userId, "pt", "ler", cancellationToken)).Distinct().ToArray();
+    }
+
+    public async Task<bool> IsOwnOnlyAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var roles = await (from a in _dbContext.UserRoles join r in _dbContext.Roles on a.RoleId equals r.Id
+            where a.UserId == userId && a.Active && a.DeletedAt == null && r.Active && r.DeletedAt == null select r.Code).Distinct().ToArrayAsync(cancellationToken);
+        return roles.Length == 0 || roles.All(code => code.Equals("TRABALHADOR", StringComparison.OrdinalIgnoreCase) || code.Equals("WORKER", StringComparison.OrdinalIgnoreCase));
+    }
 
     public Task<bool> HasRoleInCompanyAsync(Guid userId, Guid companyId, string roleCode, CancellationToken cancellationToken = default) =>
         (from userRole in _dbContext.UserRoles

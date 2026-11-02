@@ -34,7 +34,7 @@ npm run test:backend
 
 Os testes relacionais exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para `postgres` de uma instância exclusiva de testes em loopback. As fixtures criam e removem somente bancos `sesmt_it_*`. Sem a variável, esses cenários ficam explicitamente ignorados. O workflow Backend CI fornece PostgreSQL efêmero e executa os testes a partir desta pasta.
 
-O snapshot conciliado, com gestão nativa de acessos e hierarquia da sessão, passou por build Release e 434 testes, incluindo cenários PostgreSQL com migrations e schema reais em bancos descartáveis. A conciliação de um banco legado depende do schema e do histórico efetivamente presentes nesse banco. Na raiz, `npm run test:access:real` verifica cadastro organizacional, contas e login por cargo em outro banco descartável, sem MSW; consulte os requisitos em INTEGRACAO.md.
+O snapshot conciliado, com gestão nativa de acessos, hierarquia da sessão e edição profissional do trabalhador, passou por build Release e 448 testes, incluindo cenários PostgreSQL com migrations e schema reais em bancos descartáveis. Os cenários cobrem também a carga idempotente de exemplos, leitura administrativa global e isolamento das PTs do trabalhador. A conciliação de um banco legado depende do schema e do histórico efetivamente presentes nesse banco. Na raiz, `npm run test:access:real` verifica cadastro organizacional, contas, edição profissional e login por cargo em outro banco descartável, sem MSW; consulte os requisitos em INTEGRACAO.md.
 
 Para criar a imagem da API, use `docker build -f backend/SESMT.API/Dockerfile backend`. A configuração de conexão, JWT, bootstrap, SMTP e armazenamento deve ser fornecida no ambiente de execução.
 
