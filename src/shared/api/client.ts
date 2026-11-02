@@ -167,6 +167,22 @@ export function createNativeWorker<T>(body: unknown, options?: Pick<RequestOptio
   return request<T>('POST', '/workers', body, options, false, true);
 }
 
+function workerAccountPath(id: string) {
+  if (API_MODE !== 'api' || AUTH_CONTRACT.kind !== 'native' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    || id === '00000000-0000-0000-0000-000000000000') throw new Error('Vínculo de conta indisponível neste contexto.');
+  return `/workers/${id.toLowerCase()}/account-binding`;
+}
+/** Minimal identity-binding DTOs: never route these through the browser worker projection. */
+export const nativeWorkerAccountApi = {
+  context: <T>(id: string, signal?: AbortSignal) => request<T>('GET', workerAccountPath(id), undefined, { signal }, false, true),
+  search: <T>(id: string, q: string, page: number, signal?: AbortSignal) => request<T>('GET', `${workerAccountPath(id)}/candidates`, undefined, { query: { q, page }, signal }, false, true),
+  candidate: <T>(id: string, userId: string, signal?: AbortSignal) => {
+    workerAccountPath(userId);
+    return request<T>('GET', `${workerAccountPath(id)}/candidates/${userId.toLowerCase()}`, undefined, { signal }, false, true);
+  },
+  link: <T>(id: string, body: unknown, signal?: AbortSignal) => request<T>('PUT', workerAccountPath(id), body, { signal }, false, true),
+};
+
 type NativeDocumentOptions = Pick<RequestOptions, 'query' | 'signal'>;
 export interface NativeDocumentFile { blob: Blob; mimeType: string }
 const documentIdPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';

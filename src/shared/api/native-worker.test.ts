@@ -40,3 +40,21 @@ it('cancela a consulta nativa ao trocar o contexto de sessão', async () => {
   const { readNativeWorker, cancelAllRequests } = await import('./client'); const pending = readNativeWorker(worker); cancelAllRequests(); resolve(json({ id: worker }));
   await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 });
+
+it('vínculo usa rotas nativas sem browser, CPF, cache ou idempotência presumida', async () => {
+  const fetchMock = vi.fn(async () => json({ ok: true })); vi.stubGlobal('fetch', fetchMock); const { nativeWorkerAccountApi, setAccessToken } = await import('./client'); setAccessToken('binding-token');
+  const account = '73000000-0000-4000-8000-000000000001';
+  await nativeWorkerAccountApi.context(worker); await nativeWorkerAccountApi.search(worker, 'Pessoa', 2); await nativeWorkerAccountApi.candidate(worker, account); await nativeWorkerAccountApi.link(worker, { expectedVersion: 1, userId: account });
+  const calls = fetchMock.mock.calls as unknown as [URL, RequestInit][];
+  expect(calls.map(([url]) => url.pathname)).toEqual([`/api/v1/workers/${worker}/account-binding`, `/api/v1/workers/${worker}/account-binding/candidates`, `/api/v1/workers/${worker}/account-binding/candidates/${account}`, `/api/v1/workers/${worker}/account-binding`]);
+  expect(calls[1][0].searchParams.get('page')).toBe('2'); expect(calls.every(([, init]) => init.cache === 'no-store')).toBe(true);
+  expect(calls[3][1].method).toBe('PUT'); expect(new Headers(calls[3][1].headers).get('Idempotency-Key')).toBeNull(); expect(new Headers(calls[3][1].headers).get('Authorization')).toBe('Bearer binding-token');
+});
+it('não repete PUT de vínculo após 401 ou resultado perdido', async () => {
+  const fetchMock = vi.fn(async () => json({ code: 'SESSION_EXPIRED', message: 'Entre novamente', requestId: 'test' }, 401)); vi.stubGlobal('fetch', fetchMock);
+  const { nativeWorkerAccountApi } = await import('./client'); await expect(nativeWorkerAccountApi.link(worker, {})).rejects.toMatchObject({ status: 401 }); expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+it('identificadores de vínculo não permitem escapar para outra rota', async () => {
+  const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock); const { nativeWorkerAccountApi } = await import('./client');
+  expect(() => nativeWorkerAccountApi.context('../../users')).toThrow(); expect(() => nativeWorkerAccountApi.candidate(worker, '../outra')).toThrow(); expect(fetchMock).not.toHaveBeenCalled();
+});

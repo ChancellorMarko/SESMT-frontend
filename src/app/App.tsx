@@ -20,6 +20,7 @@ const NativeDocumentDetail=lazy(()=>import('../features/native-documents/NativeD
 const WorkersPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkersPage})));
 const WorkerFormPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerFormPage})));
 const NativeWorkerCreate=lazy(()=>import('../features/native-workers/NativeWorkerCreate').then(m=>({default:m.NativeWorkerCreate})));
+const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/NativeWorkerAccountPage').then(m=>({default:m.NativeWorkerAccountPage})));
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
@@ -128,6 +129,7 @@ export function App() {
       <Route path="trabalhadores" element={<Guard permission="workers.read"><WorkersPage/></Guard>}/>
       <Route path="trabalhadores/novo" element={NATIVE_MODULES ? <Guard permission="trabalhador:criar"><NativeWorkerCreate/></Guard> : <Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id" element={<Guard permission="workers.read"><WorkerDetailPage/></Guard>}/>
+      <Route path="trabalhadores/:id/conta" element={NATIVE_MODULES ? <Guard permission="trabalhador:editar"><NativeWorkerAccountPage/></Guard> : <Navigate to="/app/trabalhadores" replace/>}/>
       <Route path="trabalhadores/:id/editar" element={<Guard permission="workers.write"><WorkerFormPage/></Guard>}/>
       <Route path="trabalhadores/:id/movimentacoes/nova" element={<Guard permission="workers.write"><WorkerMovementPage/></Guard>}/>
       <Route path="organizacao" element={<Guard permission="organization.read"><OrganizationPage/></Guard>}/>

@@ -59,6 +59,7 @@ Os endpoints nativos da equipe permanecem disponíveis sob `/api/v1`. As projeç
 | Agenda | `GET/POST /api/v1/appointments`, `GET /{id}`, `POST /{id}/confirm`, `/reschedule`, `/cancel`, `PUT /{id}/context` |
 | Equipes (consulta nativa) | `GET /api/v1/teams?locationId=...&pageNumber=...&pageSize=10`, `GET /api/v1/teams/{id}` |
 | Equipes (cadastro/edição nativos) | `GET /api/v1/teams/management-context?locationId=...&action=criar\|editar`, `POST /api/v1/teams`, `PATCH /api/v1/teams/{id}` |
+| Vínculo inicial de conta | `GET/PUT /api/v1/workers/{id}/account-binding`, `GET /api/v1/workers/{id}/account-binding/candidates?q=...&page=1`, `GET /api/v1/workers/{id}/account-binding/candidates/{userId}` |
 | Designações | `GET/POST /api/v1/designations`, `POST /api/v1/designations/{id}/revoke` |
 | PTs (consulta nativa) | `GET /api/v1/work-permits/search`, `GET /api/v1/work-permits/{id}`, `/{id}/history`, `/{id}/eligibility`, `/{id}/declarations` |
 | PTs (operação nativa) | `POST /api/v1/work-permits/{id}/release`, `/start`, `/suspend`, `/resume`, `/cancel`, `/observations` |
@@ -163,13 +164,25 @@ Esses fluxos foram verificados com contratos HTTP controlados. A homologação c
 
 ### Cadastro inicial nativo de trabalhadores
 
-`trabalhador:criar`, leitura de trabalhadores e consulta da organização habilitam `/app/trabalhadores/novo`. A unidade é a selecionada no contexto; empresa, setores e cargos vêm do catálogo autorizado e são conferidos novamente antes do comando. O formulário coleta nome, matrícula, CPF, nascimento e admissão, com setor/cargo opcionais. Normaliza o nome, valida dígitos do CPF e datas e envia POST `/workers` com o DTO nativo: `companyId`, `unitId`, `departmentId`, `positionId`, `name`, `enrollment`, `cpf`, `dateOfBirth`, `admissionDate`, `dismissalDate: null`, `userId: null`. Não usa os campos de contratação/gestor da demonstração nem cria uma conta implícita. Conectar uma conta existente continua dependendo do fluxo específico de atribuição.
+`trabalhador:criar`, leitura de trabalhadores e consulta da organização habilitam `/app/trabalhadores/novo`. A unidade é a selecionada no contexto; empresa, setores e cargos vêm do catálogo autorizado e são conferidos novamente antes do comando. O formulário coleta nome, matrícula, CPF, nascimento e admissão, com setor/cargo opcionais. Normaliza o nome, valida dígitos do CPF e datas e envia POST `/workers` com o DTO nativo: `companyId`, `unitId`, `departmentId`, `positionId`, `name`, `enrollment`, `cpf`, `dateOfBirth`, `admissionDate`, `dismissalDate: null`, `userId: null`. Não usa os campos de contratação/gestor da demonstração nem cria uma conta implícita. O vínculo inicial com uma conta existente usa o fluxo separado descrito a seguir.
 
 O transporte mantém autenticação/cancelamento, sem prefixo browser nem idempotência presumida. O recibo nativo precisa confirmar todos os dados e o CPF mascarado; somente o ID é retido, sem colocar CPF/nascimento no cache de consultas. Antes de navegar ao detalhe, o frontend verifica o perfil persistido pela projeção browser, que não contém esses campos de identidade. A navegação conserva a origem da lista na mesma sessão/unidade. Resposta incompatível, recusa de acesso ou resultado ambíguo não causam repetição automática do POST. A autorização, criptografia, unicidade e persistência continuam no backend; o pacote corrige o acesso nativo utilizado por este fluxo.
 
+### Vínculo inicial entre trabalhador e conta
+
+A ação **Conta de acesso**, na ficha nativa, abre `/app/trabalhadores/{id}/conta`. Requer leitura/edição de trabalhadores, `usuario:ler`, `usuario:editar` e escopo diferente de próprio. A API exige ainda alcance integral sobre a empresa do trabalhador; permissão de editar somente uma unidade não autoriza associar identidades. A consulta mínima retorna WorkerId, empresa/unidade, nome, matrícula, Revision, estado do vínculo e UserId, sem CPF/nascimento. A projeção browser profissional continua separada.
+
+O catálogo paginado contém contas ativas, com associação vigente à empresa por perfil ativo ou escopo válido e sem outro trabalhador não excluído vinculado. A busca permite nome/e-mail e a consulta individual confere a conta selecionada. A associação não cria usuário, senha, perfil ou concessão; a matriz operacional da conta continua necessária. A confirmação exige que o administrador confira que a conta pertence à pessoa correta.
+
+Antes de PUT, a interface relê trabalhador e conta e preserva a revisão e a identidade apresentadas. Envia `expectedVersion: Worker.Revision`, `userId`, `expectedAccountName`, `expectedAccountEmail` e `confirmation: true`. O servidor recusa trabalhador desligado, conta indisponível, revisão antiga, identidade alterada e trabalhador já associado. Não substitui/desvincula uma conta existente. A transação mantém a conta bloqueada contra alteração/desativação até o commit; Worker.Revision e o índice único parcial de UserId protegem as disputas de gravação, incluindo o caminho de criação anterior. O comando grava ACCOUNT_LINKED com ator, empresa, versões e IDs, sem CPF, na mesma transação. Os JSON desse evento usam a representação jsonb do PostgreSQL antes do hash, permitindo conferir a integridade após reler o registro.
+
+A interface confere recibo e leitura persistida, retorna à ficha conservando a origem da lista e invalida o contexto de abertura de PT. Erro/conflito/resposta perdida mantém a seleção e bloqueia repetição automática do PUT. O titular deve entrar novamente para atualizar sua identificação. Associar a conta não altera participantes/ciências de PTs existentes nem libera trabalho.
+
+A migration `20261102020948_AddWorkerAccountBindingConcurrency` acrescenta `core.trabalhador.revisao`, inicial 1, e o índice único `ux_trabalhador_usuario_vinculado` para contas em trabalhadores não excluídos. Alterações profissionais e de vínculo incrementam a revisão. Se houver UserIds duplicados históricos, a migração para com mensagem de revisão administrativa, preservando os registros. Não escolhe um titular nem apaga dados automaticamente. Edição/movimentação nativas e troca/desvinculação de conta permanecem com fluxos próprios pendentes.
+
 ## Banco existente e validação
 
-A revisão 2 atualizada do pacote de correções de 01/11/2026 passou por build Release e pelos 405 testes do backend, sem falhas ou testes ignorados, incluindo os 124 testes relacionais com PostgreSQL 17.11 descartável. A fixture aplicou as migrations e validou o schema em uma base exclusiva de QA. A migração de revisão da equipe foi testada com downgrade/upgrade e preservação dos registros; editores HTTP e contextos EF concorrentes não sobrescrevem o vencedor. Essa execução não homologou a configuração de implantação, as contas operacionais nem o fluxo navegador → API com os dados reais da equipe.
+A revisão 2 atualizada do pacote de correções de 01/11/2026 passou por build Release e pelos 417 testes do backend, sem falhas ou testes ignorados, incluindo os 134 testes relacionais com PostgreSQL 17.11 descartável. A fixture aplicou as migrations e validou o schema em uma base exclusiva de QA. As migrações de revisão da equipe e do trabalhador foram testadas com downgrade/upgrade e preservação dos registros. Duplicidade histórica de conta impede a nova migration sem descartar os vínculos. Disputas entre editores e entre contas/trabalhadores não sobrescrevem o vencedor. Essa execução não homologou a configuração de implantação, as contas operacionais nem o fluxo navegador → API com os dados reais da equipe.
 
 A migração antiga `20261029200000_AddWorkerDepartmentColumn`, quando já aplicada em uma base local, pode continuar no histórico. O backend oficial possui o reparo idempotente `20261027035114_RepairHistoricalWorkerDepartment`; não copie uma segunda migração nem apague dados/histórico para reconciliar os repositórios. Execute as migrações oficiais pendentes após backup.
 
@@ -182,6 +195,8 @@ npm run build
 ```
 
 `test:backend` executa os testes no repositório oficial selecionado. Os cenários PostgreSQL do backend exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para o banco de manutenção `postgres` de uma instância local; cada fixture cria e remove apenas sua própria base isolada. Sem essa variável, esses cenários são explicitamente ignorados. `integration:smoke` exige os servidores integrados ativos e verifica sessão real pelo proxy; não usa MSW. Testes de navegador com respostas controladas são verificações de contrato, não substituem a integração real.
+
+Para validar o frontend localmente, execute `npm test`, `npm run test:connection-ui` e `npm run build` em sequência. Reservar os recursos da máquina para cada etapa evita que a execução conjunta de navegador/build faça testes de interação excederem seus limites, sem precisar alterar as verificações ou os tempos dos testes.
 
 ## Trabalho da equipe
 

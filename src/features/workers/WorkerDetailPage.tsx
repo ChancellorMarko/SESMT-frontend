@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Building2, FileText, History, UsersRound, UserRound, ClipboardCheck } from 'lucide-react';
 import { api } from '../../shared/api/client';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { readIdentifier, useVerifiedRead } from '../../shared/lib/verified-read';
 import { checkedDocumentPage } from '../documents/document-page';
 import { checkedOrganization, checkedWorkerDetail, checkedWorkerMovements } from './worker-read';
@@ -160,6 +161,9 @@ function WorkerDetailContent() {
             <Link className="button button--secondary" to={backHref} state={origin}>
               <ArrowLeft size={15} aria-hidden="true" />Voltar à lista
             </Link>
+            {NATIVE_MODULES && data.sourceReadOnly && can('trabalhador:editar') && can('usuario:ler') && can('usuario:editar') && (
+              <Link className="button button--secondary" to={`/app/trabalhadores/${id}/conta`} state={origin}>Conta de acesso</Link>
+            )}
             {can('workers.write') && !data.sourceReadOnly && (
               <>
                 <Link className="button button--secondary" to={`/app/trabalhadores/${id}/editar`} state={origin}>
