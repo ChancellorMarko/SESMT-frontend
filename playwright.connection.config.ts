@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // native-workspace.spec.ts exercises browser projections with the adapter identity.
-const nativeSpecs = ['**/native-auth.spec.ts', '**/native-dashboard.spec.ts', '**/native-operations.spec.ts', '**/native-permits.spec.ts', '**/native-opening.spec.ts', '**/native-documents.spec.ts'];
+const nativeSpecs = ['**/native-auth.spec.ts', '**/native-dashboard.spec.ts', '**/native-operations.spec.ts', '**/native-permits.spec.ts', '**/native-opening.spec.ts', '**/native-documents.spec.ts', '**/native-workers.spec.ts'];
 
 export default defineConfig({
   testDir: './tests/connection-ui',

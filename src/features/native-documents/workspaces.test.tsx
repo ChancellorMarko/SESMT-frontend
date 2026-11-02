@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({ grants: ['documento:ler', 'documento:criar', '
 vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'native-doc-test', unitId: '71000000-0000-4000-8000-000000000002',
   me: { user: { id: '71000000-0000-4000-8000-000000000003', displayName: 'Pessoa Ficticia' }, scope: documentScope }, can: (p: string) => state.grants.includes(p) }) }));
 vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(),
-  api: { get: vi.fn(), post: vi.fn() }, nativeDocumentsApi: { get: vi.fn(), post: vi.fn() }, downloadNativeDocument: vi.fn() }));
+  api: { get: vi.fn(), post: vi.fn() }, nativeDocumentsApi: { get: vi.fn(), post: vi.fn(), patch: vi.fn() }, downloadNativeDocument: vi.fn() }));
 let current = nativeDocumentFixture(), versions: ReturnType<typeof nativeVersionFixture>[], type = nativeTypeFixture();
 function show(create = false, navigationState?: unknown) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -184,4 +184,46 @@ it('documento alterado impede o vínculo e mantém a escolha para conferência',
 it('lista de PTs de outra empresa não habilita um vínculo', async () => {
   mockLink(false); show(); fireEvent.click(await screen.findByRole('button', { name: 'Vincular a uma PT' })); const dialog = await screen.findByRole('dialog', { name: 'Vincular documento à PT' });
   expect(await within(dialog).findByRole('alert')).toHaveTextContent('Não foi possível consultar'); expect(within(dialog).getByRole('button', { name: 'Confirmar vínculo' })).toBeDisabled(); expect(api.post).not.toHaveBeenCalled();
+});
+
+async function editMetadata() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Editar dados' }));
+  return screen.findByRole('dialog', { name: 'Editar dados do documento' });
+}
+it('edita os dados com a revisão original, preserva arquivo, sigilo, palavras-chave e metadados', async () => {
+  current = { ...current, metadata: '{"cargaHoraria":8}', keywords: ['NR'] };
+  vi.mocked(nativeDocumentsApi.patch).mockImplementation(async (_path, body) => {
+    current = { ...current, ...(body as typeof current), revision: 2 }; return structuredClone(current) as never;
+  });
+  show(); const dialog = await editMetadata();
+  fireEvent.change(within(dialog).getByLabelText(/^Título/), { target: { value: 'Certificado corrigido' } });
+  fireEvent.change(within(dialog).getByLabelText('Válido até'), { target: { value: '2027-11-01' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }));
+  await screen.findByText('Dados do documento atualizados.'); await screen.findByRole('heading', { name: 'Certificado corrigido' });
+  expect(nativeDocumentsApi.patch).toHaveBeenCalledWith(`/documents/${ids.document}`, expect.objectContaining({ expectedVersion: 1, title: 'Certificado corrigido', validUntilDate: '2027-11-01', secrecyLevel: 'Interno', metadata: '{"cargaHoraria":8}', keywords: ['NR'] }), expect.anything());
+  expect(current.currentVersionNumber).toBe(0); expect(current.status).toBe('RASCUNHO');
+});
+it('conflito de edição mantém os dados sem repetir a alteração', async () => {
+  vi.mocked(nativeDocumentsApi.patch).mockRejectedValue(new ApiError(409, { code: 'CONFLICT', message: 'Conflito', requestId: 'fixture' }));
+  show(); const dialog = await editMetadata(); fireEvent.change(within(dialog).getByLabelText(/^Título/), { target: { value: 'Título preservado' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('Seus dados foram mantidos');
+  expect(within(dialog).getByLabelText(/^Título/)).toHaveValue('Título preservado'); expect(within(dialog).getByRole('button', { name: 'Salvar alterações' })).toBeDisabled(); expect(nativeDocumentsApi.patch).toHaveBeenCalledTimes(1);
+});
+it('não envia a edição se o documento mudou desde a abertura', async () => {
+  show(); const dialog = await editMetadata(); fireEvent.change(within(dialog).getByLabelText(/^Título/), { target: { value: 'Meu título' } }); current.revision++;
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' })); expect(await within(dialog).findByRole('alert')).toHaveTextContent('Seus dados foram mantidos'); expect(nativeDocumentsApi.patch).not.toHaveBeenCalled();
+});
+it('não oferece edição direta de dados em uma evidência vigente', async () => {
+  pending(); current.status = 'VIGENTE'; versions[0] = { ...versions[0], state: 'VIGENTE', isCurrent: true };
+  show(); await screen.findByRole('heading', { name: current.title }); expect(screen.queryByRole('button', { name: 'Editar dados' })).not.toBeInTheDocument();
+});
+it('recusa vencimento anterior à emissão e permite corrigir o preenchimento', async () => {
+  show(); const dialog = await editMetadata(); fireEvent.change(within(dialog).getByLabelText('Válido até'), { target: { value: '2026-01-01' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' })); expect(await within(dialog).findByRole('alert')).toHaveTextContent('O vencimento não pode anteceder'); expect(nativeDocumentsApi.patch).not.toHaveBeenCalled(); expect(within(dialog).getByRole('button', { name: 'Salvar alterações' })).toBeEnabled();
+});
+it('recibo sem a revisão incrementada não confirma a edição e bloqueia repetição', async () => {
+  vi.mocked(nativeDocumentsApi.patch).mockImplementation(async () => structuredClone(current) as never);
+  show(); const dialog = await editMetadata(); fireEvent.change(within(dialog).getByLabelText(/^Título/), { target: { value: 'Alterado' } }); fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('A resposta não confirmou'); expect(within(dialog).getByRole('button', { name: 'Salvar alterações' })).toBeDisabled(); expect(screen.queryByText('Dados do documento atualizados.')).not.toBeInTheDocument();
 });

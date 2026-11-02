@@ -19,6 +19,7 @@ const issueLabels: Record<string, string> = {
   AGENDAMENTO_NAO_CONFIRMADO: 'Agendamento ou contexto pendente', CHECKLIST_PENDENTE: 'Checklist pendente', PARTICIPANTES_AUSENTES: 'Participantes ausentes',
   MATRIZ_AUSENTE: 'Matriz de requisitos ausente', SERVICOS_AUSENTES: 'Serviços ausentes', PARTICIPANTE_FORA_DO_CONTEXTO: 'Participante fora do contexto',
   CIENCIA_PENDENTE: 'Ciência pendente', DOCUMENTO_AUSENTE: 'Documento ausente', DOCUMENTO_REPROVADO: 'Documento reprovado',
+  ASSINATURA_PENDENTE: 'Assinatura obrigatória pendente',
   AGUARDANDO_CONFERENCIA: 'Documento aguardando conferência', ARQUIVO_INDISPONIVEL: 'Arquivo indisponível', DOCUMENTO_FORA_DA_VALIDADE: 'Documento fora da validade',
 };
 const eventLabels: Record<string, string> = { ABERTA: 'Aberta', LIBERADA: 'Liberada', INICIADA: 'Serviço iniciado', SUSPENSA: 'Serviço suspenso', RETOMADA: 'Serviço retomado', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };

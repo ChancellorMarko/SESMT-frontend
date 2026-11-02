@@ -52,3 +52,18 @@ it('valida o limite dos bytes decodificados sem comparar com o tamanho comprimid
   vi.mocked(fetch).mockResolvedValue(new Response(new TextEncoder().encode('%PDF-'), { headers: { 'content-type': 'application/pdf', 'content-length': '3', 'content-encoding': 'gzip' } }));
   expect((await client.downloadNativeDocument(id, version, 100)).blob.size).toBe(5);
 });
+it('PATCH usa o recurso nativo, sem cabeçalhos de versão ou idempotência inventados', async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response('{}', { headers: { 'content-type': 'application/json' } }));
+  await client.nativeDocumentsApi.patch(`/documents/${id}`, { expectedVersion: 7, title: 'Corrigido' });
+  const [url, request] = vi.mocked(fetch).mock.calls[0]; expect(String(url)).toContain(`/api/v1/documents/${id}`); expect(String(url)).not.toContain('/browser/');
+  expect(request?.method).toBe('PATCH'); expect(new Headers(request?.headers).has('Idempotency-Key')).toBe(false); expect(new Headers(request?.headers).has('If-Match')).toBe(false);
+});
+it('PATCH recusado por expiração de token não é repetido automaticamente', async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response('{"code":"TOKEN_EXPIRED","requestId":"test"}', { status: 401, headers: { 'content-type': 'application/json' } }));
+  await expect(client.nativeDocumentsApi.patch(`/documents/${id}`, { expectedVersion: 7 })).rejects.toMatchObject({ status: 401 }); expect(fetch).toHaveBeenCalledTimes(1);
+});
+it('cadastro de trabalhador usa somente o POST nativo e não acrescenta idempotência fictícia', async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response('{}', { headers: { 'content-type': 'application/json' } }));
+  await client.createNativeWorker({ name: 'Pessoa de teste', cpf: '00000000191' }); const [url, request] = vi.mocked(fetch).mock.calls[0];
+  expect(String(url)).toContain('/api/v1/workers'); expect(String(url)).not.toContain('/browser/'); expect(request?.method).toBe('POST'); expect(new Headers(request?.headers).has('Idempotency-Key')).toBe(false);
+});

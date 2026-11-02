@@ -161,6 +161,11 @@ export function readNativeWorker<T>(id: string, options?: RequestOptions): Promi
     || id === '00000000-0000-0000-0000-000000000000') throw new Error('Consulta nativa de trabalhador indisponível neste contexto.');
   return request<T>('GET', `/workers/${id.toLowerCase()}`, undefined, options, false, true);
 }
+/** Create a worker with the native DTO, without replaying an ambiguous POST. */
+export function createNativeWorker<T>(body: unknown, options?: Pick<RequestOptions, 'signal'>): Promise<T> {
+  if (API_MODE !== 'api' || AUTH_CONTRACT.kind !== 'native') throw new Error('Cadastro nativo de trabalhador indisponível neste contexto.');
+  return request<T>('POST', '/workers', body, options, false, true);
+}
 
 type NativeDocumentOptions = Pick<RequestOptions, 'query' | 'signal'>;
 export interface NativeDocumentFile { blob: Blob; mimeType: string }
@@ -174,6 +179,11 @@ function requireNativeDocumentPath(path: string) {
 export const nativeDocumentsApi = {
   get: <T>(path: string, options?: NativeDocumentOptions) => { requireNativeDocumentPath(path); return request<T>('GET', path, undefined, options, false, true); },
   post: <T>(path: string, body: unknown, options?: NativeDocumentOptions) => { requireNativeDocumentPath(path); return request<T>('POST', path, body, options, false, true); },
+  patch: <T>(path: string, body: unknown, options?: NativeDocumentOptions) => {
+    requireNativeDocumentPath(path);
+    if (!new RegExp(`^/documents/${documentIdPattern}$`, 'i').test(path)) throw new Error('Edição documental indisponível neste contexto.');
+    return request<T>('PATCH', path, body, options, false, true);
+  },
 };
 export function downloadNativeDocument(id: string, versionId: string, maxBytes: number, options?: NativeDocumentOptions) {
   const path = `/documents/${id}/versions/${versionId}/download`; requireNativeDocumentPath(path);

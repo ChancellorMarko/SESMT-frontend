@@ -28,6 +28,12 @@ async function setup(page: Page, options: { pending?: boolean; readOnly?: boolea
     }
     const base = `/api/v1/documents/${ids.document}`;
     if (path === base && method === 'GET') return json(state.item);
+    if (path === base && method === 'PATCH') {
+      const body = request.postDataJSON(); state.writes.push({ path, body });
+      expect(request.headers()['idempotency-key']).toBeUndefined();
+      if (state.conflict || body.expectedVersion !== state.item.revision) return json({ code: 'CONFLICT', requestId: 'fixture' }, 409);
+      state.item = { ...state.item, ...body, revision: state.item.revision + 1 }; return json(state.item);
+    }
     if (path === `${base}/versions` && method === 'GET') return json(state.versions);
     if (path === `${base}/versions` && method === 'POST') {
       const body = request.postData()!; state.writes.push({ path, body });
@@ -97,6 +103,27 @@ test('conflito no envio conserva arquivo e observação sem repetir o POST', asy
 test('leitura autorizada não concede comandos por nome do perfil ADMIN', async ({ page }) => {
   const state = await setup(page, { pending: true, readOnly: true }); await page.goto(`/app/documentos/${ids.document}`);
   await expect(page.getByRole('heading', { name: 'Certificado de treinamento', exact: true })).toBeVisible(); await expect(page.getByRole('button', { name: 'Baixar arquivo', exact: true })).toBeEnabled();
-  for (const name of ['Anexar versão', 'Aceitar', 'Reprovar', 'Vincular a uma PT']) await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+  for (const name of ['Anexar versão', 'Aceitar', 'Reprovar', 'Vincular a uma PT', 'Editar dados']) await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   expect(state.writes).toEqual([]); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+});
+
+test('edita pela URL nativa em 320px e mantém versão, contexto e classificação', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 900 }); const state = await setup(page); await page.goto(`/app/documentos/${ids.document}/editar`);
+  const dialog = page.getByRole('dialog', { name: 'Editar dados do documento', exact: true });
+  await dialog.getByLabel('Título', { exact: true }).fill('Certificado atualizado'); await dialog.getByLabel('Válido até', { exact: true }).fill('2027-12-01');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true); await page.screenshot({ path: testInfo.outputPath('editar-dados-mobile.png'), fullPage: true });
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`/app/documentos/${ids.document}$`)); await expect(page.getByRole('heading', { name: 'Certificado atualizado', exact: true })).toBeVisible();
+  expect(state.writes).toEqual([{ path: `/api/v1/documents/${ids.document}`, body: {
+    expectedVersion: 1, title: 'Certificado atualizado', description: null, issueDate: '2026-10-01', validFromDate: null, validUntilDate: '2027-12-01', secrecyLevel: 'Interno', keywords: [], metadata: '{}',
+  } }]);
+  expect(state.item.status).toBe('RASCUNHO'); expect(state.item.currentVersionNumber).toBe(0); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+});
+
+test('conflito de edição nativa preserva título e não repete PATCH', async ({ page }) => {
+  const state = await setup(page); await page.goto(`/app/documentos/${ids.document}`); await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Editar dados do documento', exact: true }); await dialog.getByLabel('Título', { exact: true }).fill('Rascunho mantido'); state.conflict = true;
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('Seus dados foram mantidos');
+  await expect(dialog.getByLabel('Título', { exact: true })).toHaveValue('Rascunho mantido'); await expect(dialog.getByRole('button', { name: 'Salvar alterações', exact: true })).toBeDisabled();
+  expect(state.writes).toHaveLength(1); expect(state.item.revision).toBe(1); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
 });
