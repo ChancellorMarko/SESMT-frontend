@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace SESMT.Tests.Integration.API;
 
@@ -14,8 +15,13 @@ public sealed class DocumentTypePostgresTests(PostgresDatabaseFixture database)
     private HttpClient AuthClient(PostgresApiFactory factory, Guid? actor = null)
     {
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Actor", (actor ?? database.ActorA).ToString());
+        using var db=database.CreateContext();
+        client.DefaultRequestHeaders.Add("X-Test-Actor", (actor ?? db.Users.Single(u=>u.Email.Value=="seed-admin@example.invalid").Id).ToString());
         return client;
+    }
+    private static async Task ExpectedVersion(HttpClient client,Guid id) {
+        using var response=await client.GetAsync($"/api/v1/document-type-management/{id}");response.EnsureSuccessStatusCode();
+        client.DefaultRequestHeaders.IfMatch.Clear();client.DefaultRequestHeaders.IfMatch.ParseAdd(response.Headers.ETag!.ToString());
     }
 
     private static object CreatePayload(
@@ -232,6 +238,7 @@ public sealed class DocumentTypePostgresTests(PostgresDatabaseFixture database)
             Assert.Equal(HttpStatusCode.Created, create.StatusCode);
             id = (await PayloadAsync(create)).GetProperty("id").GetGuid();
         }
+        await ExpectedVersion(client,id);
         using (var deactivate = await client.DeleteAsync($"/document-types/{id}"))
         {
             Assert.Equal(HttpStatusCode.NoContent, deactivate.StatusCode);
@@ -269,14 +276,15 @@ public sealed class DocumentTypePostgresTests(PostgresDatabaseFixture database)
             Description = "Descrição atualizada",
             Category = "NORMATIVO",
             SecrecyLevel = "INTERNO",
-            RequiresSignature = true,
+            RequiresSignature = false,
             RequiresApproval = true,
-            PeriodicityInDays = (int?)30,
-            RetentionPeriodInYears = (int?)5,
+            PeriodicityInDays = (int?)null,
+            RetentionPeriodInYears = (int?)null,
             MetadataSchema = "{}",
             SchemaVersion = 1
         };
 
+        await ExpectedVersion(client,id);
         using var response = await client.PatchAsJsonAsync($"/document-types/{id}", update);
 
         await AssertNot5xx(response, "PATCH /document-types/{id}");
@@ -299,6 +307,7 @@ public sealed class DocumentTypePostgresTests(PostgresDatabaseFixture database)
             id = (await PayloadAsync(create)).GetProperty("id").GetGuid();
         }
 
+        await ExpectedVersion(client,id);
         using var deactivate = await client.DeleteAsync($"/document-types/{id}");
         Assert.Equal(HttpStatusCode.NoContent, deactivate.StatusCode);
 

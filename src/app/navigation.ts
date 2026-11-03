@@ -23,6 +23,7 @@ export function homePath(can: PermissionCheck, native = false) {
     if (can('aso:acompanhar')) return '/app/asos';
     if (can('treinamento:ler')) return '/app/treinamentos';
     if (can('epi:ler')) return '/app/epis';
+    if (can('parametro:ler') || can('parametro:editar')) return '/app/configuracoes/tipos-documentais';
   }
   const destinations = [
     ['users.manage', '/app/configuracoes/usuarios'],

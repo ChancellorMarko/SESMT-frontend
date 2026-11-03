@@ -3,7 +3,7 @@ import { homePath } from './navigation';
 import { hasPermission } from '../shared/auth/permissions';
 
 describe('destino inicial sem concessão presumida', () => {
-  it.each([['aso:acompanhar', '/app/asos'], ['treinamento:ler', '/app/treinamentos'], ['epi:ler', '/app/epis']])('abre o módulo nativo para a concessão isolada %s', (grant, destination) => {
+  it.each([['aso:acompanhar', '/app/asos'], ['treinamento:ler', '/app/treinamentos'], ['epi:ler', '/app/epis'], ['parametro:ler','/app/configuracoes/tipos-documentais'], ['parametro:editar','/app/configuracoes/tipos-documentais']])('abre o módulo nativo para a concessão isolada %s', (grant, destination) => {
     expect(homePath(p => hasPermission([grant], p), true)).toBe(destination);
     expect(homePath(p => hasPermission([grant], p), false)).toBe('/app/conexao');
   });

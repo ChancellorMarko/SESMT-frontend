@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SESMT.Application.Modules.Documents.DTOs;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public class DocumentTypeCreateRequest
 {
     [Required, StringLength(50)] public string Code { get; set; } = null!;
@@ -17,6 +19,7 @@ public class DocumentTypeCreateRequest
     public int SchemaVersion { get; set; } = 1;
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public class DocumentTypeUpdateRequest
 {
     [Required, StringLength(150)] public string Name { get; set; } = null!;

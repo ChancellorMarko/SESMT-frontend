@@ -9,12 +9,14 @@ namespace SESMT.API.Services;
 public static class NativeAuthorizationRegistration
 {
     // Called after AddApplication/AddInfrastructure. Concrete legacy implementations are
-    // internal delegates; every native controller resolves an authorized interface.
+    // internal delegates; resource interfaces and catalog write filters enforce authorization.
     public static IServiceCollection AddNativeResourceAuthorization(this IServiceCollection services)
     {
         services.AddScoped<NativeResourceAccess>();
         services.AddScoped<OrganizationEditStore>();
         services.AddScoped<OrganizationWritePreconditionFilter>();
+        services.AddScoped<DocumentTypeManagement>();
+        services.AddScoped<DocumentTypeWriteFilter>();
         services.AddScoped<TeamManagementContextService>();
         services.AddScoped<WorkerAccountBindingService>();
         services.AddScoped<WorkerService>();

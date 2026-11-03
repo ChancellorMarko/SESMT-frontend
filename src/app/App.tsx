@@ -47,6 +47,7 @@ const NativePermitsPage=lazy(()=>import('../features/native-permits/NativePermit
 const NativePermitDetail=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitDetail})));
 const NativePermitPrintPage=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitPrintPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
+const NativeDocumentTypesPage=lazy(()=>import('../features/native-document-types/NativeDocumentTypesPage').then(m=>({default:m.NativeDocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
 const AgendaPage=lazy(()=>import('../features/agenda').then(m=>({default:m.AgendaPage})));
@@ -144,7 +145,7 @@ export function App() {
       <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>
       <Route path="auditoria" element={<Guard permission="audit.read">{NATIVE_MODULES ? <NativeAuditPage/> : <AuditPage/>}</Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>
-      <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
+      <Route path="configuracoes/tipos-documentais" element={NATIVE_MODULES?<Guard><NativeDocumentTypesPage/></Guard>:<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
       <Route path="configuracoes/parametros" element={<Guard><ParametersPage/></Guard>}/>
       <Route path="configuracoes/requisitos" element={<Guard permission="requirements.read"><RequirementMatrixPage/></Guard>}/>
       <Route path="configuracoes/servicos" element={<Guard permission="requirements.read"><ServiceTemplatesPage/></Guard>}/>

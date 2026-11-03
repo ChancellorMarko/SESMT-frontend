@@ -5,6 +5,7 @@ import type { DocumentTypeReadDto as DocumentTypeDto } from '../../shared/contra
 import { usePagedLookup } from '../../shared/lib/use-paged-lookup';
 import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
 import styles from './administration.module.css';
+import { NATIVE_MODULES } from '../../shared/api/native-mode';
 
 export function ParametersPage() {
   const { sessionKey, unitId, can } = useSession();
@@ -53,6 +54,6 @@ function ParametersPageContent() {
         <Button variant="secondary" disabled={blocked || types.page <= 1} onClick={() => types.setPage(types.page - 1)}>Anterior</Button><Button variant="secondary" disabled={blocked || types.page >= lastPage} onClick={() => types.setPage(types.page + 1)}>Próxima</Button>
       </div></nav>
     </>}
-    {can('documentTypes.write') && <Link to="/app/configuracoes/tipos-documentais">Gerenciar políticas nos tipos documentais →</Link>}
+    {(NATIVE_MODULES ? can('parametro:ler') || can('parametro:editar') : can('documentTypes.write')) && <Link to="/app/configuracoes/tipos-documentais">{NATIVE_MODULES?'Abrir tipos documentais →':'Gerenciar políticas nos tipos documentais →'}</Link>}
   </div>;
 }

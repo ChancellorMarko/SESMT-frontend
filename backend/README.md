@@ -43,6 +43,14 @@ Treinamentos administrativos usam `/trainings`, `/trainings/context`, `/{id}/his
 
 Comprovantes de treinamento usam `GET/POST /trainings/{id}/evidence`, `GET /evidence/options` e `POST /evidence/unlink`, com autorização documental e versão fixa. A migration `20261103120903_AddTrainingEvidence` preserva os cursos existentes, acrescenta referências/hash/revisões e bloqueia downgrade com vínculos presentes. Alterações posteriores exigem nova conferência; o recurso não emite certificados nem libera PT. O contrato completo está na seção de treinamentos de `INTEGRACAO.md` na versão conjunta.
 
+### Gestão global de tipos documentais
+
+O catálogo nativo está em `GET /api/v1/document-type-management/context`, `GET /document-type-management?q&page&pageSize`, `GET /document-type-management/{id}` e `GET /{id}/history`. O contexto retorna `canManage`, a consulta pagina envelopes `{ item: DocumentTypeResponse, version }`, e o detalhe publica ETag. Identidade/escopo são verificados no banco. Consulta: grants documento:ler ou parametro:ler/editar no alcance autorizado, ou gestão global.
+
+**Mudança de segurança:** POST/PATCH/DELETE `/document-types` exigem vínculo ADMIN global ativo e `parametro:editar`. Administrador de empresa, gestor, técnico ou trabalhador não podem alterar um catálogo compartilhado entre empresas. PATCH/DELETE exigem `If-Match: "<version>"` do detalhe de gestão (428 ausente, 409 obsoleto). A versão é um hash opaco, não `schemaVersion`. Escrita usa transação, `FOR UPDATE`, leitura persistida e auditoria. Não há migration nova nem alteração automática dos tipos existentes.
+
+Criação mantém o DTO nativo, aceita INTERNO/RESTRITO/MEDICO e os nomes legados equivalentes, e valida prazos positivos opcionais, versão de esquema positiva e schema JSON objeto até 20.000 caracteres/32 níveis. Campos extras são rejeitados. A interface cria esquema vazio/versão 1 e não calcula validade/guarda legal. PATCH aceita somente mudanças de nome/descrição: demais campos devem coincidir com a política existente; alterações de sigilo, exigências, categoria, prazos ou esquema retornam 409 e exigem um novo tipo. DELETE recusa tipos já usados por documentos, mesmo históricos. O frontend não oferece desativação. Requisitos de assinatura continuam bloqueando publicação até haver comprovação; este cadastro não produz assinatura.
+
 ### Edição organizacional com versão
 
 `GET/PATCH /api/v1/organization-management/{resource}/{id}` oferece edição de empresas (`companies`), unidades (`units`), setores (`departments`) e cargos (`positions`). `GET .../history` retorna histórico administrativo. O GET publica ETag e `{ resource, id, companyId, unitId, version, values }`; PATCH recebe `{ expectedVersion, reason, confirmation: true, values }`. A versão é um hash opaco de 64 caracteres, validado sob bloqueio de linha. Edição e auditoria são atômicas; retorno corresponde ao estado persistido. Não exige migration nova. Campos desconhecidos são recusados.

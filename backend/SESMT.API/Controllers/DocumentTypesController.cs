@@ -14,6 +14,7 @@ public sealed class DocumentTypesController : ApiControllerBase
     public DocumentTypesController(IDocumentTypeService service) => _service = service;
 
     [HttpPost]
+    [ServiceFilter(typeof(SESMT.API.Services.DocumentTypeWriteFilter))]
     public async Task<IActionResult> Create(
         [FromBody] DocumentTypeCreateRequest request, CancellationToken ct)
     {
@@ -32,11 +33,13 @@ public sealed class DocumentTypesController : ApiControllerBase
         => FromResult(await _service.GetByIdAsync(id, ct));
 
     [HttpPatch("{id:guid}")]
+    [ServiceFilter(typeof(SESMT.API.Services.DocumentTypeWriteFilter))]
     public async Task<IActionResult> Update(
         Guid id, [FromBody] DocumentTypeUpdateRequest request, CancellationToken ct)
         => FromResult(await _service.UpdateAsync(id, request, ct));
 
     [HttpDelete("{id:guid}")]
+    [ServiceFilter(typeof(SESMT.API.Services.DocumentTypeWriteFilter))]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
         => NoContentFromResult(await _service.DeactivateAsync(id, ct));
 }

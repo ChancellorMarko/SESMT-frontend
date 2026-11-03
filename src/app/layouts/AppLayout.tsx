@@ -47,7 +47,7 @@ const config = [
   { to: 'configuracoes/servicos', label: 'Serviços e templates', permission: 'requirements.read' },
   { to: 'configuracoes/requisitos', label: 'Matriz de requisitos', permission: 'requirements.read' },
   { to: 'configuracoes/usuarios', label: 'Usuários e acessos', permission: 'users.manage', alternativePermission: 'users.read' },
-  { to: 'configuracoes/tipos-documentais', label: 'Tipos documentais', permission: 'documentTypes.write' },
+  { to: 'configuracoes/tipos-documentais', label: 'Tipos documentais', permission: NATIVE_MODULES?'parametro:ler':'documentTypes.write', alternativePermission:NATIVE_MODULES?'parametro:editar':'documentTypes.write' },
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [

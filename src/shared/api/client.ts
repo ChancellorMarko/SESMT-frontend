@@ -167,6 +167,17 @@ export function createNativeWorker<T>(body: unknown, options?: Pick<RequestOptio
   return request<T>('POST', '/workers', body, options, false, true);
 }
 
+/** Document-type commands use the native DTO, never the browser read projection. */
+export const nativeDocumentTypesApi = {
+  create: <T>(body:unknown,signal?:AbortSignal)=>{requireNativeDocumentTypes();return request<T>('POST','/document-types',body,{signal},false,true);},
+  rename: <T>(id:string,version:string,body:unknown,signal?:AbortSignal)=>{
+    requireNativeDocumentTypes();
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||!/^[a-f0-9]{64}$/.test(version))throw new Error('Versão ou identificação de tipo documental inválida.');
+    return request<T>('PATCH',`/document-types/${id}`,body,{signal,etag:`"${version}"`},false,true);
+  },
+};
+function requireNativeDocumentTypes(){if(API_MODE!=='api'||AUTH_CONTRACT.kind!=='native')throw new Error('Configuração nativa de tipos indisponível neste modo.');}
+
 function workerAccountPath(id: string) {
   if (API_MODE !== 'api' || AUTH_CONTRACT.kind !== 'native' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
     || id === '00000000-0000-0000-0000-000000000000') throw new Error('Vínculo de conta indisponível neste contexto.');
