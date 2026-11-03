@@ -4,6 +4,7 @@ using SESMT.Domain.Modules.Audit.Entities;
 using SESMT.Domain.Modules.Documents.Entities;
 using SESMT.Domain.Modules.Equipment.Entities;
 using SESMT.Domain.Modules.Training.Entities;
+using SESMT.Domain.Modules.OccupationalHealth.Entities;
 using SESMT.Domain.Modules.IdentityAccess.Entities;
 using SESMT.Domain.Modules.Notifications.Entities;
 using SESMT.Domain.Modules.Organization.Entities;
@@ -51,6 +52,7 @@ public class SesmtDbContext : DbContext
     public DbSet<ProtectiveEquipment> Equipment => Set<ProtectiveEquipment>();
     public DbSet<EquipmentDelivery> EquipmentDeliveries => Set<EquipmentDelivery>();
     public DbSet<TrainingRecord> TrainingRecords => Set<TrainingRecord>();
+    public DbSet<OccupationalCertificate> OccupationalCertificates => Set<OccupationalCertificate>();
 
     // Módulo WorkPermits
     public DbSet<WorkPermit> WorkPermits => Set<WorkPermit>();

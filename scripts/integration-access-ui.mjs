@@ -275,6 +275,47 @@ try {
   await page.screenshot({path:join(dir,'training-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844}); check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Training: no page overflow at 390px');
   await page.screenshot({path:join(dir,'training-mobile.png'),fullPage:true});
+  check(await page.evaluate(async unitId => { const { api } = await import('/src/shared/api/client.ts'); try { await api.get('/occupational-health', {query:{unitId}}); return false; } catch(e) { return e.status===403; } },qaUnit),'Health: administrator has no implicit access to ASOs');
+  const medicalPage=await browser.newPage({viewport:{width:1365,height:900},reducedMotion:'reduce',serviceWorkers:'block'});
+  medicalPage.on('pageerror',error=>report.pageErrors.push(error.message));
+  await medicalPage.goto('http://127.0.0.1:5185/login');await medicalPage.locator('[data-auth-scene][data-arrival="ready"]').waitFor();
+  await medicalPage.getByLabel('E-mail',{exact:true}).fill('medico-uiqa@example.invalid');await medicalPage.getByLabel('Senha',{exact:true}).fill(password);
+  await medicalPage.getByRole('button',{name:'Entrar na plataforma',exact:true}).click();await medicalPage.waitForURL('**/app/documentos');
+  await medicalPage.goto(`http://127.0.0.1:5185/app/asos?unitId=${qaUnit}`);await medicalPage.getByRole('button',{name:'Registrar ASO',exact:true}).click();
+  const asoForm=medicalPage.getByRole('dialog',{name:'Registrar ASO',exact:true});
+  check(await asoForm.getByLabel('Aptidão informada no ASO',{exact:true}).inputValue()===''&&await asoForm.getByLabel('Próxima avaliação informada',{exact:true}).inputValue()==='','Health: no assumed fitness or automatic renewal date');
+  const examDay=await medicalPage.evaluate(async()=>{const{localDay}=await import('/src/features/native-aso/contracts.ts');return localDay();});
+  await asoForm.getByLabel('Trabalhador',{exact:true}).selectOption({label:'Pessoa QA Atualizada · QA-WORKER-EDIT'});
+  await asoForm.getByLabel('Tipo de exame',{exact:true}).selectOption('PERIODIC');
+  await asoForm.getByLabel('Data do exame',{exact:true}).fill(examDay);await asoForm.getByLabel('Data de emissão',{exact:true}).fill(examDay);
+  await asoForm.getByLabel('Função avaliada no ASO',{exact:true}).fill('Função QA');await asoForm.getByLabel('Aptidão informada no ASO',{exact:true}).selectOption('UNFIT');
+  await asoForm.getByLabel('Médico emitente',{exact:true}).fill('Emitente sintético QA');await asoForm.getByLabel('CRM',{exact:true}).fill('12345');await asoForm.getByLabel('UF do CRM',{exact:true}).selectOption('PR');
+  await asoForm.getByRole('checkbox').check();await asoForm.getByRole('button',{name:'Salvar',exact:true}).click();
+  const asoDetail=medicalPage.getByRole('dialog',{name:'Detalhes do ASO',exact:true});await asoDetail.getByText('Emitente sintético QA',{exact:true}).waitFor();
+  const asoId=new URL(medicalPage.url()).searchParams.get('registro');
+  check(Boolean(asoId),'Real API: physician registers ASO and rereads encrypted persisted details');
+  await asoDetail.getByRole('button',{name:'Corrigir cadastro',exact:true}).click();
+  const asoEdit=medicalPage.getByRole('dialog',{name:'Corrigir cadastro de ASO',exact:true});await asoEdit.getByLabel('Referência do ASO',{exact:true}).fill('QA-CORRIGIDO');
+  await asoEdit.getByLabel('Motivo da correção',{exact:true}).selectOption('REGISTRATION_ERROR');await asoEdit.getByRole('checkbox').check();await asoEdit.getByRole('button',{name:'Salvar',exact:true}).click();
+  await asoDetail.getByText('QA-CORRIGIDO',{exact:true}).waitFor();await asoDetail.getByText('Histórico de alterações',{exact:true}).click();await asoDetail.getByText('Correção · versão 2',{exact:true}).waitFor();
+  check(true,'Real API: ASO correction retains source, reason code and revision history');
+  await medicalPage.keyboard.press('Escape');await asoDetail.waitFor({state:'hidden'});await medicalPage.screenshot({path:join(dir,'aso-desktop.png'),fullPage:true});
+  await medicalPage.setViewportSize({width:390,height:844});check(await medicalPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'ASO: no page overflow at 390px');
+  await medicalPage.getByRole('button',{name:'Registrar ASO',exact:true}).click();await medicalPage.screenshot({path:join(dir,'aso-form-mobile.png'),fullPage:true});await asoForm.getByRole('button',{name:'Cancelar',exact:true}).click();
+  for(const [role,hasIssuer] of [['rh',false],['trabalhador',true]]) {
+    const rolePage=await browser.newPage({reducedMotion:'reduce',serviceWorkers:'block'});rolePage.on('pageerror',error=>report.pageErrors.push(error.message));
+    await rolePage.goto('http://127.0.0.1:5185/login');await rolePage.locator('[data-auth-scene][data-arrival="ready"]').waitFor();
+    await rolePage.getByLabel('E-mail',{exact:true}).fill(`${role}-uiqa@example.invalid`);await rolePage.getByLabel('Senha',{exact:true}).fill(password);
+    await rolePage.getByRole('button',{name:'Entrar na plataforma',exact:true}).click();await rolePage.waitForURL(role==='rh'?'**/app/trabalhadores':'**/app/documentos');
+    await rolePage.goto(`http://127.0.0.1:5185/app/asos?unitId=${qaUnit}`);await rolePage.getByRole('link',{name:'Pessoa QA Atualizada',exact:true}).click();
+    const detail=rolePage.getByRole('dialog',{name:'Detalhes do ASO',exact:true});await detail.getByText('Função QA',{exact:true}).waitFor();
+    check(await rolePage.getByRole('button',{name:/Registrar ASO|Corrigir cadastro|Invalidar registro/}).count()===0,`Health: ${role} has read-only ASO interface`);
+    const reduced=await rolePage.evaluate(async({unitId,id,hasIssuer})=>{const{api}=await import('/src/shared/api/client.ts');const a=await api.get(`/occupational-health/${id}`,{query:{unitId}});return Boolean(a.medical)===hasIssuer;},{unitId:qaUnit,id:asoId,hasIssuer});
+    check(reduced&&await detail.getByText('Emitente sintético QA',{exact:true}).count()===(hasIssuer?1:0),`Health: ${role} receives only its authorized level of ASO details`);await rolePage.close();
+  }
+  await medicalPage.getByRole('link',{name:'Pessoa QA Atualizada',exact:true}).click();await asoDetail.getByRole('button',{name:'Invalidar registro',exact:true}).click();
+  const asoRevoke=medicalPage.getByRole('dialog',{name:'Invalidar registro de ASO',exact:true});await asoRevoke.getByLabel('Motivo administrativo',{exact:true}).selectOption('DUPLICATE');await asoRevoke.getByRole('checkbox').check();await asoRevoke.getByRole('button',{name:'Confirmar invalidação',exact:true}).click();
+  await asoDetail.getByText('Invalidado · Registro duplicado',{exact:true}).waitFor();check(true,'Real API: ASO invalidation preserves the record and history');await medicalPage.close();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://127.0.0.1:5185/app/organizacao'); await page.getByRole('heading', { name: 'Organização', exact: true }).waitFor();
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile: no page overflow at 390px');
@@ -282,7 +323,7 @@ try {
   check(report.pageErrors.length === 0, 'Browser: no JavaScript errors');
 } catch (error) {
   report.failure = error.message;
-  if (browser) { const page = browser.contexts()[0]?.pages()[0]; if (page) { await page.screenshot({ path: join(dir, 'failure.png'), fullPage: true }); report.visibleFailure = await page.getByRole('alert').allTextContents(); } }
+  if (browser) { const page = browser.contexts().flatMap(context=>context.pages()).at(-1); if (page) { await page.screenshot({ path: join(dir, 'failure.png'), fullPage: true }); report.visibleFailure = await page.getByRole('alert').allTextContents(); } }
   console.error(error.message); process.exitCode = 1;
 } finally {
   await browser?.close();

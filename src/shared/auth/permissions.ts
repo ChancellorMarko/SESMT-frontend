@@ -87,6 +87,8 @@ export const PERMISSIONS = {
   treinamento: { ler: 'treinamento:ler', criar: 'treinamento:criar', editar: 'treinamento:editar' },
   designacao: { ler: 'designacao:ler', editar: 'designacao:editar' },
   aso: {
+    acompanhar: 'aso:acompanhar',
+    detalhar: 'aso:detalhar',
     ler: 'aso:ler',
     editar: 'aso:editar',
   },

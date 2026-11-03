@@ -27,6 +27,7 @@ const nav = [
   { to: 'agenda', label: 'Agenda', icon: CalendarDays, permission: 'appointments.read' },
   { to: 'epis', label: 'EPIs', icon: HardHat, permission: 'epi:ler' },
   { to: 'treinamentos', label: 'Treinamentos', icon: GraduationCap, permission: 'treinamento:ler' },
+  { to: 'asos', label: 'ASOs', icon: HeartPulse, permission: 'aso:acompanhar' },
   { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
   { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
   { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
@@ -50,7 +51,7 @@ const config = [
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [
-  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'treinamentos', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
+  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'treinamentos', 'asos', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
   { label: 'Gestão documental', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
   { label: 'Pessoas e organização', routes: ['equipes', 'trabalhadores', 'organizacao'] },
   { label: 'Controle', routes: ['notificacoes', 'auditoria'] },
@@ -74,6 +75,7 @@ const moduleDetails: Record<string, { description: string; terms: string }> = {
   agenda: { description: 'Serviços, horários e responsáveis', terms: 'agendamentos calendário planejamento' },
   epis: { description: 'Equipamentos, entregas e devoluções', terms: 'EPI equipamentos proteção individual CA luvas capacetes calçados' },
   treinamentos: { description: 'Cursos e datas de renovação', terms: 'capacitação curso NR treinamento carga horária reciclagem' },
+  asos: { description: 'Atestados e próximas avaliações', terms: 'ASO exames saúde ocupacional aptidão' },
   pendencias: { description: 'Requisitos por participante', terms: 'elegibilidade prontidão bloqueios' },
   ats: { description: 'Autorização de Trabalho (AT)', terms: 'AT ATs autorização autorizações' },
   pts: { description: 'Permissão de Trabalho (PT)', terms: 'PT PTs permissão permissões' },
@@ -280,6 +282,7 @@ export function AppLayout() {
   const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   if (NATIVE_MODULES && s.can('epi:ler')) visibleDockItems.push({to:'/app/epis',label:'EPIs',compactLabel:'EPIs',icon:HardHat});
   if (NATIVE_MODULES && s.can('treinamento:ler')) visibleDockItems.push({to:'/app/treinamentos',label:'Treinamentos',compactLabel:'Cursos',icon:GraduationCap});
+  if (NATIVE_MODULES && s.can('aso:acompanhar')) visibleDockItems.push({to:'/app/asos',label:'ASOs',icon:HeartPulse});
   const shortcuts = nav.filter(item => ['agenda', 'documentos', 'equipes'].includes(item.to) && canNavigate(item));
 
   // Resolve the home redirect before exposing controls tied to a temporary /app location.

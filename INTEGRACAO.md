@@ -308,6 +308,18 @@ Os acessos estão em `.local/fullstack-preview/example-access.json`: administrad
 
 A execução local foi conferida por login dos oito perfis e do administrador de bootstrap. O administrador consultou oito documentos e três PTs; o trabalhador consultou um documento próprio e duas PTs em que participa. As três PTs permaneceram sem elegibilidade para liberação. Os arquivos de acesso, backup, capturas e relatórios ficam fora do Git; não copie o conjunto para um ambiente operacional com dados reais.
 
+## ASOs administrativos
+
+A rota nativa `/app/asos` consulta `/api/v1/occupational-health`. O contrato completo, permissões, campos, erros e recuperação de chaves estão em `backend/README.md`, seção Registro administrativo de ASOs. O frontend usa as capacidades retornadas pela API, sem deduzir acesso do nome do cargo. Médico com concessões e unidade completa registra/corrige/invalida; RH recebe aptidão, função e datas sem emitente/CRM; trabalhador vê somente seus registros. Administração/auditoria gerais não concedem acesso médico automático.
+
+O formulário inicia aptidão, datas e próxima avaliação sem preenchimento. Não há campo de diagnóstico, resultado clínico ou observação médica. Nova avaliação deve ser um novo registro; correção serve à transcrição/documento de origem e conserva histórico. A lista inicia no mais recente por trabalhador e oferece históricos e filtros de próxima avaliação. As datas vêm do responsável, sem validade anual presumida. O cadastro não modifica elegibilidade nem libera PT e não contém emissão, assinatura ou upload do ASO nesta entrega.
+
+Referência de domínio: [NR-7 vigente, Ministério do Trabalho e Emprego](https://www.gov.br/trabalho-e-emprego/pt-br/acesso-a-informacao/participacao-social/conselhos-e-orgaos-colegiados/comissao-tripartite-partitaria-permanente/normas-regulamentadora/normas-regulamentadoras-vigentes/norma-regulamentadora-no-7-nr-7), itens 7.5.6, 7.5.8, 7.5.19 e 7.6.1. A norma distingue tipos/periodicidade dos exames, emissão do ASO pelo médico e prontuário individual. Este recurso é um cadastro administrativo parcial, não implementa integralmente esses processos.
+
+A migration `20261103132828_AddOccupationalCertificates` é aditiva, não cria dados médicos e impede downgrade com registros existentes. O banco de prévia continua sem exames/aptidões fabricados. Os testes de ASO criam dados sintéticos somente em bases descartáveis. `test:access:real` cobre médico, RH, trabalhador e bloqueio administrativo, além do fluxo de correção, histórico, invalidação e largura de 390px; os testes PostgreSQL verificam também privacidade, criptografia, corrupção, concorrência, filtros e seleção do mais recente.
+
+Verificação desta entrega: build aprovado; 478 testes do backend com PostgreSQL habilitado e nenhum ignorado; 3.718 testes na suíte completa do frontend; após o ajuste de destino inicial, 30 testes focados de navegação/ASO/catálogo de permissões aprovados; 70 cenários de navegador com HTTP controlado; 63 verificações de navegador/API/PostgreSQL reais, sem MSW nem erros de JavaScript. O fluxo real detectou diferença de precisão no instante de invalidação: a API passou a responder com o valor relido do banco, e o teste compara POST e GET. Os oito perfis locais também tiveram seus acessos de ASO conferidos por sessão real. A prévia foi preservada com backup antes da migration.
+
 ## Trabalho da equipe
 
 1. Use esta branch para revisar a versão conjunta; ela não altera automaticamente o histórico do repositório separado da API.

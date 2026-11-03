@@ -19,6 +19,11 @@ export function homePath(can: PermissionCheck, native = false) {
   if (can('dashboard.read')) return dashboardPath(can, native);
   if (can('documents.read')) return '/app/documentos';
   if (can('appointments.read')) return '/app/agenda';
+  if (native) {
+    if (can('aso:acompanhar')) return '/app/asos';
+    if (can('treinamento:ler')) return '/app/treinamentos';
+    if (can('epi:ler')) return '/app/epis';
+  }
   const destinations = [
     ['users.manage', '/app/configuracoes/usuarios'],
     ['users.read', '/app/configuracoes/usuarios'],

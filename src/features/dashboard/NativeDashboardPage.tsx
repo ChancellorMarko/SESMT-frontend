@@ -16,6 +16,7 @@ export function NativeDashboardPage() {
   const location = useLocation();
   if (new URLSearchParams(location.search).get('area') === 'epis') return <Navigate replace to="/app/epis"/>;
   if (new URLSearchParams(location.search).get('area') === 'saude' && new URLSearchParams(location.search).get('healthView') === 'nrs') return <Navigate replace to="/app/treinamentos"/>;
+  if (new URLSearchParams(location.search).get('area') === 'saude') return <Navigate replace to={`/app/asos${new URLSearchParams(location.search).get('unitId') ? `?unitId=${encodeURIComponent(new URLSearchParams(location.search).get('unitId')!)}` : ''}`}/>;
   return me ? <Dashboard key={JSON.stringify([sessionKey, unitId])}/> : null;
 }
 function Dashboard() {

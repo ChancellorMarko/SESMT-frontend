@@ -135,6 +135,8 @@ public static class DatabaseSeeder
             ("treinamento", "editar", "Corrigir e invalidar registros de treinamentos"),
             ("aso", "ler",   "Consultar ASO (dados sensíveis)"),
             ("aso", "editar","Registrar ASO (dados sensíveis)"),
+            ("aso", "acompanhar", "Consultar aptidão e datas de ASO no alcance autorizado"),
+            ("aso", "detalhar", "Consultar identificação profissional do emitente de ASO"),
 
             // PT / APR
             ("pt", "ler",     "Consultar Permissão de Trabalho"),
@@ -315,6 +317,7 @@ public static class DatabaseSeeder
         {
             var rhPerms = permissions.Where(p =>
                 (p.Resource == "trabalhador") ||
+                (p.Resource == "aso" && p.Action == "acompanhar") ||
                 (p.Resource == "treinamento") ||
                 (p.Resource == "documento" && p.Action == "ler") ||
                 (p.Resource == "epi" && p.Action == "ler") ||
@@ -348,7 +351,8 @@ public static class DatabaseSeeder
         {
             var trabalhadorPerms = permissions.Where(p =>
                 p.Action == "ler" &&
-                (p.Resource == "documento" || p.Resource == "trabalhador" || p.Resource == "epi" || p.Resource == "pt" || p.Resource == "treinamento"));
+                (p.Resource == "documento" || p.Resource == "trabalhador" || p.Resource == "epi" || p.Resource == "pt" || p.Resource == "treinamento")
+                || p.Resource == "aso" && p.Action == "acompanhar");
 
             foreach (var perm in trabalhadorPerms)
             {
