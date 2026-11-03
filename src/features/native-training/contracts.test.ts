@@ -13,6 +13,7 @@ describe('contrato de treinamentos', () => {
     expect(() => checkedTraining({ ...item, unitId: worker }, scope)).toThrow();
     expect(() => checkedTraining({ ...item, workerId: company }, { ...scope, ownOnly: true })).toThrow();
     expect(checkedTraining(item, { ...scope, ownOnly: true })).toEqual(item);
+    expect(() => checkedTraining({ ...item, workerId: company }, { ...scope, subjectWorkerId: worker })).toThrow();
   });
   it('recusa IDs trocados e datas civis inválidas', () => {
     expect(() => checkedTraining(item, scope, worker)).toThrow();

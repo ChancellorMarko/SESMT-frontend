@@ -11,7 +11,7 @@ const contextSchema = z.object({ unitId: id, companyId: id, unitName: text, ownO
 export type Equipment = z.infer<typeof equipmentSchema>;
 export type Delivery = z.infer<typeof deliverySchema>;
 export type EquipmentContext = z.infer<typeof contextSchema>;
-export type EquipmentScope = { unitId: string; companyIds: readonly string[]; ownOnly: boolean; workerId?: string | null };
+export type EquipmentScope = { unitId: string; companyIds: readonly string[]; ownOnly: boolean; workerId?: string | null; subjectWorkerId?: string };
 export function checkedEquipmentContext(value: unknown, scope: EquipmentScope) {
   const parsed = contextSchema.safeParse(value);
   if (!parsed.success || parsed.data.unitId !== scope.unitId || !scope.companyIds.includes(parsed.data.companyId) || parsed.data.ownOnly !== scope.ownOnly
@@ -26,12 +26,12 @@ export function checkedEquipment(value: unknown, scope: EquipmentScope): Equipme
 }
 export function checkedDelivery(value: unknown, scope: EquipmentScope): Delivery {
   const parsed = deliverySchema.safeParse(value);
-  if (!parsed.success || !scope.companyIds.includes(parsed.data.companyId) || parsed.data.unitId !== scope.unitId || scope.ownOnly && parsed.data.workerId !== scope.workerId) throw new InvalidReadResponse();
+  if (!parsed.success || !scope.companyIds.includes(parsed.data.companyId) || parsed.data.unitId !== scope.unitId || scope.ownOnly && parsed.data.workerId !== scope.workerId || scope.subjectWorkerId && parsed.data.workerId !== scope.subjectWorkerId) throw new InvalidReadResponse();
   return parsed.data;
 }
-export function checkedEquipmentPage(value: unknown, scope: EquipmentScope, page: number, deliveries: boolean) {
-  const parsed = z.object({ items: z.array(z.unknown()), total: z.number().int().nonnegative(), page: z.literal(page), pageSize: z.literal(20) }).safeParse(value);
-  if (!parsed.success || parsed.data.items.length > 20 || parsed.data.items.length > parsed.data.total) throw new InvalidReadResponse();
+export function checkedEquipmentPage(value: unknown, scope: EquipmentScope, page: number, deliveries: boolean, pageSize = 20) {
+  const parsed = z.object({ items: z.array(z.unknown()), total: z.number().int().nonnegative(), page: z.literal(page), pageSize: z.literal(pageSize) }).safeParse(value);
+  if (!parsed.success || parsed.data.items.length !== Math.min(pageSize, Math.max(parsed.data.total - (page - 1) * pageSize, 0))) throw new InvalidReadResponse();
   const items = parsed.data.items.map(item => deliveries ? checkedDelivery(item, scope) : checkedEquipment(item, scope));
   if (new Set(items.map(item => item.id)).size !== items.length) throw new InvalidReadResponse();
   return { ...parsed.data, items };

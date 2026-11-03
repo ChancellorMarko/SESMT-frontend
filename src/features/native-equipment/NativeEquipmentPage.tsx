@@ -7,50 +7,71 @@ import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { catalogFields, checkedDelivery, checkedEquipment, checkedEquipmentContext, checkedEquipmentPage, deliveryFields, equipmentDay, localEquipmentDay, type Delivery, type Equipment, type EquipmentContext, type EquipmentScope } from './contracts';
+import { safetyFilter, safetyId, safetyReturn } from '../workers/worker-safety-navigation';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
 export function NativeEquipmentPage() {
   const { sessionKey, unitId } = useSession();
-  return <EquipmentWorkspace key={`${sessionKey}:${unitId}`}/>;
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  return <EquipmentWorkspace key={JSON.stringify([sessionKey, unitId, params.getAll('unitId'), params.getAll('workerId')])}/>;
 }
 function EquipmentWorkspace() {
-  const { me, sessionKey, unitId, can } = useSession(), client = useQueryClient(), location = useLocation(), navigate = useNavigate();
+  const { me, sessionKey, unitId, can, setUnitId } = useSession(), client = useQueryClient(), location = useLocation(), navigate = useNavigate();
   const [tab, setTab] = useState('deliveries'), [q, setQ] = useState(''), [search, apply] = useState(''), [status, setStatus] = useState(''), [page, setPage] = useState(1);
   const [editor, setEditor] = useState<'catalog' | 'delivery' | 'return'>(), [selectedEquipment, selectEquipment] = useState<Equipment>(), [selectedDelivery, selectDelivery] = useState<Delivery>(), [success, setSuccess] = useState('');
+  const params = new URLSearchParams(location.search);
+  const { subjectWorkerId, validWorker } = safetyFilter(params, Boolean(me?.scope.ownOnly), me?.workerId);
+  const linkedUnit = params.get('unitId');
+  const unitMismatch = params.getAll('unitId').length > 1 || Boolean(linkedUnit && linkedUnit !== unitId);
+  const back = validWorker ? safetyReturn(location.state, sessionKey, unitId, subjectWorkerId, can('workers.read'), can('eligibility.read')) : undefined;
+  const reset = () => navigate({ search: unitId ? `?${new URLSearchParams({ unitId })}` : '' }, { replace: true });
+  function deliverySearch(id?: string) {
+    const next = new URLSearchParams(params);
+    next.delete('entrega');
+    if (id) next.set('entrega', id);
+    return next.size ? `?${next}` : '';
+  }
   const scope: EquipmentScope = { unitId: unitId ?? '', companyIds: me?.scope.companyIds ?? [], ownOnly: Boolean(me?.scope.ownOnly), workerId: me?.workerId };
-  const enabled = Boolean(unitId && can('epi:ler'));
+  const enabled = Boolean(unitId && can('epi:ler') && !unitMismatch && validWorker);
   const context = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,'context'], enabled,
     request: signal => api.get<unknown>('/equipment/context',{query:{unitId},signal}), validate:value=>checkedEquipmentContext(value,scope) });
-  const selectedScope = { ...scope, companyIds: context.data ? [context.data.companyId] : scope.companyIds };
-  const data = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,tab,search,status,page], enabled:enabled && Boolean(context.data),
-    request:signal=>api.get<unknown>(tab === 'catalog' ? '/equipment' : '/equipment/deliveries',{query:{unitId,q:search,page,pageSize:20,...(tab==='deliveries' && status ? {status} : {})},signal}),
+  const selectedScope = { ...scope, subjectWorkerId, companyIds: context.data ? [context.data.companyId] : scope.companyIds };
+  const data = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,tab,subjectWorkerId,search,status,page], enabled:enabled && Boolean(context.data),
+    request:signal=>api.get<unknown>(tab === 'catalog' ? '/equipment' : '/equipment/deliveries',{query:{unitId,workerId:subjectWorkerId,q:search,page,pageSize:20,...(tab==='deliveries' && status ? {status} : {})},signal}),
     validate:value=>checkedEquipmentPage(value,selectedScope,page,tab==='deliveries') });
-  const detailId = new URLSearchParams(location.search).get('entrega');
-  const validDetail = Boolean(detailId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(detailId));
-  const details = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,'detail',detailId],enabled:enabled && Boolean(context.data && validDetail),
+  const detailId = params.get('entrega');
+  const validDetail = safetyId(detailId) && params.getAll('entrega').length === 1;
+  const details = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,'detail',subjectWorkerId,detailId],enabled:enabled && Boolean(context.data && validDetail),
     request:signal=>api.get<unknown>(`/equipment/deliveries/${detailId}`,{query:{unitId},signal}), validate:value=>{const item=checkedDelivery(value,selectedScope);if(item.id!==detailId)throw new InvalidReadResponse();return item;} });
   const close = () => { setEditor(undefined); selectEquipment(undefined); selectDelivery(undefined); };
-  async function saved() { close(); setSuccess('Registro salvo.'); await client.invalidateQueries({queryKey:['native-equipment',sessionKey]}); }
+  async function saved() { close(); setSuccess('Registro salvo.'); await Promise.all([client.invalidateQueries({queryKey:['native-equipment',sessionKey]}), client.invalidateQueries({queryKey:['worker-safety',sessionKey]})]); }
   function find(event:FormEvent) { event.preventDefault(); apply(q.trim()); setPage(1); if(search===q.trim()&&page===1) void data.refetch(); }
   function changeTab(value:string) { setTab(value);setPage(1);setQ('');apply('');setStatus(''); }
-  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><Button variant="secondary" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}>Atualizar</Button>{context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{context.data.canDeliver&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
-    {!enabled?<Feedback tone="warning">Selecione uma unidade com acesso a EPIs.</Feedback>:context.isPending?<Spinner/>:context.isError?<Feedback tone="danger">Não foi possível consultar os EPIs desta unidade.</Feedback>:context.data&&<>
-      <div className="actions" role="tablist" aria-label="Controle de EPIs"><Button role="tab" aria-selected={tab==='deliveries'} variant={tab==='deliveries'?'primary':'secondary'} onClick={()=>changeTab('deliveries')}>Entregas</Button><Button role="tab" aria-selected={tab==='catalog'} variant={tab==='catalog'?'primary':'secondary'} onClick={()=>changeTab('catalog')}>Catálogo de EPIs</Button></div>
+  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><Button variant="secondary" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}>Atualizar</Button>{!subjectWorkerId&&context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{!subjectWorkerId&&context.data.canDeliver&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
+    {unitMismatch?<Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions">
+      <Button variant="secondary" onClick={()=>void reset()}>Usar unidade atual</Button>
+      {linkedUnit && params.getAll('unitId').length===1 && me?.scope.unitIds?.includes(linkedUnit) && <Button onClick={()=>{if(window.dispatchEvent(new Event('sesmt:before-context-change',{cancelable:true})))setUnitId(linkedUnit);}}>Abrir unidade do link</Button>}
+    </div></Feedback>:!validWorker?<Feedback tone="warning">O filtro de trabalhador é inválido para esta conta. <Button variant="ghost" onClick={()=>void reset()}>Limpar filtros</Button></Feedback>:!enabled?<Feedback tone="warning">Selecione uma unidade com acesso a EPIs.</Feedback>:context.isPending?<Spinner/>:context.isError?<Feedback tone="danger">Não foi possível consultar os EPIs desta unidade.</Feedback>:context.data&&<>
+      {subjectWorkerId ? <div className="actions"><span>Filtro por trabalhador</span>
+        {back && <Link className="button button--secondary" to={back.to} state={back.state}>Voltar à ficha</Link>}
+        <Button variant="ghost" onClick={()=>void reset()}>Limpar filtro de trabalhador</Button>
+      </div> : <div className="actions" role="tablist" aria-label="Controle de EPIs"><Button role="tab" aria-selected={tab==='deliveries'} variant={tab==='deliveries'?'primary':'secondary'} onClick={()=>changeTab('deliveries')}>Entregas</Button><Button role="tab" aria-selected={tab==='catalog'} variant={tab==='catalog'?'primary':'secondary'} onClick={()=>changeTab('catalog')}>Catálogo de EPIs</Button></div>}
       {success&&<Feedback tone="success">{success}</Feedback>}
       <form className={`panel ${styles.toolbar}`} onSubmit={find}><Field label={tab==='catalog'?'Buscar equipamento ou CA':'Buscar trabalhador ou equipamento'}><input maxLength={160} value={q} onChange={event=>setQ(event.target.value)}/></Field>{tab==='deliveries'&&<Field label="Situação"><select value={status} onChange={event=>{setStatus(event.target.value);setPage(1);}}><option value="">Todas</option><option value="ACTIVE">Em uso</option><option value="RETURNED">Devolvido</option><option value="DUE">Troca prevista até hoje</option></select></Field>}<Button type="submit" disabled={data.isFetching}>Buscar</Button></form>
       {data.isPending&&<Spinner/>}{data.isError&&<Feedback tone="danger">Não foi possível conferir os registros de EPI. Atualize a consulta.</Feedback>}
-      {data.data&&<section className={styles.results} aria-label={tab==='catalog'?'Catálogo de EPIs':'Entregas de EPI'}>{!data.data.items.length?<EmptyState title={tab==='catalog'?'Nenhum equipamento encontrado':'Nenhuma entrega encontrada'} description="Ajuste os filtros ou cadastre um novo registro."/>:<div className={styles.scroll} role="region" aria-label="Tabela de EPIs" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr>{tab==='catalog'?<><th>Equipamento</th><th>CA</th><th>Fabricante e modelo</th><th>Ações</th></>:<><th>Equipamento</th><th>Trabalhador</th><th>Entrega e quantidade</th><th>Troca prevista</th><th>Situação e ações</th></>}</tr></thead><tbody>{data.data.items.map(item=>tab==='catalog'?<tr key={item.id}><td><strong>{(item as Equipment).name}</strong><small>{(item as Equipment).code}</small></td><td>{item.approvalCertificate||'Não informado'}</td><td>{(item as Equipment).manufacturer||'—'}<small>{(item as Equipment).model}</small></td><td>{context.data!.canEdit&&<Button variant="ghost" onClick={()=>{selectEquipment(item as Equipment);setEditor('catalog');}}>Editar</Button>}</td></tr>:<DeliveryRow key={item.id} item={item as Delivery} canReturn={context.data!.canReturn} onReturn={()=>{selectDelivery(item as Delivery);setEditor('return');}}/>)}</tbody></table></div>}
+      {data.data&&<section className={styles.results} aria-label={tab==='catalog'?'Catálogo de EPIs':'Entregas de EPI'}>{!data.data.items.length?<EmptyState title={tab==='catalog'?'Nenhum equipamento encontrado':'Nenhuma entrega encontrada'} description="Ajuste os filtros ou cadastre um novo registro."/>:<div className={styles.scroll} role="region" aria-label="Tabela de EPIs" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr>{tab==='catalog'?<><th>Equipamento</th><th>CA</th><th>Fabricante e modelo</th><th>Ações</th></>:<><th>Equipamento</th><th>Trabalhador</th><th>Entrega e quantidade</th><th>Troca prevista</th><th>Situação e ações</th></>}</tr></thead><tbody>{data.data.items.map(item=>tab==='catalog'?<tr key={item.id}><td><strong>{(item as Equipment).name}</strong><small>{(item as Equipment).code}</small></td><td>{item.approvalCertificate||'Não informado'}</td><td>{(item as Equipment).manufacturer||'—'}<small>{(item as Equipment).model}</small></td><td>{context.data!.canEdit&&<Button variant="ghost" onClick={()=>{selectEquipment(item as Equipment);setEditor('catalog');}}>Editar</Button>}</td></tr>:<DeliveryRow key={item.id} item={item as Delivery} search={deliverySearch(item.id)} state={location.state} canReturn={context.data!.canReturn} onReturn={()=>{selectDelivery(item as Delivery);setEditor('return');}}/>)}</tbody></table></div>}
         <nav className={styles.footer} aria-label="Paginação dos EPIs"><span>{data.data.total} registro(s) · página {page} de {Math.max(1,Math.ceil(data.data.total/20))}</span><div className="actions"><Button variant="secondary" disabled={page<=1||data.isFetching} onClick={()=>setPage(page-1)}>Anterior</Button><Button variant="secondary" disabled={page*20>=data.data!.total||data.isFetching} onClick={()=>setPage(page+1)}>Próxima</Button></div></nav></section>}
       {editor==='catalog'&&<CatalogEditor opening={selectedEquipment} context={context.data} scope={selectedScope} onClose={close} onDone={saved}/>}
       {editor==='delivery'&&<DeliveryEditor context={context.data} scope={selectedScope} onClose={close} onDone={saved}/>}
       {editor==='return'&&selectedDelivery&&<ReturnEditor opening={selectedDelivery} scope={selectedScope} onClose={close} onDone={saved}/>}
-      {detailId&&<Modal open title="Entrega de EPI" onClose={()=>void navigate('/app/epis',{replace:true})}>{!validDetail||details.isError?<Feedback tone="danger">Entrega não encontrada ou fora do seu acesso.</Feedback>:details.isPending?<Spinner/>:details.data&&<DeliveryDetails item={details.data}/>}</Modal>}
+      {detailId&&<Modal open title="Entrega de EPI" onClose={()=>void navigate({search:deliverySearch()},{replace:true,state:location.state})}>{!validDetail||details.isError?<Feedback tone="danger">Entrega não encontrada ou fora do seu acesso.</Feedback>:details.isPending?<Spinner/>:details.data&&<DeliveryDetails item={details.data}/>}</Modal>}
     </>}
   </div>;
 }
-function DeliveryRow({item,canReturn,onReturn}:{item:Delivery;canReturn:boolean;onReturn:()=>void}) {
+function DeliveryRow({item,search,state,canReturn,onReturn}:{item:Delivery;search:string;state:unknown;canReturn:boolean;onReturn:()=>void}) {
   const due=!item.returnedOn&&item.replacementOn&&item.replacementOn<=localEquipmentDay();
-  return <tr><td><Link to={`/app/epis?entrega=${item.id}`}>{item.equipmentName}</Link><small>{item.equipmentCode}{item.size?` · ${item.size}`:''}</small></td><td>{item.workerName}</td><td>{equipmentDay(item.deliveredOn)}<small>{item.quantity} unidade(s)</small></td><td>{equipmentDay(item.replacementOn)}</td><td><Badge tone={item.returnedOn?'neutral':due?'warning':'success'}>{item.returnedOn?'Devolvido':due?'Troca prevista':'Em uso'}</Badge>{canReturn&&!item.returnedOn&&<Button variant="ghost" onClick={onReturn}>Devolver</Button>}</td></tr>;
+  return <tr><td><Link to={{search}} state={state}>{item.equipmentName}</Link><small>{item.equipmentCode}{item.size?` · ${item.size}`:''}</small></td><td>{item.workerName}</td><td>{equipmentDay(item.deliveredOn)}<small>{item.quantity} unidade(s)</small></td><td>{equipmentDay(item.replacementOn)}</td><td><Badge tone={item.returnedOn?'neutral':due?'warning':'success'}>{item.returnedOn?'Devolvido':due?'Troca prevista':'Em uso'}</Badge>{canReturn&&!item.returnedOn&&<Button variant="ghost" onClick={onReturn}>Devolver</Button>}</td></tr>;
 }
 function DeliveryDetails({item}:{item:Delivery}) {
   return <dl className={styles.details}><dt>Trabalhador</dt><dd>{item.workerName}</dd><dt>Equipamento</dt><dd>{item.equipmentName} · {item.equipmentCode}</dd><dt>CA registrado</dt><dd>{item.approvalCertificate||'Não informado'}</dd><dt>Quantidade</dt><dd>{item.quantity}</dd><dt>Tamanho</dt><dd>{item.size||'—'}</dd><dt>Entrega</dt><dd>{equipmentDay(item.deliveredOn)}</dd><dt>Troca prevista</dt><dd>{equipmentDay(item.replacementOn)}</dd><dt>Observações</dt><dd className={styles.message}>{item.notes||'—'}</dd><dt>Devolução</dt><dd>{equipmentDay(item.returnedOn)}</dd><dt>Motivo</dt><dd>{item.returnReason||'—'}</dd></dl>;

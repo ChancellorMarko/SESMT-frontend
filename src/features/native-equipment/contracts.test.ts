@@ -9,6 +9,12 @@ describe('contratos de EPIs da API',()=>{
   it('aceita cadastro e entrega administrativa sem inventar CA ou assinatura',()=>{expect(checkedEquipment(equipment,scope)).toEqual(equipment);expect(checkedDelivery(delivery,scope)).toEqual(delivery);expect(checkedEquipmentContext(context,scope)).toEqual(context);});
   it.each([{companyId:ids.other},{unitId:ids.other},{quantity:0},{quantity:1.5},{deliveredOn:'2026-02-31'},{replacementOn:'2025-01-01'},{returnedOn:'2026-01-06'}])('rejeita entrega incompatível %j',changes=>expect(()=>checkedDelivery({...delivery,...changes},scope)).toThrow());
   it('restringe dados de trabalhadores ao vínculo próprio',()=>{expect(checkedDelivery(delivery,{...scope,ownOnly:true})).toEqual(delivery);expect(()=>checkedDelivery({...delivery,workerId:ids.other},{...scope,ownOnly:true})).toThrow();});
+  it('rejeita entrega de outra pessoa na ficha mesmo para uma conta com acesso amplo',()=>{
+    const subject = {...scope,subjectWorkerId:ids.worker};
+    const page = {items:[delivery],total:1,page:1,pageSize:3};
+    expect(checkedEquipmentPage(page,subject,1,true,3).items).toEqual([delivery]);
+    expect(()=>checkedEquipmentPage({...page,items:[{...delivery,workerId:ids.other}]},subject,1,true,3)).toThrow();
+  });
   it('contexto de vínculo próprio não pode habilitar escrita ou enumerar trabalhadores',()=>{expect(()=>checkedEquipmentContext({...context,ownOnly:true},{...scope,ownOnly:true})).toThrow();expect(checkedEquipmentContext({...context,ownOnly:true,canCreate:false,canEdit:false,canDeliver:false,canReturn:false,workers:[]},{...scope,ownOnly:true}).canDeliver).toBe(false);});
   it('rejeita catálogos ambíguos e páginas de outro filtro',()=>{expect(()=>checkedEquipmentContext({...context,equipment:[context.equipment[0],context.equipment[0]]},scope)).toThrow();expect(()=>checkedEquipmentPage({items:[delivery],total:1,page:2,pageSize:20},scope,1,true)).toThrow();expect(()=>checkedEquipmentPage({items:[delivery,delivery],total:2,page:1,pageSize:20},scope,1,true)).toThrow();});
   it('previsão de troca é opcional, sem prazo padrão calculado',()=>{const fields={workerId:ids.worker,equipmentId:ids.equipment,quantity:1,size:'',deliveredOn:'2026-01-05',replacementOn:'',notes:''};expect(deliveryFields.parse(fields).replacementOn).toBe('');expect(deliveryFields.safeParse({...fields,replacementOn:'2026-01-04'}).success).toBe(false);});

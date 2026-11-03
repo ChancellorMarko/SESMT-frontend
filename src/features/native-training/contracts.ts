@@ -16,7 +16,7 @@ export const trainingSchema = z.object({
   revocationReason: z.string().min(3).max(200).nullable(), revision: z.number().int().positive(),
 }).refine(item => (!item.renewalOn || item.renewalOn >= item.completedOn) && Boolean(item.revokedAt) === Boolean(item.revocationReason));
 export type Training = z.infer<typeof trainingSchema>;
-export type TrainingScope = { unitId: string; companyIds: readonly string[]; ownOnly: boolean; workerId?: string | null };
+export type TrainingScope = { unitId: string; companyIds: readonly string[]; ownOnly: boolean; workerId?: string | null; subjectWorkerId?: string };
 const contextSchema = z.object({ unitId: id, companyId: id, ownOnly: z.boolean(), canCreate: z.boolean(), canEdit: z.boolean(),
   workers: z.array(z.object({ id, name: text, enrollment: text })) });
 export type TrainingContext = z.infer<typeof contextSchema>;
@@ -30,12 +30,12 @@ export function checkedContext(value: unknown, scope: TrainingScope) {
 export function checkedTraining(value: unknown, scope: TrainingScope, expectedId?: string): Training {
   const parsed = trainingSchema.safeParse(value);
   if (!parsed.success || !scope.companyIds.includes(parsed.data.companyId) || parsed.data.unitId !== scope.unitId
-    || expectedId && parsed.data.id !== expectedId || scope.ownOnly && parsed.data.workerId !== scope.workerId) throw new InvalidReadResponse();
+    || expectedId && parsed.data.id !== expectedId || scope.ownOnly && parsed.data.workerId !== scope.workerId || scope.subjectWorkerId && parsed.data.workerId !== scope.subjectWorkerId) throw new InvalidReadResponse();
   return parsed.data;
 }
-export function checkedPage(value: unknown, scope: TrainingScope, page: number, q = '', status = '') {
-  const parsed = z.object({ items: z.array(z.unknown()), total: z.number().int().nonnegative(), page: z.literal(page), pageSize: z.literal(20) }).safeParse(value);
-  if (!parsed.success || parsed.data.items.length !== Math.min(20, Math.max(parsed.data.total - (page - 1) * 20, 0))) throw new InvalidReadResponse();
+export function checkedPage(value: unknown, scope: TrainingScope, page: number, q = '', status = '', pageSize = 20) {
+  const parsed = z.object({ items: z.array(z.unknown()), total: z.number().int().nonnegative(), page: z.literal(page), pageSize: z.literal(pageSize) }).safeParse(value);
+  if (!parsed.success || parsed.data.items.length !== Math.min(pageSize, Math.max(parsed.data.total - (page - 1) * pageSize, 0))) throw new InvalidReadResponse();
   const items = parsed.data.items.map(item => checkedTraining(item, scope));
   if (new Set(items.map(item => item.id)).size !== items.length || items.some(item =>
     q && ![item.title, item.workerName, item.reference ?? ''].some(s => s.toLocaleLowerCase().includes(q.toLocaleLowerCase()))

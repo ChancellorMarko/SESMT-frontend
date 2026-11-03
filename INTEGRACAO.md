@@ -188,6 +188,10 @@ Entregas aceitam filtro `workerId` e `status=ACTIVE|RETURNED|DUE`, além de busc
 
 As tabelas `core.epi` e `core.epi_entrega` têm chaves estrangeiras restritivas, unicidade de código/comando e controle de revisão. Este fluxo não implementa estoque, devolução parcial, assinatura/recibo legal, consulta oficial de CA nem liberação automática de PT. O registro de ASOs tem integração administrativa própria; ATs e PETs continuam com seus contratos pendentes. O registro administrativo de treinamentos tem integração própria descrita a seguir.
 
+### Consulta de EPIs e treinamentos na ficha
+
+No modo nativo, a seção **EPIs e treinamentos** consulta até três registros recentes por categoria autorizada. Usa `unitId` e `workerId` em `GET /api/v1/equipment/deliveries` e `GET /api/v1/trainings`. A listagem e o detalhe conferem a unidade e o trabalhador antes de exibir os dados. Os atalhos abrem o módulo filtrado pela pessoa, e a volta à ficha depende de um contexto válido da mesma sessão e unidade.
+
 ### Treinamentos: registro administrativo e renovação
 
 `/app/treinamentos` usa a mesma API e PostgreSQL da operação. A consulta exige `treinamento:ler`; o cadastro, `treinamento:criar` e leitura de trabalhadores; correção e invalidação, `treinamento:editar`. Comandos exigem alcance da unidade inteira. ADMIN, GESTOR, TECNICO e RH recebem concessões explícitas de gestão no seeder; AUDITOR recebe leitura; TRABALHADOR consulta somente seus registros. Não há concessão no frontend pelo nome de perfil. O atalho anterior `?area=saude&healthView=nrs` redireciona para a nova tela.
