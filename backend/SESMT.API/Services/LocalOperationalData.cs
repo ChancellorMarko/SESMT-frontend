@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SESMT.Domain.Common.Entity;
 using SESMT.Domain.Modules.Audit.Entities;
 using SESMT.Domain.Modules.Equipment.Entities;
+using SESMT.Domain.Modules.Training.Entities;
 using SESMT.Infrastructure.Persistence;
 
 namespace SESMT.API.Services;
@@ -33,7 +34,7 @@ public static class LocalOperationalData
             var granted = await db.RolePermissions.Where(r => r.RoleId == firefighter.Id && r.DeletedAt == null).Select(r => r.PermissionId).ToArrayAsync(ct);
             var source = await (from link in db.RolePermissions join permission in db.Permissions on link.PermissionId equals permission.Id
                 where link.RoleId == technician.Id && link.Active && link.DeletedAt == null && permission.Active && permission.DeletedAt == null
-                    && (permission.Resource == "epi" || permission.Resource == "agenda" || permission.Resource == "designacao" || permission.Action == "ler" && new[] { "empresa", "unidade", "setor", "cargo" }.Contains(permission.Resource))
+                    && (permission.Resource == "epi" || permission.Resource == "agenda" || permission.Resource == "designacao" || permission.Action == "ler" && new[] { "empresa", "unidade", "setor", "cargo", "treinamento" }.Contains(permission.Resource))
                 select permission.Id).ToArrayAsync(ct);
             foreach (var permission in source.Except(granted)) db.Add(new SESMT.Domain.Modules.IdentityAccess.Entities.RolePermission(firefighter.Id, permission));
         }
@@ -95,10 +96,29 @@ public static class LocalOperationalData
                 if (equipment is null || firefighterWorker.AdmissionDate > today.AddDays(-7)) continue;
                 db.Add(new EquipmentDelivery(equipment, firefighterWorker.UnitId!.Value, firefighterWorker.Id, command, 1, null, today.AddDays(-7), today.AddDays(60), "Controle de entrega da unidade.", actor.Id));
             }
+        var trainingTitles = new[] { "Integração de segurança", "Uso e conservação de EPIs", "Rotas de abandono e ponto de encontro", "Organização e sinalização do posto" };
+        var trainingEmails = new[] { "tecnico@exemplo.ampara.local", "trabalhador@exemplo.ampara.local", "bombeiro@exemplo.ampara.local", "gestor@exemplo.ampara.local" };
+        for (var i = 0; i < trainingTitles.Length; i++)
+        {
+            var command = Guid.Parse($"e76a12c0-20aa-4d00-8000-{i + 200:000000000000}");
+            if (await db.TrainingRecords.AnyAsync(t => t.CompanyId == companyId && t.CommandId == command, ct)) continue;
+            var person = people.SingleOrDefault(p => p.Email.Value == trainingEmails[i]);
+            var worker = recipients.SingleOrDefault(w => w.UserId == person?.Id);
+            if (worker is null) continue;
+            var training = new TrainingRecord(companyId, worker.UnitId!.Value, worker.Id, command, actor.Id);
+            training.Set(trainingTitles[i], null, "INITIAL", today.AddDays(-60), i == 1 ? null : today.AddDays(i == 3 ? -1 : 60),
+                i == 0 ? 120 : 60, null, null, null, "Orientações e procedimentos da unidade.", null);
+            db.Add(training);
+            var json = System.Text.Json.JsonSerializer.Serialize(new { training.Title, reason = (string?)null });
+            var stored = await db.Database.SqlQuery<string>($"SELECT CAST(CAST({json} AS jsonb) AS text) AS \"Value\"").SingleAsync(ct);
+            db.Add(new AuditLog("TRAINING_CREATED", "treinamento", training.Id, actor.Id, actor.Email.Value, actor.Name, null, stored, null, null, "CLI local",
+                await db.AuditLogs.OrderByDescending(a => a.Id).Select(a => a.CurrentHash).FirstOrDefaultAsync(ct), companyId: companyId, resourceVersion: 1));
+            await db.SaveChangesAsync(ct);
+        }
         db.Add(new AuditLog("LOCAL_PRESENTATION_UPDATED", "conjunto_exemplos", companyId, actor.Id, actor.Email.Value, actor.Name, null, null, null, null, "CLI local",
             await db.AuditLogs.OrderByDescending(a => a.Id).Select(a => a.CurrentHash).FirstOrDefaultAsync(ct), companyId: companyId));
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
-        return new { equipment = await db.Equipment.CountAsync(e => e.CompanyId == companyId, ct), deliveries = await db.EquipmentDeliveries.CountAsync(d => d.CompanyId == companyId, ct) };
+        return new { equipment = await db.Equipment.CountAsync(e => e.CompanyId == companyId, ct), deliveries = await db.EquipmentDeliveries.CountAsync(d => d.CompanyId == companyId, ct), trainings = await db.TrainingRecords.CountAsync(t => t.CompanyId == companyId, ct) };
 
         void Clean<TEntity>(TEntity entity, string property, string? replacement = null) where TEntity : EntityBase
         {

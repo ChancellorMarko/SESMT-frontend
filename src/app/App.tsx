@@ -36,6 +36,7 @@ const NativeNotificationsPage=lazy(()=>import('../features/notifications/NativeN
 const NativeAuditPage=lazy(()=>import('../features/audit/NativeAuditPage').then(m=>({default:m.NativeAuditPage})));
 const NativeDashboardPage=lazy(()=>import('../features/dashboard/NativeDashboardPage').then(m=>({default:m.NativeDashboardPage})));
 const NativeAgendaPage=lazy(()=>import('../features/native-operations/NativeAgendaPage').then(m=>({default:m.NativeAgendaPage})));
+const NativeTrainingPage=lazy(()=>import('../features/native-training/NativeTrainingPage').then(m=>({default:m.NativeTrainingPage})));
 const NativeAppointmentDetail=lazy(()=>import('../features/native-operations/NativeAppointmentDetail').then(m=>({default:m.NativeAppointmentDetail})));
 const NativeCreationPage=lazy(()=>import('../features/native-operations/NativeCreationPage').then(m=>({default:m.NativeCreationPage})));
 const NativeTeamsPage=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamsPage})));
@@ -99,6 +100,7 @@ export function App() {
       <Route path="minha-representacao" element={<Guard permission="permits.review"><SignatureProfilePage/></Guard>}/>
       <Route path="dashboard" element={NATIVE_MODULES ? <Guard><NativeDashboardPage/></Guard> : <Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
       <Route path="epis" element={NATIVE_MODULES ? <Guard permission="epi:ler"><NativeEquipmentPage/></Guard> : <Navigate to="/app/dashboard?area=epis" replace/>}/>
+      <Route path="treinamentos" element={NATIVE_MODULES ? <Guard permission="treinamento:ler"><NativeTrainingPage/></Guard> : <Navigate to="/app/dashboard?area=saude&healthView=nrs" replace/>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={NATIVE_MODULES?<Guard><NativeAgendaPage/></Guard>:<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
       <Route path="agenda/novo" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="appointment"/></Guard>:<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>

@@ -50,6 +50,7 @@ public sealed class LocalExampleSeederPostgresTests
             Assert.All(await db.WorkPermits.Where(p => p.CompanyId == result.CompanyId).ToListAsync(), p => Assert.Equal(WorkPermitStatus.UnderReview, p.Status));
             await LocalOperationalData.PrepareAsync(db, "seed-admin@example.invalid", default);
             Assert.Equal(6, await db.Equipment.CountAsync(e => e.CompanyId == result.CompanyId)); Assert.Equal(6, await db.EquipmentDeliveries.CountAsync(e => e.CompanyId == result.CompanyId));
+            Assert.Equal(4, await db.TrainingRecords.CountAsync(t => t.CompanyId == result.CompanyId));
             await db.Entry(person).ReloadAsync(); Assert.Equal("Exemplo Nome Editado Pela Equipe", person.Name); Assert.Equal(originalHash, person.PasswordHash);
         }
         finally { await database.DisposeAsync(); }

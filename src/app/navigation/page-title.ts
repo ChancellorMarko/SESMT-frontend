@@ -31,6 +31,7 @@ const routes = [
   { path: '/app/modelos-pt', title: 'Modelo de permissão de trabalho (PT)' },
   { path: '/app/pendencias', title: 'Pendências documentais' },
   { path: '/app/epis', title: 'EPIs' },
+  { path: '/app/treinamentos', title: 'Treinamentos' },
   { path: '/app/ats', title: 'Autorizações de trabalho (AT)' },
   { path: '/app/ats/nova', title: 'Criar autorização de trabalho' },
   { path: '/app/ats/:id/editar', title: 'Editar autorização de trabalho' },

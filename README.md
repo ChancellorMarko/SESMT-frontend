@@ -22,7 +22,9 @@ npm run dev:integrated
 
 O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 
-Para popular a prévia local com exemplos persistidos na API/PostgreSQL, execute `npm run seed:local-examples -- --normal-names`. A carga exige Development e um banco separado `ampara_fullstack_preview_AAAAMMDD` em loopback, faz backup antes de gravar e não substitui cadastros ou senhas existentes. Contas e senha local gerada ficam em `.local/fullstack-preview/example-access.json`, fora do Git. A opção `--normal-names` usa nomes de uso cotidiano e acrescenta seis EPIs e seis entregas entre as unidades. Os documentos permanecem em rascunho e as PTs em verificação. Consulte os detalhes em [INTEGRACAO.md](INTEGRACAO.md#dados-de-exemplo-no-banco-local).
+Para popular a prévia local com exemplos persistidos na API/PostgreSQL, execute `npm run seed:local-examples -- --normal-names`. A carga exige Development e um banco separado `ampara_fullstack_preview_AAAAMMDD` em loopback, faz backup antes de gravar e não substitui cadastros ou senhas existentes. Contas e senha local gerada ficam em `.local/fullstack-preview/example-access.json`, fora do Git. A opção `--normal-names` usa nomes de uso cotidiano e acrescenta seis EPIs, seis entregas e quatro cursos internos entre as unidades. Os documentos permanecem em rascunho e as PTs em verificação. Consulte os detalhes em [INTEGRACAO.md](INTEGRACAO.md#dados-de-exemplo-no-banco-local).
+
+O controle nativo de treinamentos acrescenta registro por trabalhador, carga horária em horas/minutos, datas de renovação, correções com motivo e histórico, e invalidação sem exclusão. Usa permissões próprias e restringe o trabalhador aos seus registros. Não emite certificado nem libera PT. Consulte os contratos em [INTEGRACAO.md](INTEGRACAO.md#treinamentos-registro-administrativo-e-renovação).
 
 ## Executar
 

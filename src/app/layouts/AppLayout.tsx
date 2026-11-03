@@ -26,6 +26,7 @@ const nav = [
   { to: 'consulta', label: 'Consulta central', icon: FileSearch, permission: 'documents.read', alternativePermissions: ['permits.read', 'at.read', 'pet.read'] },
   { to: 'agenda', label: 'Agenda', icon: CalendarDays, permission: 'appointments.read' },
   { to: 'epis', label: 'EPIs', icon: HardHat, permission: 'epi:ler' },
+  { to: 'treinamentos', label: 'Treinamentos', icon: GraduationCap, permission: 'treinamento:ler' },
   { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
   { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
   { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
@@ -49,7 +50,7 @@ const config = [
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [
-  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
+  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'treinamentos', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
   { label: 'Gestão documental', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
   { label: 'Pessoas e organização', routes: ['equipes', 'trabalhadores', 'organizacao'] },
   { label: 'Controle', routes: ['notificacoes', 'auditoria'] },
@@ -72,6 +73,7 @@ const moduleDetails: Record<string, { description: string; terms: string }> = {
   consulta: { description: 'Encontre registros em um só lugar', terms: 'busca pesquisa central' },
   agenda: { description: 'Serviços, horários e responsáveis', terms: 'agendamentos calendário planejamento' },
   epis: { description: 'Equipamentos, entregas e devoluções', terms: 'EPI equipamentos proteção individual CA luvas capacetes calçados' },
+  treinamentos: { description: 'Cursos e datas de renovação', terms: 'capacitação curso NR treinamento carga horária reciclagem' },
   pendencias: { description: 'Requisitos por participante', terms: 'elegibilidade prontidão bloqueios' },
   ats: { description: 'Autorização de Trabalho (AT)', terms: 'AT ATs autorização autorizações' },
   pts: { description: 'Permissão de Trabalho (PT)', terms: 'PT PTs permissão permissões' },
@@ -277,6 +279,7 @@ export function AppLayout() {
   const activeArea = areaName ? dashboardArea : null;
   const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   if (NATIVE_MODULES && s.can('epi:ler')) visibleDockItems.push({to:'/app/epis',label:'EPIs',compactLabel:'EPIs',icon:HardHat});
+  if (NATIVE_MODULES && s.can('treinamento:ler')) visibleDockItems.push({to:'/app/treinamentos',label:'Treinamentos',compactLabel:'Cursos',icon:GraduationCap});
   const shortcuts = nav.filter(item => ['agenda', 'documentos', 'equipes'].includes(item.to) && canNavigate(item));
 
   // Resolve the home redirect before exposing controls tied to a temporary /app location.
@@ -289,7 +292,8 @@ export function AppLayout() {
       <div className={styles.railSurface}>
         <nav aria-label="Acesso rápido" className={styles.railItems}>
           {visibleDockItems.map(item => {
-            const active = item.to === '/app/painel-documental' ? location.pathname.startsWith(item.to) : location.pathname === '/app/dashboard' && (item.area ? activeArea === item.area : !activeArea);
+            const active = item.to === '/app/dashboard' ? location.pathname === item.to && !activeArea
+              : item.area ? location.pathname === '/app/dashboard' && activeArea === item.area : location.pathname.startsWith(item.to);
             return <Link key={item.to} to={item.to} title={item.label} aria-label={item.label} aria-current={active ? 'page' : undefined} className={`${styles.railItem} ${active ? styles.railItemActive : ''}`}>
               {active && <motion.span layoutId="workspace-rail-active" className={styles.railActive} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 34 }} />}
               <item.icon size={19} strokeWidth={1.7} aria-hidden="true" />

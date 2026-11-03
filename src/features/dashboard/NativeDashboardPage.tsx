@@ -15,6 +15,7 @@ export function NativeDashboardPage() {
   const { me, sessionKey, unitId } = useSession();
   const location = useLocation();
   if (new URLSearchParams(location.search).get('area') === 'epis') return <Navigate replace to="/app/epis"/>;
+  if (new URLSearchParams(location.search).get('area') === 'saude' && new URLSearchParams(location.search).get('healthView') === 'nrs') return <Navigate replace to="/app/treinamentos"/>;
   return me ? <Dashboard key={JSON.stringify([sessionKey, unitId])}/> : null;
 }
 function Dashboard() {

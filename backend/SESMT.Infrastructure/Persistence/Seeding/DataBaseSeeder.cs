@@ -130,6 +130,9 @@ public static class DatabaseSeeder
             ("designacao", "editar", "Atribuir e revogar designações operacionais"),
             ("epi", "criar", "Cadastrar equipamentos e registrar entregas"),
             ("epi", "editar", "Editar equipamentos e registrar devoluções"),
+            ("treinamento", "ler", "Consultar registros de treinamentos"),
+            ("treinamento", "criar", "Registrar treinamentos realizados"),
+            ("treinamento", "editar", "Corrigir e invalidar registros de treinamentos"),
             ("aso", "ler",   "Consultar ASO (dados sensíveis)"),
             ("aso", "editar","Registrar ASO (dados sensíveis)"),
 
@@ -276,7 +279,7 @@ public static class DatabaseSeeder
         var tecnicoRole = roles.FirstOrDefault(r => r.Code == "TECNICO");
         if (tecnicoRole is not null)
         {
-            var tecnicoResources = new[] { "documento", "pt", "trabalhador", "equipe", "epi" };
+            var tecnicoResources = new[] { "documento", "pt", "trabalhador", "equipe", "epi", "treinamento" };
             var tecnicoPerms = permissions.Where(p =>
                 tecnicoResources.Contains(p.Resource) &&
                 p.Action != "excluir" ||
@@ -312,6 +315,7 @@ public static class DatabaseSeeder
         {
             var rhPerms = permissions.Where(p =>
                 (p.Resource == "trabalhador") ||
+                (p.Resource == "treinamento") ||
                 (p.Resource == "documento" && p.Action == "ler") ||
                 (p.Resource == "epi" && p.Action == "ler") ||
                 (p.Resource == "unidade" && p.Action == "ler") ||
@@ -344,7 +348,7 @@ public static class DatabaseSeeder
         {
             var trabalhadorPerms = permissions.Where(p =>
                 p.Action == "ler" &&
-                (p.Resource == "documento" || p.Resource == "trabalhador" || p.Resource == "epi" || p.Resource == "pt"));
+                (p.Resource == "documento" || p.Resource == "trabalhador" || p.Resource == "epi" || p.Resource == "pt" || p.Resource == "treinamento"));
 
             foreach (var perm in trabalhadorPerms)
             {

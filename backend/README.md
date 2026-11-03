@@ -39,6 +39,8 @@ O módulo EPI publica `/equipment`, `/equipment/context`, `/equipment/deliveries
 
 Agenda e designações usam `agenda:ler/criar/editar` e `designacao:ler/editar`. Editar PT não concede administração desses recursos. `/appointments/{id}/responsibles` oferece somente profissionais designados para a atividade, sem exigir administração de usuários. Os perfis padrão têm concessões explícitas no seeder; perfis customizados dependem dos vínculos de permissão e escopo registrados no banco.
 
+Treinamentos administrativos usam `/trainings`, `/trainings/context`, `/{id}/history` e `/{id}/revoke`, com `treinamento:ler/criar/editar`, alcance por empresa/unidade/setor e vínculo próprio. A migration `20261103113512_AddTrainingRecords` cria `core.treinamento_registro`, sem substituir o histórico anterior. Registros têm revisão, prevenção de comando duplicado e auditoria; invalidação preserva o registro. Certificação, assinaturas e liberação de PT não são realizadas por esse cadastro.
+
 ## Verificar
 
 ```sh
@@ -49,7 +51,7 @@ npm run test:backend
 
 Os testes relacionais exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para `postgres` de uma instância exclusiva de testes em loopback. As fixtures criam e removem somente bancos `sesmt_it_*`. Sem a variável, esses cenários ficam explicitamente ignorados. O workflow Backend CI fornece PostgreSQL efêmero e executa os testes a partir desta pasta.
 
-O snapshot conciliado, com gestão nativa de acessos, hierarquia da sessão e edição profissional do trabalhador, passou por build Release e 456 testes, incluindo cenários PostgreSQL com migrations e schema reais em bancos descartáveis. Os cenários cobrem também a carga idempotente de exemplos, leitura administrativa global e isolamento das PTs do trabalhador. A conciliação de um banco legado depende do schema e do histórico efetivamente presentes nesse banco. Na raiz, `npm run test:access:real` verifica cadastro organizacional, contas, edição profissional e login por cargo em outro banco descartável, sem MSW; consulte os requisitos em INTEGRACAO.md.
+O snapshot conciliado, com gestão nativa de acessos, hierarquia da sessão e edição profissional do trabalhador, passou por build Release e 462 testes, incluindo cenários PostgreSQL com migrations e schema reais em bancos descartáveis. Os cenários cobrem também a carga idempotente de exemplos, leitura administrativa global e isolamento das PTs do trabalhador. A conciliação de um banco legado depende do schema e do histórico efetivamente presentes nesse banco. Na raiz, `npm run test:access:real` verifica cadastro organizacional, contas, edição profissional e login por cargo em outro banco descartável, sem MSW; consulte os requisitos em INTEGRACAO.md.
 
 Para criar a imagem da API, use `docker build -f backend/SESMT.API/Dockerfile backend`. A configuração de conexão, JWT, bootstrap, SMTP e armazenamento deve ser fornecida no ambiente de execução.
 
