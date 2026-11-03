@@ -12,9 +12,10 @@ export function safetyFilter(params: URLSearchParams, ownOnly: boolean, ownWorke
   };
 }
 
-export function safetyReturn(state: unknown, sessionKey: string, unitId: string | undefined, workerId: string | undefined, canRead: boolean, canEligibility: boolean) {
+export function safetyReturn(state: unknown, sessionKey: string, unitId: string | undefined, workerId: string | undefined, canRead: boolean, canEligibility: boolean, section: 'equipment' | 'training' = 'equipment') {
   const origin = workerDocumentNavigation(state, sessionKey, unitId, canRead, canEligibility);
   if (!workerId || origin?.workerDocumentReturnTo.workerId !== workerId) return undefined;
   const destination = workerDocumentDestination(origin);
-  return { ...destination, to: destination.to.replace(/#documentos$/, '#seguranca') };
+  const anchor = section === 'training' ? '?seguranca=treinamentos#seguranca' : '#seguranca';
+  return { ...destination, to: destination.to.replace(/#documentos$/, anchor) };
 }

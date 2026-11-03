@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
@@ -17,8 +17,10 @@ export function WorkerSafetyPanel({ workerId, unitId, companyId, origin }: {
 }) {
   const { sessionKey, me, can } = useSession();
   const equipment = can('epi:ler'), training = can('treinamento:ler');
+  const [params] = useSearchParams();
+  const preferred = params.get('seguranca') === 'treinamentos' ? 'training' : 'equipment';
   const [selection, select] = useState<'equipment' | 'training'>();
-  const active = selection === 'training' && training || !equipment ? 'training' : 'equipment';
+  const active = training && ((selection ?? preferred) === 'training' || !equipment) ? 'training' : 'equipment';
   const scope = { unitId, companyIds: [companyId], ownOnly: Boolean(me?.scope.ownOnly), workerId: me?.workerId, subjectWorkerId: workerId };
   const enabled = Boolean(me?.scope.companyIds.includes(companyId) && (!scope.ownOnly || scope.workerId === workerId));
   const query = { unitId, workerId, page: 1, pageSize: previewSize };

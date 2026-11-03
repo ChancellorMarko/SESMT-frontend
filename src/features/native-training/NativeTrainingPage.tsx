@@ -27,7 +27,7 @@ function TrainingWorkspace() {
   const [params, updateParams] = useSearchParams(), { state } = useLocation();
   const setParams = (next: URLSearchParams, preserve = true) => updateParams(next, { state: preserve ? state : null });
   const { subjectWorkerId, validWorker } = safetyFilter(params, Boolean(me?.scope.ownOnly), me?.workerId);
-  const back = validWorker ? safetyReturn(state, sessionKey, unitId, subjectWorkerId, can('workers.read'), can('eligibility.read')) : undefined;
+  const back = validWorker ? safetyReturn(state, sessionKey, unitId, subjectWorkerId, can('workers.read'), can('eligibility.read'), 'training') : undefined;
   const query = params.get('q') ?? '', status = params.get('status') ?? '', page = Number(params.get('page') ?? '1');
   const [input, setInput] = useState(query), [editor, setEditor] = useState<{ item?: Training }>(), [revoking, setRevoking] = useState<Training>(), [success, setSuccess] = useState('');
   const [evidenceCommand, setEvidenceCommand] = useState<EvidenceCommand>();
@@ -95,7 +95,7 @@ function TrainingWorkspace() {
       {!enabled || !validId || !validCriteria || detail.isError || context.isError ? <Feedback tone="danger">Treinamento não encontrado ou fora do seu acesso.</Feedback> : !detail.data ? <Spinner/> : <div className="stack">
         <TrainingDetails item={detail.data}/>
         <TrainingEvidence training={detail.data} onCommand={command => { setEvidenceCommand(command); closeDetails(); }}/>
-        <div className="actions">{can('workers.read') && <Link className="button button--secondary" to={`/app/trabalhadores/${detail.data.workerId}`}>Ficha do trabalhador</Link>}
+        <div className="actions">{can('workers.read') && <Link className="button button--secondary" to={back?.to ?? `/app/trabalhadores/${detail.data.workerId}`} state={back?.state}>Ficha do trabalhador</Link>}
           {context.data?.canEdit && !detail.data.revokedAt && <><Button variant="secondary" onClick={() => { setEditor({ item: detail.data }); closeDetails(); }}>Editar registro</Button><Button variant="danger" onClick={() => { setRevoking(detail.data); closeDetails(); }}>Invalidar registro</Button></>}
         </div>
         <details><summary>Histórico de alterações</summary>{history.isPending ? <Spinner/> : history.isError ? <Feedback tone="danger">Não foi possível consultar o histórico.</Feedback>

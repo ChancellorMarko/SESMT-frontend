@@ -394,7 +394,8 @@ try {
   await scopedTrainingForm.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('link', { name: 'Voltar à ficha', exact: true }).click();
   await page.waitForURL(url => url.pathname === safetyProfile && url.hash === '#seguranca');
-  await safety.getByRole('link', { name: 'Luva de proteção', exact: true }).waitFor();
+  await safety.getByRole('link', { name: 'Integração de segurança revisada', exact: true }).waitFor();
+  check(await safety.getByRole('button', { name: 'Treinamentos', exact: true }).getAttribute('aria-pressed') === 'true', 'Worker profile: returning from training restores the selected tab');
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Worker profile: safety tables return to the correct section and fit at 390px');
   await safety.screenshot({ path: join(dir, 'worker-safety-mobile.png') });
   await page.goto('http://127.0.0.1:5185/app/organizacao'); await page.getByRole('heading', { name: 'Organização', exact: true }).waitFor();

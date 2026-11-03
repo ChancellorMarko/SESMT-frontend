@@ -18,6 +18,8 @@ describe('worker safety navigation', () => {
   it('rebuilds the route and keeps document pagination only for the matching authorized origin', () => {
     const back = safetyReturn(state, 'a', unit, worker, true, false);
     expect(back?.to).toBe(`/app/trabalhadores/${worker}#seguranca`);
+    expect(safetyReturn(state, 'a', unit, worker, true, false, 'training')?.to)
+      .toBe(`/app/trabalhadores/${worker}?seguranca=treinamentos#seguranca`);
     expect(restoredWorkerDocumentPage(back?.state, 'a', unit, worker)).toBe(2);
     expect(safetyReturn(state, 'b', unit, worker, true, false)).toBeUndefined();
     expect(safetyReturn(state, 'a', other, worker, true, false)).toBeUndefined();
