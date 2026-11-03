@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
 const id = z.string().uuid(), name = z.string().trim().min(1).max(255);
-const named = z.object({ id, name });
+const named = z.object({ id, name, canEdit: z.boolean().default(false) });
 const context = z.object({
   canCreateCompany: z.boolean(),
   companies: z.array(named.extend({ canCreateUnit: z.boolean(), canCreatePosition: z.boolean() })),
@@ -12,10 +12,10 @@ const context = z.object({
 export type NativeOrganization = z.infer<typeof context>;
 export type OrganizationResource = 'companies' | 'units' | 'departments' | 'positions';
 export const organizationResources = [
-  { key: 'companies', label: 'Empresas', singular: 'empresa', path: '/companies', permission: 'empresa:criar' },
-  { key: 'units', label: 'Unidades', singular: 'unidade', path: '/locations', permission: 'unidade:criar' },
-  { key: 'departments', label: 'Setores', singular: 'setor', path: '/departments', permission: 'setor:criar' },
-  { key: 'positions', label: 'Cargos', singular: 'cargo', path: '/positions', permission: 'cargo:criar' },
+  { key: 'companies', label: 'Empresas', singular: 'empresa', path: '/companies', permission: 'empresa:criar', editPermission: 'empresa:editar' },
+  { key: 'units', label: 'Unidades', singular: 'unidade', path: '/locations', permission: 'unidade:criar', editPermission: 'unidade:editar' },
+  { key: 'departments', label: 'Setores', singular: 'setor', path: '/departments', permission: 'setor:criar', editPermission: 'setor:editar' },
+  { key: 'positions', label: 'Cargos', singular: 'cargo', path: '/positions', permission: 'cargo:criar', editPermission: 'cargo:editar' },
 ] as const;
 export function checkedOrganization(value: unknown): NativeOrganization {
   const parsed = context.safeParse(value);
@@ -29,7 +29,7 @@ export function checkedOrganization(value: unknown): NativeOrganization {
 }
 export const companyFields = z.object({ corporateName: name, fantasyName: name,
   cnpj: z.string().trim().transform(value => value.replace(/[.\-/\s]/g, '').toUpperCase()).refine(value => /^[A-Z0-9]{12}\d{2}$/.test(value), 'Informe um CNPJ com 14 caracteres e os dois dígitos finais.'),
-  tipoEmpresa: z.enum(['INTERNA', 'PRESTADORA']), email: z.union([z.literal(''), z.string().trim().email().max(200)]).transform(value => value.toLowerCase()), phone: z.string().trim().max(30) });
+  tipoEmpresa: z.enum(['INTERNA', 'PRESTADORA']), email: z.union([z.literal(''), z.string().trim().email().max(200)]).transform(value => value.toLowerCase()), phone: z.string().trim().max(20) });
 export const unitFields = z.object({ companyId: id, code: z.string().trim().min(1, 'Informe o código.').max(50), name: name.max(150), type: z.enum(['MATRIZ', 'FILIAL']),
   cep: z.string().transform(value => value.replace(/[\s-]/g, '')).refine(value => /^\d{8}$/.test(value), 'Informe um CEP com 8 dígitos.'),
   address: z.string().trim().min(1, 'Informe o endereço.').max(200), number: z.string().trim().min(1, 'Informe o número ou S/N.').max(20),

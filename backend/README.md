@@ -43,6 +43,14 @@ Treinamentos administrativos usam `/trainings`, `/trainings/context`, `/{id}/his
 
 Comprovantes de treinamento usam `GET/POST /trainings/{id}/evidence`, `GET /evidence/options` e `POST /evidence/unlink`, com autorização documental e versão fixa. A migration `20261103120903_AddTrainingEvidence` preserva os cursos existentes, acrescenta referências/hash/revisões e bloqueia downgrade com vínculos presentes. Alterações posteriores exigem nova conferência; o recurso não emite certificados nem libera PT. O contrato completo está na seção de treinamentos de `INTEGRACAO.md` na versão conjunta.
 
+### Edição organizacional com versão
+
+`GET/PATCH /api/v1/organization-management/{resource}/{id}` oferece edição de empresas (`companies`), unidades (`units`), setores (`departments`) e cargos (`positions`). `GET .../history` retorna histórico administrativo. O GET publica ETag e `{ resource, id, companyId, unitId, version, values }`; PATCH recebe `{ expectedVersion, reason, confirmation: true, values }`. A versão é um hash opaco de 64 caracteres, validado sob bloqueio de linha. Edição e auditoria são atômicas; retorno corresponde ao estado persistido. Não exige migration nova. Campos desconhecidos são recusados.
+
+Empresa/cargo requerem empresa inteira e grants de leitura/edição; unidade/setor requerem unidade inteira e seus grants. Não há autorização por nome de perfil ou escopo ancestral de setor. CNPJ/tipo e vínculos organizacionais são preservados; setor conserva responsável no novo editor. Telefone da empresa: até 20 caracteres. Erros: 400 dados/identidade, 403/404 acesso, 409 versão/duplicidade. O frontend preserva preenchimento em conflito e não repete comandos de resultado ambíguo.
+
+**Clientes anteriores:** PATCH `/companies/{id}`, `/locations/{id}`, `/departments/{id}`, `/positions/{id}` passa a exigir `If-Match: "<version>"`, obtido pelo GET acima. Sem cabeçalho: 428. Versão obsoleta: 409. O corpo continua o DTO nativo; essas rotas também preservam identidade, bloqueiam a linha e auditam. Use o contrato novo para incluir motivo e confirmação. DELETE/criação não são alterados por esta entrega; a interface não oferece desativação organizacional.
+
 ### Registro administrativo de ASOs
 
 `/occupational-health` registra dados de um ASO já emitido; não emite, assina ou substitui atestado, PCMSO ou prontuário. A migration `20261103132828_AddOccupationalCertificates` cria `saude.aso_registro` sem gerar exames ou aptidões. O downgrade é bloqueado quando há registros. Endpoints: `GET /context?unitId`, `GET /?unitId&view=LATEST|ALL&q&due&page&pageSize`, `GET /{id}?unitId`, `GET /{id}/history?unitId`, `POST /`, `PUT /{id}`, `POST /{id}/revoke`. O prefixo global é `/api/v1`.

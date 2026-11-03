@@ -6,9 +6,10 @@
 .tabs button:focus-visible { outline: 2px solid #174779; outline-offset: 2px; }
 .results { min-width: 0; border: 1px solid #e0e6ed; border-radius: 12px; background: #fffefa; overflow: hidden; }
 .scroll { overflow-x: auto; }
-.scroll table { table-layout: fixed; width: 100%; min-width: 0; }
+.scroll table { table-layout: fixed; width: 100%; min-width: 560px; }
 .scroll td { overflow-wrap: anywhere; }
-.scroll th:last-child { width: 100px; }
+.scroll th:last-child { width: 112px; }
+.scroll :global(.button) { white-space: nowrap; min-width: 68px; padding: 8px 12px; }
 .code { display: block; color: #63758b; font-size: 12px; margin-top: 4px; }
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 599px) { .formGrid { grid-template-columns: 1fr; } .toolbar > :last-child { flex: 1 1 100%; } .tabs { width: 100%; } .tabs button { flex: 1 1 45%; } .scroll td,.scroll th { padding: 10px 8px; font-size: 12px; } .scroll th:last-child { width: 70px; } }
+@media (max-width: 599px) { .formGrid { grid-template-columns: 1fr; } .toolbar > :last-child { flex: 1 1 100%; } .tabs { width: 100%; } .tabs button { flex: 1 1 45%; } .scroll td,.scroll th { padding: 10px 8px; font-size: 12px; } .scroll th:last-child { width: 90px; } }

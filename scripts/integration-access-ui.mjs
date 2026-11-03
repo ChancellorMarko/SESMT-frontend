@@ -65,7 +65,7 @@ try {
   for (const [label, value] of Object.entries({ Nome: 'Unidade QA', Código: 'QA-MATRIZ', CEP: '01000-000', Cidade: 'Cidade QA', Bairro: 'Bairro QA', Endereço: 'Rua fictícia QA', Número: 'S/N' })) await page.getByLabel(label, { exact: true }).fill(value);
   await page.getByLabel('UF', { exact: true }).selectOption('PR'); await page.getByRole('button', { name: 'Cadastrar', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: /Unidades/ }).click(); await page.getByRole('cell', { name: /Unidade QA/ }).waitFor();
+  await page.getByRole('button', { name: /Unidades/ }).click(); await page.getByRole('cell', { name: 'Unidade QA QA-MATRIZ', exact:true }).waitFor();
   check(true, 'Real API: unit created and session scope refreshed');
   await page.getByRole('button', { name: /Setores/ }).click(); await page.getByRole('button', { name: 'Cadastrar setor', exact: true }).click();
   await page.getByLabel('Nome', { exact: true }).fill('Setor QA'); await page.getByRole('button', { name: 'Cadastrar', exact: true }).click(); await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -316,6 +316,35 @@ try {
   await medicalPage.getByRole('link',{name:'Pessoa QA Atualizada',exact:true}).click();await asoDetail.getByRole('button',{name:'Invalidar registro',exact:true}).click();
   const asoRevoke=medicalPage.getByRole('dialog',{name:'Invalidar registro de ASO',exact:true});await asoRevoke.getByLabel('Motivo administrativo',{exact:true}).selectOption('DUPLICATE');await asoRevoke.getByRole('checkbox').check();await asoRevoke.getByRole('button',{name:'Confirmar invalidação',exact:true}).click();
   await asoDetail.getByText('Invalidado · Registro duplicado',{exact:true}).waitFor();check(true,'Real API: ASO invalidation preserves the record and history');await medicalPage.close();
+  await page.setViewportSize({width:1365,height:900});await page.goto('http://127.0.0.1:5185/app/organizacao');
+  await page.getByRole('button',{name:'Editar empresa Empresa QA',exact:true}).waitFor();
+  const editableOrganization=await page.evaluate(async()=>{const{api}=await import('/src/shared/api/client.ts');return api.get('/organization-management');});
+  for(const [resource,singular,tab,record,field,name] of [
+    ['companies','empresa','Empresas',editableOrganization.companies[0],'Nome fantasia','Empresa Operacional QA'],
+    ['units','unidade','Unidades',editableOrganization.units[0],'Nome','Unidade Operacional QA'],
+    ['departments','setor','Setores',editableOrganization.departments[0],'Nome','Setor Operacional QA'],
+    ['positions','cargo','Cargos',editableOrganization.positions[0],'Nome','Cargo Operacional QA'],
+  ]) {
+    await page.goto('http://127.0.0.1:5185/app/organizacao');await page.getByRole('button',{name:new RegExp(`^${tab}`)}).click();
+    await page.getByRole('button',{name:`Editar ${singular} ${record.name}`,exact:true}).click();const editor=page.getByRole('dialog',{name:`Editar ${singular}`,exact:true});
+    await editor.getByLabel(field,{exact:true}).waitFor();
+    check(await editor.getByLabel(resource==='companies'?'CNPJ':resource==='departments'?'Unidade':'Empresa',{exact:true}).isDisabled(),`Organization: ${resource} identity and parent stay fixed`);
+    await editor.getByLabel(field,{exact:true}).fill(name);await editor.getByLabel('Motivo da alteração',{exact:true}).fill(`Atualização conferida de ${singular}`);
+    await editor.getByRole('checkbox',{name:'Conferi as alterações deste cadastro.',exact:true}).check();await editor.getByRole('button',{name:'Salvar alterações',exact:true}).click();await editor.waitFor({state:'hidden'});
+    await page.goto('http://127.0.0.1:5185/app/organizacao');await page.getByRole('button',{name:new RegExp(`^${tab}`)}).click();await page.getByRole('cell').getByText(name,{exact:true}).waitFor();
+    await page.getByRole('button',{name:`Editar ${singular} ${name}`,exact:true}).click();await editor.getByText('Histórico de alterações',{exact:true}).click();await editor.getByText(`Atualização conferida de ${singular}`,{exact:true}).waitFor();
+    check(true,`Real API: ${resource} edit persists and opens its administrative history`);
+    if(resource==='units'){await page.setViewportSize({width:390,height:844});check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Organization: edit form fits at 390px');await page.screenshot({path:join(dir,'organization-unit-edit-mobile.png'),fullPage:true});await page.setViewportSize({width:1365,height:900});}
+    await editor.getByRole('button',{name:'Cancelar',exact:true}).click();
+  }
+  await page.goto('http://127.0.0.1:5185/app/organizacao');await page.getByRole('button',{name:'Editar empresa Empresa Operacional QA',exact:true}).click();
+  const conflictedEditor=page.getByRole('dialog',{name:'Editar empresa',exact:true});await conflictedEditor.getByLabel('Nome fantasia',{exact:true}).fill('Nome preservado no formulário');
+  await conflictedEditor.getByLabel('Motivo da alteração',{exact:true}).fill('Conferência de concorrência');await conflictedEditor.getByRole('checkbox').check();
+  await page.evaluate(async companyId=>{const{api}=await import('/src/shared/api/client.ts');const path=`/organization-management/companies/${companyId}`,s=await api.get(path);await api.patch(path,{expectedVersion:s.version,reason:'Atualização concorrente QA',confirmation:true,values:{...s.values,fantasyName:'Nome salvo por outra edição QA'}});},qaCompany);
+  await conflictedEditor.getByRole('button',{name:'Salvar alterações',exact:true}).click();await conflictedEditor.getByRole('alert').filter({hasText:'O cadastro foi alterado'}).waitFor();
+  check(await conflictedEditor.getByLabel('Nome fantasia',{exact:true}).inputValue()==='Nome preservado no formulário'&&await conflictedEditor.getByRole('button',{name:'Salvar alterações',exact:true}).isDisabled(),'Organization: concurrent edit preserves input and blocks stale replay');
+  page.once('dialog',dialog=>dialog.accept());await conflictedEditor.getByRole('button',{name:'Cancelar',exact:true}).click();
+  await page.screenshot({path:join(dir,'organization-edited-desktop.png'),fullPage:true});
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://127.0.0.1:5185/app/organizacao'); await page.getByRole('heading', { name: 'Organização', exact: true }).waitFor();
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile: no page overflow at 390px');
