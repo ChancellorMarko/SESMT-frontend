@@ -6,6 +6,7 @@ public interface IAppointmentRepository
 {
     Task<IReadOnlyList<Guid>> AccessibleCompaniesAsync(Guid actor, CancellationToken ct);
     Task<bool> HasRoleAsync(Guid actor, Guid company, string role, CancellationToken ct);
+    Task<bool> HasPermissionAsync(Guid actor, Guid company, string action, CancellationToken ct);
     Task<bool> ActiveLocationAsync(Guid location, Guid company, CancellationToken ct);
     Task<bool> ActiveUserAsync(Guid user, Guid company, CancellationToken ct);
     Task<bool> CanAttendAsync(Guid user, Guid company, Guid location, string[] services, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);

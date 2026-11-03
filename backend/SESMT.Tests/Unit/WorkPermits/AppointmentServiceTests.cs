@@ -134,6 +134,7 @@ public sealed class AppointmentServiceTests
         public RequestAppointment Request() => new(Company, Location, Team, "Atendimento de teste", Now.AddHours(1), Now.AddHours(2), Services, [Person]);
         public Task<IReadOnlyList<Guid>> AccessibleCompaniesAsync(Guid actor, CancellationToken ct) => Task.FromResult<IReadOnlyList<Guid>>(actor == Actor ? [Company] : []);
         public Task<bool> HasRoleAsync(Guid actor, Guid company, string role, CancellationToken ct) => Task.FromResult(actor == Actor && company == Company);
+        public Task<bool> HasPermissionAsync(Guid actor, Guid company, string action, CancellationToken ct) => Task.FromResult(actor == Actor && company == Company);
         public Task<bool> ActiveLocationAsync(Guid location, Guid company, CancellationToken ct) => Task.FromResult(location == Location && company == Company);
         public Task<bool> ActiveUserAsync(Guid user, Guid company, CancellationToken ct) => Task.FromResult(user == Actor && company == Company);
         public Task<bool> CanAttendAsync(Guid user, Guid company, Guid location, string[] services, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) => Task.FromResult(Designated);

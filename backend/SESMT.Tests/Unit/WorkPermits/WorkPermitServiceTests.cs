@@ -374,6 +374,7 @@ public class WorkPermitServiceTests
         public Task<bool> HasEffectiveDesignationAsync(Guid actorId, Guid companyId, Guid locationId, IReadOnlyCollection<Guid> services, string type, DateTimeOffset instant, CancellationToken cancellationToken = default) { SeenServices = services.ToArray(); return Task.FromResult(Effective); }
         public Task<IReadOnlyList<Guid>> GetScopedCompanyIdsAsync(Guid actorId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> HasRoleInCompanyAsync(Guid actorId, Guid companyId, string roleCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> HasPermissionAsync(Guid actorId, Guid companyId, string action, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Guid?> GetActiveWorkerCompanyIdAsync(Guid personId, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> AreActiveLocationsInCompanyAsync(IReadOnlyCollection<Guid> locationIds, Guid companyId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task AddAsync(OperationalDesignation designation, CancellationToken cancellationToken = default) => throw new NotSupportedException();

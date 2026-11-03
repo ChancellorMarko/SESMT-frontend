@@ -50,6 +50,15 @@ public sealed class WorkerProfessionalProfilePostgresTests(PostgresDatabaseFixtu
         using var stale = await client.PatchAsJsonAsync($"/api/v1/workers/{f.Worker}/professional-profile", Body("Pessoa Antiga", enrollment, f.Sector, f.Position)); Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
     }
     [PostgresFact]
+    public async Task AProfessionalChangeStoresTheFullAcceptedReason()
+    {
+        await using var factory = new PostgresApiFactory(database); var f = await Setup(factory); using var client = f.Client;
+        await using var db = database.CreateContext(); var worker = await db.Workers.SingleAsync(w => w.Id == f.Worker); var reason = new string('x', 200);
+        using var response = await client.PatchAsJsonAsync($"/api/v1/workers/{f.Worker}/professional-profile", new { name="Pessoa Atualizada", enrollment=worker.Enrollment, departmentId=f.Sector, positionId=f.Position, reason, expectedRevision=1, confirmation=true });
+        Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+        Assert.Equal(reason,(await db.Set<WorkerHistory>().SingleAsync(h=>h.WorkerId==f.Worker&&h.EndDate==null)).ReasonForChange);
+    }
+    [PostgresFact]
     public async Task TwoEditorsCannotOverwriteTheSameWorkerRevision()
     {
         await using var factory = new PostgresApiFactory(database); var f = await Setup(factory); using var client = f.Client;

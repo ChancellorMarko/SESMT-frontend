@@ -25,6 +25,7 @@ const nav = [
   { to: 'dashboard', label: 'Visão geral', icon: LayoutDashboard, permission: 'dashboard.read' },
   { to: 'consulta', label: 'Consulta central', icon: FileSearch, permission: 'documents.read', alternativePermissions: ['permits.read', 'at.read', 'pet.read'] },
   { to: 'agenda', label: 'Agenda', icon: CalendarDays, permission: 'appointments.read' },
+  { to: 'epis', label: 'EPIs', icon: HardHat, permission: 'epi:ler' },
   { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
   { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
   { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
@@ -48,7 +49,7 @@ const config = [
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [
-  { label: 'Operação', routes: ['dashboard', 'agenda', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
+  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
   { label: 'Gestão documental', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
   { label: 'Pessoas e organização', routes: ['equipes', 'trabalhadores', 'organizacao'] },
   { label: 'Controle', routes: ['notificacoes', 'auditoria'] },
@@ -70,6 +71,7 @@ const moduleDetails: Record<string, { description: string; terms: string }> = {
   dashboard: { description: 'Acompanhe a operação da unidade', terms: 'painel início indicadores' },
   consulta: { description: 'Encontre registros em um só lugar', terms: 'busca pesquisa central' },
   agenda: { description: 'Serviços, horários e responsáveis', terms: 'agendamentos calendário planejamento' },
+  epis: { description: 'Equipamentos, entregas e devoluções', terms: 'EPI equipamentos proteção individual CA luvas capacetes calçados' },
   pendencias: { description: 'Requisitos por participante', terms: 'elegibilidade prontidão bloqueios' },
   ats: { description: 'Autorização de Trabalho (AT)', terms: 'AT ATs autorização autorizações' },
   pts: { description: 'Permissão de Trabalho (PT)', terms: 'PT PTs permissão permissões' },
@@ -168,7 +170,9 @@ export function AppLayout() {
   const [motionReplay, setMotionReplay] = useState(0);
   const closeMotionSettings = () => { setMotionSettings(false); setMotionReplay(value => value + 1); };
   useContentMotion(contentRef, `${pageContext}:${s.sessionKey}:${s.unitId}:${motionReplay}`, reduceMotion, Boolean(location.hash));
-  const canNavigate = (item: { to: string; permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES && (['dashboard.read','appointments.read'].includes(item.permission) || item.to==='pts' || item.permission==='teams.read'&&s.can('equipe:ler')) || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
+  const canNavigate = (item: { to: string; permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES
+    ? item.to==='dashboard' || item.to==='agenda' && s.can('agenda:ler') || item.to==='designacoes' && s.can('designacao:ler') || item.to==='pts' && s.can('pt:ler') || item.to==='equipes' && s.can('equipe:ler') || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)))
+    : s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)));
   const canConfigure = (item: { permission: string; alternativePermission?: string }) => s.can(item.permission) || Boolean(item.alternativePermission && s.can(item.alternativePermission));
   const navigationContext = `${pageContext}:${s.sessionKey}:${s.unitId}`;
   const [guideContext, setGuideContext] = useState<string | null>(null);
@@ -272,6 +276,7 @@ export function AppLayout() {
   const role = roleLabels(s.me?.roles ?? []);
   const activeArea = areaName ? dashboardArea : null;
   const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
+  if (NATIVE_MODULES && s.can('epi:ler')) visibleDockItems.push({to:'/app/epis',label:'EPIs',compactLabel:'EPIs',icon:HardHat});
   const shortcuts = nav.filter(item => ['agenda', 'documentos', 'equipes'].includes(item.to) && canNavigate(item));
 
   // Resolve the home redirect before exposing controls tied to a temporary /app location.

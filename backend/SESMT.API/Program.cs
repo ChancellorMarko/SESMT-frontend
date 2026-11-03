@@ -216,6 +216,9 @@ if (Environment.GetEnvironmentVariable("SESMT_SEED_EXAMPLES") == "1")
     var examples = await LocalExampleSeeder.SeedAsync(seedScope.ServiceProvider.GetRequiredService<SESMT.Infrastructure.Persistence.SesmtDbContext>(),
         seedScope.ServiceProvider.GetRequiredService<IPasswordHashService>(), seedScope.ServiceProvider.GetRequiredService<ICpfProtectionService>(),
         builder.Configuration["Seed:AdminEmail"] ?? "", Environment.GetEnvironmentVariable("SESMT_EXAMPLE_PASSWORD") ?? "", DateTimeOffset.UtcNow);
+    if (Environment.GetEnvironmentVariable("SESMT_NORMALIZE_LOCAL_DATA") == "1")
+        Console.WriteLine("LOCAL_PRESENTATION_RESULT:" + System.Text.Json.JsonSerializer.Serialize(await LocalOperationalData.PrepareAsync(
+            seedScope.ServiceProvider.GetRequiredService<SESMT.Infrastructure.Persistence.SesmtDbContext>(), builder.Configuration["Seed:AdminEmail"] ?? "", default)));
     Console.WriteLine("EXAMPLE_SEED_RESULT:" + System.Text.Json.JsonSerializer.Serialize(examples));
     return;
 }

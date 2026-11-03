@@ -4,17 +4,24 @@ using SESMT.Domain.Modules.IdentityAccess.Entities;
 using SESMT.Domain.Modules.IdentityAccess.Constants;
 using SESMT.Domain.Modules.WorkPermits.Entities;
 using SESMT.Infrastructure.Persistence;
+using SESMT.Infrastructure.Persistence.Queries;
 
 namespace SESMT.Infrastructure.Persistence.Repositories.WorkPermits;
 
 public sealed class OperationalDesignationRepository(SesmtDbContext db) : IOperationalDesignationRepository
 {
-    public async Task<IReadOnlyList<Guid>> GetScopedCompanyIdsAsync(Guid actorId, CancellationToken ct = default) =>
-        await (from scope in db.UserScopes join company in db.Companies on scope.ReferenceId equals company.Id
+    public async Task<IReadOnlyList<Guid>> GetScopedCompanyIdsAsync(Guid actorId, CancellationToken ct = default)
+    {
+        var scoped = await (from scope in db.UserScopes join company in db.Companies on scope.ReferenceId equals company.Id
             join user in db.Users on scope.UserId equals user.Id
             where scope.UserId == actorId && scope.ScopeType == ScopeType.EMPRESA && scope.Active && scope.DeletedAt == null
                 && user.Active && user.DeletedAt == null && company.Active && company.DeletedAt == null
             select company.Id).Distinct().ToListAsync(ct);
+        return scoped.Concat(await GlobalAdministrationScope.CompanyIdsAsync(db, actorId, "designacao", "ler", ct)).Distinct().ToArray();
+    }
+
+    public Task<bool> HasPermissionAsync(Guid actorId, Guid companyId, string action, CancellationToken ct = default)
+        => OperationalPermissionScope.HasAsync(db, actorId, companyId, "designacao", action, ct);
 
     public Task<bool> HasRoleInCompanyAsync(Guid actorId, Guid companyId, string roleCode, CancellationToken ct = default) =>
         (from link in db.UserRoles join role in db.Roles on link.RoleId equals role.Id

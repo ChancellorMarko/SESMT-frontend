@@ -4,7 +4,7 @@ Aplicação React e TypeScript para agenda de serviços, gestão documental, equ
 
 Esta branch reúne o frontend na raiz e a API .NET completa em [`backend/`](backend/README.md), incluindo as correções de integração, autorização, documentos, equipes e vínculo inicial de contas. Os dois projetos podem ser executados a partir deste checkout. Consulte [INTEGRACAO.md](INTEGRACAO.md) para configuração, migrações, contratos e limitações de homologação.
 
-No modo integrado, a administração permite cadastrar usuários, atribuir perfis/locais e cadastrar empresas, unidades, setores e cargos. A ficha de trabalhadores oferece edição profissional com revisão e histórico, preservando CPF, nascimento, datas e conta vinculada. Os perfis vêm do banco. O login seleciona a tela inicial pelas permissões efetivas, e os seletores usam a hierarquia autorizada de empresas/unidades/setores. A demonstração conserva seus dados e fluxos separados; a presença de uma tela nesse modo não comprova integração completa do módulo.
+No modo integrado, a administração permite cadastrar usuários, atribuir perfis/locais e cadastrar empresas, unidades, setores e cargos. A ficha de trabalhadores oferece edição profissional com revisão e histórico, preservando CPF, nascimento, datas e conta vinculada. EPIs oferecem catálogo, entrega, consulta individual e devolução com auditoria e controle de revisão. Agenda e designações usam permissões próprias, sem exigir administração de usuários para escolher o responsável. Os perfis vêm do banco. O login seleciona a tela inicial pelas permissões efetivas, e os seletores usam a hierarquia autorizada de empresas/unidades/setores. A demonstração conserva seus dados e fluxos separados; a presença de uma tela nesse modo não comprova integração completa do módulo.
 
 Para executar a versão integrada, com Node.js >=22.12, SDK .NET 10 e PostgreSQL disponíveis:
 
@@ -22,7 +22,7 @@ npm run dev:integrated
 
 O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 
-Para popular a prévia local com exemplos persistidos na API/PostgreSQL, execute `npm run seed:local-examples`. A carga exige Development e um banco separado `ampara_fullstack_preview_AAAAMMDD` em loopback, faz backup antes de gravar e não substitui cadastros ou senhas existentes. Contas e senha local gerada ficam em `.local/fullstack-preview/example-access.json`, fora do Git. Os documentos permanecem em rascunho e as PTs em verificação. Consulte os detalhes em [INTEGRACAO.md](INTEGRACAO.md#dados-de-exemplo-no-banco-local).
+Para popular a prévia local com exemplos persistidos na API/PostgreSQL, execute `npm run seed:local-examples -- --normal-names`. A carga exige Development e um banco separado `ampara_fullstack_preview_AAAAMMDD` em loopback, faz backup antes de gravar e não substitui cadastros ou senhas existentes. Contas e senha local gerada ficam em `.local/fullstack-preview/example-access.json`, fora do Git. A opção `--normal-names` usa nomes de uso cotidiano e acrescenta seis EPIs e seis entregas entre as unidades. Os documentos permanecem em rascunho e as PTs em verificação. Consulte os detalhes em [INTEGRACAO.md](INTEGRACAO.md#dados-de-exemplo-no-banco-local).
 
 ## Executar
 

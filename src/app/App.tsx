@@ -22,6 +22,7 @@ const WorkerFormPage=lazy(()=>import('../features/workers').then(m=>({default:m.
 const NativeWorkerCreate=lazy(()=>import('../features/native-workers/NativeWorkerCreate').then(m=>({default:m.NativeWorkerCreate})));
 const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/NativeWorkerAccountPage').then(m=>({default:m.NativeWorkerAccountPage})));
 const NativeWorkerProfessionalPage=lazy(()=>import('../features/native-workers/NativeWorkerProfessionalPage').then(m=>({default:m.NativeWorkerProfessionalPage})));
+const NativeEquipmentPage=lazy(()=>import('../features/native-equipment/NativeEquipmentPage').then(m=>({default:m.NativeEquipmentPage})));
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
@@ -97,6 +98,7 @@ export function App() {
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
       <Route path="minha-representacao" element={<Guard permission="permits.review"><SignatureProfilePage/></Guard>}/>
       <Route path="dashboard" element={NATIVE_MODULES ? <Guard><NativeDashboardPage/></Guard> : <Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
+      <Route path="epis" element={NATIVE_MODULES ? <Guard permission="epi:ler"><NativeEquipmentPage/></Guard> : <Navigate to="/app/dashboard?area=epis" replace/>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={NATIVE_MODULES?<Guard><NativeAgendaPage/></Guard>:<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
       <Route path="agenda/novo" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="appointment"/></Guard>:<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>

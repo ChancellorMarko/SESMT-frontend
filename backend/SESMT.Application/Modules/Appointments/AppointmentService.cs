@@ -10,9 +10,6 @@ namespace SESMT.Application.Modules.Appointments;
 
 public sealed class AppointmentService(IAppointmentRepository repository, AppointmentOptions options, TimeProvider clock)
 {
-    private static readonly string[] ReadRoles = [WorkPermitRoleCodes.Requester, WorkPermitRoleCodes.Operator,
-        WorkPermitRoleCodes.Releaser, WorkPermitRoleCodes.Configurator];
-
     public async Task<AppointmentResponse> CreateAsync(RequestAppointment request, Guid actor, CancellationToken ct = default)
     {
         if (request.CompanyId == Guid.Empty || request.LocationId == Guid.Empty || request.TeamId == Guid.Empty || request.ServiceIds is null)
@@ -191,8 +188,7 @@ public sealed class AppointmentService(IAppointmentRepository repository, Appoin
     private async Task AuthorizeAsync(Guid actor, Guid company, bool manage, CancellationToken ct)
     {
         if (!(await repository.AccessibleCompaniesAsync(actor, ct)).Contains(company)) throw new NotFoundException("Empresa não encontrada.");
-        var roles = manage ? new[] {WorkPermitRoleCodes.Configurator} : new[] {WorkPermitRoleCodes.Requester, WorkPermitRoleCodes.Configurator};
-        foreach (var role in roles) if (await repository.HasRoleAsync(actor, company, role, ct)) return;
+        if (await repository.HasPermissionAsync(actor, company, manage ? "editar" : "criar", ct)) return;
         throw new WorkPermitForbiddenException();
     }
     private async Task<IReadOnlyList<Guid>> ReadCompaniesAsync(Guid actor, Guid? selected, CancellationToken ct)
@@ -201,8 +197,7 @@ public sealed class AppointmentService(IAppointmentRepository repository, Appoin
         if (selected.HasValue && !companies.Contains(selected.Value)) throw new NotFoundException("Empresa não encontrada.");
         var permitted = new List<Guid>();
         foreach (var company in companies.Where(id => !selected.HasValue || id == selected.Value))
-            foreach (var role in ReadRoles)
-                if (await repository.HasRoleAsync(actor, company, role, ct)) { permitted.Add(company); break; }
+            if (await repository.HasPermissionAsync(actor, company, "ler", ct)) permitted.Add(company);
         if (permitted.Count == 0) throw new WorkPermitForbiddenException();
         return permitted;
     }

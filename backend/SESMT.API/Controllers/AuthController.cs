@@ -128,6 +128,7 @@ public sealed class AuthController : ApiControllerBase
             },
             roles = authData.Roles,
             permissions,                          // ← agora vem do banco
+            workerId = workspace.WorkerId,
             scope = new
             {
                 companyIds = workspace.CompanyIds,

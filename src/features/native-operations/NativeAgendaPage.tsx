@@ -30,7 +30,7 @@ function Agenda() {
   }
   function page(number: number) { const next = new URLSearchParams(params); next.set('page', String(number)); setParams(next); }
   return <div className="stack">
-    <PageHeader title="Agenda" description="Agendamentos autorizados para sua conta. O cabeçalho não restringe esta consulta por unidade. As datas usam dias UTC e incluem atividades que atravessam o período; horários são exibidos em Brasília." actions={<><Button variant="secondary" disabled={!criteria || appointments.isFetching} onClick={() => void appointments.refetch()}>Atualizar agenda</Button>{can('pt:criar') && <Link className="button button--primary" to="/app/agenda/novo" state={{ nativeReturnTo: `${location.pathname}${location.search}` }}>Solicitar agendamento</Link>}</>}/>
+    <PageHeader title="Agenda" description="Atividades, horários e responsáveis. Os horários são exibidos em Brasília." actions={<><Button variant="secondary" disabled={!criteria || appointments.isFetching} onClick={() => void appointments.refetch()}>Atualizar agenda</Button>{can('agenda:criar') && <Link className="button button--primary" to="/app/agenda/novo" state={{ nativeReturnTo: `${location.pathname}${location.search}` }}>Solicitar agendamento</Link>}</>}/>
     {location.state?.nativeCreated===true&&<Feedback tone="success">Solicitação de agendamento registrada.</Feedback>}
     <form className={`panel ${styles.toolbar}`} aria-label="Filtros da agenda" onSubmit={submit}>
       <Field label="Buscar por título"><input type="search" value={q} maxLength={200} onChange={event => setQ(event.target.value)}/></Field>

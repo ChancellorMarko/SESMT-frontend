@@ -2,11 +2,14 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SESMT.Application.Modules.Appointments;
+using Microsoft.EntityFrameworkCore;
+using SESMT.API.Services;
+using SESMT.Infrastructure.Persistence;
 
 namespace SESMT.API.Controllers;
 
 [ApiController, Authorize, Route("appointments")]
-public sealed class AppointmentsController(AppointmentService service) : ApiControllerBase
+public sealed class AppointmentsController(AppointmentService service, IAppointmentRepository repository, SesmtDbContext db, NativeResourceAccess access) : ApiControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Create(RequestAppointment request, CancellationToken ct)
@@ -46,6 +49,23 @@ public sealed class AppointmentsController(AppointmentService service) : ApiCont
     public async Task<IActionResult> Configure(Guid id, ConfigureAppointment request, CancellationToken ct)
     {
         if (!Actor(out var actor)) return Unauthenticated(); return Ok(await service.ConfigureAsync(id, request, actor, ct));
+    }
+    [HttpGet("{id:guid}/responsibles")]
+    public async Task<IActionResult> Responsibles(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        if (!Actor(out var actor)) return Unauthenticated();
+        var appointment = await service.GetAsync(id, actor, ct);
+        await access.RequireAsync("agenda:editar", appointment.CompanyId, false, ct);
+        var people = await (from worker in db.Workers join user in db.Users on worker.UserId equals user.Id
+            where worker.CompanyId == appointment.CompanyId && worker.Active && worker.DeletedAt == null && worker.DismissalDate == null
+                && user.Active && user.DeletedAt == null
+            select new { user.Id, name = user.Name, active = user.Active }).Distinct().ToArrayAsync(ct);
+        var result = new List<object>();
+        foreach (var person in people)
+            if (appointment.LocationId.HasValue && await repository.CanAttendAsync(person.Id, appointment.CompanyId, appointment.LocationId.Value,
+                appointment.ServiceCodes, appointment.StartsAt, appointment.EndsAt, ct)) result.Add(person);
+        return Ok(result);
     }
     private IActionResult Unauthenticated()
         => Failure(401, "INVALID_CLAIMS", "Não foi possível identificar o usuário.");

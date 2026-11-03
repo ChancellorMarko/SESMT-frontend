@@ -122,6 +122,14 @@ public static class DatabaseSeeder
             ("usuario", "excluir", "Desativar usuários"),
 
             // ASO / dados clínicos
+            ("epi", "ler", "Consultar equipamentos e entregas"),
+            ("agenda", "ler", "Consultar agendamentos"),
+            ("agenda", "criar", "Solicitar agendamentos"),
+            ("agenda", "editar", "Confirmar e gerenciar agendamentos"),
+            ("designacao", "ler", "Consultar designações operacionais"),
+            ("designacao", "editar", "Atribuir e revogar designações operacionais"),
+            ("epi", "criar", "Cadastrar equipamentos e registrar entregas"),
+            ("epi", "editar", "Editar equipamentos e registrar devoluções"),
             ("aso", "ler",   "Consultar ASO (dados sensíveis)"),
             ("aso", "editar","Registrar ASO (dados sensíveis)"),
 
@@ -268,10 +276,12 @@ public static class DatabaseSeeder
         var tecnicoRole = roles.FirstOrDefault(r => r.Code == "TECNICO");
         if (tecnicoRole is not null)
         {
-            var tecnicoResources = new[] { "documento", "pt", "trabalhador", "equipe" };
+            var tecnicoResources = new[] { "documento", "pt", "trabalhador", "equipe", "epi" };
             var tecnicoPerms = permissions.Where(p =>
                 tecnicoResources.Contains(p.Resource) &&
-                p.Action != "excluir");
+                p.Action != "excluir" ||
+                p.Action == "ler" && new[] { "empresa", "unidade", "setor", "cargo", "agenda", "designacao" }.Contains(p.Resource) ||
+                p.Resource == "agenda" && p.Action == "criar");
 
             foreach (var perm in tecnicoPerms)
             {
@@ -303,6 +313,7 @@ public static class DatabaseSeeder
             var rhPerms = permissions.Where(p =>
                 (p.Resource == "trabalhador") ||
                 (p.Resource == "documento" && p.Action == "ler") ||
+                (p.Resource == "epi" && p.Action == "ler") ||
                 (p.Resource == "unidade" && p.Action == "ler") ||
                 (p.Resource == "setor" && p.Action == "ler") ||
                 (p.Resource == "cargo" && p.Action == "ler"));
@@ -327,13 +338,13 @@ public static class DatabaseSeeder
             }
         }
 
-        // TRABALHADOR → apenas documentos e treinamentos (próprios)
+        // TRABALHADOR → consulta dos próprios documentos, EPIs e PTs; sem comandos de gestão.
         var trabalhadorRole = roles.FirstOrDefault(r => r.Code == "TRABALHADOR");
         if (trabalhadorRole is not null)
         {
             var trabalhadorPerms = permissions.Where(p =>
                 p.Action == "ler" &&
-                (p.Resource == "documento" || p.Resource == "trabalhador"));
+                (p.Resource == "documento" || p.Resource == "trabalhador" || p.Resource == "epi" || p.Resource == "pt"));
 
             foreach (var perm in trabalhadorPerms)
             {
@@ -354,6 +365,20 @@ public static class DatabaseSeeder
                 if (!existingSet.Contains((auditorRole.Id, perm.Id)))
                     newLinks.Add(new RolePermission(auditorRole.Id, perm.Id));
             }
+        }
+
+        foreach (var operational in roles.Where(r => r.Code is "SESMT_PT_CONFIG" or "SESMT_PT_SOLICITANTE" or "SESMT_PT_OPERADOR" or "SESMT_PT_LIBERADOR"))
+        {
+            var configure = operational.Code == "SESMT_PT_CONFIG";
+            var request = operational.Code == "SESMT_PT_SOLICITANTE";
+            var operate = operational.Code == "SESMT_PT_OPERADOR";
+            var release = operational.Code == "SESMT_PT_LIBERADOR";
+            foreach (var permission in permissions.Where(p =>
+                p.Action == "ler" && new[] { "pt", "agenda", "designacao", "empresa", "unidade", "setor", "cargo", "trabalhador", "equipe" }.Contains(p.Resource)
+                || p.Resource == "pt" && (p.Action == "criar" && (request || configure) || p.Action == "editar" && (operate || configure) || p.Action is "iniciar" or "concluir" && operate || p.Action == "liberar" && release)
+                || p.Resource == "agenda" && (p.Action == "criar" && (request || configure) || p.Action == "editar" && configure)
+                || p.Resource == "designacao" && p.Action == "editar" && configure))
+                if (!existingSet.Contains((operational.Id, permission.Id))) newLinks.Add(new RolePermission(operational.Id, permission.Id));
         }
 
         if (newLinks.Count > 0)

@@ -41,6 +41,16 @@ public sealed class LocalExampleSeederPostgresTests
             Assert.False(repeated.CredentialsMatch);
             await db.Entry(person).ReloadAsync(); Assert.Equal("Exemplo Nome Editado Pela Equipe", person.Name); Assert.Equal(originalHash, person.PasswordHash);
             Assert.Equal(beforeWorkers, await db.Workers.CountAsync(w => w.CompanyId == database.CompanyA));
+            var cpfHashes = await db.Workers.Where(w => w.CompanyId == result.CompanyId).Select(w => w.CpfHash).OrderBy(x => x).ToArrayAsync();
+            await LocalOperationalData.PrepareAsync(db, "seed-admin@example.invalid", default);
+            Assert.Equal(6, await db.Equipment.CountAsync(e => e.CompanyId == result.CompanyId));
+            Assert.Equal(6, await db.EquipmentDeliveries.CountAsync(e => e.CompanyId == result.CompanyId));
+            Assert.DoesNotContain(await db.WorkPermitAppointments.Where(a => a.CompanyId == result.CompanyId).Select(a => a.Title).ToArrayAsync(), title => title.Contains("EXEMPLO"));
+            Assert.Equal(cpfHashes, await db.Workers.Where(w => w.CompanyId == result.CompanyId).Select(w => w.CpfHash).OrderBy(x => x).ToArrayAsync());
+            Assert.All(await db.WorkPermits.Where(p => p.CompanyId == result.CompanyId).ToListAsync(), p => Assert.Equal(WorkPermitStatus.UnderReview, p.Status));
+            await LocalOperationalData.PrepareAsync(db, "seed-admin@example.invalid", default);
+            Assert.Equal(6, await db.Equipment.CountAsync(e => e.CompanyId == result.CompanyId)); Assert.Equal(6, await db.EquipmentDeliveries.CountAsync(e => e.CompanyId == result.CompanyId));
+            await db.Entry(person).ReloadAsync(); Assert.Equal("Exemplo Nome Editado Pela Equipe", person.Name); Assert.Equal(originalHash, person.PasswordHash);
         }
         finally { await database.DisposeAsync(); }
     }

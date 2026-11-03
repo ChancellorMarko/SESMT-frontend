@@ -2,13 +2,16 @@ using Microsoft.EntityFrameworkCore;
 using SESMT.Application.Modules.Appointments;
 using SESMT.Application.Modules.WorkPermits.Interfaces;
 using SESMT.Domain.Modules.WorkPermits.Entities;
+using SESMT.Infrastructure.Persistence.Queries;
 
 namespace SESMT.Infrastructure.Persistence.Repositories;
 
 public sealed class AppointmentRepository(SesmtDbContext db, IWorkPermitRepository permissions) : IAppointmentRepository
 {
-    public Task<IReadOnlyList<Guid>> AccessibleCompaniesAsync(Guid actor, CancellationToken ct) => permissions.GetAccessibleCompanyIdsAsync(actor, ct);
+    public async Task<IReadOnlyList<Guid>> AccessibleCompaniesAsync(Guid actor, CancellationToken ct) =>
+        (await permissions.GetAccessibleCompanyIdsAsync(actor, ct)).Concat(await GlobalAdministrationScope.CompanyIdsAsync(db, actor, "agenda", "ler", ct)).Distinct().ToArray();
     public Task<bool> HasRoleAsync(Guid actor, Guid company, string role, CancellationToken ct) => permissions.HasRoleInCompanyAsync(actor, company, role, ct);
+    public Task<bool> HasPermissionAsync(Guid actor, Guid company, string action, CancellationToken ct) => OperationalPermissionScope.HasAsync(db, actor, company, "agenda", action, ct);
     public Task<bool> ActiveLocationAsync(Guid location, Guid company, CancellationToken ct) => permissions.IsActiveLocationInCompanyAsync(location, company, ct);
     public Task<bool> ActiveUserAsync(Guid user, Guid company, CancellationToken ct) => permissions.IsActiveCompanyUserAsync(user, company, ct);
     public async Task<bool> CanAttendAsync(Guid user, Guid company, Guid location, string[] services, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)

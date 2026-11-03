@@ -1,5 +1,7 @@
 # Prompt de alinhamento e implementação do backend — Ampara SESMT
 
+Atualização de 03/11/2026 na branch `codex/fullstack-atualizado`: este prompt conserva o diagnóstico histórico abaixo. O contrato atual está em `INTEGRACAO.md` e nos fontes `backend/`. Já há edição profissional do trabalhador, gestão nativa de acessos, catálogo/entregas/devoluções de EPI e autorização explícita de agenda e designações. Use `epi:ler/criar/editar`, `agenda:ler/criar/editar` e `designacao:ler/editar`; a permissão de editar PT não substitui essas concessões. A lista de responsáveis da agenda usa `/appointments/{id}/responsibles`. Saúde, AT e PET continuam com integração própria pendente. Não implemente novamente um recurso sem comparar o checkout recebido com essa versão.
+
 Referência: frontend 0.5.0 e backend incorporado à branch `Teste`, commit de partida `0246846`; atualizado em 24/10/2026. Este texto pode ser encaminhado à equipe de backend ou usado como prompt de trabalho no checkout da API. Confira alterações posteriores antes de implementar.
 
 ---

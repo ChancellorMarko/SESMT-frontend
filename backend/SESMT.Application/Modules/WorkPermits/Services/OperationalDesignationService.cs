@@ -16,7 +16,7 @@ public sealed class OperationalDesignationService(IOperationalDesignationReposit
         var companies = await repository.GetScopedCompanyIdsAsync(actorId, ct);
         var companyId = await repository.GetActiveWorkerCompanyIdAsync(request.PersonId, companies, ct)
             ?? throw new NotFoundException("Pessoa não encontrada no escopo da sessão.");
-        if (!await repository.HasRoleInCompanyAsync(actorId, companyId, WorkPermitRoleCodes.Configurator, ct))
+        if (!await repository.HasPermissionAsync(actorId, companyId, "editar", ct))
             throw new WorkPermitForbiddenException();
         if (request.LocationIds.Count == 0 || request.LocationIds.Distinct().Count() != request.LocationIds.Count
             || !await repository.AreActiveLocationsInCompanyAsync(request.LocationIds, companyId, ct))
@@ -36,7 +36,7 @@ public sealed class OperationalDesignationService(IOperationalDesignationReposit
         var companies = await repository.GetScopedCompanyIdsAsync(actorId, ct);
         var authorized = new List<Guid>();
         foreach (var companyId in companies)
-            if (await repository.HasRoleInCompanyAsync(actorId, companyId, WorkPermitRoleCodes.Configurator, ct)) authorized.Add(companyId);
+            if (await repository.HasPermissionAsync(actorId, companyId, "ler", ct)) authorized.Add(companyId);
         if (authorized.Count == 0) throw new WorkPermitForbiddenException();
         var rows = await repository.ListAsync(authorized, ct);
         var valid = new List<OperationalDesignationResponse>();
@@ -57,7 +57,7 @@ public sealed class OperationalDesignationService(IOperationalDesignationReposit
         if (request.ExpectedVersion < 1) throw new ArgumentException("expectedVersion é obrigatório.");
         var companies = await repository.GetScopedCompanyIdsAsync(actorId, ct);
         var designation = await repository.GetAsync(id, companies, ct) ?? throw new NotFoundException("Designação não encontrada.");
-        if (!await repository.HasRoleInCompanyAsync(actorId, designation.CompanyId, WorkPermitRoleCodes.Configurator, ct))
+        if (!await repository.HasPermissionAsync(actorId, designation.CompanyId, "editar", ct))
             throw new WorkPermitForbiddenException();
         designation.Revoke(actorId, request.ExpectedVersion);
         await repository.SaveChangesAsync(ct);
