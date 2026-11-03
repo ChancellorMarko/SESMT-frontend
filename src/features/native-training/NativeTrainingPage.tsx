@@ -15,7 +15,12 @@ import styles from '../../shared/ui/NativeRecords.module.css';
 
 export function NativeTrainingPage() {
   const { sessionKey, unitId } = useSession();
-  return <TrainingWorkspace key={`${sessionKey}:${unitId}`}/>;
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const linkedUnits = params.getAll('unitId');
+  const linkedScope = linkedUnits.length > 1 ? linkedUnits : linkedUnits[0] || unitId;
+  const workspaceKey = JSON.stringify([sessionKey, unitId, linkedScope, params.getAll('workerId')]);
+  return <TrainingWorkspace key={workspaceKey}/>;
 }
 function TrainingWorkspace() {
   const { me, sessionKey, unitId, can, setUnitId } = useSession(), client = useQueryClient();
@@ -35,6 +40,8 @@ function TrainingWorkspace() {
   const enabled = Boolean(unitId && can('treinamento:ler') && !unitMismatch);
   const context = useVerifiedRead({ queryKey: ['native-training', sessionKey, unitId, 'context'], enabled,
     request: signal => api.get<unknown>('/trainings/context', { query: { unitId }, signal }), validate: value => checkedContext(value, scope) });
+  const canRegisterTraining = validCriteria && context.data?.canCreate &&
+    (!subjectWorkerId || context.data.workers.some(worker => worker.id === subjectWorkerId));
   const selectedScope = { ...scope, subjectWorkerId, companyIds: context.data ? [context.data.companyId] : scope.companyIds };
   const list = useVerifiedRead({ queryKey: ['native-training', sessionKey, unitId, 'list', subjectWorkerId, query, status, page], enabled: enabled && Boolean(context.data) && validCriteria,
     request: signal => api.get<unknown>('/trainings', { query: { unitId, workerId: subjectWorkerId, q: query, status, page, pageSize: 20 }, signal }),
@@ -62,7 +69,7 @@ function TrainingWorkspace() {
   }
   return <div className="stack">
     <PageHeader title="Treinamentos" description="Acompanhe cursos registrados e datas de renovação informadas. O cadastro não emite certificado, comprova habilitação ou libera uma atividade."
-      actions={context.data && <><Button variant="secondary" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}>Atualizar</Button>{validCriteria && !subjectWorkerId && context.data.canCreate && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
+      actions={context.data && <><Button variant="secondary" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}>Atualizar</Button>{canRegisterTraining && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
     {unitMismatch ? <Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions"><Button variant="secondary" onClick={() => setParams(new URLSearchParams(unitId ? { unitId } : {}))}>Usar unidade atual</Button>{params.getAll('unitId').length === 1 && me?.scope.unitIds?.includes(linkedUnit!) && <Button onClick={() => { if (window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) setUnitId(linkedUnit!); }}>Abrir unidade do link</Button>}</div></Feedback>
       : !enabled ? <Feedback tone="warning">Selecione uma unidade com acesso a treinamentos.</Feedback>
       : context.isPending ? <Spinner/> : context.isError ? <Feedback tone="danger">Não foi possível consultar os treinamentos desta unidade.</Feedback> : context.data && <>
@@ -117,11 +124,16 @@ async function refreshContext(scope: TrainingScope, signal: AbortSignal) {
   return checkedContext(await api.get<unknown>('/trainings/context', { query: { unitId: scope.unitId }, signal }), scope);
 }
 function TrainingEditor({ opening, context, scope, onClose, onSaved }: { opening?: Training; context: TrainingContext; scope: TrainingScope; onClose: () => void; onSaved: (id: string) => Promise<void> }) {
-  const [fields, setFields] = useState({ workerId: opening?.workerId ?? '', title: opening?.title ?? '', reference: opening?.reference ?? '', kind: opening?.kind ?? 'INITIAL',
+  const [fields, setFields] = useState({ workerId: opening?.workerId ?? scope.subjectWorkerId ?? '', title: opening?.title ?? '', reference: opening?.reference ?? '', kind: opening?.kind ?? 'INITIAL',
     completedOn: opening?.completedOn ?? localDay(), renewalOn: opening?.renewalOn ?? '', hours: String(Math.floor((opening?.durationMinutes ?? 0) / 60)), minutes: String((opening?.durationMinutes ?? 0) % 60),
     provider: opening?.provider ?? '', instructor: opening?.instructor ?? '', venue: opening?.venue ?? '', content: opening?.content ?? '', notes: opening?.notes ?? '', changeReason: '' });
   const [confirmed, confirm] = useState(false), [commandId] = useState(() => crypto.randomUUID()), savedId = useRef('');
-  function field(key: keyof typeof fields, value: string) { setFields(old => ({ ...old, [key]: value })); confirm(false); }
+  const [dirty, setDirty] = useState(false);
+  function field(key: keyof typeof fields, value: string) {
+    setFields(old => ({ ...old, [key]: value }));
+    setDirty(true);
+    confirm(false);
+  }
   async function perform(signal: AbortSignal) {
     const parsed = trainingFields.safeParse(fields);
     if (!confirmed || !parsed.success || fields.completedOn > localDay() || opening && fields.changeReason.trim().length < 3) throw new NativeFormError('Confira trabalhador, curso, datas, carga horária e confirmação.');
@@ -138,9 +150,9 @@ function TrainingEditor({ opening, context, scope, onClose, onSaved }: { opening
     const stored = checkedTraining(await api.get<unknown>(`/trainings/${saved.id}`, { query: { unitId: scope.unitId }, signal }), scope, saved.id);
     if (JSON.stringify(stored) !== JSON.stringify(saved)) throw new InvalidReadResponse(); savedId.current = saved.id;
   }
-  return <NativeCommandDialog title={opening ? 'Editar treinamento' : 'Registrar treinamento'} dirty={Boolean(fields.title || fields.workerId)} disabled={!confirmed} onClose={onClose}
+  return <NativeCommandDialog title={opening ? 'Editar treinamento' : 'Registrar treinamento'} dirty={dirty} disabled={!confirmed} onClose={onClose}
     onDone={() => onSaved(savedId.current)} perform={perform} submitLabel={opening ? 'Salvar alterações' : 'Registrar treinamento'}>{busy => <>
-      {opening ? <p>{opening.workerName}</p> : <Field label="Trabalhador" required><select value={fields.workerId} disabled={busy} onChange={event => field('workerId', event.target.value)}><option value="">Selecionar trabalhador</option>{context.workers.map(worker => <option key={worker.id} value={worker.id}>{worker.name} · {worker.enrollment}</option>)}</select></Field>}
+      {opening ? <p>{opening.workerName}</p> : <Field label="Trabalhador" required><select value={fields.workerId} disabled={busy || Boolean(scope.subjectWorkerId)} onChange={event => field('workerId', event.target.value)}><option value="">Selecionar trabalhador</option>{context.workers.map(worker => <option key={worker.id} value={worker.id}>{worker.name} · {worker.enrollment}</option>)}</select></Field>}
       <Field label="Nome do curso" required><input maxLength={160} value={fields.title} disabled={busy} onChange={event => field('title', event.target.value)}/></Field>
       <Field label="Referência ou NR"><input maxLength={40} value={fields.reference} disabled={busy} onChange={event => field('reference', event.target.value)}/></Field>
       <Field label="Tipo de treinamento"><select value={fields.kind} disabled={busy} onChange={event => field('kind', event.target.value)}>{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>

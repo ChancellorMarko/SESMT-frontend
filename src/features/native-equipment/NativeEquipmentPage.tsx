@@ -44,11 +44,13 @@ function EquipmentWorkspace() {
   const validDetail = safetyId(detailId) && params.getAll('entrega').length === 1;
   const details = useVerifiedRead({ queryKey:['native-equipment',sessionKey,unitId,'detail',subjectWorkerId,detailId],enabled:enabled && Boolean(context.data && validDetail),
     request:signal=>api.get<unknown>(`/equipment/deliveries/${detailId}`,{query:{unitId},signal}), validate:value=>{const item=checkedDelivery(value,selectedScope);if(item.id!==detailId)throw new InvalidReadResponse();return item;} });
+  const canRegisterDelivery = context.data?.canDeliver &&
+    (!subjectWorkerId || context.data.workers.some(worker => worker.id === subjectWorkerId));
   const close = () => { setEditor(undefined); selectEquipment(undefined); selectDelivery(undefined); };
   async function saved() { close(); setSuccess('Registro salvo.'); await Promise.all([client.invalidateQueries({queryKey:['native-equipment',sessionKey]}), client.invalidateQueries({queryKey:['worker-safety',sessionKey]})]); }
   function find(event:FormEvent) { event.preventDefault(); apply(q.trim()); setPage(1); if(search===q.trim()&&page===1) void data.refetch(); }
   function changeTab(value:string) { setTab(value);setPage(1);setQ('');apply('');setStatus(''); }
-  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><Button variant="secondary" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}>Atualizar</Button>{!subjectWorkerId&&context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{!subjectWorkerId&&context.data.canDeliver&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
+  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><Button variant="secondary" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}>Atualizar</Button>{!subjectWorkerId&&context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{canRegisterDelivery&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
     {unitMismatch?<Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions">
       <Button variant="secondary" onClick={()=>void reset()}>Usar unidade atual</Button>
       {linkedUnit && params.getAll('unitId').length===1 && me?.scope.unitIds?.includes(linkedUnit) && <Button onClick={()=>{if(window.dispatchEvent(new Event('sesmt:before-context-change',{cancelable:true})))setUnitId(linkedUnit);}}>Abrir unidade do link</Button>}
@@ -96,8 +98,13 @@ function CatalogEditor({opening,context,scope,onClose,onDone}:{opening?:Equipmen
   </>}</NativeCommandDialog>;
 }
 function DeliveryEditor({context,scope,onClose,onDone}:{context:EquipmentContext;scope:EquipmentScope;onClose:()=>void;onDone:()=>Promise<void>}) {
-  const [commandId]=useState(()=>crypto.randomUUID()),[fields,setFields]=useState({workerId:'',equipmentId:'',quantity:1,size:'',deliveredOn:localEquipmentDay(),replacementOn:'',notes:''}),[confirmed,confirm]=useState(false);
-  function field(key:keyof typeof fields,value:string|number){setFields(old=>({...old,[key]:value}));confirm(false);}
+  const [commandId]=useState(()=>crypto.randomUUID()),[fields,setFields]=useState({workerId:scope.subjectWorkerId ?? '',equipmentId:'',quantity:1,size:'',deliveredOn:localEquipmentDay(),replacementOn:'',notes:''}),[confirmed,confirm]=useState(false);
+  const [dirty, setDirty] = useState(false);
+  function field(key: keyof typeof fields, value: string | number) {
+    setFields(old => ({ ...old, [key]: value }));
+    setDirty(true);
+    confirm(false);
+  }
   async function perform(signal:AbortSignal) {
     const parsed=deliveryFields.safeParse(fields);if(!parsed.success||!confirmed||parsed.data.deliveredOn>localEquipmentDay())throw new NativeFormError('Confira trabalhador, equipamento, quantidade e datas da entrega.');
     const fresh=await freshContext(scope,signal);if(!fresh.canDeliver||!fresh.workers.some(w=>w.id===fields.workerId)||!fresh.equipment.some(e=>e.id===fields.equipmentId))throw new NativeContextConflict('O cadastro ou seu acesso mudou. Atualize a consulta antes de registrar a entrega.');
@@ -105,8 +112,8 @@ function DeliveryEditor({context,scope,onClose,onDone}:{context:EquipmentContext
     if(saved.companyId!==context.companyId||saved.workerId!==fields.workerId||saved.equipmentId!==fields.equipmentId||saved.quantity!==fields.quantity||saved.deliveredOn!==fields.deliveredOn||saved.replacementOn!==(fields.replacementOn||null)||saved.returnedOn||saved.revision!==1)throw new InvalidReadResponse();
     const stored=checkedDelivery(await api.get<unknown>(`/equipment/deliveries/${saved.id}`,{query:{unitId:scope.unitId},signal}),scope);if(JSON.stringify(stored)!==JSON.stringify(saved))throw new InvalidReadResponse();
   }
-  return <NativeCommandDialog title="Registrar entrega de EPI" dirty={Boolean(fields.workerId||fields.equipmentId||fields.notes)} disabled={!confirmed} onClose={onClose} onDone={onDone} perform={perform} submitLabel="Registrar entrega">{busy=><>
-    <Field label="Trabalhador" required><select value={fields.workerId} disabled={busy} onChange={e=>field('workerId',e.target.value)}><option value="">Selecionar trabalhador</option>{context.workers.map(w=><option key={w.id} value={w.id}>{w.name} · {w.enrollment}</option>)}</select></Field>
+  return <NativeCommandDialog title="Registrar entrega de EPI" dirty={dirty} disabled={!confirmed} onClose={onClose} onDone={onDone} perform={perform} submitLabel="Registrar entrega">{busy=><>
+    <Field label="Trabalhador" required><select value={fields.workerId} disabled={busy || Boolean(scope.subjectWorkerId)} onChange={e=>field('workerId',e.target.value)}><option value="">Selecionar trabalhador</option>{context.workers.map(w=><option key={w.id} value={w.id}>{w.name} · {w.enrollment}</option>)}</select></Field>
     <Field label="Equipamento" required><select value={fields.equipmentId} disabled={busy} onChange={e=>field('equipmentId',e.target.value)}><option value="">Selecionar equipamento</option>{context.equipment.map(e=><option key={e.id} value={e.id}>{e.name} · {e.code}</option>)}</select></Field>
     <Field label="Quantidade" required><input type="number" min={1} max={1000} value={fields.quantity} disabled={busy} onChange={e=>field('quantity',Number(e.target.value))}/></Field><Field label="Tamanho"><input maxLength={30} value={fields.size} disabled={busy} onChange={e=>field('size',e.target.value)}/></Field>
     <Field label="Data da entrega" required><input type="date" max={localEquipmentDay()} value={fields.deliveredOn} disabled={busy} onChange={e=>field('deliveredOn',e.target.value)}/></Field><Field label="Troca prevista"><input type="date" min={fields.deliveredOn} value={fields.replacementOn} disabled={busy} onChange={e=>field('replacementOn',e.target.value)}/></Field><Field label="Observações"><textarea maxLength={500} value={fields.notes} disabled={busy} onChange={e=>field('notes',e.target.value)}/></Field>

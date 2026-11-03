@@ -374,6 +374,11 @@ try {
   await page.keyboard.press('Escape');
   await deliveryDetail.waitFor({ state: 'hidden' });
   check(new URL(page.url()).searchParams.get('workerId') === safetyProfile.split('/').at(-1), 'Worker profile: closing an EPI keeps the worker filter');
+  await page.getByRole('button', { name: 'Registrar entrega', exact: true }).click();
+  const scopedDeliveryForm = page.getByRole('dialog', { name: 'Registrar entrega de EPI', exact: true });
+  const deliveryWorker = scopedDeliveryForm.getByLabel('Trabalhador', { exact: true });
+  check(await deliveryWorker.isDisabled() && await deliveryWorker.inputValue() === safetyProfile.split('/').at(-1), 'Worker profile: EPI delivery locks the correct worker');
+  await scopedDeliveryForm.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('link', { name: 'Voltar à ficha', exact: true }).click();
   await page.waitForURL(url => url.pathname === safetyProfile && url.hash === '#seguranca');
   await safety.getByRole('button', { name: 'Treinamentos', exact: true }).click();
@@ -382,6 +387,11 @@ try {
   await page.keyboard.press('Escape');
   await trainingDetails.waitFor({ state: 'hidden' });
   check(new URL(page.url()).searchParams.get('workerId') === safetyProfile.split('/').at(-1), 'Worker profile: closing a training record keeps the worker filter');
+  await page.getByRole('button', { name: 'Registrar treinamento', exact: true }).click();
+  const scopedTrainingForm = page.getByRole('dialog', { name: 'Registrar treinamento', exact: true });
+  const trainingSubject = scopedTrainingForm.getByLabel('Trabalhador', { exact: true });
+  check(await trainingSubject.isDisabled() && await trainingSubject.inputValue() === safetyProfile.split('/').at(-1), 'Worker profile: training form locks the correct worker');
+  await scopedTrainingForm.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('link', { name: 'Voltar à ficha', exact: true }).click();
   await page.waitForURL(url => url.pathname === safetyProfile && url.hash === '#seguranca');
   await safety.getByRole('link', { name: 'Luva de proteção', exact: true }).waitFor();
