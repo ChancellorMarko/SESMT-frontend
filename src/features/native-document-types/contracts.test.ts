@@ -1,7 +1,7 @@
 import{describe,it,expect}from'vitest';
 import{checkedContext,checkedType,checkedPage,checkedHistory,creationFields}from'./contracts';
 const id='10000000-0000-4000-8000-000000000001';
-const record={version:'a'.repeat(64),item:{id,code:'CAP',name:'Capacitação',description:null,category:'OPERACIONAL',secrecyLevel:'RESTRITO',requiresSignature:true,requiresApproval:true,periodicityInDays:null,retentionPeriodInYears:null,metadataSchema:'{}',schemaVersion:1,active:true}};
+const record={version:1,item:{id,code:'CAP',name:'Capacitação',description:null,category:'OPERACIONAL',secrecyLevel:'RESTRITO',requiresSignature:true,requiresApproval:true,periodicityInDays:null,retentionPeriodInYears:null,metadataSchema:'{}',schemaVersion:1,active:true,version:1}};
 describe('catálogo documental nativo',()=>{
   it('confere contrato, versão, ID e dados recebidos sem aceitar a forma da demonstração',()=>{
     expect(checkedType(record,id)).toEqual(record);
@@ -19,7 +19,7 @@ describe('catálogo documental nativo',()=>{
     for(const v of[{...page,total:2},{...page,items:[record,record],total:2},{...page,page:2}])expect(()=>checkedPage(v,1,'')).toThrow();expect(()=>checkedPage(page,1,'Outro')).toThrow();
   });
   it('não transforma prazo vazio em periodicidade presumida e recusa zero ou fração',()=>{
-    const fields={code:'CAP',name:'Capacitação',description:'',category:'OPERACIONAL',secrecyLevel:'RESTRITO',requiresSignature:true,requiresApproval:true,days:'',years:''};expect(creationFields.parse(fields).days).toBe('');
+    const fields={code:'CAP',name:'Capacitação',description:'',category:'OPERACIONAL',secrecyLevel:'Restrito',requiresSignature:true,requiresApproval:true,days:'',years:''};expect(creationFields.parse(fields).days).toBe('');
     for(const patch of[{days:'0'},{years:'-1'},{days:'1.5'},{name:''},{secrecyLevel:'PUBLICO'}])expect(creationFields.safeParse({...fields,...patch}).success).toBe(false);
   });
   it('recusa eventos repetidos e conteúdo inesperado no histórico',()=>{

@@ -169,12 +169,34 @@ export function createNativeWorker<T>(body: unknown, options?: Pick<RequestOptio
 
 /** Document-type commands use the native DTO, never the browser read projection. */
 export const nativeDocumentTypesApi = {
-  create: <T>(body:unknown,signal?:AbortSignal)=>{requireNativeDocumentTypes();return request<T>('POST','/document-types',body,{signal},false,true);},
-  rename: <T>(id:string,version:string,body:unknown,signal?:AbortSignal)=>{
+  create: <T>(body: unknown, signal?: AbortSignal) => {
     requireNativeDocumentTypes();
-    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||!/^[a-f0-9]{64}$/.test(version))throw new Error('Versão ou identificação de tipo documental inválida.');
-    return request<T>('PATCH',`/document-types/${id}`,body,{signal,etag:`"${version}"`},false,true);
+    return request<T>('POST', '/document-types', body, { signal }, false, true);
   },
+  rename: <T>(id: string, expectedVersion: number, body: Record<string, unknown>, signal?: AbortSignal) => {
+    requireNativeDocumentTypes();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !Number.isInteger(expectedVersion) || expectedVersion < 1)
+      throw new Error('Versão ou identificação de tipo documental inválida.');
+    return request<T>('PATCH', `/document-types/${id}`, { ...body, expectedVersion }, { signal }, false, true);
+  },
+  context: <T>(signal?: AbortSignal) => {
+    requireNativeDocumentTypes();
+    return request<T>('GET', '/document-types/management-context', undefined, { signal }, false, true);
+  },
+  list: <T>(q: string, page: number, signal?: AbortSignal) => {
+    requireNativeDocumentTypes();
+    return request<T>('GET', '/document-types', undefined, { query: { q, page, pageSize: 20 }, signal }, false, true);
+  },
+  get: <T>(id: string, signal?: AbortSignal) => {
+    requireNativeDocumentTypes();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Identificação inválida.');
+    return request<T>('GET', `/document-types/${id}`, undefined, { signal }, false, true);
+  },
+  history: <T>(id: string, signal?: AbortSignal) => {
+    requireNativeDocumentTypes();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Identificação inválida.');
+    return request<T>('GET', `/document-types/${id}/history`, undefined, { signal }, false, true);
+  }
 };
 function requireNativeDocumentTypes(){if(API_MODE!=='api'||AUTH_CONTRACT.kind!=='native')throw new Error('Configuração nativa de tipos indisponível neste modo.');}
 
@@ -203,7 +225,7 @@ export const nativeWorkerProfileApi = {
 type NativeDocumentOptions = Pick<RequestOptions, 'query' | 'signal'>;
 export interface NativeDocumentFile { blob: Blob; mimeType: string }
 const documentIdPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const nativeDocumentPath = new RegExp(`^/(?:documents(?:/(?:query|file-policy|query-policy|${documentIdPattern}(?:/versions(?:/${documentIdPattern}(?:/(?:review|download))?)?)?))?|document-types(?:/${documentIdPattern})?)$`, 'i');
+const nativeDocumentPath = new RegExp(`^/(?:documents(?:/(?:query|file-policy|query-policy|${documentIdPattern}(?:/versions(?:/${documentIdPattern}(?:/(?:review|download))?)?)?))?|document-types(?:/(?:management-context|${documentIdPattern}(?:/history)?)?)?)$`, 'i');
 function requireNativeDocumentPath(path: string) {
   if (API_MODE !== 'api' || AUTH_CONTRACT.kind !== 'native' || !nativeDocumentPath.test(path))
     throw new Error('Operação documental nativa indisponível neste contexto.');
