@@ -23,6 +23,13 @@ public sealed class TrainingRecord : AggregateRootBase
     public DateTimeOffset? RevokedAt { get; private set; }
     public string? RevocationReason { get; private set; }
     public int Revision { get; private set; } = 1;
+    public Guid? EvidenceDocumentId { get; private set; }
+    public Guid? EvidenceVersionId { get; private set; }
+    public int? EvidenceVersionNumber { get; private set; }
+    public int? EvidenceDocumentRevision { get; private set; }
+    public string? EvidenceFileHash { get; private set; }
+    public int? EvidenceTrainingRevision { get; private set; }
+    public DateTimeOffset? EvidenceLinkedAt { get; private set; }
 
     private TrainingRecord() { }
     public TrainingRecord(Guid company, Guid unit, Guid worker, Guid command, Guid actor)
@@ -45,6 +52,19 @@ public sealed class TrainingRecord : AggregateRootBase
         Content = Clean(content); Notes = Clean(notes);
     }
     public void RecordUpdate(Guid actor) { Revision++; MarkAsUpdated(actor); }
+    public void BindEvidence(Guid document, Guid version, int versionNumber, int documentRevision, string hash, Guid actor, DateTimeOffset now)
+    {
+        if (RevokedAt.HasValue || document == Guid.Empty || version == Guid.Empty || versionNumber < 1 || documentRevision < 1
+            || !System.Text.RegularExpressions.Regex.IsMatch(hash ?? "", "^[a-f0-9]{64}$")) throw new ArgumentException("Comprovante inválido.");
+        RecordUpdate(actor); EvidenceDocumentId = document; EvidenceVersionId = version; EvidenceVersionNumber = versionNumber;
+        EvidenceDocumentRevision = documentRevision; EvidenceFileHash = hash; EvidenceTrainingRevision = Revision; EvidenceLinkedAt = now;
+    }
+    public void UnbindEvidence(Guid actor)
+    {
+        if (RevokedAt.HasValue || !EvidenceDocumentId.HasValue) throw new InvalidOperationException("Vínculo de comprovante indisponível.");
+        RecordUpdate(actor); EvidenceDocumentId = null; EvidenceVersionId = null; EvidenceVersionNumber = null;
+        EvidenceDocumentRevision = null; EvidenceFileHash = null; EvidenceTrainingRevision = null; EvidenceLinkedAt = null;
+    }
     public void Revoke(string reason, Guid actor, DateTimeOffset now)
     {
         if (RevokedAt.HasValue) throw new InvalidOperationException("O registro já foi invalidado.");

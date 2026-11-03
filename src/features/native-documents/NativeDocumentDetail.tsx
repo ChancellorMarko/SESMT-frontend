@@ -16,6 +16,7 @@ import { NativeDocumentPermitLink } from './NativeDocumentPermitLink';
 import { documentHash, fileDownloadName } from './files';
 import { invalidateDocumentReads } from './queries';
 import { editableDocument, NativeDocumentMetadata } from './NativeDocumentMetadata';
+import { selectDocumentVersions } from './selected-version';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
 type Command = { kind: 'upload' | 'link' | 'metadata'; item: NativeDocument } | { kind: 'aceita' | 'reprovada'; item: NativeDocument; version: NativeDocumentVersion };
@@ -42,6 +43,7 @@ function Detail({ id, initialUpload, initialEdit }: { id: string; initialUpload:
   const mayReview = Boolean(item && can('documento:aprovar') && (item.secrecyLevel !== 'Medico' || can('aso:editar')));
   const mayEdit = Boolean(item && editableDocument(item) && can('documento:editar') && (item.secrecyLevel !== 'Medico' || can('aso:editar')));
   const busy = query.isFetching || versions.isFetching || policy.isFetching;
+  const selectedVersions = selectDocumentVersions(versions.data, location.search);
   useEffect(() => { if (initialUpload && !openedUpload.current && item && mayUpload && policy.data && !busy) { openedUpload.current = true; setCommand({ kind: 'upload', item }); } }, [initialUpload, item, mayUpload, policy.data, busy]);
   useEffect(() => { if (initialEdit && !openedUpload.current && item && mayEdit && !busy) { openedUpload.current = true; setCommand({ kind: 'metadata', item }); } }, [initialEdit, item, mayEdit, busy]);
   function close() { setCommand(undefined); if (initialUpload || initialEdit) void navigate(`/app/documentos/${id}`, { replace: true, state: location.state }); }
@@ -81,9 +83,11 @@ function Detail({ id, initialUpload, initialEdit }: { id: string; initialUpload:
       {initialEdit && !mayEdit && <Feedback tone="warning">A edição exige acesso aos dados e um documento em rascunho ou conferência.</Feedback>}
       {can('pt:editar') && item.status !== 'ARQUIVADO' && <div className="actions"><Button variant="secondary" disabled={busy} onClick={() => setCommand({ kind: 'link', item })}>Vincular a uma PT</Button></div>}
       {(versions.isPending || policy.isPending) && <Spinner/>}{(versions.isError || policy.isError) && <Feedback tone="danger">Não foi possível conferir as versões ou a política de arquivos. Atualize o documento.</Feedback>}
-      {versions.data && <section className={styles.results} aria-label="Versões do documento"><div className={styles.scroll} role="region" aria-label="Tabela de versões" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Versão</th><th scope="col">Situação</th><th scope="col">Observação</th><th scope="col">Ações</th></tr></thead><tbody>{versions.data.map(v => <tr key={v.id}><td><strong>Versão {v.versionNumber}</strong><small>{formatDate(v.createdAt)}</small></td><td><Badge>{statusLabels[v.state] ?? v.state}</Badge>{v.isCurrent && <small>Arquivo vigente</small>}</td><td>{v.justification ?? 'Não informada'}</td><td><div className="actions"><Button variant="secondary" disabled={busy || !policy.data || Boolean(downloadId)} onClick={() => void saveFile(v)}>{downloadId === v.id ? 'Conferindo…' : 'Baixar arquivo'}</Button>
+      {selectedVersions.error && <Feedback tone="danger">A versão solicitada ou seu hash não correspondem a este documento. Nenhum arquivo foi selecionado.</Feedback>}
+      {selectedVersions.pinned && <Link className="button button--secondary" to={`/app/documentos/${id}`} state={location.state}>Consultar todas as versões</Link>}
+      {selectedVersions.items && <section className={styles.results} aria-label="Versões do documento"><div className={styles.scroll} role="region" aria-label="Tabela de versões" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Versão</th><th scope="col">Situação</th><th scope="col">Observação</th><th scope="col">Ações</th></tr></thead><tbody>{selectedVersions.items.map(v => <tr key={v.id}><td><strong>Versão {v.versionNumber}</strong><small>{formatDate(v.createdAt)}</small></td><td><Badge>{statusLabels[v.state] ?? v.state}</Badge>{v.isCurrent && <small>Arquivo vigente</small>}</td><td>{v.justification ?? 'Não informada'}</td><td><div className="actions"><Button variant="secondary" disabled={busy || !policy.data || Boolean(downloadId)} onClick={() => void saveFile(v)}>{downloadId === v.id ? 'Conferindo…' : 'Baixar arquivo'}</Button>
       {mayReview && v.state === 'EM_REVISAO' && v.versionNumber === item.currentVersionNumber && <><Button disabled={busy || !type.data || type.isError || type.data.requiresSignature} onClick={() => setCommand({ kind: 'aceita', item, version: v })}>Aceitar</Button><Button variant="secondary" disabled={busy} onClick={() => setCommand({ kind: 'reprovada', item, version: v })}>Reprovar</Button></>}</div></td></tr>)}</tbody></table></div>
-      {!versions.data.length && <p className="panel">Nenhum arquivo anexado.</p>}</section>}
+      {!selectedVersions.items.length && <p className="panel">Nenhum arquivo anexado.</p>}</section>}
       {type.data?.requiresSignature && <Feedback>O tipo documental exige assinatura. O aceite depende de um fluxo que confira essa exigência.</Feedback>}
       {command?.kind === 'upload' && policy.data && <NativeDocumentUpload item={command.item} policy={policy.data} onClose={close} onDone={() => done('Arquivo recebido para conferência.')}/>}
       {command?.kind === 'metadata' && <NativeDocumentMetadata item={command.item} onClose={close} onDone={() => done('Dados do documento atualizados.')}/>}

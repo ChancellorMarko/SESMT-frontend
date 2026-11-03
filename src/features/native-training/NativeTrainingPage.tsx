@@ -8,7 +8,8 @@ import { formatDate } from '../../shared/lib/format';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedContext, checkedHistory, checkedPage, checkedTraining, duration, formatDay, kindLabels, localDay, statuses,
-  trainingFields, trainingStatus, type Training, type TrainingContext, type TrainingScope } from './contracts';
+  trainingFields, trainingStatus, historyLabels, type Training, type TrainingContext, type TrainingScope } from './contracts';
+import { TrainingEvidence, TrainingEvidenceEditor, type EvidenceCommand } from './TrainingEvidence';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
 export function NativeTrainingPage() {
@@ -20,6 +21,7 @@ function TrainingWorkspace() {
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '', status = params.get('status') ?? '', page = Number(params.get('page') ?? '1');
   const [input, setInput] = useState(query), [editor, setEditor] = useState<{ item?: Training }>(), [revoking, setRevoking] = useState<Training>(), [success, setSuccess] = useState('');
+  const [evidenceCommand, setEvidenceCommand] = useState<EvidenceCommand>();
   useEffect(() => setInput(query), [query]);
   const validCriteria = query.length <= 160 && Number.isInteger(page) && page >= 1 && page <= 1000000
     && (!status || Object.hasOwn(statuses, status)) && ['q', 'status', 'page', 'registro'].every(key => params.getAll(key).length <= 1);
@@ -48,6 +50,7 @@ function TrainingWorkspace() {
   function closeDetails() { setParams(criteria({ q: query, status, page })); }
   async function saved(id: string) {
     setEditor(undefined); setRevoking(undefined); setSuccess('Registro salvo.');
+    setEvidenceCommand(undefined);
     await client.invalidateQueries({ queryKey: ['native-training', sessionKey] });
     setParams(criteria({ registro: id }));
   }
@@ -74,15 +77,17 @@ function TrainingWorkspace() {
     {detailId && !unitMismatch && <Modal open title="Detalhes do treinamento" onClose={closeDetails}>
       {!validId || !validCriteria || detail.isError ? <Feedback tone="danger">Treinamento não encontrado ou fora do seu acesso.</Feedback> : !detail.data ? <Spinner/> : <div className="stack">
         <TrainingDetails item={detail.data}/>
+        <TrainingEvidence training={detail.data} onCommand={command => { setEvidenceCommand(command); closeDetails(); }}/>
         <div className="actions">{can('workers.read') && <Link className="button button--secondary" to={`/app/trabalhadores/${detail.data.workerId}`}>Ficha do trabalhador</Link>}
           {context.data?.canEdit && !detail.data.revokedAt && <><Button variant="secondary" onClick={() => { setEditor({ item: detail.data }); closeDetails(); }}>Editar registro</Button><Button variant="danger" onClick={() => { setRevoking(detail.data); closeDetails(); }}>Invalidar registro</Button></>}
         </div>
         <details><summary>Histórico de alterações</summary>{history.isPending ? <Spinner/> : history.isError ? <Feedback tone="danger">Não foi possível consultar o histórico.</Feedback>
-          : history.data?.length ? <ol>{history.data.map(event => <li key={event.id}><strong>{event.action === 'TRAINING_CREATED' ? 'Cadastro' : event.action === 'TRAINING_UPDATED' ? 'Edição' : 'Invalidação'} · versão {event.revision}</strong><p>{event.actorName || 'Responsável não informado'} · {formatDate(event.occurredAt)}</p>{event.reason && <p className={styles.message}>{event.reason}</p>}</li>)}</ol> : <p>Nenhuma alteração disponível.</p>}</details>
+          : history.data?.length ? <ol>{history.data.map(event => <li key={event.id}><strong>{historyLabels[event.action]} · versão {event.revision}</strong><p>{event.actorName || 'Responsável não informado'} · {formatDate(event.occurredAt)}</p>{event.reason && <p className={styles.message}>{event.reason}</p>}</li>)}</ol> : <p>Nenhuma alteração disponível.</p>}</details>
       </div>}
     </Modal>}
     {editor && context.data && <TrainingEditor opening={editor.item} context={context.data} scope={selectedScope} onClose={() => setEditor(undefined)} onSaved={saved}/>}
     {revoking && <RevokeEditor opening={revoking} scope={selectedScope} onClose={() => setRevoking(undefined)} onSaved={saved}/>}
+    {evidenceCommand && <TrainingEvidenceEditor command={evidenceCommand} onClose={() => setEvidenceCommand(undefined)} onSaved={saved}/>}
   </div>;
 }
 function TrainingBadge({ item }: { item: Training }) {
@@ -91,10 +96,10 @@ function TrainingBadge({ item }: { item: Training }) {
 }
 function TrainingDetails({ item }: { item: Training }) {
   return <dl className={styles.details}>
-    <dt>Curso</dt><dd>{item.title}</dd><dt>Trabalhador</dt><dd>{item.workerName}</dd><dt>Referência</dt><dd>{item.reference || '—'}</dd><dt>Tipo</dt><dd>{kindLabels[item.kind]}</dd>
-    <dt>Conclusão</dt><dd>{formatDay(item.completedOn)}</dd><dt>Carga horária</dt><dd>{duration(item.durationMinutes)}</dd><dt>Renovação prevista</dt><dd>{formatDay(item.renewalOn)}</dd>
-    <dt>Situação</dt><dd><TrainingBadge item={item}/></dd><dt>Instituição</dt><dd>{item.provider || '—'}</dd><dt>Instrutor</dt><dd>{item.instructor || '—'}</dd><dt>Local</dt><dd>{item.venue || '—'}</dd>
-    <dt>Conteúdo</dt><dd className={styles.message}>{item.content || '—'}</dd><dt>Observações</dt><dd className={styles.message}>{item.notes || '—'}</dd>
+    <dt>Curso</dt><dd>{item.title}</dd><dt>Trabalhador</dt><dd>{item.workerName}</dd>{item.reference && <><dt>Referência</dt><dd>{item.reference}</dd></>}<dt>Tipo</dt><dd>{kindLabels[item.kind]}</dd>
+    <dt>Conclusão</dt><dd>{formatDay(item.completedOn)}</dd><dt>Carga horária</dt><dd>{duration(item.durationMinutes)}</dd>{item.renewalOn && <><dt>Renovação prevista</dt><dd>{formatDay(item.renewalOn)}</dd></>}
+    <dt>Situação</dt><dd><TrainingBadge item={item}/></dd>{item.provider && <><dt>Instituição</dt><dd>{item.provider}</dd></>}{item.instructor && <><dt>Instrutor</dt><dd>{item.instructor}</dd></>}{item.venue && <><dt>Local</dt><dd>{item.venue}</dd></>}
+    {item.content && <><dt>Conteúdo</dt><dd className={styles.message}>{item.content}</dd></>}{item.notes && <><dt>Observações</dt><dd className={styles.message}>{item.notes}</dd></>}
     {item.revokedAt && <><dt>Invalidado em</dt><dd>{formatDate(item.revokedAt)}</dd><dt>Motivo</dt><dd className={styles.message}>{item.revocationReason}</dd></>}
   </dl>;
 }

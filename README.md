@@ -24,7 +24,7 @@ O modo padrão continua usando dados sintéticos em memória, interceptados no n
 
 Para popular a prévia local com exemplos persistidos na API/PostgreSQL, execute `npm run seed:local-examples -- --normal-names`. A carga exige Development e um banco separado `ampara_fullstack_preview_AAAAMMDD` em loopback, faz backup antes de gravar e não substitui cadastros ou senhas existentes. Contas e senha local gerada ficam em `.local/fullstack-preview/example-access.json`, fora do Git. A opção `--normal-names` usa nomes de uso cotidiano e acrescenta seis EPIs, seis entregas e quatro cursos internos entre as unidades. Os documentos permanecem em rascunho e as PTs em verificação. Consulte os detalhes em [INTEGRACAO.md](INTEGRACAO.md#dados-de-exemplo-no-banco-local).
 
-O controle nativo de treinamentos acrescenta registro por trabalhador, carga horária em horas/minutos, datas de renovação, correções com motivo e histórico, e invalidação sem exclusão. Usa permissões próprias e restringe o trabalhador aos seus registros. Não emite certificado nem libera PT. Consulte os contratos em [INTEGRACAO.md](INTEGRACAO.md#treinamentos-registro-administrativo-e-renovação).
+O controle nativo de treinamentos acrescenta registro por trabalhador, carga horária em horas/minutos, datas de renovação, correções com motivo e histórico, e invalidação sem exclusão. Permite vincular uma versão documental publicada e autorizada, preservando SHA-256, revisões e histórico; mudanças posteriores pedem nova conferência. Usa permissões próprias e restringe o trabalhador aos seus registros. Não emite certificado nem libera PT. Consulte os contratos em [INTEGRACAO.md](INTEGRACAO.md#treinamentos-registro-administrativo-e-renovação).
 
 ## Executar
 

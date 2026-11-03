@@ -22,6 +22,7 @@ beforeEach(() => {
   context = { unitId: ids.unit, companyId: ids.company, ownOnly: false, canCreate: true, canEdit: true, workers: [{ id: ids.worker, name: 'Hugo Almeida', enrollment: 'MAT-01' }] };
   vi.mocked(api.get).mockImplementation(async (path, options) => {
     if (path === '/trainings/context') return structuredClone(context) as never;
+    if (path === `/trainings/${ids.record}/evidence`) return { trainingId: ids.record, unitId: ids.unit, trainingRevision: records[0]?.revision ?? 1, canManage: !state.ownOnly, state: 'EMPTY', evidence: null } as never;
     if (path === `/trainings/${ids.record}/history`) return [{ id: ids.record, action: 'TRAINING_CREATED', revision: 1, actorName: 'Carla Mendes', occurredAt: '2026-01-05T12:00:00Z', reason: null }] as never;
     if (path === `/trainings/${ids.record}`) return structuredClone(records[0]) as never;
     const q = String(options?.query?.q ?? ''); const items = records.filter(r => `${r.title} ${r.workerName}`.toLowerCase().includes(q.toLowerCase()));

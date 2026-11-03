@@ -192,6 +192,52 @@ try {
   check(true,'Real API: training registered, persisted and opened with exact duration');
   await trainingDetails.getByText('Histórico de alterações',{exact:true}).click(); await trainingDetails.getByText('Cadastro · versão 1',{exact:true}).waitFor();
   check(true,'Real API: training history visible without administrative audit access');
+  const evidenceFixture=await page.evaluate(async({companyId,unitId})=>{
+    const {api,nativeDocumentsApi,createNativeWorker}=await import('/src/shared/api/client.ts');
+    const trainingId=new URLSearchParams(location.search).get('registro');
+    const training=await api.get(`/trainings/${trainingId}`,{query:{unitId}}),me=await api.get('/auth/me');
+    const type=await nativeDocumentsApi.post('/document-types',{code:'TRAIN-QA',name:'Comprovante administrativo QA',category:'TREINAMENTO',secrecyLevel:'Interno',requiresSignature:false,requiresApproval:true,metadataSchema:'{}',schemaVersion:1});
+    const document=await nativeDocumentsApi.post('/documents',{documentTypeId:type.id,companyId,unitId,ownerId:me.user.id,personId:training.workerId,code:'CAP-QA-001',title:'Comprovante treinamento QA',secrecyLevel:'Interno',issueDate:training.completedOn,metadata:'{}',links:[]});
+    const form=new FormData();form.set('expectedVersion',String(document.revision));form.set('file',new Blob(['%PDF-1.7\nFictitious QA attachment; not an operational certificate.\n%%EOF'],{type:'application/pdf'}),'training-qa.pdf');
+    const version=await nativeDocumentsApi.post(`/documents/${document.id}/versions`,form);
+    const users=await api.get('/users'),reviewer=users.find(u=>u.email==='tecnico-uiqa@example.invalid');
+    const worker=await createNativeWorker({companyId,unitId,userId:reviewer.id,name:'Conferidor QA',enrollment:'QA-REVIEWER',cpf:'52998224725',dateOfBirth:'1990-01-01',admissionDate:'2026-01-01'});
+    const services=await api.get('/work-permits/services');
+    await api.post('/designations',{personId:worker.id,serviceIds:[services[0].id],locationIds:[unitId],type:'conferir',startsAt:new Date(Date.now()-86400000).toISOString(),endsAt:new Date(Date.now()+86400000).toISOString(),origin:'Conferência isolada de QA'});
+    return{trainingId,documentId:document.id,versionId:version.id};
+  },{companyId:qaCompany,unitId:qaUnit});
+  const reviewerPage=await browser.newPage({reducedMotion:'reduce',serviceWorkers:'block'});reviewerPage.on('pageerror',error=>report.pageErrors.push(error.message));
+  await reviewerPage.goto('http://127.0.0.1:5185/login');await reviewerPage.locator('[data-auth-scene][data-arrival="ready"]').waitFor();
+  await reviewerPage.getByLabel('E-mail',{exact:true}).fill('tecnico-uiqa@example.invalid');await reviewerPage.getByLabel('Senha',{exact:true}).fill(password);
+  await reviewerPage.getByRole('button',{name:'Entrar na plataforma',exact:true}).click();await reviewerPage.waitForURL('**/app/dashboard');
+  await reviewerPage.evaluate(async({documentId,versionId})=>{
+    const {nativeDocumentsApi}=await import('/src/shared/api/client.ts');const doc=await nativeDocumentsApi.get(`/documents/${documentId}`);
+    return nativeDocumentsApi.post(`/documents/${documentId}/versions/${versionId}/review`,{expectedVersion:doc.revision,version:1,decision:'aceita',reason:'Conferência administrativa no banco isolado de QA'});
+  },evidenceFixture);await reviewerPage.close();
+  check(true,'Real API: PDF uploaded and published only by a designated reviewer');
+  async function linkTrainingEvidence(reason){
+    await trainingDetails.getByRole('button',{name:/Vincular comprovante|Conferir ou substituir vínculo/}).click();
+    const dialog=page.getByRole('dialog',{name:'Vincular comprovante',exact:true});await dialog.getByLabel('Versão do comprovante',{exact:true}).selectOption(evidenceFixture.versionId);
+    await dialog.getByLabel('Motivo da conferência',{exact:true}).fill(reason);await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'Confirmar vínculo',exact:true}).click();
+    await trainingDetails.getByText('Vínculo atualizado',{exact:true}).waitFor();
+  }
+  await linkTrainingEvidence('Conferência da pessoa, do curso e do PDF de QA');
+  check(true,'Real API: training pins the published PDF version and its SHA-256');
+  await page.screenshot({path:join(dir,'training-evidence-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});await trainingDetails.getByRole('button',{name:'Conferir ou substituir vínculo',exact:true}).click();
+  const mobileEvidence=page.getByRole('dialog',{name:'Vincular comprovante',exact:true});await mobileEvidence.getByRole('option',{name:/CAP-QA-001/}).waitFor({state:'attached'});
+  check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)&&await mobileEvidence.evaluate(el=>el.scrollWidth<=el.clientWidth),'Training evidence: selection form fits at 390px');
+  await page.screenshot({path:join(dir,'training-evidence-mobile.png'),fullPage:true});await mobileEvidence.getByRole('button',{name:'Cancelar',exact:true}).click();
+  await page.getByRole('link',{name:'Integração de segurança QA',exact:true}).click();await trainingDetails.getByText('Vínculo atualizado',{exact:true}).waitFor();await page.setViewportSize({width:1365,height:900});
+  const popupPromise=page.waitForEvent('popup');await trainingDetails.getByRole('link',{name:'Abrir documento',exact:true}).click();const documentPage=await popupPromise;
+  documentPage.on('pageerror',error=>report.pageErrors.push(error.message));await documentPage.getByRole('heading',{name:'Comprovante treinamento QA',exact:true}).waitFor();
+  const downloadPromise=documentPage.waitForEvent('download');await documentPage.getByRole('button',{name:'Baixar arquivo',exact:true}).click();const attachmentDownload=await downloadPromise;
+  check(await attachmentDownload.failure()===null,'Real API: linked document download verifies bytes and hash in the browser');await documentPage.close();
+  const invalidHashPopup=page.waitForEvent('popup');await trainingDetails.getByRole('link',{name:'Abrir documento',exact:true}).click();const mismatchedPage=await invalidHashPopup;
+  mismatchedPage.on('pageerror',error=>report.pageErrors.push(error.message));await mismatchedPage.getByRole('heading',{name:'Comprovante treinamento QA',exact:true}).waitFor();
+  const wrongHashUrl=new URL(mismatchedPage.url());wrongHashUrl.searchParams.set('sha256','b'.repeat(64));await mismatchedPage.goto(wrongHashUrl.href);
+  await mismatchedPage.getByText('A versão solicitada ou seu hash não correspondem a este documento. Nenhum arquivo foi selecionado.',{exact:true}).waitFor();
+  check(await mismatchedPage.getByRole('button',{name:'Baixar arquivo',exact:true}).count()===0,'Document pin: a mismatched hash never falls back to the current download');await mismatchedPage.close();
   await trainingDetails.getByRole('button',{name:'Editar registro',exact:true}).click();
   const trainingEdit=page.getByRole('dialog',{name:'Editar treinamento',exact:true});
   await trainingEdit.getByLabel('Nome do curso',{exact:true}).fill('Integração de segurança revisada');
@@ -199,6 +245,14 @@ try {
   await trainingEdit.getByRole('checkbox').check(); await trainingEdit.getByRole('button',{name:'Salvar alterações',exact:true}).click();
   await trainingDetails.getByText('Integração de segurança revisada',{exact:true}).waitFor();
   check(true,'Real API: training edit preserves revision and worker');
+  await trainingDetails.getByText('Treinamento alterado: confira o vínculo',{exact:true}).waitFor();
+  check(true,'Real API: changing training metadata requires a new evidence confirmation');
+  await linkTrainingEvidence('Nova conferência após a correção do treinamento');
+  await trainingDetails.getByRole('button',{name:'Remover vínculo',exact:true}).click();
+  const unlinkEvidence=page.getByRole('dialog',{name:'Remover vínculo do comprovante',exact:true});await unlinkEvidence.getByLabel('Motivo da remoção',{exact:true}).fill('Remoção administrativa conferida no teste');await unlinkEvidence.getByRole('checkbox').check();await unlinkEvidence.getByRole('button',{name:'Confirmar remoção',exact:true}).click();
+  await trainingDetails.getByText('Sem comprovante vinculado',{exact:true}).waitFor();
+  check(true,'Real API: removing a training link preserves the document and the audit history');
+  await linkTrainingEvidence('Comprovante vinculado novamente para verificar acesso próprio');
   await trainingDetails.getByRole('button',{name:'Invalidar registro',exact:true}).click();
   const revokeTraining=page.getByRole('dialog',{name:'Invalidar treinamento',exact:true});
   await revokeTraining.getByLabel('Motivo da invalidação',{exact:true}).fill('Cadastro duplicado para testar histórico');
@@ -214,6 +268,8 @@ try {
   await trainingWorker.getByRole('button',{name:'Entrar na plataforma',exact:true}).click(); await trainingWorker.waitForURL('**/app/documentos');
   await trainingWorker.goto('http://127.0.0.1:5185/app/treinamentos'); await trainingWorker.getByRole('link',{name:'Integração de segurança revisada',exact:true}).click();
   await trainingWorker.locator('dd').filter({hasText:'Cadastro duplicado para testar histórico'}).waitFor();
+  await trainingWorker.getByRole('link',{name:'Abrir documento',exact:true}).waitFor();
+  check(await trainingWorker.getByRole('button',{name:/Vincular comprovante|Conferir ou substituir vínculo|Remover vínculo/}).count()===0,'Real API: worker reads own evidence without managing the link');
   check(await trainingWorker.getByRole('button',{name:/Registrar treinamento|Editar registro|Invalidar registro/}).count()===0,'Real API: worker reads own training without management commands');
   await trainingWorker.close();
   await page.screenshot({path:join(dir,'training-desktop.png'),fullPage:true});

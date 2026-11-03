@@ -2076,6 +2076,35 @@ namespace SESMT.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duracao_minutos");
 
+                    b.Property<Guid?>("EvidenceDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("comprovante_documento_id");
+
+                    b.Property<int?>("EvidenceDocumentRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("comprovante_revisao_documento");
+
+                    b.Property<string>("EvidenceFileHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("comprovante_hash");
+
+                    b.Property<DateTimeOffset?>("EvidenceLinkedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("comprovante_vinculado_em");
+
+                    b.Property<int?>("EvidenceTrainingRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("comprovante_revisao_treinamento");
+
+                    b.Property<Guid?>("EvidenceVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("comprovante_versao_id");
+
+                    b.Property<int?>("EvidenceVersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("comprovante_numero_versao");
+
                     b.Property<string>("Instructor")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)")
@@ -2149,6 +2178,10 @@ namespace SESMT.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EvidenceDocumentId");
+
+                    b.HasIndex("EvidenceVersionId");
+
                     b.HasIndex("WorkerId");
 
                     b.HasIndex("CompanyId", "CommandId")
@@ -2158,6 +2191,8 @@ namespace SESMT.Infrastructure.Persistence.Migrations
 
                     b.ToTable("treinamento_registro", "core", t =>
                         {
+                            t.HasCheckConstraint("ck_treinamento_comprovante", "(comprovante_documento_id IS NULL AND comprovante_versao_id IS NULL AND comprovante_numero_versao IS NULL AND comprovante_revisao_documento IS NULL AND comprovante_hash IS NULL AND comprovante_revisao_treinamento IS NULL AND comprovante_vinculado_em IS NULL) OR (comprovante_documento_id IS NOT NULL AND comprovante_versao_id IS NOT NULL AND comprovante_numero_versao IS NOT NULL AND comprovante_revisao_documento IS NOT NULL AND comprovante_hash IS NOT NULL AND comprovante_revisao_treinamento IS NOT NULL AND comprovante_numero_versao > 0 AND comprovante_revisao_documento > 0 AND comprovante_hash ~ '^[a-f0-9]{64}$' AND comprovante_revisao_treinamento > 0 AND comprovante_revisao_treinamento <= revisao AND comprovante_vinculado_em IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_treinamento_duracao", "duracao_minutos BETWEEN 1 AND 600000");
 
                             t.HasCheckConstraint("ck_treinamento_renovacao", "renovar_em IS NULL OR renovar_em >= concluido_em");
@@ -3305,6 +3340,16 @@ namespace SESMT.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("SESMT.Domain.Modules.Documents.Entities.Document", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SESMT.Domain.Modules.Documents.Entities.DocumentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SESMT.Domain.Modules.Organization.Entities.Unit", null)
                         .WithMany()

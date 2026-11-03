@@ -42,8 +42,9 @@ export function checkedPage(value: unknown, scope: TrainingScope, page: number, 
     || status && trainingStatus(item) !== status)) throw new InvalidReadResponse();
   return { ...parsed.data, items };
 }
+export const historyLabels = { TRAINING_CREATED: 'Cadastro', TRAINING_UPDATED: 'Edição', TRAINING_REVOKED: 'Invalidação', TRAINING_EVIDENCE_LINKED: 'Vínculo de comprovante', TRAINING_EVIDENCE_REMOVED: 'Remoção de vínculo' } as const;
 export function checkedHistory(value: unknown, revision: number) {
-  const parsed = z.array(z.object({ id, action: z.enum(['TRAINING_CREATED', 'TRAINING_UPDATED', 'TRAINING_REVOKED']),
+  const parsed = z.array(z.object({ id, action: z.enum(['TRAINING_CREATED', 'TRAINING_UPDATED', 'TRAINING_REVOKED', 'TRAINING_EVIDENCE_LINKED', 'TRAINING_EVIDENCE_REMOVED']),
     revision: z.number().int().positive(), actorName: z.string().nullable(), occurredAt: instant, reason: z.string().max(200).nullable() })).safeParse(value);
   if (!parsed.success || parsed.data.some(e => e.revision > revision) || new Set(parsed.data.map(e => e.id)).size !== parsed.data.length) throw new InvalidReadResponse();
   return parsed.data;
