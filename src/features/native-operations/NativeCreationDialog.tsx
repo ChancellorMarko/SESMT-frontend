@@ -11,7 +11,7 @@ import { NativeCommandDialog, NativeFormError } from './NativeCommandDialog';
 
 export function NativeCreationDialog({ kind, initial, onClose, onDone }: { kind: 'appointment'|'designation'|'context'; initial?: NativeAppointment; onClose: () => void; onDone: () => Promise<void> }) {
   const { sessionKey, unitId: headerUnit, can } = useSession(), appointment = kind !== 'designation', context = kind === 'context';
-  const allowed = can(kind === 'appointment' ? 'pt:criar' : 'pt:editar'), catalogsAllowed = allowed && can('organization.read') && can('workers.read') && (!appointment || can('equipe:ler'));
+  const allowed = can(kind === 'appointment' ? 'agenda:criar' : kind === 'designation' ? 'designacao:editar' : 'agenda:editar'), catalogsAllowed = allowed && can('organization.read') && can('workers.read') && (!appointment || can('equipe:ler'));
   const [unitId, setUnit] = useState(context ? initial?.locationId ?? '' : headerUnit ?? ''), [teamId, setTeam] = useState(''), [personId, setPerson] = useState('');
   const [title, setTitle] = useState(initial?.title ?? ''), [origin, setOrigin] = useState(''), [type, setType] = useState('atender');
   const [startsAt, setStart] = useState(''), [endsAt, setEnd] = useState(''), [serviceIds, setServices] = useState<string[]>([]), [participants, setParticipants] = useState<string[]>([]);

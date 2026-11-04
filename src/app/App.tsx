@@ -22,6 +22,7 @@ const WorkerFormPage=lazy(()=>import('../features/workers').then(m=>({default:m.
 const NativeWorkerCreate=lazy(()=>import('../features/native-workers/NativeWorkerCreate').then(m=>({default:m.NativeWorkerCreate})));
 const NativeWorkerAccountPage=lazy(()=>import('../features/native-workers/NativeWorkerAccountPage').then(m=>({default:m.NativeWorkerAccountPage})));
 const NativeWorkerProfessionalPage=lazy(()=>import('../features/native-workers/NativeWorkerProfessionalPage').then(m=>({default:m.NativeWorkerProfessionalPage})));
+const NativeEquipmentPage=lazy(()=>import('../features/native-equipment/NativeEquipmentPage').then(m=>({default:m.NativeEquipmentPage})));
 const WorkerDetailPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerDetailPage})));
 const WorkerMovementPage=lazy(()=>import('../features/workers').then(m=>({default:m.WorkerMovementPage})));
 const OrganizationPage=lazy(()=>import('../features/organization').then(m=>({default:m.OrganizationPage})));
@@ -35,6 +36,8 @@ const NativeNotificationsPage=lazy(()=>import('../features/notifications/NativeN
 const NativeAuditPage=lazy(()=>import('../features/audit/NativeAuditPage').then(m=>({default:m.NativeAuditPage})));
 const NativeDashboardPage=lazy(()=>import('../features/dashboard/NativeDashboardPage').then(m=>({default:m.NativeDashboardPage})));
 const NativeAgendaPage=lazy(()=>import('../features/native-operations/NativeAgendaPage').then(m=>({default:m.NativeAgendaPage})));
+const NativeTrainingPage=lazy(()=>import('../features/native-training/NativeTrainingPage').then(m=>({default:m.NativeTrainingPage})));
+const NativeAsoPage=lazy(()=>import('../features/native-aso/NativeAsoPage').then(m=>({default:m.NativeAsoPage})));
 const NativeAppointmentDetail=lazy(()=>import('../features/native-operations/NativeAppointmentDetail').then(m=>({default:m.NativeAppointmentDetail})));
 const NativeCreationPage=lazy(()=>import('../features/native-operations/NativeCreationPage').then(m=>({default:m.NativeCreationPage})));
 const NativeTeamsPage=lazy(()=>import('../features/native-operations/NativeTeamsPage').then(m=>({default:m.NativeTeamsPage})));
@@ -44,6 +47,7 @@ const NativePermitsPage=lazy(()=>import('../features/native-permits/NativePermit
 const NativePermitDetail=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitDetail})));
 const NativePermitPrintPage=lazy(()=>import('../features/native-permits/NativePermitDetail').then(m=>({default:m.NativePermitPrintPage})));
 const DocumentTypesPage=lazy(()=>import('../features/administration').then(m=>({default:m.DocumentTypesPage})));
+const NativeDocumentTypesPage=lazy(()=>import('../features/native-document-types/NativeDocumentTypesPage').then(m=>({default:m.NativeDocumentTypesPage})));
 const ParametersPage=lazy(()=>import('../features/administration').then(m=>({default:m.ParametersPage})));
 const OperationsDashboardPage=lazy(()=>import('../features/dashboard/OperationsDashboardPage').then(m=>({default:m.OperationsDashboardPage})));
 const AgendaPage=lazy(()=>import('../features/agenda').then(m=>({default:m.AgendaPage})));
@@ -97,6 +101,9 @@ export function App() {
       <Route path="consulta" element={<Guard><ConsultationPage/></Guard>}/>
       <Route path="minha-representacao" element={<Guard permission="permits.review"><SignatureProfilePage/></Guard>}/>
       <Route path="dashboard" element={NATIVE_MODULES ? <Guard><NativeDashboardPage/></Guard> : <Guard permission="dashboard.read"><OperationsDashboardPage/></Guard>}/>
+      <Route path="epis" element={NATIVE_MODULES ? <Guard permission="epi:ler"><NativeEquipmentPage/></Guard> : <Navigate to="/app/dashboard?area=epis" replace/>}/>
+      <Route path="treinamentos" element={NATIVE_MODULES ? <Guard permission="treinamento:ler"><NativeTrainingPage/></Guard> : <Navigate to="/app/dashboard?area=saude&healthView=nrs" replace/>}/>
+      <Route path="asos" element={NATIVE_MODULES ? <Guard permission="aso:acompanhar"><NativeAsoPage/></Guard> : <Navigate to="/app/dashboard?area=saude&healthView=asos" replace/>}/>
       <Route path="painel-documental" element={<Guard permission="dashboard.read"><DashboardPage/></Guard>}/>
       <Route path="agenda" element={NATIVE_MODULES?<Guard><NativeAgendaPage/></Guard>:<Guard permission="appointments.read"><AgendaPage/></Guard>}/>
       <Route path="agenda/novo" element={NATIVE_MODULES?<Guard><NativeCreationPage kind="appointment"/></Guard>:<Guard permission="appointments.write"><AppointmentFormPage/></Guard>}/>
@@ -138,7 +145,7 @@ export function App() {
       <Route path="notificacoes" element={<Guard permission="notifications.read">{NATIVE_MODULES ? <NativeNotificationsPage/> : <NotificationsPage/>}</Guard>}/>
       <Route path="auditoria" element={<Guard permission="audit.read">{NATIVE_MODULES ? <NativeAuditPage/> : <AuditPage/>}</Guard>}/>
       <Route path="configuracoes/usuarios" element={<Guard><UserWorkspace/></Guard>}/>
-      <Route path="configuracoes/tipos-documentais" element={<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
+      <Route path="configuracoes/tipos-documentais" element={NATIVE_MODULES?<Guard><NativeDocumentTypesPage/></Guard>:<Guard permission="documentTypes.write"><DocumentTypesPage/></Guard>}/>
       <Route path="configuracoes/parametros" element={<Guard><ParametersPage/></Guard>}/>
       <Route path="configuracoes/requisitos" element={<Guard permission="requirements.read"><RequirementMatrixPage/></Guard>}/>
       <Route path="configuracoes/servicos" element={<Guard permission="requirements.read"><ServiceTemplatesPage/></Guard>}/>

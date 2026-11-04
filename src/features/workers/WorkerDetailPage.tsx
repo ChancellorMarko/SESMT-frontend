@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { WorkerSafetyPanel } from './WorkerSafetyPanel';
+import { safetyId } from './worker-safety-navigation';
 import { WorkerIntegrationPanel } from './WorkerIntegrationPanel';
 import { Link, useLocation, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -105,7 +107,7 @@ function WorkerDetailContent() {
   }, [id, location.hash, location.key, unitId, sessionKey, canReadWorker, worker.data?.id, worker.isError]);
 
   useEffect(() => {
-    if (!canReadWorker || worker.isError || worker.data?.id !== id || !['#vinculo', '#equipes', '#documentos', '#historico'].includes(location.hash)) return;
+    if (!canReadWorker || worker.isError || worker.data?.id !== id || !['#vinculo', '#equipes', '#seguranca', '#documentos', '#historico'].includes(location.hash)) return;
     const section = document.getElementById(location.hash.slice(1));
     section?.focus({ preventScroll: true });
     section?.scrollIntoView?.({ block: 'start' });
@@ -137,10 +139,12 @@ function WorkerDetailContent() {
   const origin = data.unitId === unitId ? listOrigin : undefined;
   const backHref = origin ? `/app/trabalhadores${origin.workerListReturnTo.search}` : '/app/trabalhadores';
   const documentOrigin = data.unitId === unitId ? workerDocumentNavigation({ workerDocumentReturnTo: { workerId: data.id, unitId, sessionKey, documentPage, ...origin, integrationReturnTo: (location.state as { integrationReturnTo?: unknown } | null)?.integrationReturnTo } }, sessionKey, unitId, canReadWorker, can('eligibility.read')) : undefined;
+  const safetyUnit = NATIVE_MODULES && data.sourceReadOnly && unitId && data.unitId === unitId && safetyId(data.id) && (can('epi:ler') || can('treinamento:ler')) ? unitId : undefined;
   const sections = [
     { hash: '#vinculo', label: 'Vínculo', icon: Building2 },
     ...(!data.sourceReadOnly ? [{ hash: '#integracao', label: 'Integração', icon: ClipboardCheck }] : []),
     ...(!data.sourceReadOnly || data.teams ? [{ hash: '#equipes', label: 'Equipes', icon: UsersRound }] : []),
+    ...(safetyUnit ? [{ hash: '#seguranca', label: 'EPIs e treinamentos', icon: ClipboardCheck }] : []),
     { hash: '#documentos', label: 'Documentos', icon: FileText },
     { hash: '#historico', label: 'Histórico', icon: History },
   ];
@@ -286,6 +290,7 @@ function WorkerDetailContent() {
       </section>}
 
       {/* Documentos vinculados */}
+      {safetyUnit && <WorkerSafetyPanel workerId={data.id} unitId={safetyUnit} companyId={data.companyId} origin={documentOrigin}/>}
       <section id="documentos" tabIndex={-1} className={`panel stack ${styles.section}`} aria-labelledby="worker-documents-heading">
         <div className={styles.sectionHeader}><h2 id="worker-documents-heading"><FileText size={18} aria-hidden="true" />Documentos vinculados</h2></div>
         {!can('documents.read') ? (

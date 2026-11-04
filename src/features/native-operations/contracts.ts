@@ -8,6 +8,11 @@ export const nativeId = z.string().uuid().transform(value => value.toLowerCase()
 export const nativeIds = z.array(nativeId).refine(values => new Set(values).size === values.length);
 const instant = z.string().refine(isIsoInstant), version = z.number().int().min(1).max(2147483647);
 export const nativeAppointmentLabels = { REQUESTED: 'Solicitado', CONFIRMED: 'Confirmado', CANCELLED: 'Cancelado' } as const;
+export function checkedNativeResponsibles(value: unknown) {
+  const result = z.array(z.object({id:nativeId,name:z.string().trim().min(1).max(200),active:z.literal(true)})).safeParse(value);
+  if (!result.success || new Set(result.data.map(item=>item.id)).size!==result.data.length) throw new InvalidReadResponse();
+  return result.data;
+}
 const status = z.enum(['REQUESTED', 'CONFIRMED', 'CANCELLED']);
 const state = z.object({ status, startsAt: instant, endsAt: instant, responsibleId: nativeId.nullable(), teamId: nativeId.nullable(), serviceCodes: z.array(z.string().min(1).max(200)), participantIds: nativeIds });
 export const nativeAppointment = z.object({

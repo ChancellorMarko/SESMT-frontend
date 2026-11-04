@@ -9,7 +9,7 @@ import { NativeTeamsPage } from './NativeTeamsPage';
 import { NativeDesignationsPage } from './NativeDesignationsPage';
 import { appointmentFixture, designationFixture, teamFixture, operationIds as ids, nativePersonFixture, nativeOrganizationFixture, nativeServicesFixture, nativeResponsibleFixture } from '../../../tests/connection-ui/fixtures/native-operations';
 
-const state=vi.hoisted(()=>({grants:['pt:editar','pt:criar','users.read','organization.read','workers.read','equipe:ler'],companies:['61000000-0000-4000-8000-000000000001']}));
+const state=vi.hoisted(()=>({grants:['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'],companies:['61000000-0000-4000-8000-000000000001']}));
 vi.mock('../../shared/auth/SessionProvider',()=>({useSession:()=>({sessionKey:'native-operation-test',unitId:ids.unit,me:{user:{id:ids.user},roles:['ADMIN'],scope:{companyIds:state.companies,unitIds:[ids.unit]}},can:(permission:string)=>state.grants.includes(permission)})}));
 vi.mock('../../shared/api/client',async original=>({...await original<typeof import('../../shared/api/client')>(),api:{get:vi.fn(),post:vi.fn(),put:vi.fn()}}));
 function show(component:React.ReactNode,path='/app/agenda/detail'){
@@ -18,7 +18,7 @@ function show(component:React.ReactNode,path='/app/agenda/detail'){
   return{...view,client};
 }
 beforeEach(()=>{
-  vi.clearAllMocks();state.grants=['pt:editar','pt:criar','users.read','organization.read','workers.read','equipe:ler'];state.companies=[ids.company];
+  vi.clearAllMocks();state.grants=['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'];state.companies=[ids.company];
   vi.mocked(api.get).mockImplementation(async(path,options)=>{
     if(path==='/organization')return nativeOrganizationFixture as never;
     if(path==='/work-permits/services')return nativeServicesFixture as never;
@@ -26,7 +26,7 @@ beforeEach(()=>{
     if(path===`/teams/${ids.team}`)return teamFixture() as never;
     if(path===`/workers/${ids.worker}`)return nativePersonFixture as never;
     if(path==='/workers')return{items:[nativePersonFixture],total:1,page:options?.query?.page??1,pageSize:20} as never;
-    if(path==='/users')return[nativeResponsibleFixture] as never;
+    if(path==='/users'||path===`/appointments/${ids.appointment}/responsibles`)return[nativeResponsibleFixture] as never;
     if(path==='/designations')return[designationFixture()] as never;
     if(path===`/appointments/${ids.appointment}`)return appointmentFixture() as never;
     throw new Error('Endpoint inesperado: '+path);
@@ -59,7 +59,7 @@ describe('workspaces operacionais nativos',()=>{
     show(<NativeAppointmentDetail/>,`/app/agenda/${ids.appointment}`);
     fireEvent.click(await screen.findByRole('button',{name:'Confirmar agendamento'}));
     await screen.findByRole('option',{name:/Roberto Responsável/});
-    fireEvent.change(screen.getByLabelText('Responsável (usuário)'),{target:{value:ids.responsible}});
+    fireEvent.change(screen.getByLabelText('Responsável pela atividade'),{target:{value:ids.responsible}});
     fireEvent.click(screen.getByRole('button',{name:'Salvar alteração'}));
     expect(await screen.findByText('Alteração confirmada pela API.')).toBeVisible();
     expect(api.post).toHaveBeenCalledWith(`/appointments/${ids.appointment}/confirm`,{expectedVersion:1,responsibleId:ids.responsible},expect.anything());

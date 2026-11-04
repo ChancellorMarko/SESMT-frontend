@@ -23,7 +23,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
     if (path === '/api/v1/auth/csrf') return json({ csrfToken: 'native-permits-csrf' });
     if (path === '/api/v1/auth/login') { signedIn = true; return json(session); }
     if (path === '/api/v1/auth/refresh') return signedIn ? json(session) : json({ code: 'SESSION_EXPIRED', message: 'Entre novamente.', requestId: 'test' }, 401);
-    if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['ADMIN'], permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', ...grants], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
+    if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['ADMIN'], permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'pt:ler', ...grants], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/organization') return json({ ...nativeOrganizationFixture, establishments: [], sectors: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/users') return json([nativeResponsibleFixture]);
     if (path === '/api/v1/work-permits/pt-templates' && method === 'GET') {

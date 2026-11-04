@@ -18,7 +18,10 @@ const BACKEND_PERMISSIONS = [
   'parametro:ler', 'parametro:editar',
   'perfil:ler', 'perfil:criar', 'perfil:editar', 'perfil:excluir',
   'usuario:ler', 'usuario:criar', 'usuario:editar', 'usuario:excluir',
-  'aso:ler', 'aso:editar',
+  'aso:ler', 'aso:editar', 'aso:acompanhar', 'aso:detalhar',
+  'epi:ler', 'epi:criar', 'epi:editar',
+  'treinamento:ler', 'treinamento:criar', 'treinamento:editar',
+  'agenda:ler', 'agenda:criar', 'agenda:editar', 'designacao:ler', 'designacao:editar',
   'pt:ler', 'pt:criar', 'pt:editar', 'pt:excluir',
   'pt:liberar', 'pt:iniciar', 'pt:concluir',
 ];

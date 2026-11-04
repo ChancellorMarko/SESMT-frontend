@@ -78,7 +78,17 @@ export const PERMISSIONS = {
     editar: 'usuario:editar',
     excluir: 'usuario:excluir',
   },
+  epi: {
+    ler: 'epi:ler',
+    criar: 'epi:criar',
+    editar: 'epi:editar',
+  },
+  agenda: { ler: 'agenda:ler', criar: 'agenda:criar', editar: 'agenda:editar' },
+  treinamento: { ler: 'treinamento:ler', criar: 'treinamento:criar', editar: 'treinamento:editar' },
+  designacao: { ler: 'designacao:ler', editar: 'designacao:editar' },
   aso: {
+    acompanhar: 'aso:acompanhar',
+    detalhar: 'aso:detalhar',
     ler: 'aso:ler',
     editar: 'aso:editar',
   },

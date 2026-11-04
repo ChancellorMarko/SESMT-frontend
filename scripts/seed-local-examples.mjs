@@ -30,6 +30,7 @@ if (dump.status !== 0 || dump.error) throw new Error('Não foi possível conclui
 Object.assign(env, { ConnectionStrings__Sesmt: env.ConnectionStrings__Sesmt.replace(/Database=[^;]*/i, `Database=${state.database}`),
   Seed__AdminEmail: state.email, Seed__AdminPassword: state.password, Seed__AdminName: 'Administrador local',
   SESMT_SEED_EXAMPLES: '1', SESMT_EXAMPLE_PASSWORD: password, Storage__Local__RootPath: join(dir, 'storage') });
+env.SESMT_NORMALIZE_LOCAL_DATA = process.argv.includes('--normal-names') ? '1' : '0';
 const build = spawnSync('dotnet', ['build', 'backend/SESMT.API/SESMT.API.csproj', '-c', 'Release', '--nologo', '--verbosity', 'quiet'], { cwd: root, env, encoding: 'utf8', windowsHide: true });
 if (build.status !== 0 || build.error) throw new Error('A compilação da API falhou; a carga não foi executada.');
 const child = spawn('dotnet', ['backend/SESMT.API/bin/Release/net10.0/SESMT.API.dll'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -45,3 +46,5 @@ const access = { database: state.database, companyId: result.CompanyId, password
 writeFileSync(accessPath, JSON.stringify(access, null, 2), { mode: 0o600 });
 writeFileSync(join(dir, 'example-seed-report.json'), JSON.stringify({ ...result, backup }, null, 2));
 console.log(JSON.stringify({ alreadyPresent: result.AlreadyPresent, users: result.Users, workers: result.Workers, units: result.Units, teams: result.Teams, documents: result.Documents, appointments: result.Appointments, permits: result.Permits, credentialsFile: '.local/fullstack-preview/example-access.json' }));
+const presentation = output.split(/\r?\n/).find(text => text.startsWith('LOCAL_PRESENTATION_RESULT:'));
+if (presentation) console.log(presentation);
