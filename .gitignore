@@ -5,7 +5,10 @@ dist/
 .env.*.local
 .local/
 # Nome antigo reservado; a API desta branch fica em backend/.
+# Nome antigo reservado; a API desta branch fica em backend/.
 /SESMT-backend/
+/backend/.local/
+/backend/SESMT.API/storage/
 /backend/.local/
 /backend/SESMT.API/storage/
 *.tsbuildinfo
