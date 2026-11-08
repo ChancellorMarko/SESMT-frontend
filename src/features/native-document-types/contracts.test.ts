@@ -15,8 +15,8 @@ describe('catálogo documental nativo',()=>{
     expect(checkedType(source).item).toEqual(source.item);
   });
   it('confere total, duplicidade e correspondência da busca',()=>{
-    const page={items:[record],total:1,page:1,pageSize:20};expect(checkedPage(page,1,'Capacitação').items).toHaveLength(1);
-    for(const v of[{...page,total:2},{...page,items:[record,record],total:2},{...page,page:2}])expect(()=>checkedPage(v,1,'')).toThrow();expect(()=>checkedPage(page,1,'Outro')).toThrow();
+    const row={id,...record},page={items:[row],total:1,page:1,pageSize:20};expect(checkedPage(page,1,'Capacitação').items).toHaveLength(1);
+    for(const v of[{...page,total:2},{...page,items:[row,row],total:2},{...page,items:[record]},{...page,items:[{...row,id:'20000000-0000-4000-8000-000000000001'}]},{...page,page:2}])expect(()=>checkedPage(v,1,'')).toThrow();expect(()=>checkedPage(page,1,'Outro')).toThrow();
   });
   it('não transforma prazo vazio em periodicidade presumida e recusa zero ou fração',()=>{
     const fields={code:'CAP',name:'Capacitação',description:'',category:'OPERACIONAL',secrecyLevel:'Restrito',requiresSignature:true,requiresApproval:true,days:'',years:''};expect(creationFields.parse(fields).days).toBe('');

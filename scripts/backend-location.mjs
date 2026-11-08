@@ -3,19 +3,17 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const frontendRoot = fileURLToPath(new URL('../', import.meta.url));
+export const DEFAULT_BACKEND_PATH = '../SESMT-backend';
 
-/** Prefer the API bundled in this branch; preserve explicit external worktrees. */
+/** Resolve the official SESMT-backend checkout; embedded copies inside the frontend are refused. */
 export function resolveBackendRoot(settings = {}, workspace = frontendRoot) {
-  const fallback = existsSync(join(workspace, 'backend', 'SESMT.slnx')) ? 'backend' : '../SESMT-backend';
-  const candidate = resolve(workspace, settings.SESMT_BACKEND_PATH || fallback);
-  if (!existsSync(candidate)) throw new Error('Confira a pasta backend desta branch ou configure SESMT_BACKEND_PATH para um repositório externo.');
+  const candidate = resolve(workspace, settings.SESMT_BACKEND_PATH || DEFAULT_BACKEND_PATH);
+  if (!existsSync(candidate)) throw new Error(`Backend não encontrado em ${candidate}. Clone o SESMT-backend ao lado do frontend ou configure SESMT_BACKEND_PATH.`);
   const backend = realpathSync(candidate);
   const insideFrontend = relative(realpathSync(workspace), backend);
-  const bundled = insideFrontend === 'backend';
-  if (!bundled && insideFrontend !== '..' && !insideFrontend.startsWith(`..${sep}`) && !isAbsolute(insideFrontend))
-    throw new Error('A cópia interna da API deve ficar na pasta backend; outras cópias precisam estar fora da pasta do frontend.');
-  const entries = ['SESMT.slnx', ...['API', 'Application', 'Domain', 'Infrastructure', 'Tests'].map(name => `SESMT.${name}/SESMT.${name}.csproj`)];
-  if (!bundled) entries.unshift('.git');
+  if (insideFrontend === '' || insideFrontend !== '..' && !insideFrontend.startsWith(`..${sep}`) && !isAbsolute(insideFrontend))
+    throw new Error('O backend deve ser o repositório SESMT-backend fora da pasta do frontend; cópias embutidas não são aceitas.');
+  const entries = ['.git', 'SESMT.slnx', ...['API', 'Application', 'Domain', 'Infrastructure', 'Tests'].map(name => `SESMT.${name}/SESMT.${name}.csproj`)];
   for (const entry of entries) {
     if (!existsSync(join(backend, entry))) throw new Error(`Repositório backend incompleto: ${entry} ausente. Confira SESMT_BACKEND_PATH.`);
   }

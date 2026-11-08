@@ -15,11 +15,20 @@ interface SessionContextValue {
   login: (email: string, password: string) => Promise<MfaChallengeDto | null>;
   verifyMfa: (challengeId: string, code: string) => Promise<void>;
   logout: () => Promise<void>; restore: () => Promise<void>;
+  /** Re-read permissions and scopes for the current session without rotating the refresh token. */
+  reloadIdentity: () => Promise<void>;
 }
 const Context = createContext<SessionContextValue | null>(null);
+function checkedIdentity(response: unknown): MeDto {
+  const identity = decodeIdentityResponse(response);
+  if (!identity) throw new Error(incompleteIdentityMessage);
+  if (identity.scope.expiresAt && (!Number.isFinite(Date.parse(identity.scope.expiresAt)) || Date.parse(identity.scope.expiresAt) <= Date.now())) throw new Error('A concessão de acesso expirou ou está inválida. Solicite uma nova autorização.');
+  return identity;
+}
 export function SessionProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const [me,setMe] = useState<MeDto | null>(null); const [unitId,changeUnit] = useState<string>();
+  const meRef = useRef<MeDto | null>(null); meRef.current = me;
   const [sessionKey,setKey] = useState('anonymous');
   const [status,setStatus] = useState<SessionContextValue['status']>('restoring');
   const [sessionError,setError] = useState<string | null>(null);
@@ -39,9 +48,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       throw error;
     }
     assertCurrent(operation);
-    const identity = decodeIdentityResponse(response);
-    if (!identity) throw new Error(incompleteIdentityMessage);
-    if (identity.scope.expiresAt && (!Number.isFinite(Date.parse(identity.scope.expiresAt)) || Date.parse(identity.scope.expiresAt) <= Date.now())) throw new Error('A concessão de acesso expirou ou está inválida. Solicite uma nova autorização.');
+    const identity = checkedIdentity(response);
     client.clear(); setMe(identity); changeUnit(identity.scope.unitIds[0]); setKey(crypto.randomUUID()); setStatus('authenticated'); setError(null);
     sessionStorage.removeItem('sesmt.logoutPending');
   },[client]);
@@ -56,6 +63,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!(error instanceof ApiError && error.status === 401) && !(error instanceof DOMException && error.name === 'AbortError')) setError(error instanceof Error ? error.message : 'Não foi possível restaurar a sessão.');
     }
   },[establish,clear]);
+  // Scope changes (for example, after creating a company or unit) only need a fresh identity read.
+  // Rotating the refresh token here would let a navigation that aborts the response discard the new cookie.
+  const reloadIdentity = useCallback(async () => {
+    const operation = generation.current, current = meRef.current;
+    if (!current) return;
+    const identity = checkedIdentity(await api.get<unknown>(AUTH_CONTRACT.mePath));
+    if (operation !== generation.current) return;
+    if (identity.user.id !== current.user.id) { await restore(); return; }
+    setMe(identity);
+    changeUnit(selected => selected && identity.scope.unitIds.includes(selected) ? selected : identity.scope.unitIds[0]);
+    await client.invalidateQueries();
+  },[client,restore]);
   useEffect(() => {
     setExpiredHandler(() => { clear(); setError('Sua sessão expirou. Entre novamente.'); }); void restore();
     return () => { generation.current++; cancelAllRequests(); setExpiredHandler(() => {}); };
@@ -124,6 +143,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     finally { if (operation === generation.current) clear(); }
   };
   const setUnitId = (id: string) => { if (id === unitId || !me?.scope.unitIds.includes(id)) return; cancelAllRequests(); void client.cancelQueries(); client.clear(); changeUnit(id); };
-  return <Context.Provider value={{me,unitId,sessionKey,status,sessionError,can:p => !!me && hasPermission(me.permissions, p),setUnitId,login,verifyMfa,logout,restore}}>{children}</Context.Provider>;
+  return <Context.Provider value={{me,unitId,sessionKey,status,sessionError,can:p => !!me && hasPermission(me.permissions, p),setUnitId,login,verifyMfa,logout,restore,reloadIdentity}}>{children}</Context.Provider>;
 }
 export function useSession() { const value=useContext(Context); if(!value) throw new Error('SessionProvider não encontrado.'); return value; }

@@ -56,7 +56,7 @@ beforeEach(() => {
   vi.mocked(obtainCsrf).mockResolvedValue(undefined);
   vi.mocked(useSession).mockReturnValue({
     me: null, unitId: undefined, sessionKey: 'anonymous-a', status: 'anonymous', sessionError: null,
-    can: () => false, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(),
+    can: () => false, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn(),
   });
   vi.mocked(api.post).mockImplementation(async path => {
     if (path === '/auth/invitations/inspect') return structuredClone(inspected) as never;

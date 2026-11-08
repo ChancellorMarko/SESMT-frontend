@@ -29,6 +29,28 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('isolamento do ciclo da sessão', () => {
+  it('relê permissões e escopos sem rotacionar o refresh token nem trocar a chave da sessão', async () => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    const key = current.sessionKey; act(() => current.setUnitId('unit-2'));
+    http.renew.mockClear(); http.post.mockClear(); http.clear.mockClear();
+    const expanded = { ...identity, permissions: ['trabalhador:ler', 'unidade:criar'], scope: { ...identity.scope, companyIds: ['company-1', 'company-2'], unitIds: ['unit-1', 'unit-2', 'unit-3'] } };
+    http.get.mockResolvedValue(expanded);
+    await act(() => current.reloadIdentity());
+    expect(http.renew).not.toHaveBeenCalled(); expect(http.post).not.toHaveBeenCalled(); expect(http.clear).not.toHaveBeenCalled();
+    expect(current.me).toEqual(expanded); expect(current.can('unidade:criar')).toBe(true);
+    expect(current.sessionKey).toBe(key); expect(current.unitId).toBe('unit-2'); expect(current.status).toBe('authenticated');
+  });
+  it('na releitura, troca a unidade removida do escopo e restaura a sessão se a conta mudou', async () => {
+    mount(); await waitFor(() => expect(current.status).toBe('authenticated'));
+    act(() => current.setUnitId('unit-2'));
+    http.get.mockResolvedValue({ ...identity, scope: { ...identity.scope, unitIds: ['unit-1'] } });
+    await act(() => current.reloadIdentity());
+    expect(current.unitId).toBe('unit-1');
+    http.renew.mockClear();
+    http.get.mockResolvedValue({ ...identity, user: { ...identity.user, id: 'other-user' } });
+    await act(() => current.reloadIdentity());
+    expect(http.renew).toHaveBeenCalledTimes(1);
+  });
   it('aceita o catálogo nativo de uma função nova, preserva o contrato original e não concede escrita', async () => {
     const native = { ...identity, roles: ['PERFIL_CRIADO_NA_API'], permissions: ['documento:ler', 'recurso_novo:consultar'] };
     http.get.mockResolvedValue(native);

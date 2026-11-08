@@ -18,7 +18,7 @@ const fixture: DocumentDto = { id: unitId, code: 'DOC-001', title: 'Documento fi
 beforeEach(() => {
   runtime.mode = 'demo';
   vi.clearAllMocks();
-  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'url-test', can: permission => permission === 'documents.read', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() }));
+  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'url-test', can: permission => permission === 'documents.read', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn() }));
   vi.mocked(api.get).mockImplementation(async <T,>(path: string, options?: Parameters<typeof api.get>[1]): Promise<T> => (path === '/documents' ? { items: [fixture], page: options?.query?.page ?? 1, pageSize: 10, total: 50 } : { items: [{ id: typeId, name: 'Procedimento' }], page: 1, pageSize: 100, total: 1 }) as T);
 });
 afterEach(() => vi.unstubAllEnvs());

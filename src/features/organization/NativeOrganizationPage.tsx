@@ -14,7 +14,7 @@ export function NativeOrganizationPage() {
   return <Workspace key={`${sessionKey}:${can('organization.read')}`}/>;
 }
 function Workspace() {
-  const { sessionKey, can, restore } = useSession(), client = useQueryClient();
+  const { sessionKey, can, reloadIdentity } = useSession(), client = useQueryClient();
   const [resource, setResource] = useState<OrganizationResource>('companies'), [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false), [success, setSuccess] = useState('');
   const [editing,setEditing] = useState<OrganizationEditTarget>();
@@ -25,10 +25,15 @@ function Workspace() {
   const rows = data?.[resource].filter(row => `${row.name} ${'code' in row ? row.code : ''} ${parentName(row, data)}`.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR'))) ?? [];
   async function completed() {
     const updated = Boolean(editing);
-    setCreating(false); setEditing(undefined); setSuccess(editing ? 'Cadastro atualizado.' : 'Cadastro concluído.');
+    let message = updated ? 'Cadastro atualizado.' : 'Cadastro concluído.';
     await Promise.all([client.invalidateQueries({ queryKey: ['native-organization-management'] }), client.invalidateQueries({ queryKey: ['organization'] }), client.invalidateQueries({ queryKey: ['native-organization-edit'] })]);
     // Creation can expand the scope catalog. Editing preserves its IDs and selected unit.
-    if (!updated) await restore();
+    // The dialog stays busy until the new scopes are read, so the success state reflects them.
+    if (!updated) {
+      try { await reloadIdentity(); }
+      catch { message = 'Cadastro concluído. Não foi possível atualizar os acessos da sessão; atualize a página antes de usar o novo cadastro.'; }
+    }
+    setCreating(false); setEditing(undefined); setSuccess(message);
   }
   return <div className="stack"><PageHeader title="Organização" description="Cadastre empresas, unidades, setores e cargos usados nas contas e nos documentos." actions={<><Button variant="secondary" disabled={snapshot.isFetching} onClick={() => void snapshot.refetch()}>Atualizar</Button>{allowCreate && <Button disabled={snapshot.isFetching} onClick={() => { setSuccess(''); setCreating(true); }}>Cadastrar {selected.singular}</Button>}</>}/>
     {success && <Feedback tone="success">{success}</Feedback>}

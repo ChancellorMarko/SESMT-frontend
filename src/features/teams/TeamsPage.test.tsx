@@ -77,7 +77,7 @@ beforeEach(() => {
     login: vi.fn(),
     verifyMfa: vi.fn(),
     logout: vi.fn(),
-    restore: vi.fn(),
+    restore: vi.fn(), reloadIdentity: vi.fn(),
   }));
   vi.mocked(api.get).mockReset().mockImplementation(((path: string, options?: { query?: { unitId?: string } }) => {
     if (path === '/teams') return Promise.resolve(mockTeams.filter(team => team.unitId === options?.query?.unitId));

@@ -1,26 +1,20 @@
-# Integração Ampara: frontend e API nesta branch
+# Integração Ampara: frontend e API oficial
 
-Esta branch contém a interface React na raiz e a API .NET em `backend/`. A API foi incorporada a partir do [SESMT-backend](https://github.com/ChancellorMarko/SESMT-backend), `main` em `3352263`, conciliada com as correções do pacote único atualizado. Os endpoints nativos e as projeções de navegador usam o mesmo processo e banco.
+Este repositório contém somente a interface React. A API .NET fica no repositório oficial [SESMT-backend](https://github.com/ChancellorMarko/SESMT-backend), única fonte do código de servidor, das migrations e dos testes da API. A cópia que existia em `backend/` foi retirada do frontend; alterações de API são feitas e revisadas no repositório do backend (fluxo descrito em `docs/frontend-integration.md` desse repositório).
 
 ## Preparar o ambiente
 
 Requisitos: Node.js >=22.12, npm, SDK .NET 10 e PostgreSQL. Docker Compose é opcional para o banco.
 
-Um único checkout desta branch contém:
+Organização padrão dos checkouts:
 
 ```text
-SESMT-frontend/
-  src/                  # frontend React
-  backend/
-    SESMT.slnx
-    SESMT.API/
-    SESMT.Application/
-    SESMT.Domain/
-    SESMT.Infrastructure/
-    SESMT.Tests/
+workspace/
+  SESMT-backend/    # clone do repositório oficial da API
+  SESMT-frontend/   # este repositório
 ```
 
-Na raiz:
+Na raiz do frontend:
 
 ```sh
 npm ci
@@ -30,17 +24,39 @@ npm run integration:migrate
 npm run dev:integrated
 ```
 
-`integration:setup` cria configurações e credenciais locais aleatórias em `.env.integration.local`, sem sobrescrever um arquivo existente. Consulte as credenciais nesse arquivo; não o envie ao GitHub. Se já houver PostgreSQL local configurado, use-o e dispense `integration:db`. O comando de migração atualiza o banco configurado: confira o destino e faça backup antes de atualizar uma base com dados importantes.
+`integration:setup` cria configurações e credenciais locais aleatórias em `.env.integration.local`, sem sobrescrever um arquivo existente. Consulte as credenciais nesse arquivo; não o envie ao GitHub. Se já houver PostgreSQL local configurado, use-o e dispense `integration:db`. O comando de migração aplica as migrations do checkout do backend ao banco configurado: confira o destino e faça backup antes de atualizar uma base com dados importantes.
 
-Os comandos npm `dev:integrated`, `integration:migrate`, `integration:check-schema` e `test:backend` usam a opção `--bundled`, selecionando sempre `backend/`. Isso preserva as credenciais/banco locais e ignora somente uma localização externa antiga da API. Não é necessário outro clone nem aplicar o ZIP por cima desta pasta: as alterações já estão nos fontes.
-
-Para selecionar deliberadamente outro checkout pela ferramenta, configure o caminho local:
+Os comandos `dev:integrated`, `integration:migrate`, `integration:check-schema`, `test:backend`, `test:access:real` e `seed:local-examples` usam o backend em `../SESMT-backend`. Para outro local, configure em `.env.integration.local`:
 
 ```dotenv
 SESMT_BACKEND_PATH=../SESMT-backend
 ```
 
-O caminho pode ser absoluto ou relativo à raiz. Use `node scripts/integration.mjs dev` sem `--bundled` para respeitar essa seleção externa. O resolvedor aceita a pasta interna `backend/` sem Git próprio ou um repositório/worktree externo completo. Outras cópias internas são recusadas. A ferramenta não faz pull, merge ou checkout.
+O caminho pode ser absoluto ou relativo à raiz do frontend e precisa apontar para um checkout Git completo fora desta pasta. Cópias embutidas no frontend (inclusive restos de uma pasta `backend/` antiga) são recusadas. A ferramenta não faz pull, merge ou checkout: atualize o backend antes de testar e registre as revisões dos dois repositórios ao relatar um resultado.
+
+Um banco criado pela antiga cópia embutida pode ter migrations que não existem na sequência oficial (EPI, treinamentos, comprovantes, ASO e edição organizacional). Não aplique `integration:migrate` sobre ele sem conferir `__EFMigrationsHistory` e fazer backup; para validar a API oficial, prefira uma base nova ou o teste `test:access:real`, que cria e remove sua própria base.
+
+## Módulos disponíveis na API oficial
+
+Conferência de 2026-11-08 contra SESMT-backend `main` em `38c6270`. O frontend mostra cada módulo somente quando a API concede as permissões correspondentes em `/auth/me` (ou `canEdit` na resposta do recurso); não há fallback com dados locais no modo integrado.
+
+| Módulo | Situação na API oficial | Comportamento do frontend |
+| --- | --- | --- |
+| Login, sessão, identidade, usuários e acessos | Disponível | Integrado |
+| Cadastro de empresas, unidades, setores e cargos | Disponível (criação e leitura) | Integrado; após um cadastro a identidade é relida sem rotacionar o refresh token |
+| Edição organizacional com histórico | Ausente (`/organization-management/{resource}/{id}` e `canEdit`) | Botões de edição ocultos |
+| Trabalhadores e edição profissional | Disponível | Integrado; motivo acima de 50 caracteres falha na API (coluna `varchar(50)`) |
+| Documentos | Disponível | Integrado |
+| Tipos documentais | Disponível (`expectedVersion` numérico, `/document-types/management-context`); escrita sem checagem de permissão, política editável e histórico não gravado | Integrado; a interface segue `canManage` da API e não pode compensar a falta de autorização no servidor |
+| Agenda, equipes, PTs | Disponível | Integrado |
+| Designações | Disponível; listar exige o papel de Configurador na empresa | 403 exibido como mensagem de acesso |
+| EPIs (`epi:*`) | Ausente | Rotas e atalhos ocultos; acesso direto mostra a mensagem de autorização |
+| Treinamentos e comprovantes (`treinamento:*`) | Ausente | Idem; a seção da ficha do trabalhador não aparece |
+| ASO administrativo (`aso:acompanhar`, `aso:detalhar`) | Ausente (a API semeia apenas `aso:ler` e `aso:editar`) | Idem |
+
+Verificação de 2026-11-08 contra a API oficial (`38c6270`), em base PostgreSQL descartável e sem MSW: 40 verificações de navegador aprovadas, 6 seções ignoradas por ausência do módulo na API, 1 achado de backend (versão ausente nas respostas de tipos documentais) e nenhum erro de JavaScript.
+
+As rotas, DTOs, permissões e migrations necessárias estão em [SOLICITACAO_BACKEND.md](SOLICITACAO_BACKEND.md). `test:access:real` executa as seções desses módulos apenas quando o catálogo de permissões da API os oferece e registra as demais como `skipped` no relatório, além de conferir que a interface os mantém ocultos.
 
 O frontend integrado abre em `http://127.0.0.1:5175/login`, a API em `http://127.0.0.1:5047` e o banco opcional em `127.0.0.1:5434`. O início imprime o diretório selecionado da API. Ctrl+C encerra os processos iniciados pelo comando, sem encerrar o banco. Portas ocupadas são informadas antes de iniciar os servidores.
 
@@ -310,7 +326,7 @@ npm run integration:smoke
 npm run build
 ```
 
-`test:backend` executa os testes da solução em `backend/`. Os cenários PostgreSQL exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para o banco de manutenção `postgres` de uma instância local; cada fixture cria e remove apenas sua própria base isolada. Sem essa variável, esses cenários são explicitamente ignorados. `integration:smoke` exige os servidores integrados ativos e verifica sessão real pelo proxy; não usa MSW. Testes de navegador com respostas controladas são verificações de contrato, não substituem a integração real.
+`test:backend` executa os testes da solução do checkout do backend. Os cenários PostgreSQL exigem `SESMT_TEST_POSTGRES_ADMIN` apontando para o banco de manutenção `postgres` de uma instância local; cada fixture cria e remove apenas sua própria base isolada. Sem essa variável, esses cenários são explicitamente ignorados. `integration:smoke` exige os servidores integrados ativos e verifica sessão real pelo proxy; não usa MSW. Testes de navegador com respostas controladas são verificações de contrato, não substituem a integração real.
 
 Para validar o frontend localmente, execute `npm test`, `npm run test:connection-ui` e `npm run build` em sequência. Reservar os recursos da máquina para cada etapa evita que a execução conjunta de navegador/build faça testes de interação excederem seus limites, sem precisar alterar as verificações ou os tempos dos testes.
 
@@ -340,7 +356,7 @@ A execução local foi conferida por login dos oito perfis e do administrador de
 
 ## ASOs administrativos
 
-A rota nativa `/app/asos` consulta `/api/v1/occupational-health`. O contrato completo, permissões, campos, erros e recuperação de chaves estão em `backend/README.md`, seção Registro administrativo de ASOs. O frontend usa as capacidades retornadas pela API, sem deduzir acesso do nome do cargo. Médico com concessões e unidade completa registra/corrige/invalida; RH recebe aptidão, função e datas sem emitente/CRM; trabalhador vê somente seus registros. Administração/auditoria gerais não concedem acesso médico automático.
+A rota nativa `/app/asos` consulta `/api/v1/occupational-health`. O contrato completo, permissões, campos, erros e recuperação de chaves eram descritos na antiga cópia embutida da API; esse módulo ainda não existe no SESMT-backend oficial (veja [Módulos disponíveis na API oficial](#módulos-disponíveis-na-api-oficial)). O frontend usa as capacidades retornadas pela API, sem deduzir acesso do nome do cargo. Médico com concessões e unidade completa registra/corrige/invalida; RH recebe aptidão, função e datas sem emitente/CRM; trabalhador vê somente seus registros. Administração/auditoria gerais não concedem acesso médico automático.
 
 O formulário inicia aptidão, datas e próxima avaliação sem preenchimento. Não há campo de diagnóstico, resultado clínico ou observação médica. Nova avaliação deve ser um novo registro; correção serve à transcrição/documento de origem e conserva histórico. A lista inicia no mais recente por trabalhador e oferece históricos e filtros de próxima avaliação. As datas vêm do responsável, sem validade anual presumida. O cadastro não modifica elegibilidade nem libera PT e não contém emissão, assinatura ou upload do ASO nesta entrega.
 
@@ -352,10 +368,10 @@ Verificação desta entrega: build aprovado; 478 testes do backend com PostgreSQ
 
 ## Trabalho da equipe
 
-1. Use esta branch para revisar a versão conjunta; ela não altera automaticamente o histórico do repositório separado da API.
-2. Faça alterações de API, autorização, banco e migrações em `backend/`, e de interface/cliente HTTP no frontend da raiz.
-3. Combine rota, DTO, erros e permissões antes de implementar um fluxo entre os projetos. Concilie explicitamente alterações recebidas do repositório externo para manter uma única API em execução.
-4. Execute os testes pertinentes e valide os dois projetos juntos. Disponibilize a API compatível antes do frontend que depende dela.
+1. Atualize a `main` do SESMT-backend no início de cada sessão e confira se há commits novos que alterem contratos usados aqui.
+2. Faça alterações de API, autorização, banco e migrações somente no SESMT-backend, em branch e PR próprios; interface e cliente HTTP ficam neste repositório.
+3. Combine rota, DTO, erros e permissões antes de implementar um fluxo entre os projetos. Um contrato só é considerado disponível depois de existir na `main` do backend.
+4. Execute os testes pertinentes e valide os dois checkouts juntos, registrando as revisões. Disponibilize a API compatível antes do frontend que depende dela.
 5. Integre por revisão de PR; os comandos locais não publicam nem fazem merge automático. Preserve credenciais, arquivos recebidos, banco e relatórios fora do Git.
 
 `npm run dev` continua iniciando a demonstração com dados sintéticos no navegador, normalmente na porta 5173. Esse modo é independente do PostgreSQL e não constitui outro servidor backend. O botão de demonstração do login integrado aponta para essa instância separada.

@@ -53,7 +53,8 @@ export function checkedNativeType(raw:unknown){
 
 export function checkedPage(raw:unknown,page:number,q:string){
   const p=z.object({
-    items:z.array(managed),
+    // List rows repeat the identifier beside the item (DocumentTypeListItemResponse).
+    items:z.array(managed.extend({id}).strict().refine(r=>r.id===r.item.id)),
     total:z.number().int().nonnegative(),
     page:z.literal(page),
     pageSize:z.literal(20),

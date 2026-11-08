@@ -1,4 +1,5 @@
 import { integrationEnv, root } from './integration-config.mjs';
+import { resolveBackendRoot } from './backend-location.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
@@ -6,6 +7,8 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from '@playwright/test';
 const env = integrationEnv();
+const backend = resolveBackendRoot(env);
+const backendPath = (...segments) => join(backend, ...segments);
 const parts = Object.fromEntries(env.ConnectionStrings__Sesmt.split(';').filter(Boolean).map(part => { const at = part.indexOf('='); return [part.slice(0, at).trim().toLowerCase(), part.slice(at + 1).trim()]; }));
 if (parts.host !== '127.0.0.1' || parts.port !== '5434') throw new Error('Only the local QA cluster is allowed.');
 const database = `ampara_uiqa_${randomBytes(6).toString('hex')}`;
@@ -38,15 +41,18 @@ Object.assign(env, { ConnectionStrings__Sesmt: env.ConnectionStrings__Sesmt.repl
   Storage__Local__RootPath: join(dir, database), API_PROXY_TARGET: 'http://127.0.0.1:5059', VITE_API_MODE: 'api',
   VITE_AUTH_API_CONTRACT: 'native', PasswordResetEmail__Host: '', PasswordResetEmail__Username: '', PasswordResetEmail__Password: '' });
 let allocated = false, browser;
-const report = { mockedRequests: false, checks: [], pageErrors: [] };
+const report = { mockedRequests: false, checks: [], skipped: [], backendFindings: [], pageErrors: [] };
 function check(ok, message) { if (!ok) throw new Error(message); report.checks.push(message); console.log(message); }
+// Contract violations owned by the API are recorded, fail the run at the end, and do not hide later checks.
+function expectBackend(ok, message) { if (ok) { check(true, message); return; } report.backendFindings.push(message); console.log(`BACKEND FINDING: ${message}`); }
+function skip(message) { report.skipped.push(message); console.log(`SKIPPED: ${message}`); }
 try {
   for (const port of [5059, 5185]) { try { await fetch(`http://127.0.0.1:${port}`, { signal: AbortSignal.timeout(1000) }); throw new Error(`QA port ${port} already in use.`); } catch (error) { if (error.message.includes('already in use')) throw error; } }
-  await done(start('dotnet', ['build', 'backend/SESMT.API/SESMT.API.csproj', '-c', 'Release', '--nologo', '--verbosity', 'quiet'], 'build.log'));
+  await done(start('dotnet', ['build', backendPath('SESMT.API', 'SESMT.API.csproj'), '-c', 'Release', '--nologo', '--verbosity', 'quiet'], 'build.log'));
   pg('createdb', [...pgArgs, '-T', 'template0', database]); allocated = true;
   writeFileSync(join(dir, 'owned-database.json'), JSON.stringify({ database }));
-  await done(start('dotnet', ['ef', 'database', 'update', '--no-build', '--configuration', 'Release', '--project', 'backend/SESMT.Infrastructure', '--startup-project', 'backend/SESMT.API'], 'migrate.log'));
-  const api = start('dotnet', ['backend/SESMT.API/bin/Release/net10.0/SESMT.API.dll'], 'api.log'); await ready('http://127.0.0.1:5059/health', api);
+  await done(start('dotnet', ['ef', 'database', 'update', '--no-build', '--configuration', 'Release', '--project', backendPath('SESMT.Infrastructure'), '--startup-project', backendPath('SESMT.API')], 'migrate.log'));
+  const api = start('dotnet', [backendPath('SESMT.API', 'bin', 'Release', 'net10.0', 'SESMT.API.dll')], 'api.log'); await ready('http://127.0.0.1:5059/health', api);
   const frontend = start(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5185', '--strictPort', '--mode', 'integration'], 'frontend.log'); await ready('http://127.0.0.1:5185/login', frontend);
   browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || (process.platform === 'win32' ? 'chrome' : undefined), headless: true });
   const page = await browser.newPage({ viewport: { width: 1365, height: 900 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
@@ -129,13 +135,33 @@ try {
   check(true, 'Real API: professional worker edit confirmed in the browser');
   const operationReads = await page.evaluate(async () => {
     const { api } = await import('/src/shared/api/client.ts');
-    const [appointments,designations] = await Promise.all([api.get('/appointments'),api.get('/designations')]);
-    return Array.isArray(appointments.items) && Array.isArray(designations);
+    const appointments = await api.get('/appointments');
+    let designations = 'invalid';
+    try { designations = Array.isArray(await api.get('/designations')) ? 'listed' : 'invalid'; } catch (error) { designations = error.status === 403 ? 'forbidden' : 'error'; }
+    return { agenda: Array.isArray(appointments.items), designations };
   });
-  check(operationReads,'Real API: global administrator reads agenda and designations');
+  check(operationReads.agenda, 'Real API: global administrator reads the agenda');
+  check(['listed', 'forbidden'].includes(operationReads.designations), 'Real API: designation list follows the configurator rule of the API');
+  if (operationReads.designations === 'forbidden') {
+    await page.goto('http://127.0.0.1:5185/app/designacoes');
+    await page.getByText('A API não autorizou a consulta de designações para esta conta.', { exact: true }).waitFor();
+    check(true, 'Designations: a 403 from the API is shown as an access message, without data');
+  }
+  // Optional modules run only when the API catalog grants them; absent modules are reported, not faked.
+  const catalog = await page.evaluate(async () => { const { api } = await import('/src/shared/api/client.ts'); return (await api.get('/auth/me')).permissions; });
+  const offers = { equipment: catalog.includes('epi:ler'), training: catalog.includes('treinamento:ler'), aso: catalog.includes('aso:acompanhar') };
+  for (const [offered, path, label] of [[offers.equipment, '/app/epis', 'EPIs'], [offers.training, '/app/treinamentos', 'Treinamentos'], [offers.aso, '/app/asos', 'ASOs']]) {
+    if (offered) continue;
+    await page.goto(`http://127.0.0.1:5185/app/dashboard`); await page.getByRole('heading', { name: 'Visão geral', exact: true }).waitFor();
+    check(await page.locator(`a[href="${path}"]`).count() === 0, `Navigation: ${label} stays hidden while the API does not grant the module`);
+    await page.goto(`http://127.0.0.1:5185${path}`);
+    await page.getByRole('heading', { name: 'Esta área precisa de autorização.', exact: true }).waitFor();
+    check(true, `Navigation: direct access to ${label} shows the authorization message instead of calling an absent API`);
+  }
   await page.goto('http://127.0.0.1:5185/app/dashboard'); await page.getByRole('heading',{name:'Visão geral',exact:true}).waitFor();
   const activeShortcut=()=>page.getByRole('navigation',{name:'Acesso rápido',exact:true}).locator('a[aria-current="page"]');
   check(await activeShortcut().count()===1&&await activeShortcut().getAttribute('href')==='/app/dashboard','Navigation: dashboard has exactly one active shortcut');
+  if (offers.equipment) {
   await page.goto(`http://127.0.0.1:5185/app/epis?unitId=${qaUnit}`);
   await page.getByRole('heading',{name:'EPIs',exact:true}).waitFor();
   check(await activeShortcut().count()===1&&await activeShortcut().getAttribute('href')==='/app/epis','Navigation: equipment has exactly one active shortcut');
@@ -176,7 +202,9 @@ try {
   await page.setViewportSize({width:390,height:844});
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Equipment: no page overflow at 390px');
   await page.screenshot({path:join(dir,'equipment-mobile.png'),fullPage:true});
+  } else skip('EPI: module not offered by this API (epi:* not in the permission catalog)');
   await page.setViewportSize({width:1365,height:900});
+  if (offers.training) {
   await page.goto(`http://127.0.0.1:5185/app/treinamentos?unitId=${qaUnit}`);
   await page.getByRole('heading',{name:'Treinamentos',exact:true}).waitFor();
   check(await activeShortcut().count()===1&&await activeShortcut().getAttribute('href')==='/app/treinamentos','Navigation: training has exactly one active shortcut');
@@ -275,6 +303,8 @@ try {
   await page.screenshot({path:join(dir,'training-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844}); check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Training: no page overflow at 390px');
   await page.screenshot({path:join(dir,'training-mobile.png'),fullPage:true});
+  } else skip('Training and evidence: module not offered by this API (treinamento:* not in the permission catalog)');
+  if (offers.aso) {
   check(await page.evaluate(async unitId => { const { api } = await import('/src/shared/api/client.ts'); try { await api.get('/occupational-health', {query:{unitId}}); return false; } catch(e) { return e.status===403; } },qaUnit),'Health: administrator has no implicit access to ASOs');
   const medicalPage=await browser.newPage({viewport:{width:1365,height:900},reducedMotion:'reduce',serviceWorkers:'block'});
   medicalPage.on('pageerror',error=>report.pageErrors.push(error.message));
@@ -316,7 +346,11 @@ try {
   await medicalPage.getByRole('link',{name:'Pessoa QA Atualizada',exact:true}).click();await asoDetail.getByRole('button',{name:'Invalidar registro',exact:true}).click();
   const asoRevoke=medicalPage.getByRole('dialog',{name:'Invalidar registro de ASO',exact:true});await asoRevoke.getByLabel('Motivo administrativo',{exact:true}).selectOption('DUPLICATE');await asoRevoke.getByRole('checkbox').check();await asoRevoke.getByRole('button',{name:'Confirmar invalidação',exact:true}).click();
   await asoDetail.getByText('Invalidado · Registro duplicado',{exact:true}).waitFor();check(true,'Real API: ASO invalidation preserves the record and history');await medicalPage.close();
+  } else skip('ASO: module not offered by this API (aso:acompanhar not in the permission catalog)');
   await page.setViewportSize({width:1365,height:900});await page.goto('http://127.0.0.1:5185/app/organizacao');
+  await page.getByRole('cell', { name: 'Empresa QA', exact: true }).waitFor();
+  const organizationEditable = (await page.evaluate(async () => { const { api } = await import('/src/shared/api/client.ts'); return api.get('/organization-management'); })).companies.some(company => company.canEdit === true);
+  if (organizationEditable) {
   await page.getByRole('button',{name:'Editar empresa Empresa QA',exact:true}).waitFor();
   const editableOrganization=await page.evaluate(async()=>{const{api}=await import('/src/shared/api/client.ts');return api.get('/organization-management');});
   for(const [resource,singular,tab,record,field,name] of [
@@ -345,24 +379,31 @@ try {
   check(await conflictedEditor.getByLabel('Nome fantasia',{exact:true}).inputValue()==='Nome preservado no formulário'&&await conflictedEditor.getByRole('button',{name:'Salvar alterações',exact:true}).isDisabled(),'Organization: concurrent edit preserves input and blocks stale replay');
   page.once('dialog',dialog=>dialog.accept());await conflictedEditor.getByRole('button',{name:'Cancelar',exact:true}).click();
   await page.screenshot({path:join(dir,'organization-edited-desktop.png'),fullPage:true});
+  } else skip('Organization edit: the API does not grant canEdit on /organization-management');
   await page.setViewportSize({width:1365,height:900});await page.goto('http://127.0.0.1:5185/app/configuracoes/tipos-documentais');await page.getByRole('button',{name:'Cadastrar tipo',exact:true}).click();
   const typeForm=page.getByRole('dialog',{name:'Cadastrar tipo documental',exact:true});
-  await typeForm.getByLabel('Código do tipo',{exact:true}).fill('CAP-NATIVE-QA');await typeForm.getByLabel('Nome do tipo',{exact:true}).fill('Registro de capacitação');await typeForm.getByLabel('Categoria',{exact:true}).fill('CAPACITACAO');await typeForm.getByLabel('Classificação',{exact:true}).selectOption('RESTRITO');await typeForm.getByRole('checkbox',{name:'Exigir assinatura',exact:true}).check();
+  await typeForm.getByLabel('Código do tipo',{exact:true}).fill('CAP-NATIVE-QA');await typeForm.getByLabel('Nome do tipo',{exact:true}).fill('Registro de capacitação');await typeForm.getByLabel('Categoria',{exact:true}).fill('CAPACITACAO');await typeForm.getByLabel('Classificação',{exact:true}).selectOption('Restrito');await typeForm.getByRole('checkbox',{name:'Exigir assinatura',exact:true}).check();
   check(await typeForm.getByLabel('Periodicidade cadastrada (dias)',{exact:true}).inputValue()===''&&await typeForm.getByLabel('Prazo de guarda cadastrado (anos)',{exact:true}).inputValue()==='','Document types: no automatic periodicity or retention assumption');
   await typeForm.getByRole('checkbox',{name:'Conferi a identificação e as regras deste tipo.',exact:true}).check();await typeForm.getByRole('button',{name:'Cadastrar tipo',exact:true}).click();
-  const typeDetail=page.getByRole('dialog',{name:'Tipo documental',exact:true});await typeDetail.getByText('Registro de capacitação',{exact:true}).waitFor();const nativeTypeId=new URL(page.url()).searchParams.get('registro');
+  const typeDetail=page.getByRole('dialog',{name:'Tipo documental',exact:true});
+  const typeCreated=await Promise.race([typeDetail.getByText('Registro de capacitação',{exact:true}).waitFor().then(()=>true),typeForm.getByRole('alert').filter({hasText:'A resposta não confirmou'}).waitFor().then(()=>false)]);
+  expectBackend(typeCreated,'Document types: creation response carries the persisted version (>= 1) and is confirmed by the reread');
+  if (typeCreated) {
+const nativeTypeId=new URL(page.url()).searchParams.get('registro');
   check(Boolean(nativeTypeId),'Real API: native document type created and reread');
   await typeDetail.getByRole('button',{name:'Editar identificação',exact:true}).click();const typeEdit=page.getByRole('dialog',{name:'Editar identificação do tipo',exact:true});await typeEdit.getByLabel('Nome do tipo',{exact:true}).fill('Registro de capacitação revisado');await typeEdit.getByRole('checkbox').check();await typeEdit.getByRole('button',{name:'Salvar identificação',exact:true}).click();
-  await typeDetail.getByText('Registro de capacitação revisado',{exact:true}).waitFor();await typeDetail.getByText('Histórico de alterações',{exact:true}).click();await typeDetail.getByText('Identificação alterada',{exact:true}).waitFor();
-  check(true,'Real API: type identification edit preserves native policy and its history');
-  const immutableType=await page.evaluate(async id=>{const{api,nativeDocumentTypesApi}=await import('/src/shared/api/client.ts');const state=await api.get(`/document-type-management/${id}`);const{id:_,code,active,...body}=state.item;try{await nativeDocumentTypesApi.rename(id,state.version,{...body,requiresSignature:false});return false;}catch(e){return e.status===409&&e.code==='IMMUTABLE_DOCUMENT_POLICY';}},nativeTypeId);
-  check(immutableType,'Document types: direct API cannot silently remove an existing signature requirement');await page.screenshot({path:join(dir,'document-types-desktop.png'),fullPage:true});await page.keyboard.press('Escape');await typeDetail.waitFor({state:'hidden'});
+  await typeDetail.getByText('Registro de capacitação revisado',{exact:true}).waitFor();check(true,'Real API: type identification edit persisted and reread');
+  await typeDetail.getByText('Histórico de alterações',{exact:true}).click();expectBackend(await typeDetail.getByText('Identificação alterada',{exact:true}).waitFor({timeout:5000}).then(()=>true,()=>false),'Document types: identification edit is recorded in the administrative history');
+  const immutableType=await page.evaluate(async id=>{const{api,nativeDocumentTypesApi}=await import('/src/shared/api/client.ts');const state=await nativeDocumentTypesApi.get(id);const{id:_,code,active,...body}=state.item;try{await nativeDocumentTypesApi.rename(id,state.version,{...body,requiresSignature:false});return false;}catch(e){return e.status===409&&e.code==='IMMUTABLE_DOCUMENT_POLICY';}},nativeTypeId);
+  expectBackend(immutableType,'Document types: direct API cannot silently remove an existing signature requirement');await page.screenshot({path:join(dir,'document-types-desktop.png'),fullPage:true});await page.keyboard.press('Escape');await typeDetail.waitFor({state:'hidden'});
   await page.setViewportSize({width:320,height:844});check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Document types: table fits 320px without page overflow');await page.getByRole('button',{name:'Cadastrar tipo',exact:true}).click();await page.screenshot({path:join(dir,'document-types-create-mobile.png'),fullPage:true});await typeForm.getByRole('button',{name:'Cancelar',exact:true}).click();
   const typeReader=await browser.newPage({reducedMotion:'reduce',serviceWorkers:'block'});typeReader.on('pageerror',error=>report.pageErrors.push(error.message));await typeReader.goto('http://127.0.0.1:5185/login');await typeReader.locator('[data-auth-scene][data-arrival="ready"]').waitFor();await typeReader.getByLabel('E-mail',{exact:true}).fill('gestor-uiqa@example.invalid');await typeReader.getByLabel('Senha',{exact:true}).fill(password);await typeReader.getByRole('button',{name:'Entrar na plataforma',exact:true}).click();await typeReader.waitForURL('**/app/dashboard');
   await typeReader.goto(`http://127.0.0.1:5185/app/configuracoes/tipos-documentais?registro=${nativeTypeId}`);await typeReader.getByRole('dialog',{name:'Tipo documental',exact:true}).getByText('Registro de capacitação revisado',{exact:true}).waitFor();
-  check(await typeReader.getByRole('button',{name:/Cadastrar tipo|Editar identificação/}).count()===0,'Document types: scoped manager receives a read-only interface');
-  const deniedType=await typeReader.evaluate(async id=>{const{api,nativeDocumentTypesApi}=await import('/src/shared/api/client.ts');const s=await api.get(`/document-type-management/${id}`);const{id:_,code,active,...body}=s.item;try{await nativeDocumentTypesApi.rename(id,s.version,{...body,name:'Tentativa não autorizada'});return false;}catch(e){return e.status===403;}},nativeTypeId);
-  check(deniedType,'Document types: scoped manager cannot mutate through a direct API call');await typeReader.close();
+  expectBackend(await typeReader.getByRole('button',{name:/Cadastrar tipo|Editar identificação/}).count()===0,'Document types: scoped manager receives canManage=false and a read-only interface');
+  const deniedType=await typeReader.evaluate(async id=>{const{api,nativeDocumentTypesApi}=await import('/src/shared/api/client.ts');const s=await nativeDocumentTypesApi.get(id);const{id:_,code,active,...body}=s.item;try{await nativeDocumentTypesApi.rename(id,s.version,{...body,name:'Tentativa não autorizada'});return false;}catch(e){return e.status===403;}},nativeTypeId);
+  expectBackend(deniedType,'Document types: scoped manager cannot mutate through a direct API call');await typeReader.close();
+  } else { page.once('dialog',dialog=>dialog.accept()); await typeForm.getByRole('button',{name:'Cancelar',exact:true}).click(); skip('Document types: edit, policy and scoped-manager checks need a confirmed creation'); }
+  if (offers.equipment && offers.training) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`http://127.0.0.1:5185/app/trabalhadores?unitId=${qaUnit}`);
   await page.getByRole('link', { name: 'Pessoa QA Atualizada', exact: true }).click();
@@ -398,10 +439,12 @@ try {
   check(await safety.getByRole('button', { name: 'Treinamentos', exact: true }).getAttribute('aria-pressed') === 'true', 'Worker profile: returning from training restores the selected tab');
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Worker profile: safety tables return to the correct section and fit at 390px');
   await safety.screenshot({ path: join(dir, 'worker-safety-mobile.png') });
+  } else skip('Worker safety panel: EPI and training modules are not both offered by this API');
   await page.goto('http://127.0.0.1:5185/app/organizacao'); await page.getByRole('heading', { name: 'Organização', exact: true }).waitFor();
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile: no page overflow at 390px');
   await page.screenshot({ path: join(dir, 'organization-mobile.png'), fullPage: true });
   check(report.pageErrors.length === 0, 'Browser: no JavaScript errors');
+  if (report.backendFindings.length) { console.error(`${report.backendFindings.length} backend finding(s); see report.json.`); process.exitCode = 1; }
 } catch (error) {
   report.failure = error.message;
   if (browser) { const page = browser.contexts().flatMap(context=>context.pages()).at(-1); if (page) { await page.screenshot({ path: join(dir, 'failure.png'), fullPage: true }); report.visibleFailure = await page.getByRole('alert').allTextContents(); } }
