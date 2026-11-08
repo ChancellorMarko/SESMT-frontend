@@ -52,9 +52,24 @@ export type FilePolicy = z.infer<typeof policy>;
 export function checkedFilePolicy(value: unknown) { const parsed = policy.safeParse(value); if (!parsed.success || new Set(parsed.data.allowedMimeTypes).size !== parsed.data.allowedMimeTypes.length) throw new InvalidReadResponse(); return parsed.data; }
 const typeSummary = z.object({ id: nativeId, code: z.string().min(1), name: z.string().min(1), category: z.string(), active: z.literal(true) });
 export function checkedDocumentTypes(value: unknown) { const parsed = z.array(typeSummary).safeParse(value); if (!parsed.success || new Set(parsed.data.map(v => v.id)).size !== parsed.data.length) throw new InvalidReadResponse(); return parsed.data; }
-export function checkedDocumentType(value: unknown, id: string) {
-  const parsed = typeSummary.extend({ secrecyLevel: secrecy, metadataSchema: metadata, requiresSignature: z.boolean(), requiresApproval: z.boolean() }).safeParse(value);
+// SESMT-backend returns pages of { id, item, version } (active types only) and a { item, version } envelope for one type.
+const typeDetail = typeSummary.extend({ secrecyLevel: secrecy, metadataSchema: metadata, requiresSignature: z.boolean(), requiresApproval: z.boolean() });
+export const DOCUMENT_TYPE_PAGE_SIZE = 100;
+export function checkedDocumentTypePage(value: unknown, page: number) {
+  const parsed = z.object({ items: z.array(z.object({ id: nativeId, item: typeSummary, version: z.number().int() })), page: z.literal(page), pageSize: z.literal(DOCUMENT_TYPE_PAGE_SIZE), total: z.number().int().nonnegative() }).safeParse(value);
+  if (!parsed.success || parsed.data.items.some(row => row.id !== row.item.id)
+    || parsed.data.items.length !== Math.min(DOCUMENT_TYPE_PAGE_SIZE, Math.max(parsed.data.total - (page - 1) * DOCUMENT_TYPE_PAGE_SIZE, 0))) throw new InvalidReadResponse();
+  return { total: parsed.data.total, items: parsed.data.items.map(row => row.item) };
+}
+/** Validates an already unwrapped type; safe to re-run on cached data. */
+export function checkedDocumentTypeItem(value: unknown, id: string) {
+  const parsed = typeDetail.safeParse(value);
   if (!parsed.success || parsed.data.id !== id) throw new InvalidReadResponse(); return parsed.data;
+}
+/** Validates the { item, version } envelope of GET /document-types/{id} and returns the item. */
+export function checkedDocumentType(value: unknown, id: string) {
+  const parsed = z.object({ item: typeDetail, version: z.number().int() }).safeParse(value);
+  if (!parsed.success || parsed.data.item.id !== id) throw new InvalidReadResponse(); return parsed.data.item;
 }
 export function checkedDocumentDirectory(value: unknown) {
   const base = checkedNativeDirectory(value);

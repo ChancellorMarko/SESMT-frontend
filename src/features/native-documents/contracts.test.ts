@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { checkedDocument, checkedDocumentDirectory, checkedDocumentType, checkedFilePolicy, checkedVersion, checkedVersions, nativeDocumentReturn } from './contracts';
+import { checkedDocument, checkedDocumentDirectory, checkedDocumentType, checkedDocumentTypePage, checkedFilePolicy, checkedVersion, checkedVersions, nativeDocumentReturn } from './contracts';
 import { documentIds as ids, documentScope, nativeDocumentFixture, nativeVersionFixture, nativeTypeFixture, documentFilePolicy, documentDirectory } from '../../../tests/connection-ui/fixtures/native-documents';
 const item = nativeDocumentFixture(), version = nativeVersionFixture();
 it('preserva revisão e contexto nativos sem inventar DTO de demonstração', () => { expect(checkedDocument(item, item.id, documentScope)).toEqual(item); });
@@ -26,8 +26,13 @@ it('valida política efetiva, tipo e hierarquia dos catálogos', () => {
   expect(checkedFilePolicy(documentFilePolicy).maxSizeBytes).toBe(1024 * 1024);
   expect(() => checkedFilePolicy({ ...documentFilePolicy, allowedMimeTypes: ['text/html'] })).toThrow();
   expect(() => checkedFilePolicy({ ...documentFilePolicy, maxSizeBytes: 100 * 1024 * 1024 })).toThrow();
-  expect(checkedDocumentType(nativeTypeFixture(), ids.type).name).toBe('Treinamento');
-  expect(() => checkedDocumentType(nativeTypeFixture(), ids.foreign)).toThrow();
+  expect(checkedDocumentType({ item: nativeTypeFixture(), version: 1 }, ids.type).name).toBe('Treinamento');
+  expect(() => checkedDocumentType({ item: nativeTypeFixture(), version: 1 }, ids.foreign)).toThrow();
+  expect(() => checkedDocumentType(nativeTypeFixture(), ids.type)).toThrow();
+  const row = { id: ids.type, item: nativeTypeFixture(), version: 1 };
+  expect(checkedDocumentTypePage({ items: [row], page: 1, pageSize: 100, total: 1 }, 1).items.map(t => t.id)).toEqual([ids.type]);
+  for (const page of [{ items: [row], page: 2, pageSize: 100, total: 1 }, { items: [row], page: 1, pageSize: 100, total: 2 }, { items: [{ ...row, id: ids.foreign }], page: 1, pageSize: 100, total: 1 }, [nativeTypeFixture()]])
+    expect(() => checkedDocumentTypePage(page, 1)).toThrow();
   expect(checkedDocumentDirectory(documentDirectory).sectors).toHaveLength(1);
   expect(() => checkedDocumentDirectory({ ...documentDirectory, sectors: [{ ...documentDirectory.sectors[0], unitId: ids.foreign }] })).toThrow();
 });

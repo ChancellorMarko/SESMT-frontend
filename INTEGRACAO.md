@@ -46,7 +46,7 @@ Conferência de 2026-11-08 contra SESMT-backend `main` em `38c6270`. O frontend 
 | Cadastro de empresas, unidades, setores e cargos | Disponível (criação e leitura) | Integrado; após um cadastro a identidade é relida sem rotacionar o refresh token |
 | Edição organizacional com histórico | Ausente (`/organization-management/{resource}/{id}` e `canEdit`) | Botões de edição ocultos |
 | Trabalhadores e edição profissional | Disponível | Integrado; motivo acima de 50 caracteres falha na API (coluna `varchar(50)`) |
-| Documentos | Disponível | Integrado |
+| Documentos | Disponível | Integrado; o cadastro lê o catálogo ativo completo em páginas de 100 (`GET /document-types?page=&pageSize=100`, linhas `{id, item, version}`) e o tipo escolhido pelo envelope `{item, version}` de `GET /document-types/{id}` |
 | Tipos documentais | Disponível (`expectedVersion` numérico, `/document-types/management-context`); escrita sem checagem de permissão, política editável e histórico não gravado | Integrado; a interface segue `canManage` da API e não pode compensar a falta de autorização no servidor |
 | Agenda, equipes, PTs | Disponível | Integrado |
 | Designações | Disponível; listar exige o papel de Configurador na empresa | 403 exibido como mensagem de acesso |

@@ -21,8 +21,8 @@ async function setup(page: Page, options: { pending?: boolean; readOnly?: boolea
       permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'documento:ler', ...(options.readOnly ? [] : ['documento:criar', 'documento:editar', 'documento:aprovar'])], scope: documentScope, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/users') return json([]);
     if (path === '/api/v1/browser/organization') return json({ ...documentDirectory, establishments: [], jobs: [], jobFunctions: [], workCenters: [] });
-    if (path === '/api/v1/document-types' && method === 'GET') return json([nativeTypeFixture()]);
-    if (path === `/api/v1/document-types/${ids.type}` && method === 'GET') return json(nativeTypeFixture());
+    if (path === '/api/v1/document-types' && method === 'GET') return json({ items: [{ id: ids.type, item: nativeTypeFixture(), version: 1 }], page: 1, pageSize: 100, total: 1 });
+    if (path === `/api/v1/document-types/${ids.type}` && method === 'GET') return json({ item: nativeTypeFixture(), version: 1 });
     if (path === '/api/v1/documents/file-policy') return json(documentFilePolicy);
     if (path === '/api/v1/documents' && method === 'POST') {
       const body = request.postDataJSON(); state.writes.push({ path, body }); state.item = { ...state.item, ...body }; return json(state.item, 201);

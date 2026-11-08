@@ -9,12 +9,12 @@ import { Badge, Button, Feedback, InfoButton, PageHeader, Spinner } from '../../
 import { nativeId } from '../native-operations/contracts';
 import { NativeContextConflict } from '../native-operations/NativeCommandDialog';
 import { useEditorRequest } from '../administration/useEditorRequest';
-import { checkedDocument, checkedDocumentType, checkedFilePolicy, checkedVersions, statusLabels, type NativeDocument, type NativeDocumentVersion } from './contracts';
+import { checkedDocument, checkedDocumentTypeItem, checkedFilePolicy, checkedVersions, statusLabels, type NativeDocument, type NativeDocumentVersion } from './contracts';
 import { useDocumentReturn } from './useDocumentReturn';
 import { NativeDocumentReview, NativeDocumentUpload } from './NativeDocumentCommands';
 import { NativeDocumentPermitLink } from './NativeDocumentPermitLink';
 import { documentHash, fileDownloadName } from './files';
-import { invalidateDocumentReads } from './queries';
+import { invalidateDocumentReads, readDocumentType } from './queries';
 import { editableDocument, NativeDocumentMetadata } from './NativeDocumentMetadata';
 import { selectDocumentVersions } from './selected-version';
 import styles from '../../shared/ui/NativeRecords.module.css';
@@ -38,7 +38,7 @@ function Detail({ id, initialUpload, initialEdit }: { id: string; initialUpload:
   const policy = useVerifiedRead({ queryKey: ['native-document-file-policy', sessionKey], enabled: active,
     request: signal => nativeDocumentsApi.get<unknown>('/documents/file-policy', { signal }), validate: checkedFilePolicy });
   const type = useVerifiedRead({ queryKey: ['native-document-type', sessionKey, item?.documentTypeId], scope: ['native-document-detail-type', sessionKey, id], enabled: active,
-    request: signal => nativeDocumentsApi.get<unknown>(`/document-types/${item!.documentTypeId}`, { signal }), validate: value => checkedDocumentType(value, item!.documentTypeId) });
+    request: signal => readDocumentType(item!.documentTypeId, signal), validate: value => checkedDocumentTypeItem(value, item!.documentTypeId) });
   const mayUpload = Boolean(item && item.status !== 'ARQUIVADO' && can('documento:editar') && (item.secrecyLevel !== 'Medico' || can('aso:editar')));
   const mayReview = Boolean(item && can('documento:aprovar') && (item.secrecyLevel !== 'Medico' || can('aso:editar')));
   const mayEdit = Boolean(item && editableDocument(item) && can('documento:editar') && (item.secrecyLevel !== 'Medico' || can('aso:editar')));

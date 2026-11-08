@@ -29,8 +29,8 @@ beforeEach(() => {
     if (path === `/documents/${ids.document}`) return structuredClone(current) as never;
     if (path === `/documents/${ids.document}/versions`) return structuredClone(versions) as never;
     if (path === '/documents/file-policy') return structuredClone(documentFilePolicy) as never;
-    if (path === '/document-types') return [structuredClone(type)] as never;
-    if (path === `/document-types/${ids.type}`) return structuredClone(type) as never;
+    if (path === '/document-types') return { items: [{ id: type.id, item: structuredClone(type), version: 1 }], page: 1, pageSize: 100, total: 1 } as never;
+    if (path === `/document-types/${ids.type}`) return { item: structuredClone(type), version: 1 } as never;
     throw new Error('Rota inesperada: ' + path);
   });
   vi.mocked(api.get).mockImplementation(async path => {
