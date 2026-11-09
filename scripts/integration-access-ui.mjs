@@ -148,7 +148,10 @@ try {
     check(true, 'Designations: a 403 from the API is shown as an access message, without data');
   }
   // Optional modules run only when the API catalog grants them; absent modules are reported, not faked.
-  const catalog = await page.evaluate(async () => { const { api } = await import('/src/shared/api/client.ts'); return (await api.get('/auth/me')).permissions; });
+  // The catalog comes from the disposable QA database: a module may exist without being granted to
+  // the global administrator (the ASO registry is deliberately withheld from ADMIN).
+  if (!allocated || !/^ampara_uiqa_[a-f0-9]{12}$/.test(database)) throw new Error('QA fixture boundary failed.');
+  const catalog = pg('psql', [...pgArgs, '-d', database, '-v', 'ON_ERROR_STOP=1', '-At', '-c', "SELECT recurso || ':' || acao FROM core.permissao WHERE ativo AND excluido_em IS NULL;"]).split(/\r?\n/);
   const offers = { equipment: catalog.includes('epi:ler'), training: catalog.includes('treinamento:ler'), aso: catalog.includes('aso:acompanhar') };
   for (const [offered, path, label] of [[offers.equipment, '/app/epis', 'EPIs'], [offers.training, '/app/treinamentos', 'Treinamentos'], [offers.aso, '/app/asos', 'ASOs']]) {
     if (offered) continue;
