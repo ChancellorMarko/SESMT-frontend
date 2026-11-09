@@ -1,8 +1,8 @@
-# Ampara SESMT — Frontend e Backend
+# Ampara SESMT — Frontend
 
 Aplicação React e TypeScript para agenda de serviços, gestão documental, equipes e Permissões de Trabalho (PT), Autorizações de Trabalho (AT) e preparação de PETs de espaços confinados. Versão: **0.5.0**.
 
-Esta branch reúne o frontend na raiz e a API .NET completa em [`backend/`](backend/README.md), incluindo as correções de integração, autorização, documentos, equipes e vínculo inicial de contas. Os dois projetos podem ser executados a partir deste checkout. Consulte [INTEGRACAO.md](INTEGRACAO.md) para configuração, migrações, contratos e limitações de homologação.
+Este repositório contém a interface. A API .NET fica no repositório oficial [SESMT-backend](https://github.com/ChancellorMarko/SESMT-backend), clonado por padrão ao lado deste (`../SESMT-backend`). Consulte [INTEGRACAO.md](INTEGRACAO.md) para configuração, migrações, contratos, módulos disponíveis na API oficial e limitações de homologação.
 
 No modo integrado, a administração permite cadastrar usuários, atribuir perfis/locais e cadastrar empresas, unidades, setores e cargos. A ficha de trabalhadores oferece edição profissional com revisão e histórico, preservando CPF, nascimento, datas e conta vinculada. EPIs oferecem catálogo, entrega, consulta individual e devolução com auditoria e controle de revisão. Agenda e designações usam permissões próprias, sem exigir administração de usuários para escolher o responsável. Os perfis vêm do banco. O login seleciona a tela inicial pelas permissões efetivas, e os seletores usam a hierarquia autorizada de empresas/unidades/setores. A demonstração conserva seus dados e fluxos separados; a presença de uma tela nesse modo não comprova integração completa do módulo.
 
@@ -18,7 +18,7 @@ npm run integration:migrate
 npm run dev:integrated
 ```
 
-`integration:db` usa Docker Compose; dispense essa etapa se já houver PostgreSQL configurado. O login integrado abre em `http://127.0.0.1:5175/login`. Credenciais e chaves são geradas em `.env.integration.local`, fora do Git. Os comandos desta branch usam `backend/`; confira o banco configurado antes de aplicar migrations em dados existentes.
+`integration:db` usa Docker Compose; dispense essa etapa se já houver PostgreSQL configurado. O login integrado abre em `http://127.0.0.1:5175/login`. Credenciais e chaves são geradas em `.env.integration.local`, fora do Git. Os comandos usam o checkout em `../SESMT-backend` ou o caminho de `SESMT_BACKEND_PATH`; confira o banco configurado antes de aplicar migrations em dados existentes.
 
 O modo padrão continua usando dados sintéticos em memória, interceptados no navegador pelo MSW. Recarregar a página restaura a demonstração e encerra sua sessão. A execução conjunta usa um ambiente separado, sem MSW.
 

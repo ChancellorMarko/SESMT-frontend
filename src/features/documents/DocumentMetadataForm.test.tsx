@@ -29,7 +29,7 @@ let requiredTypeFields: Map<string, DocumentTypeDto['requiredFields']>;
 beforeEach(() => {
   vi.clearAllMocks(); failed = undefined; removed = new Set(); canReadWorkers = true; requiredTypeFields = new Map();
   organization = { companies: [{ id: companyId, name: 'Empresa autorizada', status: 'ACTIVE', revision: 1 }], units: [{ id: unitId, companyId, name: 'Unidade inicial', status: 'ACTIVE', revision: 1 }, { id: otherUnitId, companyId, name: 'Outra unidade', status: 'ACTIVE', revision: 1 }], sectors: [], establishments: [], jobs: [], jobFunctions: [], workCenters: [] };
-  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'document-metadata-test', can: permission => permission === 'documents.write' || permission === 'workers.read' && canReadWorkers, status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() }));
+  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId, sessionKey: 'document-metadata-test', can: permission => permission === 'documents.write' || permission === 'workers.read' && canReadWorkers, status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn() }));
   vi.mocked(api.get).mockImplementation(async <T,>(path: string, options?: RequestOptions): Promise<T> => {
     const query = options?.query ?? {};
     const source: Source = path === '/organization' ? 'organization' : path === '/document-types' ? 'types' : path === '/workers' ? 'workers' : query.purpose === 'DOCUMENT_OWNER' ? 'owners' : 'responsible';

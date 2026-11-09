@@ -19,7 +19,7 @@ const organization: OrganizationDto = { companies: [{ id: unitId, name: 'Empresa
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(useSession).mockReturnValue({ me: null, unitId, sessionKey: 'forms-test', can: permission => permission === 'documents.write', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() });
+  vi.mocked(useSession).mockReturnValue({ me: null, unitId, sessionKey: 'forms-test', can: permission => permission === 'documents.write', status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn() });
   vi.mocked(api.get).mockImplementation(async <T,>(path: string): Promise<T> => {
     if (path === `/documents/${document.id}`) return { ...document } as T;
     if (path === '/organization') return organization as T;

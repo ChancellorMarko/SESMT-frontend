@@ -73,7 +73,7 @@ beforeEach(() => {
   vi.mocked(api.post).mockReset();
   vi.mocked(useSession).mockReturnValue({
     me: null, unitId: undefined, sessionKey: 'auth-test', status: 'anonymous', sessionError: null,
-    can: () => false, setUnitId: vi.fn(), login, verifyMfa, logout: vi.fn(), restore: vi.fn(),
+    can: () => false, setUnitId: vi.fn(), login, verifyMfa, logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn(),
   });
 });
 afterEach(() => vi.unstubAllEnvs());

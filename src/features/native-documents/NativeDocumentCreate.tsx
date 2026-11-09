@@ -10,9 +10,9 @@ import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../
 import { checkedNativePeople, checkedNativePerson } from '../native-operations/directory';
 import { nativeId } from '../native-operations/contracts';
 import { workerDocumentNavigation } from '../workers/worker-document-navigation';
-import { checkedDocument, checkedDocumentDirectory, checkedDocumentType, checkedDocumentTypes } from './contracts';
+import { checkedDocument, checkedDocumentDirectory, checkedDocumentType, checkedDocumentTypeItem, checkedDocumentTypes } from './contracts';
 import { useDocumentReturn } from './useDocumentReturn';
-import { invalidateDocumentReads } from './queries';
+import { invalidateDocumentReads, readActiveDocumentTypes, readDocumentType } from './queries';
 import styles from './NativeDocuments.module.css';
 
 export function NativeDocumentCreate() {
@@ -44,9 +44,9 @@ function Create() {
   useEffect(() => { if (originPerson.data && !originSeeded.current) { originSeeded.current = true; setSector(originPerson.data.sectorId ?? ''); } }, [originPerson.data]);
   const linkedWorker = originId ? originPerson.data : worker;
   const types = useVerifiedRead({ queryKey: ['native-document-types', sessionKey], enabled: allowed,
-    request: signal => nativeDocumentsApi.get<unknown>('/document-types', { query: { onlyActive: true }, signal }), validate: checkedDocumentTypes });
+    request: readActiveDocumentTypes, validate: checkedDocumentTypes });
   const type = useVerifiedRead({ queryKey: ['native-document-type', sessionKey, typeId], scope: ['native-document-type', sessionKey], enabled: allowed && Boolean(types.data?.some(t => t.id === typeId)),
-    request: signal => nativeDocumentsApi.get<unknown>(`/document-types/${typeId}`, { signal }), validate: value => checkedDocumentType(value, typeId) });
+    request: signal => readDocumentType(typeId, signal), validate: value => checkedDocumentTypeItem(value, typeId) });
   const people = useVerifiedRead({ queryKey: ['native-document-people', sessionKey, unitId, sectorId, applied, peoplePage], scope: ['native-document-people', sessionKey, unitId, sectorId],
     enabled: Boolean(unit && company && can('workers.read') && applied !== undefined),
     request: signal => api.get<unknown>('/workers', { query: { unitId, sectorId: sectorId || undefined, q: applied || undefined, status: 'ACTIVE', page: peoplePage, pageSize: 20 }, signal }),

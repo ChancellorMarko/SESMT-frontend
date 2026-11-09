@@ -54,6 +54,10 @@ async function databaseAvailable(connection) {
     socket.once('connect', () => { socket.destroy(); resolve(); });
   });
 }
+/** Restore the backend's local dotnet-ef only when that checkout declares a tool manifest. */
+function restoreTools(backendRoot, env) {
+  return existsSync(join(backendRoot, '.config', 'dotnet-tools.json')) ? run('dotnet', ['tool', 'restore'], env, false, backendRoot) : Promise.resolve();
+}
 async function main() {
   const action = process.argv[2];
   if (action === 'setup') {
@@ -61,7 +65,8 @@ async function main() {
     const databasePassword = randomBytes(24).toString('hex');
     writeFileSync(localConfig, [
       '# Exclusivo do ambiente de integração local. Não versionar.',
-      'SESMT_BACKEND_PATH=backend',
+      '# Checkout do repositório oficial SESMT-backend (fora do frontend).',
+      'SESMT_BACKEND_PATH=../SESMT-backend',
       `INTEGRATION_DB_PASSWORD=${databasePassword}`,
       `ConnectionStrings__Sesmt=Host=127.0.0.1;Port=5434;Database=ampara_integration;Username=ampara;Password=${databasePassword}`,
       `Jwt__SigningKey=${randomBytes(48).toString('hex')}`,
@@ -74,8 +79,6 @@ async function main() {
     return;
   }
   const env = integrationEnv();
-  // Select the API in this branch even when an older local file points elsewhere.
-  if (process.argv.includes('--bundled')) env.SESMT_BACKEND_PATH = 'backend';
   if (action === 'db') {
     await run('docker', ['compose', '--env-file', '.env.integration.local', '-f', 'compose.integration.yml', 'up', '-d', '--wait', 'database'], env);
     return;
@@ -88,15 +91,15 @@ async function main() {
     return;
   }
   if (action === 'schema') {
-    await run('dotnet', ['tool', 'restore'], env);
-    await run('dotnet', ['ef', 'migrations', 'has-pending-model-changes', '--project', infrastructure, '--startup-project', startup], env);
+    await restoreTools(backendRoot, env);
+    await run('dotnet', ['ef', 'migrations', 'has-pending-model-changes', '--project', infrastructure, '--startup-project', startup], env, false, backendRoot);
     return;
   }
   if (!['dev', 'migrate'].includes(action)) throw new Error('Ação esperada: setup, db, migrate, schema ou dev.');
   await databaseAvailable(env.ConnectionStrings__Sesmt);
   if (action === 'migrate') {
-    await run('dotnet', ['tool', 'restore'], env);
-    await run('dotnet', ['ef', 'database', 'update', '--project', infrastructure, '--startup-project', startup], env);
+    await restoreTools(backendRoot, env);
+    await run('dotnet', ['ef', 'database', 'update', '--project', infrastructure, '--startup-project', startup], env, false, backendRoot);
     return;
   }
   await freePort(5047); await freePort(5175);

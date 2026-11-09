@@ -49,7 +49,7 @@ function TypeEditor({opening,onClose,onSaved}:{opening?:ManagedType;onClose:()=>
       if(!f.name.trim()||f.name.trim().length>150||f.description.trim().length>1000)throw new NativeFormError('Confira nome e descrição.');
       const current=checkedType(await nativeDocumentTypesApi.get(opening.item.id,signal),opening.item.id);
       if(current.version!==opening.version)throw new NativeContextConflict('O tipo documental mudou. Atualize a consulta antes de salvar.');
-      const{id:_id,code:_code,active:_active,...policy}=opening.item;body={...policy,name:f.name.trim(),description:f.description.trim()||null};
+      const{id:_id,code:_code,active:_active,version:_version,...policy}=opening.item;body={...policy,name:f.name.trim(),description:f.description.trim()||null};
     }else{
       const parsed=creationFields.safeParse(f);if(!parsed.success)throw new NativeFormError('Confira código, nome, categoria e prazos.');const p=parsed.data;
       body={code:p.code,name:p.name,description:p.description||null,category:p.category,secrecyLevel:p.secrecyLevel,requiresApproval:p.requiresApproval,requiresSignature:p.requiresSignature,periodicityInDays:p.days?Number(p.days):null,retentionPeriodInYears:p.years?Number(p.years):null,metadataSchema:'{}',schemaVersion:1};

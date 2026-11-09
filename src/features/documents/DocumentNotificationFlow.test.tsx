@@ -28,7 +28,7 @@ let currentUnit: string;
 beforeEach(() => {
   vi.clearAllMocks(); current = structuredClone(baseDocument); currentUnit = unitId;
   permissions = ['documents.read', 'documents.write', 'notifications.read'];
-  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId: currentUnit, sessionKey, can: permission => permissions.includes(permission), status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn() }));
+  vi.mocked(useSession).mockImplementation(() => ({ me: null, unitId: currentUnit, sessionKey, can: permission => permissions.includes(permission), status: 'authenticated', sessionError: null, setUnitId: vi.fn(), login: vi.fn(), verifyMfa: vi.fn(), logout: vi.fn(), restore: vi.fn(), reloadIdentity: vi.fn() }));
   vi.mocked(api.get).mockImplementation(async <T,>(path: string): Promise<T> => {
     if (path === `/documents/${current.id}`) return structuredClone(current) as T;
     if (path === '/organization') return organization as T;

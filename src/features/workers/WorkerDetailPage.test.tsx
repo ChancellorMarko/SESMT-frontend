@@ -66,7 +66,7 @@ beforeEach(() => {
     login: vi.fn(),
     verifyMfa: vi.fn(),
     logout: vi.fn(),
-    restore: vi.fn(),
+    restore: vi.fn(), reloadIdentity: vi.fn(),
   });
   vi.mocked(api.get).mockImplementation(async (path: string) => {
     if (path === '/workers/worker-1') return mockWorker;

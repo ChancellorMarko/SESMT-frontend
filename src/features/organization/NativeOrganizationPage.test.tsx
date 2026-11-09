@@ -5,8 +5,8 @@ import { NativeOrganizationPage } from './NativeOrganizationPage';
 import { checkedOrganization } from './native-organization';
 import { api, ApiError } from '../../shared/api/client';
 
-const state = vi.hoisted(() => ({ allowed: true, restore: vi.fn() }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'organization-test', can: () => state.allowed, restore: state.restore }) }));
+const state = vi.hoisted(() => ({ allowed: true, restore: vi.fn(), reloadIdentity: vi.fn() }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ sessionKey: 'organization-test', can: () => state.allowed, reloadIdentity: state.reloadIdentity }) }));
 vi.mock('../../shared/api/client', async original => ({ ...await original<typeof import('../../shared/api/client')>(), api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() } }));
 const companyId = '10000000-0000-4000-8000-000000000001', unitId = '10000000-0000-4000-8000-000000000002';
 const empty = { canCreateCompany: true, companies: [], units: [], departments: [], positions: [] };
@@ -36,13 +36,13 @@ describe('cadastro da organização na API real', () => {
     vi.mocked(api.patch).mockImplementation(async(_path,body)=>{current={...opening,version:'b'.repeat(64),values:(body as {values:typeof opening.values}).values};return current as never;});
     fireEvent.click(screen.getByRole('button',{name:'Salvar alterações'}));await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(api.patch).toHaveBeenCalledWith(`/organization-management/companies/${companyId}`,expect.objectContaining({expectedVersion:opening.version,confirmation:true,reason:'Correção do nome de atendimento',values:expect.objectContaining({fantasyName:'Empresa corrigida',cnpj:opening.values.cnpj,tipoEmpresa:'INTERNA'})}),expect.objectContaining({signal:expect.any(AbortSignal)}));
-    expect(await screen.findByText('Empresa corrigida')).toBeVisible();expect(state.restore).not.toHaveBeenCalled();
+    expect(await screen.findByText('Empresa corrigida')).toBeVisible();expect(state.reloadIdentity).not.toHaveBeenCalled();
   });
   it('preserva o formulário e bloqueia repetição depois de conflito',async()=>{
     await openEditor();fireEvent.change(screen.getByLabelText('Nome fantasia'),{target:{value:'Empresa corrigida'}});fireEvent.change(screen.getByLabelText('Motivo da alteração'),{target:{value:'Correção conferida'}});fireEvent.click(screen.getByRole('checkbox'));
     vi.mocked(api.patch).mockRejectedValue(new ApiError(409,{code:'ORGANIZATION_CHANGED',message:'Conflito',requestId:'qa'}));
     fireEvent.click(screen.getByRole('button',{name:'Salvar alterações'}));expect(await screen.findByRole('alert')).toHaveTextContent('registro');
-    expect(screen.getByLabelText('Nome fantasia')).toHaveValue('Empresa corrigida');expect(screen.getByRole('button',{name:'Salvar alterações'})).toBeDisabled();expect(api.patch).toHaveBeenCalledOnce();expect(state.restore).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nome fantasia')).toHaveValue('Empresa corrigida');expect(screen.getByRole('button',{name:'Salvar alterações'})).toBeDisabled();expect(api.patch).toHaveBeenCalledOnce();expect(state.reloadIdentity).not.toHaveBeenCalled();
   });
   it('não transforma permissão local em capacidade de edição não publicada pela API',async()=>{
     vi.mocked(api.get).mockResolvedValue(context as never);show();await screen.findByText(company.name);expect(screen.queryByRole('button',{name:/Editar empresa/})).not.toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('cadastro da organização na API real', () => {
     vi.mocked(api.patch).mockImplementation(async(_path,body)=>{stored={...original,version:'b'.repeat(64),values:(body as {values:typeof original.values}).values};return stored as never;});
     show();await screen.findByText(company.name);fireEvent.click(screen.getByRole('button',{name:/Unidades/}));fireEvent.click(screen.getByRole('button',{name:`Editar unidade ${unit.name}`}));await screen.findByLabelText('Nome');
     fireEvent.change(screen.getByLabelText('Nome'),{target:{value:'Unidade corrigida'}});fireEvent.change(screen.getByLabelText('Motivo da alteração'),{target:{value:'Correção do cadastro'}});fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Salvar alterações'}));
-    await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());expect(screen.getByRole('button',{name:/Unidades/})).toHaveAttribute('aria-pressed','true');expect(screen.getByText('Unidade corrigida')).toBeVisible();expect(state.restore).not.toHaveBeenCalled();
+    await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());expect(screen.getByRole('button',{name:/Unidades/})).toHaveAttribute('aria-pressed','true');expect(screen.getByText('Unidade corrigida')).toBeVisible();expect(state.reloadIdentity).not.toHaveBeenCalled();
   });
   it('permite iniciar uma instalação vazia pelo cadastro da primeira empresa', async () => {
     show(); fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar empresa' }));
@@ -77,8 +77,26 @@ describe('cadastro da organização na API real', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(api.post).toHaveBeenCalledWith('/companies', { corporateName: receipt.corporateName, fantasyName: company.name, cnpj: receipt.cnpj, tipoEmpresa: 0, email: null, phone: null }, expect.objectContaining({ idempotencyKey: undefined, signal: expect.any(AbortSignal) }));
-    expect(state.restore).toHaveBeenCalledTimes(1);
+    expect(state.reloadIdentity).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(company.name)).toBeVisible();
+  });
+  it('mantém o diálogo ocupado até reler os acessos e informa quando a releitura falha', async () => {
+    let finish!: (error?: Error) => void;
+    state.reloadIdentity.mockImplementationOnce(() => new Promise<void>((resolve, reject) => { finish = error => error ? reject(error) : resolve(); }));
+    show(); fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar empresa' }));
+    fireEvent.change(screen.getByLabelText('Razão social'), { target: { value: 'Empresa cadastrada LTDA' } });
+    fireEvent.change(screen.getByLabelText('Nome fantasia'), { target: { value: company.name } });
+    fireEvent.change(screen.getByLabelText('CNPJ'), { target: { value: '11.222.333/0001-81' } });
+    const receipt = { id: companyId, corporateName: 'Empresa cadastrada LTDA', fantasyName: company.name, cnpj: '11222333000181', tipoEmpresa: 'INTERNA', email: null, phone: null, active: true };
+    vi.mocked(api.post).mockResolvedValue(receipt as never);
+    vi.mocked(api.get).mockImplementation(async path => (path === `/companies/${companyId}` ? receipt : path === '/organization-management' ? { ...empty, companies: [company] } : undefined) as never);
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
+    await waitFor(() => expect(state.reloadIdentity).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    finish(new Error('offline'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText(/Não foi possível atualizar os acessos da sessão/)).toBeVisible();
+    expect(api.post).toHaveBeenCalledOnce();
   });
   it('oferece somente os cadastros publicados e organiza vínculos em tabela', async () => {
     vi.mocked(api.get).mockResolvedValue(context as never); show();
@@ -111,7 +129,7 @@ describe('cadastro da organização na API real', () => {
     vi.mocked(api.post).mockResolvedValue(receipt as never);
     vi.mocked(api.get).mockImplementation(async path => (path === '/organization-management' ? context : { ...receipt, unitId: companyId }) as never);
     fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('A resposta não confirmou'); expect(state.restore).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('A resposta não confirmou'); expect(state.reloadIdentity).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Cadastrar' })).toBeDisabled();
   });
   it.each([{ ...context, companies: [company, company] }, { ...context, companies: [] }, { ...context, departments: [{ id: companyId, name: 'Órfão', unitId: companyId }] }, { ...context, canCreateCompany: 'true' }])('recusa respostas inconsistentes: %j', value => {

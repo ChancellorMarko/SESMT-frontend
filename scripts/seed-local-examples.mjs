@@ -1,10 +1,13 @@
 import { integrationEnv, root } from './integration-config.mjs';
+import { resolveBackendRoot } from './backend-location.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const env = integrationEnv();
+const backend = resolveBackendRoot(env);
+const backendPath = (...segments) => join(backend, ...segments);
 const parts = Object.fromEntries(env.ConnectionStrings__Sesmt.split(';').filter(Boolean).map(part => { const at = part.indexOf('='); return [part.slice(0, at).trim().toLowerCase(), part.slice(at + 1).trim()]; }));
 const preview = join(root, '.local/fullstack-preview/credentials.json');
 const state = existsSync(preview) ? JSON.parse(readFileSync(preview, 'utf8')) : { database: parts.database, email: env.Seed__AdminEmail, password: env.Seed__AdminPassword };
@@ -31,9 +34,9 @@ Object.assign(env, { ConnectionStrings__Sesmt: env.ConnectionStrings__Sesmt.repl
   Seed__AdminEmail: state.email, Seed__AdminPassword: state.password, Seed__AdminName: 'Administrador local',
   SESMT_SEED_EXAMPLES: '1', SESMT_EXAMPLE_PASSWORD: password, Storage__Local__RootPath: join(dir, 'storage') });
 env.SESMT_NORMALIZE_LOCAL_DATA = process.argv.includes('--normal-names') ? '1' : '0';
-const build = spawnSync('dotnet', ['build', 'backend/SESMT.API/SESMT.API.csproj', '-c', 'Release', '--nologo', '--verbosity', 'quiet'], { cwd: root, env, encoding: 'utf8', windowsHide: true });
+const build = spawnSync('dotnet', ['build', backendPath('SESMT.API', 'SESMT.API.csproj'), '-c', 'Release', '--nologo', '--verbosity', 'quiet'], { cwd: root, env, encoding: 'utf8', windowsHide: true });
 if (build.status !== 0 || build.error) throw new Error('A compilação da API falhou; a carga não foi executada.');
-const child = spawn('dotnet', ['backend/SESMT.API/bin/Release/net10.0/SESMT.API.dll'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+const child = spawn('dotnet', [backendPath('SESMT.API', 'bin', 'Release', 'net10.0', 'SESMT.API.dll')], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
 let output = ''; child.stdout.on('data', data => output += data); child.stderr.on('data', data => output += data);
 const exitCode = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
 writeFileSync(join(dir, 'example-seed.log'), output);
