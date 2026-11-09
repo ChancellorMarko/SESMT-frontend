@@ -14,13 +14,13 @@ Cada item abaixo tem um PR próprio no SESMT-backend, criado a partir da `main` 
 | --- | --- | --- |
 | 0. Escrita de tipos documentais | [#34](https://github.com/ChancellorMarko/SESMT-backend/pull/34) | Concessão global de `parametro:editar`, política imutável (`409 IMMUTABLE_DOCUMENT_POLICY`), versão persistida e histórico `DOCUMENT_TYPE_*`. |
 | 1. Motivo do histórico profissional | [#35](https://github.com/ChancellorMarko/SESMT-backend/pull/35) | Coluna `motivo` em `varchar(200)`. |
-| 2. Renovação de sessão durante o refresh | Pendente | Depende da equipe definir a janela de tolerância. |
+| 2. Renovação de sessão durante o refresh | [#40](https://github.com/ChancellorMarko/SESMT-backend/pull/40) | Token anterior aceito uma vez em até 30 s; depois disso, a reutilização revoga a sessão (`session_revoked`). |
 | 3.1 EPIs | [#36](https://github.com/ChancellorMarko/SESMT-backend/pull/36) | Inclui `workerId` em `/auth/me`. |
 | 3.2 Treinamentos e comprovantes | [#37](https://github.com/ChancellorMarko/SESMT-backend/pull/37) | Uma migration consolidada; inclui `workerId` em `/auth/me`. |
 | 3.3 ASO administrativo | [#38](https://github.com/ChancellorMarko/SESMT-backend/pull/38) | ADMIN sem `aso:acompanhar`/`aso:detalhar`; chaves do Data Protection em volume dedicado (`DataProtection__KeysPath`). |
 | 3.4 Edição organizacional | [#39](https://github.com/ChancellorMarko/SESMT-backend/pull/39) | As rotas `PATCH` antigas passam a exigir `If-Match` com a mesma versão. |
 
-Cada PR foi verificado com `npm run test:access:real` contra a própria branch, e o módulo correspondente passou no navegador. Os PRs #36 a #38 repetem a mesma linha de `workerId` em `/auth/me`; se forem mesclados, o Git aceita a alteração idêntica sem conflito. Duas decisões ainda dependem da confirmação da equipe e estão destacadas nos PRs: ADMIN sem acesso ao registro de ASO (#38) e `If-Match` obrigatório nas rotas antigas de edição organizacional (#39).
+Cada PR foi verificado com `npm run test:access:real` contra a própria branch, e o módulo correspondente passou no navegador. Os PRs #36 a #38 repetem a mesma linha de `workerId` em `/auth/me`; se forem mesclados, o Git aceita a alteração idêntica sem conflito. Três decisões ainda dependem da confirmação da equipe e estão destacadas nos PRs: ADMIN sem acesso ao registro de ASO (#38), `If-Match` obrigatório nas rotas antigas de edição organizacional (#39) e revogação da sessão quando o token anterior reaparece depois da janela (#40).
 
 ## 0. Segurança: escrita de tipos documentais sem autorização
 
