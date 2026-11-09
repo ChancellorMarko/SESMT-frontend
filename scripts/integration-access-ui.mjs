@@ -230,10 +230,20 @@ try {
     const version=await nativeDocumentsApi.post(`/documents/${document.id}/versions`,form);
     const users=await api.get('/users'),reviewer=users.find(u=>u.email==='tecnico-uiqa@example.invalid');
     const worker=await createNativeWorker({companyId,unitId,userId:reviewer.id,name:'Conferidor QA',enrollment:'QA-REVIEWER',cpf:'52998224725',dateOfBirth:'1990-01-01',admissionDate:'2026-01-01'});
-    const services=await api.get('/work-permits/services');
-    await api.post('/designations',{personId:worker.id,serviceIds:[services[0].id],locationIds:[unitId],type:'conferir',startsAt:new Date(Date.now()-86400000).toISOString(),endsAt:new Date(Date.now()+86400000).toISOString(),origin:'Conferência isolada de QA'});
-    return{trainingId,documentId:document.id,versionId:version.id};
+    const configurator=await api.post('/users',{name:'Configurador QA',email:'configurador-uiqa@example.invalid',roles:['SESMT_PT_CONFIG'],scopeIds:[companyId]});
+    return{trainingId,documentId:document.id,versionId:version.id,reviewerWorkerId:worker.id,configuratorId:configurator.id};
   },{companyId:qaCompany,unitId:qaUnit});
+  // Only the Configurator of the company may designate the reviewer under the official API.
+  if (!allocated || !/^ampara_uiqa_[a-f0-9]{12}$/.test(database) || !/^[a-f0-9-]{36}$/.test(evidenceFixture.configuratorId)) throw new Error('QA fixture boundary failed.');
+  pg('psql', [...pgArgs, '-d', database, '-v', 'ON_ERROR_STOP=1', '-c', `UPDATE core.usuario SET senha_hash = (SELECT senha_hash FROM core.usuario WHERE email = 'admin-uiqa@example.invalid') WHERE id = '${evidenceFixture.configuratorId}';`]);
+  const configuratorPage=await browser.newPage({reducedMotion:'reduce',serviceWorkers:'block'});configuratorPage.on('pageerror',error=>report.pageErrors.push(error.message));
+  await configuratorPage.goto('http://127.0.0.1:5185/login');await configuratorPage.locator('[data-auth-scene][data-arrival="ready"]').waitFor();
+  await configuratorPage.getByLabel('E-mail',{exact:true}).fill('configurador-uiqa@example.invalid');await configuratorPage.getByLabel('Senha',{exact:true}).fill(password);
+  await configuratorPage.getByRole('button',{name:'Entrar na plataforma',exact:true}).click();await configuratorPage.waitForURL('**/app/**');
+  await configuratorPage.evaluate(async({personId,unitId})=>{
+    const {api}=await import('/src/shared/api/client.ts');const services=await api.get('/work-permits/services');
+    return api.post('/designations',{personId,serviceIds:[services[0].id],locationIds:[unitId],type:'conferir',startsAt:new Date(Date.now()-86400000).toISOString(),endsAt:new Date(Date.now()+86400000).toISOString(),origin:'Conferência isolada de QA'});
+  },{personId:evidenceFixture.reviewerWorkerId,unitId:qaUnit});await configuratorPage.close();
   const reviewerPage=await browser.newPage({reducedMotion:'reduce',serviceWorkers:'block'});reviewerPage.on('pageerror',error=>report.pageErrors.push(error.message));
   await reviewerPage.goto('http://127.0.0.1:5185/login');await reviewerPage.locator('[data-auth-scene][data-arrival="ready"]').waitFor();
   await reviewerPage.getByLabel('E-mail',{exact:true}).fill('tecnico-uiqa@example.invalid');await reviewerPage.getByLabel('Senha',{exact:true}).fill(password);
