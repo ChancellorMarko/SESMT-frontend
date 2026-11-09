@@ -6,6 +6,22 @@ Com a retirada da cópia `backend/` do frontend (PR #6 do frontend), a interface
 
 O código de referência continua no histórico do frontend, commit `4550db2`, em `backend/` (controllers, serviços, entidades, configurações EF, migrations e testes). Ele serve para portar a implementação para a sequência oficial; não deve ser copiado como pasta nem aplicado por cima do repositório.
 
+## Situação em 2026-11-09
+
+Cada item abaixo tem um PR próprio no SESMT-backend, criado a partir da `main` em `38c6270`. Os PRs são independentes entre si e aguardam revisão da equipe. Nenhum foi mesclado. Um contrato só passa a valer para o frontend depois de entrar na `main` do backend.
+
+| Item | PR no SESMT-backend | Observações |
+| --- | --- | --- |
+| 0. Escrita de tipos documentais | [#34](https://github.com/ChancellorMarko/SESMT-backend/pull/34) | Concessão global de `parametro:editar`, política imutável (`409 IMMUTABLE_DOCUMENT_POLICY`), versão persistida e histórico `DOCUMENT_TYPE_*`. |
+| 1. Motivo do histórico profissional | [#35](https://github.com/ChancellorMarko/SESMT-backend/pull/35) | Coluna `motivo` em `varchar(200)`. |
+| 2. Renovação de sessão durante o refresh | Pendente | Depende da equipe definir a janela de tolerância. |
+| 3.1 EPIs | [#36](https://github.com/ChancellorMarko/SESMT-backend/pull/36) | Inclui `workerId` em `/auth/me`. |
+| 3.2 Treinamentos e comprovantes | [#37](https://github.com/ChancellorMarko/SESMT-backend/pull/37) | Uma migration consolidada; inclui `workerId` em `/auth/me`. |
+| 3.3 ASO administrativo | [#38](https://github.com/ChancellorMarko/SESMT-backend/pull/38) | ADMIN sem `aso:acompanhar`/`aso:detalhar`; chaves do Data Protection em volume dedicado (`DataProtection__KeysPath`). |
+| 3.4 Edição organizacional | [#39](https://github.com/ChancellorMarko/SESMT-backend/pull/39) | As rotas `PATCH` antigas passam a exigir `If-Match` com a mesma versão. |
+
+Cada PR foi verificado com `npm run test:access:real` contra a própria branch, e o módulo correspondente passou no navegador. Os PRs #36 a #38 repetem a mesma linha de `workerId` em `/auth/me`; se forem mesclados, o Git aceita a alteração idêntica sem conflito. Duas decisões ainda dependem da confirmação da equipe e estão destacadas nos PRs: ADMIN sem acesso ao registro de ASO (#38) e `If-Match` obrigatório nas rotas antigas de edição organizacional (#39).
+
 ## 0. Segurança: escrita de tipos documentais sem autorização
 
 - Endpoints: `POST /api/v1/document-types`, `PATCH /api/v1/document-types/{id}`, `DELETE /api/v1/document-types/{id}` (`DocumentTypesController`, `DocumentTypeService`).

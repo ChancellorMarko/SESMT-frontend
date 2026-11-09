@@ -44,19 +44,19 @@ Conferência de 2026-11-08 contra SESMT-backend `main` em `38c6270`. O frontend 
 | --- | --- | --- |
 | Login, sessão, identidade, usuários e acessos | Disponível | Integrado |
 | Cadastro de empresas, unidades, setores e cargos | Disponível (criação e leitura) | Integrado; após um cadastro a identidade é relida sem rotacionar o refresh token |
-| Edição organizacional com histórico | Ausente (`/organization-management/{resource}/{id}` e `canEdit`) | Botões de edição ocultos |
-| Trabalhadores e edição profissional | Disponível | Integrado; motivo acima de 50 caracteres falha na API (coluna `varchar(50)`) |
+| Edição organizacional com histórico | Ausente (`/organization-management/{resource}/{id}` e `canEdit`); em revisão no [SESMT-backend#39](https://github.com/ChancellorMarko/SESMT-backend/pull/39) | Botões de edição ocultos |
+| Trabalhadores e edição profissional | Disponível | Integrado; motivo acima de 50 caracteres falha na API (coluna `varchar(50)`, correção em revisão no [SESMT-backend#35](https://github.com/ChancellorMarko/SESMT-backend/pull/35)) |
 | Documentos | Disponível | Integrado; o cadastro lê o catálogo ativo completo em páginas de 100 (`GET /document-types?page=&pageSize=100`, linhas `{id, item, version}`) e o tipo escolhido pelo envelope `{item, version}` de `GET /document-types/{id}` |
-| Tipos documentais | Disponível (`expectedVersion` numérico, `/document-types/management-context`); escrita sem checagem de permissão, política editável e histórico não gravado | Integrado; a interface segue `canManage` da API e não pode compensar a falta de autorização no servidor |
+| Tipos documentais | Disponível (`expectedVersion` numérico, `/document-types/management-context`); escrita sem checagem de permissão, política editável e histórico não gravado (correção em revisão no [SESMT-backend#34](https://github.com/ChancellorMarko/SESMT-backend/pull/34)) | Integrado; a interface segue `canManage` da API e não pode compensar a falta de autorização no servidor |
 | Agenda, equipes, PTs | Disponível | Integrado |
 | Designações | Disponível; listar exige o papel de Configurador na empresa | 403 exibido como mensagem de acesso |
-| EPIs (`epi:*`) | Ausente | Rotas e atalhos ocultos; acesso direto mostra a mensagem de autorização |
-| Treinamentos e comprovantes (`treinamento:*`) | Ausente | Idem; a seção da ficha do trabalhador não aparece |
-| ASO administrativo (`aso:acompanhar`, `aso:detalhar`) | Ausente (a API semeia apenas `aso:ler` e `aso:editar`) | Idem |
+| EPIs (`epi:*`) | Ausente; em revisão no [SESMT-backend#36](https://github.com/ChancellorMarko/SESMT-backend/pull/36) | Rotas e atalhos ocultos; acesso direto mostra a mensagem de autorização |
+| Treinamentos e comprovantes (`treinamento:*`) | Ausente; em revisão no [SESMT-backend#37](https://github.com/ChancellorMarko/SESMT-backend/pull/37) | Idem; a seção da ficha do trabalhador não aparece |
+| ASO administrativo (`aso:acompanhar`, `aso:detalhar`) | Ausente (a API semeia apenas `aso:ler` e `aso:editar`); em revisão no [SESMT-backend#38](https://github.com/ChancellorMarko/SESMT-backend/pull/38) | Idem |
 
 Verificação de 2026-11-08 contra a API oficial (`38c6270`), em base PostgreSQL descartável e sem MSW: 40 verificações de navegador aprovadas, 6 seções ignoradas por ausência do módulo na API, 1 achado de backend (versão ausente nas respostas de tipos documentais) e nenhum erro de JavaScript.
 
-As rotas, DTOs, permissões e migrations necessárias estão em [SOLICITACAO_BACKEND.md](SOLICITACAO_BACKEND.md). `test:access:real` executa as seções desses módulos apenas quando o catálogo de permissões da API os oferece e registra as demais como `skipped` no relatório, além de conferir que a interface os mantém ocultos.
+As rotas, DTOs, permissões e migrations necessárias estão em [SOLICITACAO_BACKEND.md](SOLICITACAO_BACKEND.md). `test:access:real` executa as seções desses módulos apenas quando o catálogo de permissões da API os oferece e registra as demais como `skipped` no relatório, além de conferir que a interface os mantém ocultos. O catálogo é lido da tabela `core.permissao` da base descartável de QA, e não das permissões do administrador, porque um módulo pode existir sem ser concedido ao ADMIN (caso do registro de ASO). A designação do conferente usada no teste de comprovantes é feita por uma conta de Configurador com escopo na empresa de QA, conforme a regra da API oficial.
 
 O frontend integrado abre em `http://127.0.0.1:5175/login`, a API em `http://127.0.0.1:5047` e o banco opcional em `127.0.0.1:5434`. O início imprime o diretório selecionado da API. Ctrl+C encerra os processos iniciados pelo comando, sem encerrar o banco. Portas ocupadas são informadas antes de iniciar os servidores.
 
