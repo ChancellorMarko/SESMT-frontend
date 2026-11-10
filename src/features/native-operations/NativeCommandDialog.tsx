@@ -8,10 +8,19 @@ import styles from './NativeForms.module.css';
 
 export class NativeFormError extends Error {}
 export class NativeContextConflict extends Error {}
-/** A conflict or ambiguous result must be re-read, never replayed with a guessed version. */
-export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar' }: {
+/** Network failure, timeout or server error: the command may or may not have been applied. */
+function ambiguous(failure: unknown) {
+  return failure instanceof ApiError ? failure.status >= 500
+    : !(failure instanceof NativeFormError || failure instanceof NativeContextConflict || failure instanceof InvalidReadResponse);
+}
+/**
+ * A conflict or ambiguous result must be re-read, never replayed with a guessed version.
+ * `replayable` commands send a stable Idempotency-Key for the same form content, so an ambiguous
+ * result may be sent again: the API returns the record already created instead of another one.
+ */
+export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar', replayable = false }: {
   title: string; dirty: boolean; disabled?: boolean; onClose: () => void;
-  perform: (signal: AbortSignal) => Promise<void>; onDone: () => Promise<void>; children: (busy: boolean) => ReactNode; submitLabel?: string;
+  perform: (signal: AbortSignal) => Promise<void>; onDone: () => Promise<void>; children: (busy: boolean) => ReactNode; submitLabel?: string; replayable?: boolean;
 }) {
   const request = useEditorRequest(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [blocked, setBlocked] = useState(false);
   const close = useEditorProtection({ dirty, busy }, onClose);
@@ -21,9 +30,11 @@ export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, 
     try { await request.run(perform); if (request.isActive()) await onDone(); }
     catch (failure) {
       if (!request.isActive()) return;
-      const retryable = failure instanceof NativeFormError || failure instanceof ApiError && [400, 422].includes(failure.status);
+      const replay = replayable && ambiguous(failure);
+      const retryable = replay || failure instanceof NativeFormError || failure instanceof ApiError && [400, 422].includes(failure.status);
       setBlocked(!retryable);
-      setError(failure instanceof NativeFormError || failure instanceof NativeContextConflict ? failure.message
+      setError(replay ? 'Não foi possível confirmar a conclusão. Você pode enviar de novo sem alterar o formulário: a mesma solicitação não cria outro registro.'
+        : failure instanceof NativeFormError || failure instanceof NativeContextConflict ? failure.message
         : failure instanceof ApiError && failure.status === 409 ? 'O registro ou as condições da operação mudaram. Seus dados foram mantidos. Feche a janela e atualize a consulta antes de tentar novamente.'
         : failure instanceof ApiError && [401, 403, 404].includes(failure.status) ? 'A API não autorizou ou não encontrou este registro. Atualize a consulta antes de tentar novamente.'
         : failure instanceof InvalidReadResponse ? 'A resposta não confirmou os dados desta operação. Atualize a consulta antes de repetir.'

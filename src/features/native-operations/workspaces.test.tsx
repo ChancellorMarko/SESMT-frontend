@@ -97,6 +97,36 @@ describe('workspaces operacionais nativos',()=>{
     fireEvent.click(screen.getByRole('checkbox',{name:'Trabalho em altura'}));fireEvent.click(screen.getByRole('button',{name:'Criar designação'}));await waitFor(()=>expect(done).toHaveBeenCalled());
     expect(api.post).toHaveBeenCalledWith('/designations',expect.objectContaining({personId:ids.worker,locationIds:[ids.unit],serviceIds:[ids.service],type:'atender'}),expect.anything());
   });
+  it('reenvia o agendamento com a mesma chave após resultado incerto e usa outra ao mudar o preenchimento',async()=>{
+    const done=vi.fn(async()=>{}),created={...appointmentFixture(),title:'Trabalho revisado'};
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Não foi possível conectar à API.')).mockRejectedValueOnce(new ApiError(502,{code:'BAD_GATEWAY',message:'privado',requestId:'test'})).mockResolvedValueOnce(created as never);
+    show(<NativeCreationDialog kind="appointment" onClose={()=>{}} onDone={done}/>);
+    await screen.findByRole('option',{name:'Equipe de manutenção'});
+    fireEvent.change(screen.getByLabelText('Equipe'),{target:{value:ids.team}});
+    fireEvent.click(await screen.findByRole('checkbox',{name:/Alice Trabalhadora/}));
+    fireEvent.change(screen.getByLabelText('Título'),{target:{value:'Trabalho nativo'}});
+    fireEvent.change(screen.getByLabelText('Início (Brasília)'),{target:{value:'2099-11-20T09:00'}});
+    fireEvent.change(screen.getByLabelText('Término (Brasília)'),{target:{value:'2099-11-20T10:00'}});
+    fireEvent.click(screen.getByRole('checkbox',{name:'Trabalho em altura'}));
+    const submit=screen.getByRole('button',{name:'Solicitar agendamento'});
+    fireEvent.click(submit);expect(await screen.findByRole('alert')).toHaveTextContent('enviar de novo sem alterar o formulário');
+    await waitFor(()=>expect(submit).toBeEnabled());
+    fireEvent.click(submit);await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(2));await waitFor(()=>expect(submit).toBeEnabled());
+    const keys=()=>vi.mocked(api.post).mock.calls.map(call=>call[2]?.idempotencyKey);
+    expect(keys()[0]).toEqual(expect.any(String));expect(keys()[1]).toBe(keys()[0]);
+    fireEvent.change(screen.getByLabelText('Título'),{target:{value:'Trabalho revisado'}});
+    fireEvent.click(submit);await waitFor(()=>expect(done).toHaveBeenCalledTimes(1));
+    expect(keys()[2]).toEqual(expect.any(String));expect(keys()[2]).not.toBe(keys()[0]);
+  });
+  it('a designação, sem reenvio seguro, continua bloqueada após resultado incerto',async()=>{
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Não foi possível conectar à API.'));
+    show(<NativeCreationDialog kind="designation" onClose={()=>{}} onDone={async()=>{}}/>);
+    await screen.findByRole('option',{name:/Alice Trabalhadora/});fireEvent.change(screen.getByLabelText('Trabalhador'),{target:{value:ids.worker}});
+    fireEvent.change(screen.getByLabelText('Origem'),{target:{value:'Escala operacional'}});fireEvent.change(screen.getByLabelText('Início (Brasília)'),{target:{value:'2099-11-20T09:00'}});fireEvent.change(screen.getByLabelText('Término (Brasília)'),{target:{value:'2099-11-20T10:00'}});
+    fireEvent.click(screen.getByRole('checkbox',{name:'Trabalho em altura'}));fireEvent.click(screen.getByRole('button',{name:'Criar designação'}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Consulte a lista atualizada antes de repetir');
+    expect(screen.getByRole('button',{name:'Criar designação'})).toBeDisabled();
+  });
   it('uma equipe incompatível é ocultada e nunca oferece edição nativa',async()=>{
     vi.mocked(api.get).mockImplementation(async path=>path==='/teams'?[teamFixture()] as never:{...teamFixture(),companyId:ids.otherCompany} as never);
     show(<NativeTeamsPage/>,'/app/equipes');expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível conferir');

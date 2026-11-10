@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
@@ -16,6 +16,8 @@ export function NativeCreationDialog({ kind, initial, onClose, onDone }: { kind:
   const [title, setTitle] = useState(initial?.title ?? ''), [origin, setOrigin] = useState(''), [type, setType] = useState('atender');
   const [startsAt, setStart] = useState(''), [endsAt, setEnd] = useState(''), [serviceIds, setServices] = useState<string[]>([]), [participants, setParticipants] = useState<string[]>([]);
   const [search, setSearch] = useState(''), [appliedSearch, setAppliedSearch] = useState(''), [peoplePage, setPeoplePage] = useState(1), [teamPage, setTeamPage] = useState(1);
+  // One Idempotency-Key per filled-in request: resending the same content cannot create a second appointment.
+  const creation = useRef<{ payload: string; key: string } | undefined>(undefined);
   const organization = useVerifiedRead({ queryKey: ['native-operational-directory',sessionKey], enabled: catalogsAllowed, request: signal => api.get<unknown>('/organization',{signal}), validate: checkedNativeDirectory });
   const unit = organization.data?.units.find(item => item.id === unitId && item.status === 'ACTIVE' && organization.data?.companies.some(company=>company.id===item.companyId&&company.status==='ACTIVE'));
   const services = useVerifiedRead({ queryKey:['native-services',sessionKey], enabled: allowed, request: signal=>api.get<unknown>('/work-permits/services',{signal}), validate: checkedNativeServices });
@@ -45,7 +47,8 @@ export function NativeCreationDialog({ kind, initial, onClose, onDone }: { kind:
       if(!title.trim()||title.trim().length>200||!participants.length||participants.some(id=>!members.data?.some(person=>person.id===id&&person.status==='ACTIVE'&&person.admissionDate<=start.slice(0,10))))throw new NativeFormError('Informe título e participantes ativos da equipe para o período.');
       const payload={companyId:unit.companyId,locationId:unit.id,teamId:team!.id,title:title.trim(),startsAt:start,endsAt:end,serviceIds,participantIds:participants};
       if(context&&(!initial||initial.status!=='REQUESTED'||unit.id!==initial.locationId||unit.companyId!==initial.companyId))throw new NativeFormError('Atualize o agendamento antes de alterar a equipe.');
-      const response=context?await api.put<unknown>(`/appointments/${initial!.id}/context`,{expectedVersion:initial!.version,teamId:team!.id,serviceIds,participantIds:participants},{signal}):await api.post<unknown>('/appointments',payload,{signal});
+      if(!context){const serialized=JSON.stringify(payload);if(creation.current?.payload!==serialized)creation.current={payload:serialized,key:crypto.randomUUID()};}
+      const response=context?await api.put<unknown>(`/appointments/${initial!.id}/context`,{expectedVersion:initial!.version,teamId:team!.id,serviceIds,participantIds:participants},{signal}):await api.post<unknown>('/appointments',payload,{signal,idempotencyKey:creation.current!.key});
       const updated=checkedNativeAppointment(response,context?initial!.id:undefined);
       const expectedCodes=services.data!.filter(service=>serviceIds.includes(service.id)).map(service=>service.code);
       if(updated.companyId!==payload.companyId||updated.locationId!==payload.locationId||updated.teamId!==payload.teamId||updated.title!==payload.title||updated.status!=='REQUESTED'||Date.parse(updated.startsAt)!==Date.parse(start)||Date.parse(updated.endsAt)!==Date.parse(end)||!same(updated.participantIds,participants)||!same(updated.serviceCodes,expectedCodes)||context&&updated.version!==initial!.version+1)throw new InvalidReadResponse();
@@ -56,7 +59,7 @@ export function NativeCreationDialog({ kind, initial, onClose, onDone }: { kind:
       if(updated.personId!==personId||updated.type!==type||updated.origin!==payload.origin||!updated.active||Date.parse(updated.startsAt)!==Date.parse(start)||Date.parse(updated.endsAt)!==Date.parse(end)||!same(updated.serviceIds,serviceIds)||!same(updated.locationIds,[unit.id]))throw new InvalidReadResponse();
     }
   }
-  return <NativeCommandDialog title={context?'Alterar equipe e participantes':appointment?'Solicitar agendamento':'Nova designação'} dirty={dirty} disabled={!ready||lookupError} onClose={onClose} onDone={onDone} perform={perform} submitLabel={context?'Salvar contexto':appointment?'Solicitar agendamento':'Criar designação'}>{busy=><>
+  return <NativeCommandDialog title={context?'Alterar equipe e participantes':appointment?'Solicitar agendamento':'Nova designação'} dirty={dirty} disabled={!ready||lookupError} onClose={onClose} onDone={onDone} perform={perform} submitLabel={context?'Salvar contexto':appointment?'Solicitar agendamento':'Criar designação'} replayable={kind==='appointment'}>{busy=><>
     {!catalogsAllowed&&<Feedback tone="warning">Sua conta precisa de acesso aos cadastros de locais, pessoas e equipes para preencher esta solicitação.</Feedback>}{loading&&<Spinner/>}{lookupError&&<Feedback tone="danger">Não foi possível conferir os cadastros desta solicitação. Feche a janela e atualize a consulta antes de tentar novamente.</Feedback>}
     <Field label="Local"><select value={unitId} disabled={busy||context||!organization.data} onChange={event=>changeUnit(event.target.value)}><option value="">Selecione</option>{organization.data?.units.filter(item=>item.status==='ACTIVE').map(item=><option key={item.id} value={item.id}>{organization.data!.companies.find(company=>company.id===item.companyId)?.name} · {item.name}</option>)}</select></Field>
     {appointment?<><Field label="Título" required><input value={title} maxLength={200} disabled={busy||context} onChange={event=>setTitle(event.target.value)}/></Field><Field label="Equipe"><select value={teamId} disabled={busy||!teams.data||teams.isFetching} onChange={event=>{setTeam(event.target.value);setParticipants([]);}}><option value="">Selecione</option>{teams.data?.items.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>{teams.data&&(teamPage>1||teams.data.count===10)&&<div className="actions"><Button variant="ghost" disabled={busy||teamPage<=1||teams.isFetching} onClick={()=>{setTeamPage(teamPage-1);setTeam('');setParticipants([]);}}>Equipes anteriores</Button><Button variant="ghost" disabled={busy||teams.data.count<10||teams.isFetching} onClick={()=>{setTeamPage(teamPage+1);setTeam('');setParticipants([]);}}>Próximas equipes</Button></div>}
