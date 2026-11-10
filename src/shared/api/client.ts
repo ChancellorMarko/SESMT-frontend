@@ -163,6 +163,7 @@ export const api = {
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, { idempotencyKey: crypto.randomUUID(), ...options }),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, { idempotencyKey: crypto.randomUUID(), ...options }),
 };
 /** Read the existing native worker DTO; callers must first verify its browser-scoped ID. */
 export function readNativeWorker<T>(id: string, options?: RequestOptions): Promise<T> {
