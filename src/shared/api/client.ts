@@ -19,7 +19,13 @@ export class ApiError extends Error {
     this.fieldErrors = dto.fieldErrors; this.requestId = dto.requestId;
   }
 }
-export interface RequestOptions { query?: Record<string, string | number | boolean | undefined | null>; signal?: AbortSignal; etag?: string; idempotencyKey?: string }
+export interface RequestOptions {
+  query?: Record<string, string | number | boolean | undefined | null>; signal?: AbortSignal; etag?: string; idempotencyKey?: string;
+  /** Official public invite: sent as X-Invite-Token, never with the session, cookies or CSRF. */
+  inviteToken?: string;
+}
+/** The only official routes that accept an invite token instead of a session. */
+const officialInvitePath = /^\/invites\/(?:context|appointments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?)$/i;
 export function revisionEtag(revision: number | null | undefined): string {
   if (!Number.isSafeInteger(revision) || Number(revision) < 1) throw new Error('Este registro não possui uma revisão válida para edição.');
   return `"${revision}"`;
@@ -53,7 +59,9 @@ function errorDto(value: unknown): ErrorDto {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}, retried = false, nativeWorker = false, binaryLimit?: number): Promise<T> {
-  const publicInvite = /^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path);
+  if (options.inviteToken !== undefined && (!officialInvitePath.test(path) || !/^[A-Za-z0-9_-]{43}$/.test(options.inviteToken)))
+    throw new Error('Convite inválido para esta consulta.');
+  const publicInvite = /^\/team-invites\/public\/[^/]+(?:\/appointments)?$/.test(path) || options.inviteToken !== undefined;
   const requestEpoch = epoch;
   const url = new URL(`${BASE}${nativeWorker ? path : resolveApiPath(path, API_MODE, import.meta.env.VITE_API_BROWSER_PREFIX, AUTH_CONTRACT.kind)}`, window.location.origin);
   Object.entries(options.query || {}).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v)); });
@@ -67,6 +75,7 @@ async function request<T>(method: string, path: string, body?: unknown, options:
   if (csrf && method !== 'GET' && !publicInvite) headers.set('X-CSRF-Token', csrf);
   if (options.etag) headers.set('If-Match', options.etag);
   if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+  if (options.inviteToken) headers.set('X-Invite-Token', options.inviteToken);
   const form = body instanceof FormData;
   if (body !== undefined && !form) headers.set('Content-Type', 'application/json');
   try {

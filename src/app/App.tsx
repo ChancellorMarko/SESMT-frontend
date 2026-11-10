@@ -75,6 +75,7 @@ const DesignationFormPage=lazy(()=>import('../features/designations').then(m=>({
 const DesignationDetailPage=lazy(()=>import('../features/designations').then(m=>({default:m.DesignationDetailPage})));
 const ConsultationPage=lazy(()=>import('../features/search/ConsultationPage').then(m=>({default:m.ConsultationPage})));
 const TeamInvitePage=lazy(()=>import('../features/teams/TeamInvitePage').then(m=>({default:m.TeamInvitePage})));
+const NativeInvitePage=lazy(()=>import('../features/native-invites/NativeInvitePage').then(m=>({default:m.NativeInvitePage})));
 const SignatureProfilePage=lazy(()=>import('../features/signature-profile/SignatureProfilePage').then(m=>({default:m.SignatureProfilePage})));
 const AccountActivationPage=lazy(()=>import('../features/auth/AccountActivationPage').then(m=>({default:m.AccountActivationPage})));
 const ConnectedAccountPage=lazy(()=>import('../features/auth/ConnectedAccountPage').then(m=>({default:m.ConnectedAccountPage})));
@@ -94,7 +95,7 @@ export function App() {
     <Route path="/recuperar-acesso" element={<RecoveryPage/>}/><Route path="/redefinir-senha" element={<ResetPasswordPage/>}/>
     <Route path="/reset-password" element={<ResetPasswordPage/>}/>
     <Route path="/ativar-acesso" element={<AccountActivationPage/>}/>
-    <Route path="/convite/:token" element={<TeamInvitePage/>}/>
+    <Route path="/convite/:token" element={NATIVE_MODULES?<NativeInvitePage/>:<TeamInvitePage/>}/>
     <Route path="/app/conexao" element={<Guard><Connection/></Guard>}/>
     <Route path="/app" element={<Guard><AppLayout/></Guard>}>
       <Route index element={<Home/>}/>
