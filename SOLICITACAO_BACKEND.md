@@ -8,7 +8,9 @@ O código de referência continua no histórico do frontend, commit `4550db2`, e
 
 ## Situação em 2026-11-09
 
-Cada item abaixo tem um PR próprio no SESMT-backend, criado a partir da `main` em `38c6270`. Os PRs são independentes entre si e aguardam revisão da equipe. Nenhum foi mesclado. Um contrato só passa a valer para o frontend depois de entrar na `main` do backend.
+Todos os itens abaixo já estão mesclados na `main` do SESMT-backend (`fd7b632`), cada um pelo seu PR.
+
+Na `main` integrada, os testes relacionais do backend acusaram uma regressão dos merges: a resolução de conflitos removeu do seeder `epi:*` do perfil TECNICO e `epi:ler`/`treinamento:ler` do perfil TRABALHADOR (o trabalhador recebia 403 nas próprias entregas e nos próprios treinamentos). A correção está no [#41](https://github.com/ChancellorMarko/SESMT-backend/pull/41), que aguarda revisão. Com a `main` mais o #41, `npm run test:access:real` passou nas 90 verificações, sem `BACKEND FINDING` nem itens ignorados.
 
 | Item | PR no SESMT-backend | Observações |
 | --- | --- | --- |
@@ -20,7 +22,7 @@ Cada item abaixo tem um PR próprio no SESMT-backend, criado a partir da `main` 
 | 3.3 ASO administrativo | [#38](https://github.com/ChancellorMarko/SESMT-backend/pull/38) | ADMIN sem `aso:acompanhar`/`aso:detalhar`; chaves do Data Protection em volume dedicado (`DataProtection__KeysPath`). |
 | 3.4 Edição organizacional | [#39](https://github.com/ChancellorMarko/SESMT-backend/pull/39) | As rotas `PATCH` antigas passam a exigir `If-Match` com a mesma versão. |
 
-Cada PR foi verificado com `npm run test:access:real` contra a própria branch, e o módulo correspondente passou no navegador. Os PRs #36 a #38 repetem a mesma linha de `workerId` em `/auth/me`; se forem mesclados, o Git aceita a alteração idêntica sem conflito. Três decisões ainda dependem da confirmação da equipe e estão destacadas nos PRs: ADMIN sem acesso ao registro de ASO (#38), `If-Match` obrigatório nas rotas antigas de edição organizacional (#39) e revogação da sessão quando o token anterior reaparece depois da janela (#40).
+As decisões destacadas nos PRs entraram com eles: ADMIN sem acesso ao registro de ASO (#38), `If-Match` obrigatório nas rotas antigas de edição organizacional (#39) e revogação da sessão quando o token anterior reaparece depois da janela (#40).
 
 ## 0. Segurança: escrita de tipos documentais sem autorização
 
