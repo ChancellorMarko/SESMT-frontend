@@ -8,7 +8,7 @@ import type { NativePermit } from './contracts';
 import { NativeChecklistEditor } from './NativeChecklistEditor';
 import { NativeChecklistFields } from './NativeChecklistFields';
 
-export function NativePermitChecklists({ item, refreshing, onDone }: { item: NativePermit; refreshing: boolean; onDone: () => Promise<void> }) {
+export function NativePermitChecklists({ item, refreshing, onDone, canResubmit = false }: { item: NativePermit; refreshing: boolean; onDone: () => Promise<void>; canResubmit?: boolean }) {
   const { sessionKey, can } = useSession();
   const [loaded, load] = useState(false), [closingView, setView] = useState(false);
   const [editing, edit] = useState<{ item: NativePermit; templates: NativeTemplate[]; closing: boolean }>();
@@ -29,7 +29,7 @@ export function NativePermitChecklists({ item, refreshing, onDone }: { item: Nat
     {models.data && !invalid && <>
       <div className="actions" role="group" aria-label="Etapa do checklist"><Button variant={closingView ? 'ghost' : 'primary'} aria-pressed={!closingView} onClick={() => setView(false)}>Abertura</Button><Button variant={closingView ? 'primary' : 'ghost'} aria-pressed={closingView} onClick={() => setView(true)}>Encerramento</Button></div>
       {closingView && !closingAvailable ? <Feedback tone="warning">Há modelo sem verificações de encerramento. A conclusão depende dessas perguntas no backend.</Feedback> : <details><summary>Visualizar perguntas e respostas</summary><NativeChecklistFields templates={models.data} closing={closingView} draft={(closingView ? closing : opening)!}/></details>}
-      <div className="actions">{item.status === 'EM_VERIFICACAO' && can('pt:editar') && <Button disabled={refreshing || models.isFetching} onClick={() => edit({ item, templates: models.data!, closing: false })}>Preencher checklist</Button>}{item.status === 'EM_EXECUCAO' && can('pt:concluir') && <Button disabled={!closingAvailable || refreshing || models.isFetching} onClick={() => edit({ item, templates: models.data!, closing: true })}>Encerrar serviço</Button>}</div>
+      <div className="actions">{item.status === 'EM_VERIFICACAO' && can('pt:editar') && <Button disabled={refreshing || models.isFetching} onClick={() => edit({ item, templates: models.data!, closing: false })}>Preencher checklist</Button>}{item.status === 'EM_EXECUCAO' && can('pt:concluir') && <Button disabled={!closingAvailable || refreshing || models.isFetching} onClick={() => edit({ item, templates: models.data!, closing: true })}>Encerrar serviço</Button>}{item.status === 'CONCLUIDA' && item.reviewStatus === 'DEVOLVIDA' && canResubmit && can('pt:concluir') && <Button disabled={!closingAvailable || refreshing || models.isFetching} onClick={() => edit({ item, templates: models.data!, closing: true })}>Corrigir e reenviar encerramento</Button>}</div>
     </>}
     {editing && !denied && <NativeChecklistEditor key={`${editing.item.id}:${editing.item.version}:${editing.closing}`} {...editing} onClose={() => edit(undefined)} onDone={async () => { edit(undefined); await onDone(); }}/ >}
   </section>;

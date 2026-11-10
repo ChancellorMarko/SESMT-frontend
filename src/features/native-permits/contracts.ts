@@ -13,7 +13,7 @@ export const permitStatusLabels = {
   SUSPENSA: 'Suspensa', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada',
 } as const;
 const status = z.enum(['EM_VERIFICACAO', 'LIBERADA', 'EM_EXECUCAO', 'SUSPENSA', 'CONCLUIDA', 'CANCELADA']);
-export const permitReviewLabels: Record<string, string> = { NAO_ENVIADA: 'Não enviada', AGUARDANDO_REVISAO: 'Aguardando revisão' };
+export const permitReviewLabels: Record<string, string> = { NAO_ENVIADA: 'Não enviada', AGUARDANDO_REVISAO: 'Aguardando revisão', DEVOLVIDA: 'Devolvida para correção', APROVADA: 'Aprovada' };
 const answer = z.object({ perguntaId: nativeId, valor: z.string().nullable(), justificativa: z.string().nullable() });
 const answers = z.array(answer).refine(items => new Set(items.map(item => item.perguntaId)).size === items.length);
 const acknowledgement = z.object({ id: nativeId, participantUserId: nativeId, collectorId: nativeId, contentVersion: version,
@@ -84,6 +84,21 @@ export function permitReturn(value: unknown) {
     const url = new URL(value, 'https://workspace.invalid');
     return url.origin === 'https://workspace.invalid' && url.pathname === '/app/pts' && !url.hash && permitCriteria(url.searchParams) ? `${url.pathname}${url.search}` : '/app/pts';
   } catch { return '/app/pts'; }
+}
+
+const previousClosing = z.object({ summary: z.string(), actualEnd: instant.nullable(), answers, submittedBy: nativeId.nullable(), submittedAt: instant.nullable(),
+  reviewedBy: nativeId.nullable(), reviewedAt: instant.nullable(), reviewNote: z.string().nullable() });
+const review = z.object({ permitId: nativeId, version, reviewStatus: z.enum(['NAO_ENVIADA', 'AGUARDANDO_REVISAO', 'DEVOLVIDA', 'APROVADA']),
+  submittedBy: nativeId.nullable(), submittedAt: instant.nullable(), reviewedBy: nativeId.nullable(), reviewedAt: instant.nullable(),
+  reviewNote: z.string().nullable(), canReview: z.boolean(), canResubmit: z.boolean(), previousClosings: z.array(previousClosing) });
+export type PermitReview = z.infer<typeof review>;
+/** Final review state of the permit as read now; capabilities come from the API, never from designations guessed here. */
+export function checkedPermitReview(value: unknown, permit: NativePermit): PermitReview {
+  const parsed = review.safeParse(value);
+  if (!parsed.success || parsed.data.permitId !== permit.id || parsed.data.version !== permit.version || parsed.data.reviewStatus !== permit.reviewStatus
+    || parsed.data.canReview && parsed.data.reviewStatus !== 'AGUARDANDO_REVISAO' || parsed.data.canResubmit && parsed.data.reviewStatus !== 'DEVOLVIDA'
+    || parsed.data.reviewStatus === 'DEVOLVIDA' && !parsed.data.reviewNote) throw new InvalidReadResponse();
+  return parsed.data;
 }
 
 const transition = z.object({ id: nativeId, previousStatus: status.nullable(), newStatus: status, action: text,
