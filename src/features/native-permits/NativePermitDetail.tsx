@@ -8,10 +8,11 @@ import { useVerifiedRead } from '../../shared/lib/verified-read';
 import { Badge, Button, EmptyState, Feedback, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { nativeId } from '../native-operations/contracts';
 import { nativeAgendaReturn } from '../native-operations/agenda-navigation';
-import { checkedDeclarations, checkedEligibility, checkedPermit, checkedPermitHistory, permitReturn, permitReviewLabels, permitStatusLabels, type NativePermit, type PermitDeclarations } from './contracts';
+import { checkedDeclarations, checkedEligibility, checkedPermit, checkedPermitHistory, checkedPermitReview, permitReturn, permitReviewLabels, permitStatusLabels, type NativePermit, type PermitDeclarations } from './contracts';
 import { actionNeedsReadiness, NativePermitAction, permitActionAllowed, permitActions, type PermitAction } from './NativePermitAction';
 import { NativePermitChecklists } from './NativePermitChecklists';
 import { NativePermitScience } from './NativePermitScience';
+import { NativePermitReview } from './NativePermitReview';
 import styles from '../../shared/ui/NativeRecords.module.css';
 import local from './NativePermits.module.css';
 
@@ -22,7 +23,8 @@ const issueLabels: Record<string, string> = {
   ASSINATURA_PENDENTE: 'Assinatura obrigatória pendente',
   AGUARDANDO_CONFERENCIA: 'Documento aguardando conferência', ARQUIVO_INDISPONIVEL: 'Arquivo indisponível', DOCUMENTO_FORA_DA_VALIDADE: 'Documento fora da validade',
 };
-const eventLabels: Record<string, string> = { ABERTA: 'Aberta', LIBERADA: 'Liberada', INICIADA: 'Serviço iniciado', SUSPENSA: 'Serviço suspenso', RETOMADA: 'Serviço retomado', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
+const eventLabels: Record<string, string> = { ABERTA: 'Aberta', LIBERADA: 'Liberada', INICIADA: 'Serviço iniciado', SUSPENSA: 'Serviço suspenso', RETOMADA: 'Serviço retomado', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada',
+  REVISAO_APROVADA: 'Encerramento aprovado', REVISAO_DEVOLVIDA: 'Encerramento devolvido', ENCERRAMENTO_REENVIADO: 'Encerramento reenviado' };
 export function NativePermitDetail() {
   const { id = '' } = useParams(), { sessionKey } = useSession();
   return <Detail key={`${sessionKey}:${id}`} id={id}/>;
@@ -40,15 +42,17 @@ function Detail({ id }: { id: string }) {
     request: signal => api.get<unknown>(`/work-permits/${id}/history`, { signal }), validate: value => checkedPermitHistory(value, item!) });
   const readiness = useVerifiedRead({ queryKey: ['native-permit-eligibility', sessionKey, id, revision], scope: ['native-permit-eligibility', sessionKey, id], enabled,
     request: signal => api.get<unknown>(`/work-permits/${id}/eligibility`, { signal }), validate: checkedEligibility });
+  const review = useVerifiedRead({ queryKey: ['native-permit-review', sessionKey, id, revision], scope: ['native-permit-review', sessionKey, id], enabled: enabled && item?.status === 'CONCLUIDA',
+    request: signal => api.get<unknown>(`/work-permits/${id}/review`, { signal }), validate: value => checkedPermitReview(value, item!) });
   const declarations = useVerifiedRead({ queryKey: ['native-permit-declarations', sessionKey, id, revision], scope: ['native-permit-declarations', sessionKey, id], enabled,
     request: signal => api.get<unknown>(`/work-permits/${id}/declarations`, { signal }), validate: value => checkedDeclarations(value, item!) });
   async function refresh() {
     setConfirmation('');
-    await Promise.all(['native-permit', 'native-permit-history', 'native-permit-eligibility', 'native-permit-declarations'].map(key => client.invalidateQueries({ queryKey: [key, sessionKey, id] })));
+    await Promise.all(['native-permit', 'native-permit-history', 'native-permit-eligibility', 'native-permit-declarations', 'native-permit-review'].map(key => client.invalidateQueries({ queryKey: [key, sessionKey, id] })));
   }
   async function done() {
     edit(undefined);
-    await Promise.all(['native-permit', 'native-permit-history', 'native-permit-eligibility', 'native-permit-declarations', 'native-permits', 'native-dashboard', 'native-agenda'].map(key => client.invalidateQueries({ queryKey: [key, sessionKey] })));
+    await Promise.all(['native-permit', 'native-permit-history', 'native-permit-eligibility', 'native-permit-declarations', 'native-permit-review', 'native-permits', 'native-dashboard', 'native-agenda'].map(key => client.invalidateQueries({ queryKey: [key, sessionKey] })));
     setConfirmation('Operação confirmada pela API.');
   }
   const busy = query.isFetching || history.isFetching || readiness.isFetching || declarations.isFetching;
@@ -63,7 +67,8 @@ function Detail({ id }: { id: string }) {
       </section>
       <div className="actions" aria-label="Operações da PT">{(Object.keys(permitActions) as PermitAction[]).filter(action => permitActionAllowed(item, action, can)).map(action => <Button key={action} variant={action === 'cancel' ? 'danger' : 'secondary'} disabled={query.isFetching || actionNeedsReadiness(action) && (readiness.isFetching || !readiness.data?.ready) || action === 'release' && (declarations.isFetching || !declarations.data?.context)} onClick={() => { setConfirmation(''); edit({ item, action, context: declarations.data?.context }); }}>{permitActions[action].label}</Button>)}</div>
       {confirmation && <Feedback tone="success">{confirmation}</Feedback>}
-      <NativePermitChecklists item={item} refreshing={query.isFetching} onDone={done}/>
+      {item.status === 'CONCLUIDA' && <NativePermitReview item={item} review={review} refreshing={busy} onDone={done}/>}
+      <NativePermitChecklists item={item} refreshing={query.isFetching} onDone={done} canResubmit={Boolean(review.data?.canResubmit)}/>
       <NativePermitScience item={item} refreshing={busy} onDone={done}/>
       <section className={styles.results} aria-label="Elegibilidade da PT"><div className={styles.footer}><h2>Requisitos da operação</h2>{readiness.data && <Badge tone={readiness.data.ready ? 'info' : 'warning'}>{readiness.data.ready ? 'Sem pendências nesta consulta' : `${issues.length} pendência(s)`}</Badge>}</div>
         {readiness.isPending && <Spinner/>}{readiness.isError && <Feedback tone="danger">Não foi possível conferir os requisitos. Liberação, início e retomada ficam indisponíveis até atualizar.</Feedback>}
