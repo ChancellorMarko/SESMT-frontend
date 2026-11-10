@@ -73,6 +73,31 @@ describe('cliente HTTP e ciclo da sessão', () => {
     expect(headers.get('Idempotency-Key')).toBe('invite-operation');
     await api.get('/documents'); expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get('Authorization')).toBe('Bearer private-token');
   });
+  it('envia o convite oficial só no cabeçalho, sem sessão, cookies ou CSRF, e sem encerrar a sessão em 401', async () => {
+    const token = 'A'.repeat(43);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => pathOf(input).endsWith('/invites/context') ? error('INVALID_INVITE', 401) : json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { api, setAccessToken, setExpiredHandler } = await import('./client');
+    const expired = vi.fn(); setAccessToken('private-token'); setExpiredHandler(expired);
+    await expect(api.get('/invites/context', { inviteToken: token })).rejects.toMatchObject({ status: 401, code: 'INVALID_INVITE' });
+    await api.post('/invites/appointments', { title: 'Pedido' }, { inviteToken: token, idempotencyKey: 'invite-request' });
+    expect(expired).not.toHaveBeenCalled();
+    for (const [input, request] of fetchMock.mock.calls) {
+      const headers = new Headers(request!.headers);
+      expect(pathOf(input)).not.toContain(token);
+      expect(headers.get('X-Invite-Token')).toBe(token); expect(request!.credentials).toBe('omit');
+      expect(headers.has('Authorization')).toBe(false); expect(headers.has('X-CSRF-Token')).toBe(false);
+    }
+    expect(new Headers(fetchMock.mock.calls[1][1]!.headers).get('Idempotency-Key')).toBe('invite-request');
+  });
+  it('recusa token de convite fora das rotas públicas oficiais ou com formato inválido', async () => {
+    const fetchMock = vi.fn(async () => json({ ok: true })); vi.stubGlobal('fetch', fetchMock);
+    const { api } = await import('./client');
+    await expect(api.get('/documents', { inviteToken: 'A'.repeat(43) })).rejects.toThrow('Convite inválido');
+    await expect(api.get('/invites/context', { inviteToken: 'curto' })).rejects.toThrow('Convite inválido');
+    await expect(api.post('/invites', {}, { inviteToken: 'A'.repeat(43) })).rejects.toThrow('Convite inválido');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('salva perfil via PUT com revisão e identidade da operação', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => json({ revision: 1 })); vi.stubGlobal('fetch', fetchMock);
     const { api } = await import('./client');

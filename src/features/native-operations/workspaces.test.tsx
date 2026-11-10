@@ -138,4 +138,11 @@ describe('workspaces operacionais nativos',()=>{
     vi.mocked(api.get).mockResolvedValueOnce([updated] as never);fireEvent.click(screen.getByRole('button',{name:'Confirmar revogação'}));
     expect(await screen.findByText('Revogada')).toBeVisible();expect(api.post).toHaveBeenCalledWith(`/designations/${ids.designation}/revoke`,{expectedVersion:1},expect.anything());
   });
+  it('oferece convites da equipe somente a quem gere a agenda',async()=>{
+    const first=show(<NativeTeamsPage/>,'/app/equipes');
+    expect(await screen.findByRole('button',{name:'Convites da equipe Equipe de manutenção'})).toBeVisible();
+    first.unmount();state.grants=state.grants.filter(grant=>grant!=='agenda:editar');
+    show(<NativeTeamsPage/>,'/app/equipes');await screen.findByText('Equipe de manutenção');
+    expect(screen.queryByRole('button',{name:/Convites da equipe/})).not.toBeInTheDocument();
+  });
 });
