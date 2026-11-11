@@ -1,7 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router';
 import { useSession } from '../shared/auth/SessionProvider';
-import { LoginPage, RecoveryPage, ResetPasswordPage } from '../features/auth/AuthPages';
 import { AppLayout } from './layouts/AppLayout';
 import { Spinner } from '../shared/ui';
 import { AppErrorBoundary } from './AppErrorBoundary';
@@ -10,6 +9,12 @@ import { RoutePresentation } from './navigation/RoutePresentation';
 import { API_MODE } from '../shared/api/client';
 import { NATIVE_MODULES } from '../shared/api/native-mode';
 
+const authPages=()=>import('../features/auth/AuthPages');
+// Fora de /app a próxima tela quase sempre é de acesso: o download começa junto com a sessão.
+if(typeof window!=='undefined'&&!window.location.pathname.startsWith('/app')) void authPages().catch(()=>undefined);
+const LoginPage=lazy(()=>authPages().then(m=>({default:m.LoginPage})));
+const RecoveryPage=lazy(()=>authPages().then(m=>({default:m.RecoveryPage})));
+const ResetPasswordPage=lazy(()=>authPages().then(m=>({default:m.ResetPasswordPage})));
 const DocumentsPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentsPage})));
 const ExpirationsPage=lazy(()=>import('../features/documents/ExpirationsPage').then(m=>({default:m.ExpirationsPage})));
 const DocumentFormPage=lazy(()=>import('../features/documents').then(m=>({default:m.DocumentFormPage})));
