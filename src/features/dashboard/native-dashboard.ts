@@ -4,7 +4,7 @@ import { isIsoInstant } from '../../shared/auth/session-response';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
 // DashboardController + DashboardDtos + DashboardService, backend 41d31e9.
-const id = z.string().uuid().transform(value => value.toLowerCase()), instant = z.string().refine(isIsoInstant);
+const id = z.guid().transform(value => value.toLowerCase()), instant = z.string().refine(isIsoInstant);
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const ids = z.array(id).refine(values => new Set(values).size === values.length);
 const operationalStatus = z.enum(['EM_VERIFICACAO', 'LIBERADA', 'EM_EXECUCAO', 'SUSPENSA', 'CONCLUIDA', 'CANCELADA', 'DEVOLVIDA', 'APROVADA']);

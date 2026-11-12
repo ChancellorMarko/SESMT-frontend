@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
-const id = z.string().uuid();
+const id = z.guid();
 const profile = z.object({ id, companyId: id, unitId: id, departmentId: id.nullable(), positionId: id.nullable(),
   name: z.string().trim().min(1).max(200), enrollment: z.string().trim().min(1).max(30), revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) });
 const context = z.object({ worker: profile, unitName: z.string().trim().min(1).max(150), requiresDepartment: z.boolean(),

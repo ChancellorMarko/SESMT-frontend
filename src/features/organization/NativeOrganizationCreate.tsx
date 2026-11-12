@@ -32,7 +32,7 @@ export function NativeOrganizationCreate({ resource, context, opening, history, 
     const expected: Record<string, unknown> = { ...parsed.data };
     for (const key of ['email', 'phone', 'description', 'cbo', 'complement']) if (expected[key] === '') expected[key] = null;
     const body = resource.key === 'companies' ? { ...expected, tipoEmpresa: fields.tipoEmpresa === 'INTERNA' ? 0 : 1 } : expected;
-    const receiptSchema: z.ZodTypeAny = resource.key === 'companies' ? companyReceipt : resource.key === 'units' ? unitReceipt : resource.key === 'departments' ? departmentReceipt : positionReceipt;
+    const receiptSchema: z.ZodType<Record<string, unknown>> = resource.key === 'companies' ? companyReceipt : resource.key === 'units' ? unitReceipt : resource.key === 'departments' ? departmentReceipt : positionReceipt;
     let receipt: unknown;
     try { receipt = await api.post<unknown>(resource.path, body, { signal, idempotencyKey: undefined }); }
     catch (error) { if (error instanceof ApiError && error.status === 409) throw new NativeFormError('Já existe um cadastro com estes dados. Confira o CNPJ, o código ou o nome informado.'); throw error; }

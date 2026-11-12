@@ -4,9 +4,9 @@ import { InvalidReadResponse } from '../../shared/lib/verified-read';
 // SESMT.API/Contracts/Users/UserRequests.cs: UserResponse (official native API).
 export const nativeUserDetails = z.object({ name: z.string().trim().min(1, 'Informe o nome.').max(200), email: z.string().trim().email('Informe um e-mail válido.').max(200).transform(value => value.toLowerCase()) });
 export const nativeUser = nativeUserDetails.extend({
-  id: z.string().uuid(), name: z.string().trim().min(1).max(200),
+  id: z.guid(), name: z.string().trim().min(1).max(200),
   email: z.string().email().max(254), roles: z.array(z.string().trim().min(1).max(200)),
-  scopeIds: z.array(z.string().uuid()), active: z.boolean(),
+  scopeIds: z.array(z.guid()), active: z.boolean(),
 });
 export type NativeUser = z.infer<typeof nativeUser>;
 export function checkedNativeUsers(value: unknown): NativeUser[] {
@@ -20,7 +20,7 @@ const accessVersion = z.string().regex(/^[a-f0-9]{64}$/);
 const managementContext = z.object({
   action: z.enum(['criar', 'editar']), target: nativeUser.nullable(), accessVersion: accessVersion.nullable(),
   roles: z.array(z.object({ code: z.string().trim().min(1).max(200), name: z.string().trim().min(1).max(200), description: z.string().max(2000) })),
-  scopes: z.array(z.object({ id: z.string().uuid(), type: z.enum(['EMPRESA', 'UNIDADE', 'SETOR']), name: z.string().trim().min(1).max(500), companyId: z.string().uuid(), companyName: z.string().trim().min(1).max(255) })),
+  scopes: z.array(z.object({ id: z.guid(), type: z.enum(['EMPRESA', 'UNIDADE', 'SETOR']), name: z.string().trim().min(1).max(500), companyId: z.guid(), companyName: z.string().trim().min(1).max(255) })),
 });
 export type UserManagementContext = z.infer<typeof managementContext>;
 export const sameUserSelection = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every(value => b.includes(value));

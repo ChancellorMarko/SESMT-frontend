@@ -15,20 +15,20 @@ export function isCivilDate(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-const optionalId = z.union([z.string().uuid('Selecione uma opção válida.'), z.literal('')]);
+const optionalId = z.union([z.guid('Selecione uma opção válida.'), z.literal('')]);
 const civilDate = z.string().refine(isCivilDate, 'Informe uma data válida.');
 const optionalDate = z.union([civilDate, z.literal('')]);
 
 const baseSchema = z.object({
   code: z.string().trim().min(1, 'Informe o código.').max(100, 'Use até 100 caracteres.'),
   title: z.string().trim().min(1, 'Informe o título.').max(240, 'Use até 240 caracteres.'),
-  typeId: z.string().uuid('Selecione o tipo documental.'),
-  companyId: z.string().uuid('Selecione a empresa.'),
-  unitId: z.string().uuid('Selecione a unidade.'),
+  typeId: z.guid('Selecione o tipo documental.'),
+  companyId: z.guid('Selecione a empresa.'),
+  unitId: z.guid('Selecione a unidade.'),
   sectorId: optionalId,
-  ownerId: z.string().uuid('Selecione o proprietário.'),
-  responsibleIds: z.array(z.string().uuid()),
-  workerIds: z.array(z.string().uuid()),
+  ownerId: z.guid('Selecione o proprietário.'),
+  responsibleIds: z.array(z.guid()),
+  workerIds: z.array(z.guid()),
   accessClass: z.enum(['INTERNAL', 'RESTRICTED', 'MEDICAL']),
   issueDate: civilDate,
   validFrom: optionalDate,

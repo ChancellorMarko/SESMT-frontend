@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import type { Training } from './contracts';
 
-const id = z.string().uuid(), hash = z.string().regex(/^[a-f0-9]{64}$/), positive = z.number().int().positive();
+const id = z.guid(), hash = z.string().regex(/^[a-f0-9]{64}$/), positive = z.number().int().positive();
 export const evidenceStates = { EMPTY: 'Sem comprovante vinculado', CURRENT: 'Vínculo atualizado', UNAVAILABLE: 'Comprovante indisponível neste acesso',
   TRAINING_CHANGED: 'Treinamento alterado: confira o vínculo', DOCUMENT_CHANGED: 'Documento alterado: confira a versão', EXPIRED: 'Revisar vigência do documento',
   SIGNATURE_PENDING: 'Assinatura documental pendente', REVOKED: 'Treinamento invalidado' } as const;

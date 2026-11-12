@@ -4,7 +4,7 @@ import { checkedPage, isSafePage } from '../../shared/lib/scoped-page';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
 // Official Appointments/Teams/OperationalDesignation DTOs, backend 41d31e9.
-export const nativeId = z.string().uuid().transform(value => value.toLowerCase()).refine(value => value !== '00000000-0000-0000-0000-000000000000');
+export const nativeId = z.guid().transform(value => value.toLowerCase()).refine(value => value !== '00000000-0000-0000-0000-000000000000');
 export const nativeIds = z.array(nativeId).refine(values => new Set(values).size === values.length);
 const instant = z.string().refine(isIsoInstant), version = z.number().int().min(1).max(2147483647);
 export const nativeAppointmentLabels = { REQUESTED: 'Solicitado', CONFIRMED: 'Confirmado', CANCELLED: 'Cancelado' } as const;

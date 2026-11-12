@@ -1,15 +1,18 @@
 import { z } from 'zod';
 
+// Only the unknown-field issue gets the custom message; other object issues keep zod's own.
+const extraFields = (message: string) => ({ error: (issue: { code?: string }) => issue.code === 'unrecognized_keys' ? message : undefined });
+
 const identifier = z.string().trim().min(1, 'Selecione o cadastro.').max(100, 'Identificador inválido.');
-export const teamFormSchema = z.object({
+export const teamFormSchema = z.strictObject({
   name: z.string().trim().min(3, 'Informe um nome com pelo menos 3 caracteres.').max(120, 'Use até 120 caracteres.'),
   unitId: identifier,
   chiefId: identifier,
-  members: z.array(z.object({
+  members: z.array(z.strictObject({
     workerId: identifier,
     serviceFunction: z.string().trim().min(2, 'Informe a função no serviço.').max(80, 'Use até 80 caracteres.'),
-  }).strict('Envie somente o trabalhador e sua função no serviço.')).min(1, 'Adicione pelo menos um participante.').max(100, 'A equipe pode ter até 100 participantes.'),
-}).strict('O envio contém campos que são geridos pelo servidor.').superRefine((value, context) => {
+  }, extraFields('Envie somente o trabalhador e sua função no serviço.'))).min(1, 'Adicione pelo menos um participante.').max(100, 'A equipe pode ter até 100 participantes.'),
+}, extraFields('O envio contém campos que são geridos pelo servidor.')).superRefine((value, context) => {
   const seen = new Set<string>();
   value.members.forEach((member, index) => {
     if (seen.has(member.workerId)) context.addIssue({ code: 'custom', path: ['members', index, 'workerId'], message: 'Este trabalhador já participa da equipe.' });
@@ -19,10 +22,10 @@ export const teamFormSchema = z.object({
 });
 
 export type TeamFormValues = z.infer<typeof teamFormSchema>;
-export const teamStatusSchema = z.object({
+export const teamStatusSchema = z.strictObject({
   status: z.enum(['ACTIVE', 'INACTIVE'], { message: 'Situação da equipe inválida.' }),
   inactiveReason: z.string().trim().max(300, 'O motivo da inativação deve ter até 300 caracteres.').optional(),
-}).strict('O envio contém campos que não pertencem à alteração de situação.');
+}, extraFields('O envio contém campos que não pertencem à alteração de situação.'));
 export const normalizedTeamText = (value: string) => value.trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 
 export function teamErrorMessage(error: unknown) {

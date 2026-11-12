@@ -22,6 +22,12 @@ describe('validação de equipe', () => {
     expect(teamFormSchema.safeParse({ ...draft(), companyId: 'forged', revision: 500 }).success).toBe(false);
     expect(teamFormSchema.safeParse({ ...draft(), members: [{ ...draft().members[0], name: 'Nome forjado' }] }).success).toBe(false);
   });
+  it('explica o campo extra com a mensagem do formulário e não com a genérica', () => {
+    const extra = teamFormSchema.safeParse({ ...draft(), revision: 500 });
+    expect(extra.success ? [] : extra.error.issues.map(issue => issue.message)).toContain('O envio contém campos que são geridos pelo servidor.');
+    const member = teamFormSchema.safeParse({ ...draft(), members: [{ ...draft().members[0], name: 'Nome forjado' }] });
+    expect(member.success ? [] : member.error.issues.map(issue => issue.message)).toContain('Envie somente o trabalhador e sua função no serviço.');
+  });
   it('compara nomes sem depender de acentos, maiúsculas ou espaços repetidos', () => {
     expect(normalizedTeamText('  EQUIPE de  MANUTENÇÃO ')).toBe(normalizedTeamText('Equipe de manutencao'));
   });

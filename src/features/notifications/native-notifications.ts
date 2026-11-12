@@ -6,7 +6,7 @@ import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-
 
 // NotificationDto + NotificationsController, official API (not the demo envelope).
 const notification = z.object({
-  id: z.string().uuid(), type: z.string().trim().min(1).max(200), resourceId: z.string().uuid(),
+  id: z.guid(), type: z.string().trim().min(1).max(200), resourceId: z.guid(),
   text: z.string().min(1).max(16000), createdAt: z.string().refine(isIsoInstant),
   readAt: z.string().refine(isIsoInstant).nullable(),
 }).refine(item => item.readAt === null || Date.parse(item.readAt) >= Date.parse(item.createdAt));

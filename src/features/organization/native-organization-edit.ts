@@ -3,7 +3,7 @@ import { api } from '../../shared/api/client';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedOrganization, companyFields, departmentFields, positionFields, unitFields, type OrganizationResource } from './native-organization';
-const id = z.string().uuid(), text = z.string(), nullable = text.nullable(), version = z.string().regex(/^[a-f0-9]{64}$/);
+const id = z.guid(), text = z.string(), nullable = text.nullable(), version = z.string().regex(/^[a-f0-9]{64}$/);
 const common = { id, companyId: id, unitId: id.nullable(), version };
 const profile = z.discriminatedUnion('resource', [
   z.object({ ...common, resource: z.literal('companies'), values: z.object({ corporateName: text.max(255), fantasyName: text.max(255), cnpj: text.length(14), tipoEmpresa: z.enum(['INTERNA','PRESTADORA']), email: nullable, phone: nullable }).strict() }).strict(),

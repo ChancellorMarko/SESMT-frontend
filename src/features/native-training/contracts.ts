@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
-const id = z.string().uuid(), text = z.string().trim().min(1);
+const id = z.guid(), text = z.string().trim().min(1);
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
   const date = new Date(`${value}T12:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value && !value.startsWith('0000');

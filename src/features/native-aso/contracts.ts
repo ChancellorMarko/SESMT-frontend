@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { localDay } from '../native-training/contracts';
 export { localDay, formatDay } from '../native-training/contracts';
-const id = z.string().uuid(), text = z.string().trim().min(1);
+const id = z.guid(), text = z.string().trim().min(1);
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => {
   const d = new Date(`${v}T12:00:00Z`); return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v && !v.startsWith('0000');
 });
