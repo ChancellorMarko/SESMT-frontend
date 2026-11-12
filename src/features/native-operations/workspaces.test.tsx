@@ -11,7 +11,7 @@ import { appointmentFixture, designationFixture, teamFixture, operationIds as id
 
 const state=vi.hoisted(()=>({grants:['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'],companies:['61000000-0000-4000-8000-000000000001']}));
 vi.mock('../../shared/auth/SessionProvider',()=>({useSession:()=>({sessionKey:'native-operation-test',unitId:ids.unit,me:{user:{id:ids.user},roles:['ADMIN'],scope:{companyIds:state.companies,unitIds:[ids.unit]}},can:(permission:string)=>state.grants.includes(permission)})}));
-vi.mock('../../shared/api/client',async original=>({...await original<typeof import('../../shared/api/client')>(),api:{get:vi.fn(),post:vi.fn(),put:vi.fn()}}));
+vi.mock('../../shared/api/client',async original=>({...await original<typeof import('../../shared/api/client')>(),api:{get:vi.fn(),post:vi.fn(),put:vi.fn(),delete:vi.fn()}}));
 function show(component:React.ReactNode,path='/app/agenda/detail'){
   const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
   const view=render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><Routes><Route path="/app/agenda/:id" element={component}/><Route path="*" element={component}/></Routes></MemoryRouter></QueryClientProvider>);
@@ -144,5 +144,17 @@ describe('workspaces operacionais nativos',()=>{
     first.unmount();state.grants=state.grants.filter(grant=>grant!=='agenda:editar');
     show(<NativeTeamsPage/>,'/app/equipes');await screen.findByText('Equipe de manutenção');
     expect(screen.queryByRole('button',{name:/Convites da equipe/})).not.toBeInTheDocument();
+  });
+  it('desativa equipe somente com equipe:excluir, após confirmação, e relê a lista',async()=>{
+    state.grants=[...state.grants,'equipe:excluir'];vi.mocked(api.delete).mockResolvedValueOnce(undefined as never);
+    show(<NativeTeamsPage/>,'/app/equipes');fireEvent.click(await screen.findByRole('button',{name:'Desativar equipe Equipe de manutenção'}));
+    expect(screen.getByText(/deixa de aparecer nas consultas/)).toBeVisible();expect(api.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Confirmar desativação'}));
+    expect(await screen.findByText('Equipe Equipe de manutenção desativada. O histórico foi preservado.')).toBeVisible();
+    expect(api.delete).toHaveBeenCalledWith(`/teams/${ids.team}`,expect.anything());
+  });
+  it('sem equipe:excluir não oferece desativação',async()=>{
+    show(<NativeTeamsPage/>,'/app/equipes');await screen.findByText('Equipe de manutenção');
+    expect(screen.queryByRole('button',{name:/Desativar equipe/})).not.toBeInTheDocument();
   });
 });
