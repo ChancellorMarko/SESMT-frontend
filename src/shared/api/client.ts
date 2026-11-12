@@ -8,6 +8,7 @@ const BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 let token: string | null = null;
 let csrf: string | null = null;
 let refreshPromise: Promise<SessionDto> | null = null;
+const REFRESH_CONFLICT_RETRY_MS = 400;
 let onExpired: () => void = () => {};
 let epoch = 0;
 const controllers = new Set<AbortController>();
@@ -268,7 +269,15 @@ export async function renewSession(): Promise<SessionDto> {
     const pending = (async () => {
       if (!csrf) await obtainCsrf();
       if (sessionEpoch !== epoch) throw new DOMException('Sessão alterada.', 'AbortError');
-      const session = await api.post<SessionDto>('/auth/refresh');
+      let session: SessionDto;
+      try { session = await api.post<SessionDto>('/auth/refresh'); } catch (error) {
+        // Another tab rotated the shared refresh cookie first. Its response carries the new cookie,
+        // so wait for it to land and renew once more instead of ending this tab's session.
+        if (!(error instanceof ApiError && error.status === 409 && error.code === 'REFRESH_CONFLICT')) throw error;
+        await new Promise(resolve => setTimeout(resolve, REFRESH_CONFLICT_RETRY_MS));
+        if (sessionEpoch !== epoch) throw new DOMException('Sessão alterada.', 'AbortError');
+        session = await api.post<SessionDto>('/auth/refresh');
+      }
       if (sessionEpoch !== epoch) throw new DOMException('Sessão alterada.', 'AbortError');
       setAccessToken(session.accessToken); return session;
     })().finally(() => { if (refreshPromise === pending) refreshPromise = null; });
