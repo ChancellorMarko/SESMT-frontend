@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../shared/api/client';
-import { checkedNativeAgenda, checkedNativeAppointment, checkedNativeDesignations, checkedNativeTeam, nativeAgendaCriteria, nativeAgendaQuery } from './contracts';
+import { nativeId, checkedNativeAgenda, checkedNativeAppointment, checkedNativeDesignations, checkedNativeTeam, nativeAgendaCriteria, nativeAgendaQuery } from './contracts';
 import { loadNativeTeams } from './queries';
 import { checkedNativeDirectory, checkedNativePeople, checkedNativeTeamPeople } from './directory';
 import { nativeAgendaReturn } from './NativeAppointmentDetail';
@@ -10,6 +10,12 @@ vi.mock('../../shared/api/client', async original=>({...await original<typeof im
 const criteria={page:1,q:'',status:'',from:'',to:'',companyId:''};
 beforeEach(()=>vi.clearAllMocks());
 describe('contratos nativos de agenda/equipes/designações',()=>{
+  it('aceita os IDs fixos do catálogo de serviços da PT, que não seguem a variante RFC',()=>{
+    expect(nativeId.parse('10000000-0000-0000-0000-000000000001')).toBe('10000000-0000-0000-0000-000000000001');
+    expect(nativeId.parse('ABCDEF00-0000-0000-0000-000000000005')).toBe('abcdef00-0000-0000-0000-000000000005');
+    expect(nativeId.safeParse('00000000-0000-0000-0000-000000000000').success).toBe(false);
+    expect(nativeId.safeParse('10000000-0000-0000-0000-00000000000').success).toBe(false);
+  });
   it('preserva version, CANCELLED e os IDs sem converter para revision/estado legado',()=>{
     const item=appointmentFixture();item.status='CANCELLED';
     expect(checkedNativeAppointment(item,item.id).status).toBe('CANCELLED');

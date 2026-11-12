@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {InvalidReadResponse} from '../../shared/lib/verified-read';
 
-const id=z.string().uuid(), text=z.string().trim().min(1);
+const id=z.guid(), text=z.string().trim().min(1);
 const version=z.number().int().positive();
 
 const sourceText=(max:number)=>z.string().min(1).max(max).refine(v=>Boolean(v.trim()));

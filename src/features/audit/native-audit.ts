@@ -6,9 +6,9 @@ import { actionCode, validCivilDate } from './audit-support';
 
 // AuditLogsController.ToItem: preserve nullable identities; do not invent names.
 const event = z.object({
-  id: z.string().uuid(), atorId: z.string().uuid().nullable(), declaranteId: z.string().uuid().nullable(),
-  empresaId: z.string().uuid().nullable(), acao: z.string().min(1).max(200),
-  recursoTipo: z.string().min(1).max(200), recursoId: z.string().uuid().nullable(),
+  id: z.guid(), atorId: z.guid().nullable(), declaranteId: z.guid().nullable(),
+  empresaId: z.guid().nullable(), acao: z.string().min(1).max(200),
+  recursoTipo: z.string().min(1).max(200), recursoId: z.guid().nullable(),
   versao: z.number().int().nonnegative().nullable(), momento: z.string().refine(isIsoInstant),
   resultado: z.string().max(4000).nullable(), traceId: z.string().max(4000).nullable(),
 });

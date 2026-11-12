@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
-const id = z.string().uuid(), text = z.string().trim().min(1), day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => !Number.isNaN(Date.parse(value)) && new Date(`${value}T12:00:00Z`).toISOString().slice(0,10) === value);
+const id = z.guid(), text = z.string().trim().min(1), day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => !Number.isNaN(Date.parse(value)) && new Date(`${value}T12:00:00Z`).toISOString().slice(0,10) === value);
 export const equipmentSchema = z.object({ id, companyId: id, code: text.max(30), name: text.max(160), approvalCertificate: z.string().max(30).nullable(), manufacturer: z.string().max(120).nullable(), model: z.string().max(120).nullable(), revision: z.number().int().positive() });
 export const deliverySchema = z.object({ id, companyId: id, unitId: id, workerId: id, workerName: text, equipmentId: id, equipmentCode: text, equipmentName: text, approvalCertificate: z.string().nullable(),
   quantity: z.number().int().min(1).max(1000), size: z.string().max(30).nullable(), deliveredOn: day, replacementOn: day.nullable(), notes: z.string().max(500).nullable(), returnedOn: day.nullable(), returnReason: z.string().max(200).nullable(), revision: z.number().int().positive() })

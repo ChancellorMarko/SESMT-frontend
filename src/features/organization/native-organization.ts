@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 
-const id = z.string().uuid(), name = z.string().trim().min(1).max(255);
+const id = z.guid(), name = z.string().trim().min(1).max(255);
 const named = z.object({ id, name, canEdit: z.boolean().default(false) });
 const context = z.object({
   canCreateCompany: z.boolean(),
