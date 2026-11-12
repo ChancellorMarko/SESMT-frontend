@@ -255,6 +255,34 @@ describe('cliente HTTP e ciclo da sessão', () => {
     expect(new Headers(fetchMock.mock.calls.at(-1)?.[1]?.headers).get('Authorization')).toBe('Bearer old-token');
   });
 
+  it('renova de novo uma única vez quando outra aba girou o cookie primeiro', async () => {
+    let refreshCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path.endsWith('/auth/csrf')) return json({ csrfToken: 'csrf-test' });
+      if (path.endsWith('/auth/refresh')) return ++refreshCalls === 1 ? error('REFRESH_CONFLICT', 409) : json(session);
+      return json({ ok: true });
+    }));
+    const { renewSession, setExpiredHandler } = await import('./client');
+    const expired = vi.fn(); setExpiredHandler(expired);
+    await expect(renewSession()).resolves.toMatchObject({ accessToken: 'renewed-token' });
+    expect(refreshCalls).toBe(2);
+    expect(expired).not.toHaveBeenCalled();
+  });
+
+  it('não insiste além de uma nova tentativa quando o conflito na renovação se repete', async () => {
+    let refreshCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path.endsWith('/auth/csrf')) return json({ csrfToken: 'csrf-test' });
+      refreshCalls++;
+      return error('REFRESH_CONFLICT', 409);
+    }));
+    const { renewSession } = await import('./client');
+    await expect(renewSession()).rejects.toMatchObject({ status: 409, code: 'REFRESH_CONFLICT' });
+    expect(refreshCalls).toBe(2);
+  });
+
   it('encerra a sessão uma única vez quando a renovação confirma que o acesso foi revogado', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = pathOf(input);
