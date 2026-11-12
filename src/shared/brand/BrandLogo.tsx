@@ -7,7 +7,7 @@ export function BrandLogo({ tone = 'light', compact = false, className = '', pri
   className?: string;
   priority?: boolean;
 }) {
-  const source = compact ? 'icon.png' : 'logo-principal.png';
+  const source = compact ? 'icon.png' : 'logo-principal.webp';
   return <img
     className={cn('block h-auto w-[220px] max-w-full object-contain', compact ? 'size-11 shrink-0' : tone === 'dark' ? 'rounded-xl bg-white p-2.5' : '', className)}
     src={`/brand/ampara/${source}`}
