@@ -47,6 +47,8 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
       if (path === `${base}/history`) return json(historyFixture());
       if (path === `${base}/declarations`) return json(options.completeContract ? scienceFixture(state.item) : declarationFixture(state.item));
       if (path === `${base}/eligibility`) return json({ ready: state.ready, issues: state.ready ? [] : [{ code: 'CIENCIA_PENDENTE', participantUserId: ids.user, documentTypeId: null, serviceCode: null }] });
+      if (path === `${base}/review`) return json({ permitId: state.item.id, version: state.item.version, reviewStatus: state.item.reviewStatus, submittedBy: ids.user, submittedAt: '2026-10-31T12:00:00Z',
+        reviewedBy: null, reviewedAt: null, reviewNote: null, canReview: false, canResubmit: false, previousClosings: [] });
     }
     if (path.startsWith(base + '/') && (method === 'POST' || method === 'PATCH')) {
       const body = route.request().postDataJSON() as Record<string, unknown>; state.commands.push({ path, body });
@@ -166,7 +168,7 @@ test('encerramento exige verificações e término válido, concluindo com revis
   await dialog.getByLabel('Área conferida após o serviço?', { exact: true }).selectOption('true'); await dialog.getByLabel('Resumo do encerramento', { exact: true }).fill('Serviço concluído e área conferida'); await dialog.getByLabel('Término efetivo (Brasília)', { exact: true }).fill('2026-10-31T10:00'); await dialog.getByRole('checkbox', { name: /Confirmo as verificações/ }).check();
   await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('entre o início do serviço e agora'); expect(state.commands).toEqual([]);
   await dialog.getByLabel('Término efetivo (Brasília)', { exact: true }).fill('2026-10-31T08:30:45'); await dialog.getByRole('button', { name: 'Confirmar encerramento', exact: true }).click(); await expect(dialog).toHaveCount(0);
-  await expect(page.getByText('Aguardando revisão', { exact: true })).toBeVisible(); expect(state.commands[0]).toEqual({ path: `/api/v1/work-permits/${ids.permit}/complete`, body: { expectedVersion: 4, summary: 'Serviço concluído e área conferida', actualEnd: '2026-10-31T11:30:45.000Z', closingAnswers: [{ perguntaId: checklistIds.closingBoolean, valor: 'true', justificativa: null }, { perguntaId: checklistIds.closingNumber, valor: '0', justificativa: null }, { perguntaId: checklistIds.closingText, valor: 'Área limpa', justificativa: null }] } });
+  await expect(page.getByRole('region', { name: 'Resumo da PT' }).getByText('Aguardando revisão', { exact: true })).toBeVisible(); expect(state.commands[0]).toEqual({ path: `/api/v1/work-permits/${ids.permit}/complete`, body: { expectedVersion: 4, summary: 'Serviço concluído e área conferida', actualEnd: '2026-10-31T11:30:45.000Z', closingAnswers: [{ perguntaId: checklistIds.closingBoolean, valor: 'true', justificativa: null }, { perguntaId: checklistIds.closingNumber, valor: '0', justificativa: null }, { perguntaId: checklistIds.closingText, valor: 'Área limpa', justificativa: null }] } });
   expect(state.item.status).toBe('CONCLUIDA'); expect(state.item.contentVersion).toBe(3); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
 test('recusa do catálogo não bloqueia a consulta da PT nem concede edição', async ({ page }) => {
