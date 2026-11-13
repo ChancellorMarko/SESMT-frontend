@@ -39,7 +39,7 @@ async function main() {
   assert.ok(login.data.accessToken, 'Access token ausente.');
   assert.ok(!('refreshToken' in login.data), 'Refresh token não pode ser exposto no JSON.');
   assert.ok(!('refreshTokenExpiresAtUtc' in login.data), 'Metadados do refresh não podem ser expostos no JSON.');
-  const refreshCookie = login.response.headers.getSetCookie().find(cookie => /^(ampara\.refresh|sesmt_refresh)=/.test(cookie));
+  const refreshCookie = login.response.headers.getSetCookie().find(cookie => /^(ampara\.refresh|sesmt_refresh)=[^;]/.test(cookie)); // Skip the empty legacy-path deletion sent first.
   assert.ok(refreshCookie && /httponly/i.test(refreshCookie) && /samesite=strict/i.test(refreshCookie)
     && /(?:^|;)\s*path=\/api\/v1\/auth\/?(?:;|$)/i.test(refreshCookie), 'Cookie de refresh precisa cobrir refresh e logout em /api/v1/auth.');
   accessToken = login.data.accessToken;
@@ -66,6 +66,19 @@ async function main() {
   const renewed = await request('POST', '/auth/refresh');
   assert.equal(renewed.response.status, 200, 'Refresh deve usar cookie e CSRF, sem body.');
   accessToken = renewed.data.accessToken;
+  // Two tabs renewing with the same cookie: one may lose the race (409 REFRESH_CONFLICT,
+  // cookie untouched) or arrive after the rotation and use the grace window (200). Neither
+  // may end the session.
+  const concurrent = await Promise.all([request('POST', '/auth/refresh'), request('POST', '/auth/refresh')]);
+  for (const { response, data } of concurrent) {
+    assert.ok(response.status === 200 || (response.status === 409 && data?.code === 'REFRESH_CONFLICT'),
+      `Renovação simultânea não pode encerrar a sessão (recebido ${response.status} ${data?.code ?? ''}).`);
+  }
+  assert.ok(concurrent.some(({ response }) => response.status === 200), 'Uma das renovações simultâneas deve vencer.');
+  const conflicts = concurrent.filter(({ response }) => response.status === 409).length;
+  const afterRace = await request('POST', '/auth/refresh');
+  assert.equal(afterRace.response.status, 200, 'O cookie deixado pela renovação vencedora deve continuar renovando.');
+  accessToken = afterRace.data.accessToken;
   const logout = await request('POST', '/auth/logout');
   assert.equal(logout.response.status, 204, 'Logout deve confirmar revogação.');
   accessToken = '';
@@ -74,7 +87,7 @@ async function main() {
   assert.equal(typeof anonymousCsrf.data.csrfToken, 'string'); csrf = anonymousCsrf.data.csrfToken;
   const expired = await request('POST', '/auth/refresh');
   assert.equal(expired.response.status, 401, 'Sessão encerrada não deve ser renovada.');
-  console.log(`Smoke da API real aprovado: ${requests} requisições pelo proxy, CSRF, JWT, refresh e logout. PostgreSQL usado pela API; nenhum mock neste script.`);
+  console.log(`Smoke da API real aprovado: ${requests} requisições pelo proxy, CSRF, JWT, refresh (incluindo duas renovações simultâneas, ${conflicts} em conflito) e logout. PostgreSQL usado pela API; nenhum mock neste script.`);
 }
 main().catch(error => { console.error(`Smoke não concluído: ${error.message}. Inicie npm run dev:integrated e confira INTEGRACAO.md.`); process.exitCode = 1; }).finally(async () => {
   if (cookies.has('ampara.refresh') || cookies.has('sesmt_refresh')) {
