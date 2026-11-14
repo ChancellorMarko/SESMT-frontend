@@ -1,4 +1,4 @@
-.wrap { min-width: 0; overflow: hidden; border: 1px solid #e0e6ed; border-radius: 12px; background: #fffefa; }
+.wrap { min-width: 0; overflow: hidden; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface-raised); }
 .table { min-width: 0; table-layout: fixed; }
 .table th:first-child { width: 42%; }
 .table th:nth-child(2) { width: 32%; }

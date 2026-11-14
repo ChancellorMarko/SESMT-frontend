@@ -1,7 +1,7 @@
 .hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .copy { min-width: 0; }
-.hero h1 { margin: 0; color: #183b68; font-size: clamp(25px, 2.4vw, 30px); font-weight: 550; line-height: 1.25; letter-spacing: -.04em; }
-.back { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; color: #557297; font-size: 12px; }
+.hero h1 { margin: 0; color: var(--brand-navy); font-size: clamp(25px, 2.4vw, 30px); font-weight: 550; line-height: 1.25; letter-spacing: -.04em; }
+.back { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .back:hover { text-decoration: underline; }
 @media (max-width: 599px) { .hero { align-items: flex-start; } }
 @media print { .hero > a, .back { display: none; } }

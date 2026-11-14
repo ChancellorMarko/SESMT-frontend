@@ -1,5 +1,5 @@
 .form { min-width: 0; }
-.form fieldset { display: grid; min-inline-size: 0; max-width: 100%; gap: 8px; padding: 12px; border: 1px solid #e0e6ed; border-radius: 12px; }
+.form fieldset { display: grid; min-inline-size: 0; max-width: 100%; gap: 8px; padding: 12px; border: 1px solid var(--border-soft); border-radius: 12px; }
 .form legend { max-width: 100%; padding: 0 5px; color: #315884; font-size: 12px; overflow-wrap: anywhere; }
 .form label { min-width: 0; overflow-wrap: anywhere; }
 .form fieldset input[type=checkbox] { display: inline-block; width: auto; min-height: 0; margin-right: 6px; }
@@ -8,4 +8,4 @@
 .compactTable th, .compactTable td { padding: 10px; overflow-wrap: anywhere; vertical-align: top; }
 .compactTable th:nth-child(2) { width: 70px; }
 .compactTable th:last-child { width: 52px; }
-.compactTable small { display: block; margin-top: 4px; color: #63758b; }
+.compactTable small { display: block; margin-top: 4px; color: var(--muted); }

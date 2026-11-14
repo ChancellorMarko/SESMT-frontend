@@ -2,24 +2,24 @@
 .page :global(h1[data-page-focus]):focus { outline: none; }
 .page > :global(.page-header) { margin-bottom: 4px; }
 .tabBar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0; margin-bottom: 7px; }
-.tabBtn { display: flex; position: relative; align-items: center; gap: 11px; min-width: 0; min-height: 88px; padding: 17px 18px; border: 1px solid #dfe6ef; border-radius: 19px; background: #fffefa; color: #657b97; text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 #fff, 0 5px 14px -14px #183b6855; transition: color .2s, border-color .2s, background-color .2s, box-shadow .25s, transform .25s cubic-bezier(.22,1,.36,1); }
+.tabBtn { display: flex; position: relative; align-items: center; gap: 11px; min-width: 0; min-height: 88px; padding: 17px 18px; border: 1px solid #dfe6ef; border-radius: 19px; background: var(--surface-raised); color: var(--muted); text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 #fff, 0 5px 14px -14px #183b6855; transition: color .2s, border-color .2s, background-color .2s, box-shadow .25s, transform .25s cubic-bezier(.22,1,.36,1); }
 .tabIcon { display: grid; flex-shrink: 0; place-items: center; width: 37px; height: 37px; border: 1px solid #e1e8f3; border-radius: 12px; background: linear-gradient(145deg, #fff, #edf3fd); color: #7d97bc; transition: background-color .2s, color .2s; }
 .tabIcon svg { flex-shrink: 0; }
 .tabText { display: grid; min-width: 0; gap: 5px; }
 .tabText strong { color: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; }
-.tabText small { color: #8493a8; font-size: 10px; line-height: 1.5; }
+.tabText small { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .tabMarker { position: absolute; top: 12px; right: 12px; width: 5px; height: 5px; border-radius: 50%; background: #4679ee; opacity: 0; transition: opacity .2s; }
-.tabBtnActive { border-color: #a9c0e8; background: linear-gradient(135deg, #f5f8ff, #eaf1fd); color: #183b68; box-shadow: 0 7px 18px -14px #183b6870, inset 0 1px 0 #fff; }
-.tabBtnActive .tabIcon { border-color: #d1def6; background: #e1ebfc; color: #416fbd; }
+.tabBtnActive { border-color: #a9c0e8; background: linear-gradient(135deg, #f5f8ff, #eaf1fd); color: var(--brand-navy); box-shadow: 0 7px 18px -14px #183b6870, inset 0 1px 0 #fff; }
+.tabBtnActive .tabIcon { border-color: #d1def6; background: #e1ebfc; color: var(--link); }
 .tabBtnActive .tabMarker { opacity: 1; }
 .tabBtn:focus-visible { outline: 2px solid #4679ee; outline-offset: 3px; }
 .tabBtn:only-child { grid-column: 1 / -1; }
 .tabPanel:not([hidden]) { min-width: 0; animation: panel-enter .3s cubic-bezier(.22,1,.36,1); }
 .searchPanel { min-width: 0; }
 .searchHeading { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-.searchIcon { display: grid; flex-shrink: 0; place-items: center; width: 39px; height: 39px; border: 1px solid #e0e8f4; border-radius: 13px; background: #f0f5fd; color: #6c8fbd; }
+.searchIcon { display: grid; flex-shrink: 0; place-items: center; width: 39px; height: 39px; border: 1px solid #e0e8f4; border-radius: 13px; background: #f0f5fd; color: var(--muted); }
 .searchHeading h2 { margin: 0 0 5px; color: #284769; font-size: 17px; font-weight: 550; letter-spacing: -.025em; line-height: 1.5; }
-.searchHeading p { margin: 0; color: #8493a8; font-size: 11px; line-height: 1.7; }
+.searchHeading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .searchForm { gap: 19px; }
 .searchToolbar { align-items: end; gap: 10px; }
 .searchToolbar > :global(.field) { flex: 1; min-width: 220px; }
@@ -27,24 +27,24 @@
 .filterGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 17px; border-top: 1px solid #e7edf4; }
 .preparationGrid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .preparationGrid > :only-child { grid-column: 1 / -1; }
-.draftNotice { display: flex; align-items: center; gap: 11px; padding: 13px 15px; border: 1px solid #dbe5f4; border-radius: 15px; background: #f2f6fd; color: #6f8fb7; animation: notice-enter .22s ease-out; }
+.draftNotice { display: flex; align-items: center; gap: 11px; padding: 13px 15px; border: 1px solid #dbe5f4; border-radius: 15px; background: #f2f6fd; color: var(--muted); animation: notice-enter .22s ease-out; }
 .draftNotice > svg { flex-shrink: 0; }
 .draftNotice > div { flex: 1; min-width: 0; }
-.draftNotice p { margin: 0; color: #4e6d96; font-size: 11px; font-weight: 500; line-height: 1.7; }
-.draftNotice small { display: block; margin-top: 3px; color: #8093af; font-size: 10px; line-height: 1.7; }
-.draftNotice :global(.button) { flex-shrink: 0; color: #476b9d; font-size: 11px; }
+.draftNotice p { margin: 0; color: #4e6d96; font-size: 12px; font-weight: 500; line-height: 1.7; }
+.draftNotice small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.draftNotice :global(.button) { flex-shrink: 0; color: #476b9d; font-size: 12px; }
 .page :global(.table-wrap) { border-radius: 16px; }
-.page :global(.data-table) th { font-size: 11px; }
+.page :global(.data-table) th { font-size: 12px; }
 .page :global(.data-table) td { vertical-align: middle; }
 .page :global(.data-table) td:first-child strong { color: #284769; font-weight: 550; }
-.resultAction { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 11px; border: 1px solid #dfe7f3; border-radius: 11px; background: #f5f8fd; color: #456b9c; font-size: 11px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: background-color .2s, border-color .2s, color .2s; }
-.resultAction:hover { border-color: #b8ccea; background: #eaf1fc; color: #183b68; }
+.resultAction { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 11px; border: 1px solid #dfe7f3; border-radius: 11px; background: #f5f8fd; color: #456b9c; font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: background-color .2s, border-color .2s, color .2s; }
+.resultAction:hover { border-color: #b8ccea; background: #eaf1fc; color: var(--brand-navy); }
 @keyframes panel-enter { from { opacity: .55; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 @keyframes notice-enter { from { opacity: .5; translate: 0 3px; } to { opacity: 1; translate: 0 0; } }
-@media (hover: hover) and (pointer: fine) { .tabBtn:hover { border-color: #b4c8e7; background: #f4f7fd; color: #284769; box-shadow: 0 9px 20px -15px #183b6870; transform: translateY(-2px); } .tabBtn:hover .tabIcon { color: #4679ee; } }
+@media (hover: hover) and (pointer: fine) { .tabBtn:hover { border-color: #b4c8e7; background: #f4f7fd; color: #284769; box-shadow: 0 9px 20px -15px #183b6870; transform: translateY(-2px); } .tabBtn:hover .tabIcon { color: var(--link); } }
 @media (max-width: 1100px) { .tabBar { grid-template-columns: repeat(2, minmax(0, 1fr)); } .filterGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .filterGrid,.preparationGrid { grid-template-columns: minmax(0, 1fr); } .searchToolbar > :global(.field) { flex-basis: 100%; min-width: 0; } .draftNotice { flex-wrap: wrap; } .draftNotice > div { flex-basis: calc(100% - 30px); } .draftNotice :global(.button) { margin-left: 23px; } }
-@media (max-width: 520px) { .tabBar { gap: 8px; } .tabBtn { min-height: 96px; padding: 13px 10px; gap: 8px; border-radius: 16px; align-items: flex-start; } .tabIcon { width: 28px; height: 28px; border-radius: 9px; } .tabIcon svg { width: 16px; height: 16px; } .tabText { gap: 5px; padding-top: 3px; } .tabText strong { font-size: 12px; } .tabText small { font-size: 9px; } .tabMarker { width: 4px; height: 4px; top: 8px; right: 8px; } .searchHeading { align-items: flex-start; gap: 10px; } .searchHeading h2 { font-size: 16px; } .searchHeading p { font-size: 10px; } .searchToolbar > :global(.button) { flex: 1; } .draftNotice { padding: 12px; } }
+@media (max-width: 520px) { .tabBar { gap: 8px; } .tabBtn { min-height: 96px; padding: 13px 10px; gap: 8px; border-radius: 16px; align-items: flex-start; } .tabIcon { width: 28px; height: 28px; border-radius: 9px; } .tabIcon svg { width: 16px; height: 16px; } .tabText { gap: 5px; padding-top: 3px; } .tabText strong { font-size: 12px; } .tabText small { font-size: 12px; } .tabMarker { width: 4px; height: 4px; top: 8px; right: 8px; } .searchHeading { align-items: flex-start; gap: 10px; } .searchHeading h2 { font-size: 16px; } .searchHeading p { font-size: 12px; } .searchToolbar > :global(.button) { flex: 1; } .draftNotice { padding: 12px; } }
 :global(:root[data-motion=reduced]) :is(.tabBtn,.tabIcon,.tabMarker) { transition: none; transform: none !important; }
 :global(:root[data-motion=reduced]) :is(.tabPanel:not([hidden]),.draftNotice) { animation: none; }
 @media (prefers-reduced-motion: reduce) { :global(:root:not([data-motion=full])) :is(.tabBtn,.tabIcon,.tabMarker) { transition: none; transform: none !important; } :global(:root:not([data-motion=full])) :is(.tabPanel:not([hidden]),.draftNotice) { animation: none; } }
