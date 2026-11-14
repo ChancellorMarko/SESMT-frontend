@@ -44,12 +44,19 @@ it('ADMIN sem permissões explícitas não recebe comandos operacionais', async 
   state.grants = []; show(); await screen.findByRole('heading', { name: current.title });
   expect(screen.queryByRole('button', { name: /Liberar PT|Cancelar PT|Iniciar serviço/ })).not.toBeInTheDocument();
 });
-it('mostra pendências reais e bloqueia a liberação enquanto há ciência pendente', async () => {
-  ready = false; show(); await screen.findByText('Ciência pendente');
-  expect(screen.getByRole('button', { name: 'Liberar PT' })).toBeDisabled();
-  expect(screen.queryByText('Sem pendências nesta consulta')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Mais informações: Ciência pendente' }));
-  expect(within(screen.getByRole('dialog', { name: 'Ciência pendente' })).getByText(ids.user, { exact: true })).toBeInTheDocument();
+it('mostra pendências reais com a pessoa e o próximo passo e bloqueia a liberação explicando o motivo', async () => {
+  ready = false; show(); await screen.findByRole('heading', { name: 'O que falta para liberar' });
+  const issues = screen.getByRole('region', { name: 'O que falta para liberar' });
+  expect(within(issues).getByText(/Ciência pendente/)).toBeVisible();
+  expect(within(issues).getByText('Você')).toBeVisible();
+  expect(within(issues).getByText(/registra a ciência na seção Ciência/)).toBeVisible();
+  expect(within(issues).getByText('1 pendência')).toBeVisible();
+  const release = screen.getByRole('button', { name: 'Liberar PT' });
+  expect(release).toBeDisabled();
+  expect(release).toHaveAccessibleDescription(/Resolva a pendência listada/);
+  expect(screen.queryByText('Sem pendências')).not.toBeInTheDocument();
+  fireEvent.click(within(issues).getByRole('button', { name: 'Mais informações: Identificadores: Ciência pendente' }));
+  expect(within(screen.getByRole('dialog', { name: 'Identificadores: Ciência pendente' })).getByText(ids.user, { exact: true })).toBeInTheDocument();
 });
 it('não depende da avaliação de liberação para oferecer suspensão de um serviço em execução', async () => {
   current = { ...current, status: 'EM_EXECUCAO', startedAt: '2026-10-31T11:00:00Z' };

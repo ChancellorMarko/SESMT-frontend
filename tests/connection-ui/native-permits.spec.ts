@@ -1,7 +1,7 @@
 // Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect, test, type Page } from '@playwright/test';
 import { declarationFixture, historyFixture, permitFixture, permitIds as ids } from './fixtures/native-permits';
-import { nativeOrganizationFixture, nativeResponsibleFixture } from './fixtures/native-operations';
+import { nativeOrganizationFixture, nativeResponsibleFixture, nativeServicesFixture } from './fixtures/native-operations';
 import { checklistIds, templateFixture, laterTemplateFixture } from './fixtures/native-checklists';
 import { scienceFixture, scienceParticipantFixture } from './fixtures/native-science';
 import type { NativePermit } from '../../src/features/native-permits/contracts';
@@ -26,6 +26,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
     if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['ADMIN'], permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'pt:ler', ...grants], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/organization') return json({ ...nativeOrganizationFixture, establishments: [], sectors: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/users') return json([nativeResponsibleFixture]);
+    if (path === '/api/v1/work-permits/services') return json(nativeServicesFixture);
     if (path === '/api/v1/work-permits/pt-templates' && method === 'GET') {
       if (state.modelsDenied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
       const model = options.noClosing ? { ...templateFixture(), closingQuestions: [] } : templateFixture();
@@ -118,7 +119,7 @@ test('conflito preserva o motivo e impede reenvio sem atualizar a PT', async ({ 
 test('pendências bloqueiam liberação e ausência de grants não é substituída pelo perfil ADMIN', async ({ page }) => {
   const state = await setup(page, []); await detail(page); await expect(page.getByRole('button', { name: /Liberar PT|Cancelar PT|Iniciar serviço/ })).toHaveCount(0);
   state.ready = false; await page.getByRole('button', { name: 'Atualizar PT', exact: true }).click(); await expect(page.getByText('Ciência pendente', { exact: true })).toBeVisible();
-  await expect(page.getByText('Sem pendências nesta consulta')).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
+  await expect(page.getByText('Sem pendências', { exact: true })).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
 });
 test('PT de outro ID ou consulta recusada ocultam os dados em cache', async ({ page }) => {
   const state = await setup(page); await detail(page); await expect(page.getByRole('button', { name: 'Liberar PT', exact: true })).toBeEnabled(); state.wrongItem = true;
