@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { plural } from '../../shared/lib/format';
 import { Link, useLocation } from 'react-router';
 import { Link2, Pencil, PowerOff } from 'lucide-react';
 import { api } from '../../shared/api/client';
@@ -41,7 +42,7 @@ function Teams() {
         {writeContext && can('equipe:excluir') && <Button variant="secondary" className={teamStyles.edit} onClick={() => { setDeactivated(''); setDeactivating(team); }} aria-label={`Desativar equipe ${team.name}`} title="Desativar equipe"><PowerOff size={16} aria-hidden="true"/></Button>}
         {validContext && canManageInvites(team, can) && <Button variant="secondary" className={teamStyles.edit} onClick={() => setInviting(team)} aria-label={`Convites da equipe ${team.name}`} title="Convites de agendamento"><Link2 size={16} aria-hidden="true"/></Button>}
         {writeContext && can('equipe:editar') && team.version && <Link className={`button button--secondary ${teamStyles.edit}`} to={`/app/equipes/${team.id}/editar`} state={origin} aria-label={`Editar equipe ${team.name}`} title="Editar equipe"><Pencil size={16} aria-hidden="true"/></Link>}</div></td></tr>)}</tbody></table></div>}
-      <nav className={styles.footer} aria-label="Paginação de equipes"><span>{teams.data.count} equipe(s) nesta página · página {page}</span>{(page>1||teams.data.count===10)&&<div className="actions"><Button variant="secondary" disabled={page <= 1 || teams.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={teams.data.count < 10 || teams.isFetching || page >= Math.floor(2147483647 / 10)} onClick={() => setPage(page + 1)}>Próxima</Button></div>}</nav>
+      <nav className={styles.footer} aria-label="Paginação de equipes"><span>{plural(teams.data.count, 'equipe nesta página', 'equipes nesta página')} · página {page}</span>{(page>1||teams.data.count===10)&&<div className="actions"><Button variant="secondary" disabled={page <= 1 || teams.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={teams.data.count < 10 || teams.isFetching || page >= Math.floor(2147483647 / 10)} onClick={() => setPage(page + 1)}>Próxima</Button></div>}</nav>
     </section>}
     {inviting && teams.data?.items.some(item => item.id === inviting.id) && canManageInvites(inviting, can) && <NativeTeamInvites team={inviting} onClose={() => setInviting(undefined)}/>}
     {deactivated && <Feedback tone="success">{deactivated}</Feedback>}

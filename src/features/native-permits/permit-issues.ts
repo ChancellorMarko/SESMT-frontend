@@ -51,4 +51,3 @@ export function describeIssues(issues: readonly PermitIssue[], permit: Pick<Nati
   });
 }
 
-export const plural = (count: number, one: string, many: string) => `${count.toLocaleString('pt-BR')} ${count === 1 ? one : many}`;

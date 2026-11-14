@@ -8,3 +8,8 @@ const labels: Record<string, string> = {
 export function roleLabels(roles: readonly string[]) {
   return [...new Set(roles.map(role => Object.hasOwn(labels, role) ? labels[role] : role))].join(' · ') || 'Sem perfil informado';
 }
+/** Short form for tight spaces (header): the first labels and how many more. The full list goes in a title or tooltip. */
+export function roleSummary(roles: readonly string[], max = 2) {
+  const all = roleLabels(roles).split(' · ');
+  return all.length <= max ? all.join(' · ') : `${all.slice(0, max).join(' · ')} e mais ${all.length - max}`;
+}

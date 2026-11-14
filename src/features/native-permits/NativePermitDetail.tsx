@@ -14,7 +14,7 @@ import { NativePermitChecklists } from './NativePermitChecklists';
 import { NativePermitScience } from './NativePermitScience';
 import { NativePermitReview } from './NativePermitReview';
 import { NativePermitIssues } from './NativePermitIssues';
-import { checkedNativeServices } from '../native-operations/contracts';
+import { useServiceNames } from '../native-operations/useServiceNames';
 import styles from '../../shared/ui/NativeRecords.module.css';
 import local from './NativePermits.module.css';
 
@@ -51,9 +51,7 @@ function Detail({ id }: { id: string }) {
     setConfirmation('Operação confirmada pela API.');
   }
   const busy = query.isFetching || history.isFetching || readiness.isFetching || declarations.isFetching;
-  const services = useVerifiedRead({ queryKey: ['native-services', sessionKey], enabled: Boolean(item),
-    request: signal => api.get<unknown>('/work-permits/services', { signal }), validate: checkedNativeServices });
-  const serviceName = (code: string) => services.data?.find(service => service.code === code)?.name ?? code;
+  const { services, serviceName } = useServiceNames(Boolean(item));
   const allowedActions = item ? (Object.keys(permitActions) as PermitAction[]).filter(action => permitActionAllowed(item, action, can)) : [];
   const blockedByReadiness = allowedActions.some(action => actionNeedsReadiness(action)) && readiness.data && !readiness.data.ready;
   return <div className="stack">
@@ -70,7 +68,7 @@ function Detail({ id }: { id: string }) {
         {allowedActions.includes('cancel') && <Button className={local.cancelAction} variant="danger" disabled={query.isFetching} onClick={() => { setConfirmation(''); edit({ item, action: 'cancel', context: declarations.data?.context }); }}>{permitActions.cancel.label}</Button>}
       </div>
       {confirmation && <Feedback tone="success">{confirmation}</Feedback>}
-      <NativePermitIssues permit={item} readiness={readiness} serviceNames={services.data}/>
+      <NativePermitIssues permit={item} readiness={readiness} serviceNames={services}/>
       {item.status === 'CONCLUIDA' && <NativePermitReview item={item} review={review} refreshing={busy} onDone={done}/>}
       <NativePermitChecklists item={item} refreshing={query.isFetching} onDone={done} canResubmit={Boolean(review.data?.canResubmit)}/>
       <NativePermitScience item={item} refreshing={busy} onDone={done}/>

@@ -6,7 +6,7 @@ import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHo
 import { api } from '../../shared/api/client';
 import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { roleLabels } from '../../shared/auth/role-labels';
+import { roleLabels, roleSummary } from '../../shared/auth/role-labels';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { Button, Modal, Spinner } from '../../shared/ui';
 import { MotionPreferencesContent, useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -277,7 +277,7 @@ export function AppLayout() {
 
   const org = useQuery({ queryKey: ['shell-organization', s.sessionKey], queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal }), enabled: s.can('organization.read') });
   const initials = s.me?.user.displayName.split(' ').slice(0, 2).map(v => v[0]).join('');
-  const role = roleLabels(s.me?.roles ?? []);
+  const role = roleLabels(s.me?.roles ?? []), shortRole = roleSummary(s.me?.roles ?? []);
   const activeArea = areaName ? dashboardArea : null;
   const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   if (NATIVE_MODULES && s.can('epi:ler')) visibleDockItems.push({to:'/app/epis',label:'EPIs',compactLabel:'EPIs',icon:HardHat});
@@ -329,7 +329,7 @@ export function AppLayout() {
         <HeaderNotifications className={styles.iconButton} />
         <div role="group" aria-label={`Perfil: ${s.me?.user.displayName} · ${role}`} className={styles.profile} title={`${s.me?.user.displayName} · ${role}`}>
           <div aria-hidden="true" className={styles.avatar}>{initials}</div>
-          <div className={styles.profileText}><strong>{s.me?.user.displayName}</strong><span>{role}</span></div>
+          <div className={styles.profileText}><strong>{s.me?.user.displayName}</strong><span>{shortRole}</span></div>
         </div>
         <button type="button" className={styles.iconButton} aria-label="Sair da plataforma" title="Sair da plataforma" onClick={() => requestLogout(() => { void s.logout(); })}><LogOut size={17} aria-hidden="true" /></button>
       </div>

@@ -4,9 +4,10 @@ import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { formatDate } from '../../shared/lib/format';
+import { formatDate, plural } from '../../shared/lib/format';
 import { Badge, Button, EmptyState, Feedback, Field, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { checkedNativeAgenda, nativeAgendaCriteria, nativeAgendaPageSize, nativeAgendaQuery, nativeAppointmentLabels } from './contracts';
+import { useServiceNames } from './useServiceNames';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
 export function NativeAgendaPage() {
@@ -19,6 +20,7 @@ function Agenda() {
   const [q, setQ] = useState(params.get('q') ?? ''), [status, setStatus] = useState(params.get('status') ?? '');
   const [from, setFrom] = useState(params.get('from') ?? ''), [to, setTo] = useState(params.get('to') ?? ''), [error, setError] = useState('');
   useEffect(() => { setQ(params.get('q') ?? ''); setStatus(params.get('status') ?? ''); setFrom(params.get('from') ?? ''); setTo(params.get('to') ?? ''); setError(''); }, [search]);
+  const { serviceName } = useServiceNames(Boolean(me));
   const appointments = useVerifiedRead({ queryKey: ['native-agenda', sessionKey, criteria], scope: ['native-agenda', sessionKey], enabled: Boolean(me && criteria),
     request: signal => api.get<unknown>('/appointments', { query: nativeAgendaQuery(criteria!), signal }), validate: value => checkedNativeAgenda(value, criteria!) });
   const data = criteria ? appointments.data : undefined, pages = data ? Math.max(1, Math.ceil(data.total / nativeAgendaPageSize)) : 1;
@@ -44,10 +46,10 @@ function Agenda() {
     {appointments.isError && <Feedback tone="danger">{appointments.error instanceof ApiError && appointments.error.status === 403 ? 'A API não autorizou a consulta da agenda para esta conta.' : 'Não foi possível conferir os agendamentos. Atualize a consulta.'}</Feedback>}
     {data && <section className={styles.results} aria-label="Agendamentos da conta" aria-busy={appointments.isFetching}>
       {!data.items.length ? <EmptyState title="Nenhum agendamento encontrado" description="Nenhum registro retornado para os filtros e acessos atuais."/> : <div className={styles.scroll} role="region" aria-label="Tabela de agendamentos" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Atividade</th><th scope="col">Início e término</th><th scope="col">Situação</th></tr></thead><tbody>{data.items.map(item => <tr key={item.id}>
-        <td><Link to={`/app/agenda/${item.id}`} state={{ nativeReturnTo: `${location.pathname}${location.search}` }}>{item.title}</Link><small>{item.serviceCodes.join(' · ') || 'Serviços não informados'}</small></td><td>{formatDate(item.startsAt)}<small>{formatDate(item.endsAt)}</small></td><td><Badge tone={item.status === 'CONFIRMED' ? 'success' : item.status === 'CANCELLED' ? 'neutral' : 'info'}>{nativeAppointmentLabels[item.status]}</Badge></td>
+        <td><Link to={`/app/agenda/${item.id}`} state={{ nativeReturnTo: `${location.pathname}${location.search}` }}>{item.title}</Link><small>{item.serviceCodes.map(serviceName).join(' · ') || 'Serviços não informados'}</small></td><td>{formatDate(item.startsAt)}<small>{formatDate(item.endsAt)}</small></td><td><Badge tone={item.status === 'CONFIRMED' ? 'success' : item.status === 'CANCELLED' ? 'neutral' : 'info'}>{nativeAppointmentLabels[item.status]}</Badge></td>
       </tr>)}</tbody></table></div>}
       {criteria!.page > pages && <Feedback tone="warning">Página fora do resultado. <Button variant="ghost" onClick={() => page(1)}>Ir para a primeira página</Button></Feedback>}
-      <nav className={styles.footer} aria-label="Paginação da agenda"><span>{data.total} agendamento(s) · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || appointments.isFetching} onClick={() => page(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || appointments.isFetching} onClick={() => page(criteria!.page + 1)}>Próxima</Button></div></nav>
+      <nav className={styles.footer} aria-label="Paginação da agenda"><span>{plural(data.total, 'agendamento', 'agendamentos')} · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || appointments.isFetching} onClick={() => page(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || appointments.isFetching} onClick={() => page(criteria!.page + 1)}>Próxima</Button></div></nav>
     </section>}
   </div>;
 }

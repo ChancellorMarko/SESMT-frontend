@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
-import { formatDate } from '../../shared/lib/format';
+import { formatDate, plural } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
 import { checkedNativeAudit, nativeAuditCriteria, nativeAuditPageSize, nativeAuditQuery } from './native-audit';
@@ -50,7 +50,7 @@ function Audit() {
     {data && criteria!.page > pages && <Feedback tone="warning">A página solicitada está além do fim da consulta. <Button variant="ghost" onClick={() => changePage(1)}>Ir para a primeira página</Button></Feedback>}
     {data && <section className={styles.results} aria-label="Eventos de auditoria" aria-busy={events.isFetching}>
       {!data.items.length ? <EmptyState title="Nenhum evento encontrado" description="Não há registros nesta página para os filtros e acessos atuais."/> : <div className={styles.scroll} tabIndex={0} role="region" aria-label="Tabela de auditoria"><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Data e hora</th><th scope="col">Ação e recurso</th><th scope="col">Resultado</th><th scope="col">Detalhes</th></tr></thead><tbody>{data.items.map(item => <tr key={item.id}><td>{formatDate(item.momento)}</td><td><strong>{item.acao}</strong><small>{item.recursoTipo}</small></td><td>{item.resultado ? <Badge>{item.resultado}</Badge> : 'Não informado'}</td><td><Button variant="ghost" onClick={() => select(item.id)} aria-label={`Ver evento ${item.id}`}>Ver evento</Button></td></tr>)}</tbody></table></div>}
-      <nav className={styles.footer} aria-label="Paginação de auditoria"><span>{data.total} evento(s) · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || events.isFetching} onClick={() => changePage(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || events.isFetching} onClick={() => changePage(criteria!.page + 1)}>Próxima</Button></div></nav>
+      <nav className={styles.footer} aria-label="Paginação de auditoria"><span>{plural(data.total, 'evento', 'eventos')} · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || events.isFetching} onClick={() => changePage(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || events.isFetching} onClick={() => changePage(criteria!.page + 1)}>Próxima</Button></div></nav>
     </section>}
     <Modal open={Boolean(selected)} title="Detalhes do evento" onClose={() => select('')}>{selected && <dl className={styles.details}>{[
       ['Evento', selected.id], ['Data e hora', formatDate(selected.momento)], ['Ação', selected.acao], ['Recurso', selected.recursoTipo], ['ID do recurso', selected.recursoId], ['Versão', selected.versao], ['Ator', selected.atorId], ['Declarante', selected.declaranteId], ['Empresa', selected.empresaId], ['Resultado', selected.resultado], ['Rastreamento', selected.traceId],

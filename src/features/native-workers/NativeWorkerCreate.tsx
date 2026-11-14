@@ -40,15 +40,15 @@ function Create() {
   }
   return <div className="stack"><PageHeader title="Novo trabalhador"/>{!allowed ? <Feedback tone="warning">Seu acesso não permite cadastrar trabalhadores.</Feedback> : <NativeCommandDialog title="Cadastrar trabalhador" dirty={Boolean(name || enrollment || cpf || dateOfBirth || departmentId || positionId || admissionDate !== todayCivil())} disabled={!ready} submitLabel="Cadastrar"
     perform={perform} onClose={() => void navigate(`/app/trabalhadores${origin?.workerListReturnTo.search ?? ''}`, { state: origin })}
-    onDone={async () => { await client.invalidateQueries({ queryKey: ['workers', sessionKey] }); void navigate(`/app/trabalhadores/${savedId.current}`, { replace: true, state: origin }); }}>{busy => <>
+    onDone={async () => { await client.invalidateQueries({ queryKey: ['workers', sessionKey] }); void navigate(`/app/trabalhadores/${savedId.current}`, { replace: true, state: origin }); }}>{(busy, errors) => <>
       {!unitId && <Feedback>Selecione a unidade de trabalho para iniciar o cadastro.</Feedback>}{!catalogsAllowed && <Feedback tone="warning">Seu acesso precisa permitir a consulta da organização para selecionar setor e cargo.</Feedback>}
       {directory.isPending && <Spinner/>}{directory.isError && <Feedback tone="danger">Não foi possível conferir a organização. Atualize a página antes de continuar.</Feedback>}
       {unit && company && <p>{company.name} · {unit.name}</p>}
-      <Field label="Nome completo" required><input maxLength={200} autoComplete="off" disabled={busy} value={name} onChange={e => setName(e.target.value)}/></Field>
-      <div className="form-grid"><Field label="Matrícula" required><input maxLength={30} autoComplete="off" disabled={busy} value={enrollment} onChange={e => setEnrollment(e.target.value)}/></Field>
-      <Field label="CPF" required><input inputMode="numeric" maxLength={14} autoComplete="off" disabled={busy} value={cpf} onChange={e => setCpf(e.target.value)}/></Field>
-      <Field label="Nascimento" required><input type="date" max={todayCivil()} disabled={busy} value={dateOfBirth} onChange={e => setBirth(e.target.value)}/></Field>
-      <Field label="Admissão" required><input type="date" disabled={busy} value={admissionDate} onChange={e => setAdmission(e.target.value)}/></Field>
+      <Field label="Nome completo" required error={errors.name}><input maxLength={200} autoComplete="off" disabled={busy} value={name} onChange={e => setName(e.target.value)}/></Field>
+      <div className="form-grid"><Field label="Matrícula" required error={errors.enrollment}><input maxLength={30} autoComplete="off" disabled={busy} value={enrollment} onChange={e => setEnrollment(e.target.value)}/></Field>
+      <Field label="CPF (somente números)" required error={errors.cpf}><input inputMode="numeric" maxLength={14} autoComplete="off" disabled={busy} value={cpf} onChange={e => setCpf(e.target.value)}/></Field>
+      <Field label="Nascimento" required error={errors.dateOfBirth}><input type="date" max={todayCivil()} disabled={busy} value={dateOfBirth} onChange={e => setBirth(e.target.value)}/></Field>
+      <Field label="Admissão" required error={errors.admissionDate}><input type="date" disabled={busy} value={admissionDate} onChange={e => setAdmission(e.target.value)}/></Field>
       <Field label="Setor"><select disabled={busy || !unit} value={departmentId} onChange={e => setDepartment(e.target.value)}><option value="">Não informado</option>{directory.data?.sectors.filter(s => s.unitId === unitId && s.status === 'ACTIVE').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
       <Field label="Cargo"><select disabled={busy || !company} value={positionId} onChange={e => setPosition(e.target.value)}><option value="">Não informado</option>{directory.data?.jobs.filter(p => p.companyId === company?.id && p.status === 'ACTIVE').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field></div>
     </>}</NativeCommandDialog>}</div>;

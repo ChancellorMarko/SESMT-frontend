@@ -8,7 +8,8 @@ import { checkedNativeUsers } from '../administration/native-users';
 import { checkedDocumentTypes } from '../native-documents/contracts';
 import { readActiveDocumentTypes } from '../native-documents/queries';
 import type { NativePermit } from './contracts';
-import { describeIssues, plural, type PermitIssue } from './permit-issues';
+import { describeIssues, type PermitIssue } from './permit-issues';
+import { plural } from '../../shared/lib/format';
 import styles from '../../shared/ui/NativeRecords.module.css';
 import local from './NativePermits.module.css';
 

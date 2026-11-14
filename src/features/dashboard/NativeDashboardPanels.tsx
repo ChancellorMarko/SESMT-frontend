@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Badge, Button, EmptyState, InfoButton } from '../../shared/ui';
-import { formatDate } from '../../shared/lib/format';
+import { formatDate, plural } from '../../shared/lib/format';
 import { nativeOperationalLabels, type NativeDashboard, type NativeAppointment } from './native-dashboard';
 import styles from './NativeDashboardPage.module.css';
 
@@ -20,7 +20,7 @@ export function NativeDashboardMetrics({ data }: { data: NativeDashboard['summar
 }
 
 function Pager({ page, pages, count, onChange, label }: { page: number; pages: number; count: number; onChange: (page: number) => void; label: string }) {
-  return <nav className={styles.pager} aria-label={`Paginação de ${label}`}><span>{count} registro(s) · {page}/{pages}</span><div className="actions"><Button variant="ghost" disabled={page <= 1} onClick={() => onChange(page - 1)}>Anterior</Button><Button variant="ghost" disabled={page >= pages} onClick={() => onChange(page + 1)}>Próxima</Button></div></nav>;
+  return <nav className={styles.pager} aria-label={`Paginação de ${label}`}><span>{plural(count, 'registro', 'registros')} · {page}/{pages}</span><div className="actions"><Button variant="ghost" disabled={page <= 1} onClick={() => onChange(page - 1)}>Anterior</Button><Button variant="ghost" disabled={page >= pages} onClick={() => onChange(page + 1)}>Próxima</Button></div></nav>;
 }
 function Panel({ title, children, help, actions }: { title: string; children: ReactNode; help: string; actions?: ReactNode }) {
   return <section className={styles.panel} aria-label={title}><header className={styles.panelHeader}><div className={styles.panelTitle}><h2>{title}</h2><InfoButton title={title}><p>{help}</p></InfoButton></div>{actions}</header>{children}</section>;
@@ -49,7 +49,7 @@ function Pendencies({ data }: { data: NativeDashboard }) {
   return <Panel title="Pendências de PT" help="Requisitos são filtrados pela data de criação da PT; revisões, pela data de encerramento. Por isso, as listas podem conter permissões que não aparecem entre as atividades iniciadas no período." actions={<div className={styles.switches} role="group" aria-label="Tipo de pendência"><Button variant={tab === 'documents' ? 'primary' : 'ghost'} aria-pressed={tab === 'documents'} onClick={() => changeTab('documents')}>Documentais ({data.documents.length})</Button><Button variant={tab === 'reviews' ? 'primary' : 'ghost'} aria-pressed={tab === 'reviews'} onClick={() => changeTab('reviews')}>Revisões ({data.reviews.length})</Button></div>}>
     {items.length ? <div className={styles.tableScroll} role="region" aria-label="Tabela de pendências" tabIndex={0}><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Permissão</th><th scope="col">{tab === 'documents' ? 'Requisitos' : 'Encerramento'}</th><th scope="col">Detalhes</th></tr></thead><tbody>{items.slice((page - 1) * 5, page * 5).map(item => {
       const title = data.appointments.find(activity => activity.workPermitId === item.workPermitId)?.title;
-      return <tr key={item.workPermitId}><td><Link to={`/app/pts/${item.workPermitId}`}>{title ?? 'Permissão de trabalho'}</Link><small title={item.workPermitId}>{item.workPermitId.slice(0, 8)}</small></td><td>{'pendingRequirements' in item ? <Badge tone="warning">{item.pendingRequirements} pendente(s)</Badge> : formatDate(item.completedAt)}</td><td><InfoButton title={`Permissão ${item.workPermitId}`}><dl className={styles.details}>
+      return <tr key={item.workPermitId}><td><Link to={`/app/pts/${item.workPermitId}`}>{title ?? 'Permissão de trabalho'}</Link><small title={item.workPermitId}>{item.workPermitId.slice(0, 8)}</small></td><td>{'pendingRequirements' in item ? <Badge tone="warning">{plural(item.pendingRequirements, 'pendente', 'pendentes')}</Badge> : formatDate(item.completedAt)}</td><td><InfoButton title={`Permissão ${item.workPermitId}`}><dl className={styles.details}>
         <dt>Permissão</dt><dd>{item.workPermitId}</dd><dt>Empresa</dt><dd>{item.companyId}</dd><dt>Local</dt><dd>{item.localId ?? 'Não informado'}</dd>
         {'pendingRequirements' in item ? <><dt>Requisitos faltantes</dt><dd>{item.pendingRequirements}</dd><dt>Situação</dt><dd>{nativeOperationalLabels[item.operationalStatus]}</dd><dt>Criação</dt><dd>{formatDate(item.occurredAt)}</dd></> : <><dt>Versão</dt><dd>{item.version}</dd><dt>Encerramento</dt><dd>{formatDate(item.completedAt)}</dd><dt>Serviços</dt><dd>{item.serviceCodes.join(' · ') || 'Não informados'}</dd></>}
       </dl></InfoButton></td></tr>;

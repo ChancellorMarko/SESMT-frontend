@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { plural } from '../../shared/lib/format';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
@@ -155,7 +156,7 @@ function DocumentsPageContent() {
     {appliedError ? <EmptyState title="Corrija os filtros da consulta" description="A busca será realizada depois de aplicar critérios válidos." /> : list.isPending || !contextReady ? <Spinner /> : list.isError ? <div className="panel stack"><Feedback tone="danger">{errorMessage(list.error)}</Feedback><Button variant="secondary" onClick={() => void list.refetch()}>Tentar novamente</Button></div> : <section aria-label="Resultados de documentos" aria-busy={list.isFetching} className={styles.resultsPanel}>
       <div className={styles.resultsHeading}>
         <div><span className={styles.resultsIcon}><FileText size={17} aria-hidden="true" /></span><h2>Acervo da unidade</h2></div>
-        <p role="status">{list.isFetching ? 'Atualizando lista…' : `${new Intl.NumberFormat('pt-BR').format(list.data?.total ?? 0)} documento(s) encontrado(s)`}</p>
+        <p role="status">{list.isFetching ? 'Atualizando lista…' : `${plural(list.data?.total ?? 0, 'documento encontrado', 'documentos encontrados')}`}</p>
       </div>
       {!list.data?.items.length ? <div><EmptyState title="Nenhum documento encontrado" description={page > 1 ? 'Esta página não possui resultados. Volte à primeira página para consultar os documentos.' : can('documents.write') ? 'Ajuste os filtros ou cadastre o primeiro documento autorizado para esta unidade.' : 'Nenhum documento disponível para consulta com os filtros atuais.'} />{page > 1 && <div className="px-5 pb-5"><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div>}</div> : <>
         <DocumentList documents={list.data.items} typeNames={typeNames} origin={documentOrigin} />

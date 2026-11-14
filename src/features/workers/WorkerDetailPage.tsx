@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { plural } from '../../shared/lib/format';
 import { WorkerSafetyPanel } from './WorkerSafetyPanel';
 import { safetyId } from './worker-safety-navigation';
 import { WorkerIntegrationPanel } from './WorkerIntegrationPanel';
@@ -335,7 +336,7 @@ function WorkerDetailContent() {
                 </div>
                 <div className="toolbar">
                   <p className="muted">
-                    {documents.data.total} documento(s) · Página {documentPage}
+                    {plural(documents.data.total, 'documento', 'documentos')} · Página {documentPage}
                   </p>
                   <div className="actions">
                     <Button variant="secondary" disabled={documentPage <= 1 || documents.isFetching} onClick={() => setDocumentPage(page => page - 1)}>

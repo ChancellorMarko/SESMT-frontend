@@ -24,9 +24,16 @@ export function normalizedCpf(raw: string): string | undefined {
 export interface WorkerDraft { name: string; enrollment: string; cpf: string; dateOfBirth: string; admissionDate: string; departmentId: string; positionId: string }
 export function workerCreateBody(draft: WorkerDraft, companyId: string, unitId: string, today: string) {
   const name = draft.name.trim().replace(/ +/g, ' '), enrollment = draft.enrollment.trim(), cpf = normalizedCpf(draft.cpf);
-  if (name.length < 2 || name.length > 200 || /[\p{Nd}\p{Cc}]/u.test(name) || !enrollment || enrollment.length > 30 || /\p{Cc}/u.test(enrollment)) throw new NativeFormError('Informe nome e matrícula válidos. O nome não pode conter números.');
-  if (!cpf) throw new NativeFormError('Confira os 11 dígitos do CPF.');
-  if (!isCivilDate(draft.dateOfBirth) || !isCivilDate(draft.admissionDate) || draft.dateOfBirth > today || draft.dateOfBirth > draft.admissionDate) throw new NativeFormError('Confira nascimento e admissão. O nascimento não pode ser futuro nem posterior à admissão.');
+  const fields: Record<string, string> = {};
+  if (name.length < 2 || name.length > 200) fields.name = 'Informe o nome completo.';
+  else if (/[\p{Nd}\p{Cc}]/u.test(name)) fields.name = 'Use somente letras no nome.';
+  if (!enrollment || enrollment.length > 30 || /\p{Cc}/u.test(enrollment)) fields.enrollment = 'Informe a matrícula, com até 30 caracteres.';
+  if (!cpf) fields.cpf = 'Confira os 11 dígitos do CPF.';
+  if (!isCivilDate(draft.dateOfBirth)) fields.dateOfBirth = 'Informe a data de nascimento.';
+  else if (draft.dateOfBirth > today) fields.dateOfBirth = 'O nascimento não pode ser no futuro.';
+  if (!isCivilDate(draft.admissionDate)) fields.admissionDate = 'Informe a data de admissão.';
+  else if (isCivilDate(draft.dateOfBirth) && draft.dateOfBirth > draft.admissionDate) fields.admissionDate = 'A admissão não pode ser anterior ao nascimento.';
+  if (!cpf || Object.keys(fields).length) throw new NativeFormError(Object.values(fields)[0], fields);
   if (![companyId, unitId, ...[draft.departmentId, draft.positionId].filter(Boolean)].every(id => nativeId.safeParse(id).success)) throw new NativeFormError('Confira a unidade, o setor e o cargo selecionados.');
   return { companyId, unitId, name, enrollment, cpf, dateOfBirth: draft.dateOfBirth, admissionDate: draft.admissionDate,
     departmentId: draft.departmentId || null, positionId: draft.positionId || null, dismissalDate: null, userId: null };

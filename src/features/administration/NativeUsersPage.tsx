@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
+import { plural } from '../../shared/lib/format';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
 import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { roleLabels } from '../../shared/auth/role-labels';
 import { checkedNativeUsers, nativeUserDetails, type NativeUser } from './native-users';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { useEditorRequest } from './useEditorRequest';
@@ -29,7 +31,7 @@ function Users() {
   });
   if (!allowed) return <Feedback tone="warning">Seu acesso não permite consultar usuários.</Feedback>;
   const term = search.trim().toLocaleLowerCase('pt-BR');
-  const matching = (users.data ?? []).filter(user => [user.name, user.email, ...user.roles].some(value => value.toLocaleLowerCase('pt-BR').includes(term)));
+  const matching = (users.data ?? []).filter(user => [user.name, user.email, ...user.roles, roleLabels(user.roles)].some(value => value.toLocaleLowerCase('pt-BR').includes(term)));
   const pageCount = Math.max(1, Math.ceil(matching.length / 10));
   const currentPage = Math.min(page, pageCount);
   const visible = matching.slice((currentPage - 1) * 10, currentPage * 10);
@@ -43,9 +45,9 @@ function Users() {
     <div className={`panel ${styles.filters}`}><Field label="Buscar por nome, e-mail ou perfil"><input type="search" value={search} maxLength={200} onChange={event => { setSearch(event.target.value); setPage(1); }} /></Field><Badge>{can('users.edit') || can('users.deactivate') || can('usuario:criar') ? 'Escopo da conta' : 'Escopo da conta · somente leitura'}</Badge></div>
     {confirmation && !users.isError && <Feedback tone="success">{confirmation}</Feedback>}
     {users.isPending ? <Spinner/> : users.isError ? <Feedback tone="danger">{failure}</Feedback> : users.data && <section className={styles.results} aria-label="Contas autorizadas" aria-busy={users.isFetching}>
-      <p role="status" className={styles.count}>{matching.length} conta(s) encontrada(s)</p>
+      <p role="status" className={styles.count}>{plural(matching.length, 'conta encontrada', 'contas encontradas')}</p>
       {!matching.length ? <EmptyState title="Nenhuma conta encontrada" description="Ajuste a busca ou confira os acessos atribuídos na API." /> : <>
-        <div className={styles.scroll}><table role="table" className={`data-table ${styles.table}`} aria-label="Lista de usuários"><thead role="rowgroup"><tr role="row"><th scope="col">Pessoa e e-mail</th><th scope="col">Perfis</th><th scope="col">Situação e ações</th></tr></thead><tbody role="rowgroup">{visible.map(user => <tr role="row" key={user.id}><td role="cell"><strong>{user.name}</strong><span className={styles.email}>{user.email}</span></td><td role="cell">{user.roles.length ? user.roles.join(' · ') : 'Sem perfil atribuído'}</td><td role="cell"><Badge tone={user.active ? 'success' : 'neutral'}>{user.active ? 'Ativo' : 'Inativo'}</Badge><div className={styles.commands}>{can('users.edit') && <Button variant="ghost" disabled={users.isFetching} aria-label={`Editar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'edit' }); }}>Editar</Button>}{can('users.edit') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Acessos de ${user.name}`} onClick={() => { setConfirmation(''); setAccessEditor({ userId: user.id }); }}>Acessos</Button>}{can('users.deactivate') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Desativar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'deactivate' }); }}>Desativar</Button>}</div></td></tr>)}</tbody></table></div>
+        <div className={styles.scroll}><table role="table" className={`data-table ${styles.table}`} aria-label="Lista de usuários"><thead role="rowgroup"><tr role="row"><th scope="col">Pessoa e e-mail</th><th scope="col">Perfis</th><th scope="col">Situação e ações</th></tr></thead><tbody role="rowgroup">{visible.map(user => <tr role="row" key={user.id}><td role="cell"><strong>{user.name}</strong><span className={styles.email}>{user.email}</span></td><td role="cell">{user.roles.length ? roleLabels(user.roles) : 'Sem perfil atribuído'}</td><td role="cell"><Badge tone={user.active ? 'success' : 'neutral'}>{user.active ? 'Ativo' : 'Inativo'}</Badge><div className={styles.commands}>{can('users.edit') && <Button variant="ghost" disabled={users.isFetching} aria-label={`Editar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'edit' }); }}>Editar</Button>}{can('users.edit') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Acessos de ${user.name}`} onClick={() => { setConfirmation(''); setAccessEditor({ userId: user.id }); }}>Acessos</Button>}{can('users.deactivate') && user.active && user.id !== me?.user.id && <Button variant="ghost" disabled={users.isFetching} aria-label={`Desativar ${user.name}`} onClick={() => { setConfirmation(''); setSelected({ user, action: 'deactivate' }); }}>Desativar</Button>}</div></td></tr>)}</tbody></table></div>
         <nav className={styles.pagination} aria-label="Paginação de usuários"><span>Página {currentPage} de {pageCount}</span><div className="actions"><Button variant="secondary" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><Button variant="secondary" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</Button></div></nav>
       </>}
     </section>}
