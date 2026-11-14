@@ -95,12 +95,12 @@ for (const width of [1440, 768, 320]) {
       ['/app/documentos/novo', 'Novo documento'],
       ['/app/trabalhadores', 'Trabalhadores'],
       ['/app/trabalhadores/novo', 'Novo trabalhador'],
-      ['/app/equipes', 'Equipes de trabalho'],
+      ['/app/equipes', 'Equipes'],
       ['/app/equipes/novo', 'Nova equipe'],
-      ['/app/agenda', 'Agenda de serviços'],
+      ['/app/agenda', 'Agenda'],
       ['/app/agenda/novo', 'Agendar serviço'],
       ['/app/pts', 'Permissões de trabalho (PT)'],
-      ['/app/vencimentos?q=PGR', 'Vencimentos'],
+      ['/app/vencimentos?q=PGR', 'Vencimentos de documentos'],
       ['/app/notificacoes?read=false', 'Notificações'],
       ['/app/auditoria?action=DOCUMENT_CREATED', 'Auditoria'],
       ['/app/pendencias', 'Pendências documentais'],
@@ -162,7 +162,7 @@ test('ações administrativas e seus diálogos seguem o padrão de 1440px a 320p
     await inviteDialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
     await navigateWithinApp(page, '/app/organizacao');
-    await expect(page.getByRole('heading', { name: 'Estrutura da organização', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Organização', exact: true })).toBeVisible();
     const registers = page.getByLabel('Tipo de cadastro', { exact: true });
     const sectors = registers.getByRole('button', { name: /^Setores/ });
     const units = registers.getByRole('button', { name: /^Unidades/ });

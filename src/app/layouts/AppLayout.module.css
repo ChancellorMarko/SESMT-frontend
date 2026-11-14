@@ -55,13 +55,13 @@
 .iconButton:active,.searchButton:active,.railItem:active { transform: scale(.95); }
 .moduleLink:active { transform: scale(.99); }
 @media (hover: hover) and (pointer: fine) {
- .iconButton:hover { background: #e7efff; color: var(--brand-navy); transform: translateY(-4px) scale(1.06); box-shadow: 0 8px 18px -8px #183b6860; }
- .searchButton:hover { border-color: #9eb9eb; box-shadow: 0 9px 22px -10px #183b6860; transform: translateY(-3px); }
- .searchButton:hover i { transform: scale(1.1) rotate(-8deg); }
- .railItem:hover { color: #244d8c; background: #e7efff; transform: translateY(-4px) scale(1.08); }
+ .iconButton:hover { background: #e7efff; color: var(--brand-navy); transform: translateY(-1px); box-shadow: 0 6px 14px -8px #183b6860; }
+ .searchButton:hover { border-color: #9eb9eb; box-shadow: 0 6px 16px -10px #183b6860; transform: translateY(-1px); }
+ .searchButton:hover i { transform: scale(1.04); }
+ .railItem:hover { color: #244d8c; background: #e7efff; transform: scale(1.03); }
  .railItemActive:hover { color: white; background: transparent; }
  .railItem:hover .railLabel { opacity: 1; transform: translateX(0); }
- .moduleLink:hover { border-color: #c5d6f1; background: #e6efff; color: #244d8c; transform: translateX(6px); }
+ .moduleLink:hover { border-color: #c5d6f1; background: #e6efff; color: #244d8c; transform: translateX(2px); }
  .iconButton:active,.searchButton:active,.railItem:active { transform: scale(.95); }
  .moduleLink:active { transform: scale(.99); }
 }
@@ -100,7 +100,9 @@
  .content { padding: 10px 16px 0; }
  .shell :global(.page-header) h1 { font-size: 25px; }
  .main { padding-bottom: 24px; }
- .footer { padding-bottom: 28px; }
+ /* Phones: the quick-access bar sits at the bottom, within thumb reach, and the page starts right below the header. */
+ .rail { position: fixed; z-index: 40; top: auto; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; width: calc(100% - 24px); max-width: 420px; margin: 0; transform: translateX(-50%); }
+ .footer { padding-bottom: 96px; }
 }
 @media (max-width: 359px) { .headerBrand { width: 44px; }.rail { width: calc(100% - 20px); }.header { column-gap: 2px; }.railCompactLabel { font-size: 12px; letter-spacing: -.02em; } }
 @media (prefers-reduced-motion: reduce) {

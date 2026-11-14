@@ -173,7 +173,7 @@ describe('navegação inicial conforme permissões independentes', () => {
     show('/app/dashboard?area=desconhecida');
     await screen.findByRole('heading', { name: 'Painel operacional de teste' });
     const shortcuts = within(screen.getByRole('navigation', { name: 'Acesso rápido' }));
-    expect(shortcuts.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    expect(shortcuts.getByRole('link', { name: 'Visão geral' })).toHaveAttribute('aria-current', 'page');
     expect(shortcuts.getByRole('link', { name: 'Inspeções' })).not.toHaveAttribute('aria-current');
   });
 
@@ -252,12 +252,12 @@ describe('navegação inicial conforme permissões independentes', () => {
     await screen.findByRole('heading', { name: 'Painel documental de teste' });
     const dock = within(screen.getByRole('navigation', { name: 'Acesso rápido' }));
     expect(dock.getByRole('link', { name: 'Relatórios' })).toHaveAttribute('href', '/app/painel-documental');
-    for (const label of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)']) expect(dock.queryByRole('link', { name: label })).not.toBeInTheDocument();
+    for (const label of ['Visão geral', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)']) expect(dock.queryByRole('link', { name: label })).not.toBeInTheDocument();
     expect(dock.getByRole('button', { name: 'Abrir navegação' })).toBeInTheDocument();
 
     session.permissions = ['dashboard.read', 'appointments.read'];
     view.update();
-    for (const label of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)']) expect(dock.getByRole('link', { name: label })).toBeInTheDocument();
+    for (const label of ['Visão geral', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)']) expect(dock.getByRole('link', { name: label })).toBeInTheDocument();
     expect(dock.getAllByRole('link')).toHaveLength(5);
 
     session.permissions = ['dashboard.read'];

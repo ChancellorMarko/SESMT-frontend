@@ -109,7 +109,7 @@ function ExpirationsContextPage() {
     <header className={styles.pageHeader}>
       <div className={styles.headerCopy}>
 
-        <h1>Vencimentos</h1>
+        <h1>Vencimentos de documentos</h1>
         <p className={styles.description}>Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.</p>
       </div>
       {enabled && !failed && <Link className="button button--secondary" to={documentsLink}>Abrir no repositório <ArrowUpRight size={16} aria-hidden="true" /></Link>}

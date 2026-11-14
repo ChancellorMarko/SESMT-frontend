@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useAnimationControls } from 'framer-motion';
-import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, ClipboardList, FileCheck2, FileSignature, DoorOpen, Files, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
@@ -28,15 +28,15 @@ const nav = [
   { to: 'epis', label: 'EPIs', icon: HardHat, permission: 'epi:ler' },
   { to: 'treinamentos', label: 'Treinamentos', icon: GraduationCap, permission: 'treinamento:ler' },
   { to: 'asos', label: 'ASOs', icon: HeartPulse, permission: 'aso:acompanhar' },
-  { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
-  { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
-  { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
+  { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardList, permission: 'eligibility.read' },
+  { to: 'ats', label: 'Autorizações de trabalho', icon: FileSignature, permission: 'at.read' },
+  { to: 'pts', label: 'Permissões de trabalho', icon: FileCheck2, permission: 'permits.read' },
   { to: 'designacoes', label: 'Designações', icon: UserCheck, permission: 'appointments.read' },
-  { to: 'pets', label: 'Permissões de entrada e trabalho (PET)', icon: ClipboardCheck, permission: 'pet.read' },
-  { to: 'modelos-pt', label: 'Modelo de permissão de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
+  { to: 'pets', label: 'Permissões de entrada e trabalho (PET)', icon: DoorOpen, permission: 'pet.read' },
+  { to: 'modelos-pt', label: 'Modelos de permissão de trabalho', icon: Files, permission: 'permits.read' },
   { to: 'equipes', label: 'Equipes', icon: UsersRound, permission: 'teams.read' },
   { to: 'documentos', label: 'Documentos', icon: FolderOpen, permission: 'documents.read' },
-  { to: 'vencimentos', label: 'Vencimentos', icon: CalendarClock, permission: 'documents.read' },
+  { to: 'vencimentos', label: 'Vencimentos de documentos', icon: CalendarClock, permission: 'documents.read' },
   { to: 'trabalhadores', label: 'Trabalhadores', icon: Users, permission: 'workers.read' },
   { to: 'organizacao', label: 'Organização', icon: Building2, permission: 'organization.read' },
   { to: 'notificacoes', label: 'Notificações', icon: Bell, permission: 'notifications.read' },
@@ -51,13 +51,15 @@ const config = [
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [
-  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'treinamentos', 'asos', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
-  { label: 'Gestão documental', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
+  { label: 'Início', routes: ['dashboard', 'agenda'] },
+  { label: 'Liberação de trabalho', routes: ['pts', 'ats', 'pets', 'designacoes', 'pendencias'] },
+  { label: 'Saúde e segurança das pessoas', routes: ['treinamentos', 'asos', 'epis'] },
+  { label: 'Documentos', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
   { label: 'Pessoas e organização', routes: ['equipes', 'trabalhadores', 'organizacao'] },
   { label: 'Controle', routes: ['notificacoes', 'auditoria'] },
 ];
 const dockItems: { to: string; label: string; compactLabel?: string; icon: LucideIcon; area?: string }[] = [
-  { to: '/app/dashboard', label: 'Dashboard', compactLabel: 'Início', icon: LayoutDashboard },
+  { to: '/app/dashboard', label: 'Visão geral', compactLabel: 'Início', icon: LayoutDashboard },
   { to: '/app/dashboard?area=inspecoes', label: 'Inspeções', icon: ShieldCheck, area: 'inspecoes' },
   { to: '/app/dashboard?area=saude', label: 'Saúde e capacitações', compactLabel: 'Saúde', icon: HeartPulse, area: 'saude' },
   { to: '/app/dashboard?area=epis', label: 'Equipamentos de proteção individual (EPI)', compactLabel: 'Proteção', icon: HardHat, area: 'epis' },

@@ -81,7 +81,7 @@ function OrganizationContextPage() {
   const items = data?.[resource.key].filter(item => (showInactive || item.status === 'ACTIVE') && (resource.key !== 'companies' || classificationMatches(item)) && `${item.name} ${item.code || ''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))) || [];
   function parentName(item: OrganizationItemDto) { return data?.sectors.find(parent => parent.id === item.sectorId)?.name || data?.units.find(parent => parent.id === item.unitId)?.name || data?.jobs.find(parent => parent.id === item.jobId)?.name || data?.companies.find(parent => parent.id === item.companyId)?.name || 'Organização'; }
   return <>
-    <PageHeader eyebrow="Base organizacional" title="Estrutura da organização" description="Organize unidades, setores e vínculos para manter cada registro no contexto correto." actions={can('organization.write') && <Button disabled={Boolean(modal) || Boolean(confirm)} onClick={() => { setSuccess(''); setModal({}); }}>Cadastrar {resource.singular}</Button>} />
+    <PageHeader eyebrow="Base organizacional" title="Organização" description="Organize unidades, setores e vínculos para manter cada registro no contexto correto." actions={can('organization.write') && <Button disabled={Boolean(modal) || Boolean(confirm)} onClick={() => { setSuccess(''); setModal({}); }}>Cadastrar {resource.singular}</Button>} />
     {success && <Feedback tone="success">{success}</Feedback>}
     {organization.isPending && <Spinner />}
     {organization.isError && <QueryError error={organization.error} retry={() => void organization.refetch()} />}

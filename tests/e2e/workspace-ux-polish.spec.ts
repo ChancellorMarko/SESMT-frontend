@@ -57,7 +57,7 @@ test('guia fica fora do conteúdo e pode ser aberto pelo menu sem sobrepor modai
   await expect(trigger).toBeFocused();
   await navigateWithinApp(page, '/app/dashboard?area=desconhecida');
   await expect(page.getByRole('heading', { name: 'Visão geral', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Dashboard', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Visão geral', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 test('EPIs mantém indicadores compactos e permite desfazer o acompanhamento sem conferir o lote', async ({ page }, testInfo) => {

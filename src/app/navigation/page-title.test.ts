@@ -75,6 +75,6 @@ describe('título da página', () => {
       expect(pageTitle(pathname)).not.toBe(title('Página não encontrada'));
       expect(pageTitle(pathname)).toMatch(/ — Ampara SESMT$/);
     }
-    expect(pageTitle('/app/agenda/')).toBe(title('Agenda de serviços'));
+    expect(pageTitle('/app/agenda/')).toBe(title('Agenda'));
   });
 });
