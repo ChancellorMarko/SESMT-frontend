@@ -23,18 +23,20 @@ beforeEach(() => {
 describe('painel de vencimentos', () => {
   it('mostra resumo, situação relativa, link para o módulo e as fontes fora do acesso', async () => {
     show();
-    const table = await screen.findByRole('region', { name: 'Tabela de vencimentos' });
+    const table = await screen.findByRole('region', { name: 'Tabela de renovações' });
     expect(within(table).getByText('Vencido há 13 dias')).toBeVisible();
     expect(within(table).getByText('Vence hoje')).toBeVisible();
-    expect(within(table).getByRole('link', { name: 'NR-35' })).toHaveAttribute('href', '/app/treinamentos');
-    expect(within(table).getByRole('link', { name: 'Luva' })).toHaveAttribute('href', '/app/epis');
-    expect(screen.getByLabelText('Resumo de vencimentos')).toHaveTextContent('Vencidos1');
+    expect(within(table).getByRole('link', { name: 'NR-35' })).toHaveAttribute('href', '/app/treinamentos?unitId=20000000-0000-0000-0000-000000000001&workerId=30000000-0000-0000-0000-000000000001');
+    expect(within(table).getByRole('link', { name: 'Luva' })).toHaveAttribute('href', '/app/epis?unitId=20000000-0000-0000-0000-000000000001&workerId=30000000-0000-0000-0000-000000000002');
+    expect(screen.getByLabelText('Resumo de renovações')).toHaveTextContent('Vencidos1');
     expect(screen.getByText(/não entram nesta lista: ASO/)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Renovações' })).toBeVisible();
+    expect(screen.getByText('Treinamentos, ASO e EPI · todas as unidades da sua conta')).toBeVisible();
     expect(screen.queryByText(/apto|aptidão confirmada|em dia/i)).not.toBeInTheDocument();
   });
 
   it('filtra por tipo sem nova consulta e troca a janela pela API', async () => {
-    show(); await screen.findByRole('region', { name: 'Tabela de vencimentos' });
+    show(); await screen.findByRole('region', { name: 'Tabela de renovações' });
     fireEvent.click(screen.getByRole('button', { name: 'EPI' }));
     expect(screen.queryByRole('link', { name: 'NR-35' })).not.toBeInTheDocument();
     expect(requestNativeDeadlines).toHaveBeenCalledTimes(1);
@@ -50,10 +52,10 @@ describe('painel de vencimentos', () => {
 
   it('descarta resposta incoerente e explica recusa sem mostrar a mensagem da API', async () => {
     vi.mocked(requestNativeDeadlines).mockResolvedValueOnce({ ...deadlinesFixture(), total: 9 });
-    const view = show(); expect(await screen.findByText(/Não foi possível conferir os vencimentos/)).toBeVisible();
+    const view = show(); expect(await screen.findByText(/Não foi possível conferir as renovações/)).toBeVisible();
     expect(screen.queryByText('Ana Lima')).not.toBeInTheDocument(); view.unmount();
     vi.mocked(requestNativeDeadlines).mockRejectedValueOnce(new ApiError(403, { code: 'FORBIDDEN', message: 'segredo', requestId: 'x' }));
-    show(); expect(await screen.findByText(/não autorizou a consulta de vencimentos/)).toBeVisible();
+    show(); expect(await screen.findByText(/não autorizou a consulta de renovações/)).toBeVisible();
     expect(screen.queryByText('segredo')).not.toBeInTheDocument();
   });
 });

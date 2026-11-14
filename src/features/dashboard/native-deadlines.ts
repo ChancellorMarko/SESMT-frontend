@@ -28,6 +28,12 @@ const response = z.strictObject({
 export type NativeDeadlines = z.infer<typeof response>;
 export type NativeDeadline = z.infer<typeof item>;
 
+/** Opens the module on the item's own unit and worker. When the header has another unit selected, the module
+ * keeps it and offers "Abrir unidade do link" instead of switching silently. */
+export function deadlineHref(item: { kind: DeadlineKind; unitId: string; workerId: string }) {
+  return `${deadlineRoutes[item.kind]}?${new URLSearchParams({ unitId: item.unitId, workerId: item.workerId })}`;
+}
+
 export const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 export function readableDeadlineKinds(can: (permission: string) => boolean) {

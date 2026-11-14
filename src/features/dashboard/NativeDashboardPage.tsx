@@ -42,7 +42,6 @@ function Dashboard() {
   function clear() { setFrom(defaults.from); setTo(defaults.to); setScope('account'); setFormError(''); setParams(new URLSearchParams()); }
   return <div className="stack">
     <PageHeader title="Visão geral" description="Indicadores e atividades retornados pela API para os acessos da sua conta. O período usa dias UTC e os horários são exibidos em Brasília. Para restringir o painel à unidade do cabeçalho, escolha essa abrangência nos filtros." actions={<Button variant="secondary" disabled={!criteria || dashboard.isFetching} onClick={() => void dashboard.refetch()}>{dashboard.isFetching && data ? 'Atualizando…' : 'Atualizar painel'}</Button>}/>
-    <NativeDeadlinesPanel/>
     <form className={`panel ${styles.filters}`} onSubmit={submit} aria-label="Filtros do painel operacional">
       <Field label="De (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
       <Field label="Até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
@@ -60,5 +59,6 @@ function Dashboard() {
         <NativeDashboardEvolution data={data.evolution}/>
       </>}
     </div>}
+    <NativeDeadlinesPanel/>
   </div>;
 }
