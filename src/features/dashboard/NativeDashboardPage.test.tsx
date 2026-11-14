@@ -7,7 +7,7 @@ import { ApiError } from '../../shared/api/client';
 import { nativeDashboardFixture, emptyNativeDashboard, dashboardUnit } from '../../../tests/connection-ui/fixtures/native-dashboard';
 
 const state = vi.hoisted(() => ({ me: true, sessionKey: 'dashboard-test', unitId: undefined as string | undefined }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ ...state, me: state.me ? { user: { id: 'test' } } : null }) }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ ...state, can: () => false, me: state.me ? { user: { id: 'test' } } : null }) }));
 vi.mock('./native-dashboard', async original => ({ ...await original<typeof import('./native-dashboard')>(), requestNativeDashboard: vi.fn() }));
 import { nativeDashboardQuery, requestNativeDashboard } from './native-dashboard';
 
