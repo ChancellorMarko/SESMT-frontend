@@ -15,6 +15,7 @@ import { HeaderNotifications } from './HeaderNotifications';
 import { WorkspaceGuide } from './WorkspaceGuide';
 import { TerminologyGuide } from '../../shared/ui/TerminologyGuide';
 import { useContentMotion } from './useContentMotion';
+import { useCardTableLabels } from './useCardTableLabels';
 import { canReadOperationsDashboard, dashboardPath } from '../navigation';
 import styles from './AppLayout.module.css';
 import navigationStyles from './WorkspaceNavigation.module.css';
@@ -175,6 +176,7 @@ export function AppLayout() {
   const [motionSettings, setMotionSettings] = useState(false);
   const [motionReplay, setMotionReplay] = useState(0);
   const closeMotionSettings = () => { setMotionSettings(false); setMotionReplay(value => value + 1); };
+  useCardTableLabels(contentRef);
   useContentMotion(contentRef, `${pageContext}:${s.sessionKey}:${s.unitId}:${motionReplay}`, reduceMotion, Boolean(location.hash));
   const canNavigate = (item: { to: string; permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES
     ? item.to==='dashboard' || item.to==='agenda' && s.can('agenda:ler') || item.to==='designacoes' && s.can('designacao:ler') || item.to==='pts' && s.can('pt:ler') || item.to==='equipes' && s.can('equipe:ler') || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)))

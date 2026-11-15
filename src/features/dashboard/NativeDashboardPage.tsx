@@ -4,7 +4,7 @@ import { ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, PageHeader, RefreshButton, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, PageHeader, RefreshButton, Spinner, PhoneFilters } from '../../shared/ui';
 import { checkedNativeDashboard, defaultNativeDashboardPeriod, nativeDashboardCriteria, requestNativeDashboard } from './native-dashboard';
 import { NativeDashboardMetrics, NativeDashboardQueues } from './NativeDashboardPanels';
 import { NativeDashboardEvolution } from './NativeDashboardEvolution';
@@ -41,12 +41,12 @@ function Dashboard() {
   function clear() { setFrom(defaults.from); setTo(defaults.to); setScope('account'); setFormError(''); setParams(new URLSearchParams()); }
   return <div className="stack">
     <PageHeader title="Visão geral" description="Indicadores e atividades retornados pela API para os acessos da sua conta. Datas e horários no horário de Brasília. Para restringir o painel à unidade do cabeçalho, escolha essa abrangência nos filtros." actions={<RefreshButton label="Atualizar painel" busy={dashboard.isFetching && Boolean(data)} disabled={!criteria || dashboard.isFetching} onClick={() => void dashboard.refetch()}/>}/>
-    <form className={`panel ${styles.filters}`} onSubmit={submit} aria-label="Filtros do painel operacional">
+    <PhoneFilters><form className={`panel ${styles.filters}`} onSubmit={submit} aria-label="Filtros do painel operacional">
       <Field label="De"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
       <Field label="Até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Field label="Abrangência"><select value={scope} onChange={event => setScope(event.target.value)}><option value="account">Acessos da conta</option><option value="unit" disabled={!unitId}>Unidade selecionada</option></select></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={clear}>Limpar</Button>
-    </form>
+    </form></PhoneFilters>
     {(formError || !criteria) && <Feedback tone="warning">{formError || 'Os filtros deste endereço não são compatíveis com o painel. Informe ambas as datas, limite a consulta a 36 meses ou limpe os filtros.'}</Feedback>}
     {dashboard.isPending && <Spinner/>}
     {dashboard.isError && <Feedback tone="danger">{dashboard.error instanceof ApiError && dashboard.error.status === 403 ? 'A API não autorizou a consulta para esta abrangência. Confira seus escopos ou escolha Acessos da conta.' : 'Não foi possível conferir o painel operacional. Atualize a consulta para tentar novamente.'}</Feedback>}

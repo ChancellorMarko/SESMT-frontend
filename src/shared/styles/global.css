@@ -183,6 +183,11 @@
   .error-page h1 { font-size: 32px; }
   .error-page p { max-width: 450px; margin: 20px auto; color: var(--muted); }
   .table-scroll-hint { display: none; }
+  .phone-filters { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .phone-filters > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 14px; color: var(--brand-navy); font-size: var(--text-md); font-weight: 600; cursor: pointer; list-style: none; }
+  .phone-filters > summary::-webkit-details-marker { display: none; }
+  .phone-filters__count { display: inline-grid; min-width: 22px; height: 22px; place-items: center; border-radius: 11px; background: var(--brand-navy); color: #fff; font-size: var(--text-xs); }
+  .phone-filters > :not(summary) { margin: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); box-shadow: none; }
   @media (hover: hover) and (pointer: fine) {
     .button:hover:not(:disabled):not([aria-disabled=true]) { translate: 0 -1px; scale: 1.01; box-shadow: 0 8px 18px -12px #183b6860; }
     .button:hover:not(:disabled):not([aria-disabled=true]) > svg:not(.spin) { translate: 0 -1px; }
@@ -210,6 +215,14 @@
     .modal { padding: 20px; max-height: 94dvh; }
     .pagination { flex-wrap: wrap; }
     .badge { white-space: normal; }
+    /* Lists marked .card-table turn each row into a card instead of scrolling sideways. */
+    table.card-table { min-width: 0 !important; table-layout: auto; }
+    table.card-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    table.card-table, table.card-table tbody, table.card-table tr, table.card-table td { display: block; width: 100% !important; }
+    table.card-table tr { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    table.card-table td { padding: 4px 0; border: 0; }
+    table.card-table td[data-label]:not([data-label=""])::before { content: attr(data-label); display: block; color: var(--muted); font-size: var(--text-xs); font-weight: 500; }
+    table.card-table td:first-child::before { display: none !important; }
     .table-scroll-hint { display: block; font-size: var(--text-xs); color: var(--muted); margin: 0; padding: 10px 12px; background: var(--surface); }
   }
 }

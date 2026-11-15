@@ -5,7 +5,7 @@ import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { formatDate, plural } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton, PhoneFilters } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedContext, checkedHistory, checkedPage, checkedTraining, duration, formatDay, kindLabels, localDay, statuses,
   trainingFields, trainingStatus, historyLabels, type Training, type TrainingContext, type TrainingScope } from './contracts';
@@ -78,14 +78,14 @@ function TrainingWorkspace() {
           <Button variant="ghost" onClick={() => setParams(criteria({}, false), false)}>Limpar filtro de trabalhador</Button>
         </div>}
         {success && <Feedback tone="success">{success}</Feedback>}
-        <form className={`panel ${styles.toolbar}`} onSubmit={search}>
+        <PhoneFilters><form className={`panel ${styles.toolbar}`} onSubmit={search}>
           <Field label="Buscar curso ou trabalhador"><input maxLength={160} value={input} onChange={event => setInput(event.target.value)}/></Field>
           <Field label="Situação"><select value={status} onChange={event => setParams(criteria({ q: query, status: event.target.value }))}><option value="">Todas</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Button type="submit" disabled={list.isFetching}>Buscar</Button>
-        </form>
+        </form></PhoneFilters>
         {!validCriteria ? <Feedback tone="warning">Os filtros do endereço são inválidos. <Button variant="ghost" onClick={() => setParams(criteria({}, false), false)}>Limpar filtros</Button></Feedback>
           : list.isPending ? <Spinner/> : list.isError ? <Feedback tone="danger">Não foi possível consultar os registros. Atualize a consulta.</Feedback>
-          : list.data && (list.data.items.length ? <div className={styles.results}><div className={styles.scroll} role="region" aria-label="Tabela de treinamentos" tabIndex={0}><table className={`data-table ${styles.table}`}>
+          : list.data && (list.data.items.length ? <div className={styles.results}><div className={styles.scroll} role="region" aria-label="Tabela de treinamentos" tabIndex={0}><table className={`data-table card-table ${styles.table}`}>
             <thead><tr><th scope="col">Curso</th><th scope="col">Trabalhador</th><th scope="col">Conclusão e carga horária</th><th scope="col">Renovação prevista</th><th scope="col">Situação</th></tr></thead>
             <tbody>{list.data.items.map(item => <tr key={item.id}><td><Link state={state} to={{ search: `?${criteria({ q: query, status, page, registro: item.id })}` }}>{item.title}</Link>{item.reference && <small>{item.reference}</small>}</td><td>{item.workerName}</td><td>{formatDay(item.completedOn)}<small>{duration(item.durationMinutes)}</small></td><td>{formatDay(item.renewalOn)}</td><td><TrainingBadge item={item}/></td></tr>)}</tbody>
           </table></div><div className={styles.footer}><span>{plural(list.data.total, 'registro', 'registros')} · página {page} de {Math.max(1, Math.ceil(list.data.total / 20))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams(criteria({ q: query, status, page: page - 1 }))}>Anterior</Button><Button variant="secondary" disabled={page * 20 >= list.data!.total} onClick={() => setParams(criteria({ q: query, status, page: page + 1 }))}>Próxima</Button></div></div></div>
