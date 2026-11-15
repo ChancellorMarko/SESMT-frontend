@@ -84,10 +84,10 @@
     outline-offset: 1px;
     transition: border-color var(--motion-fast), box-shadow var(--motion-normal), background-color var(--motion-fast);
   }
-  :is(input, select, textarea)[aria-invalid=true] { border-color: var(--danger); background-color: #fffbfc; }
   input::placeholder, textarea::placeholder { color: #6f7f94; }
   input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shadow: 0 0 0 3px #2e5eae1f; }
   textarea { min-height: 100px; resize: vertical; }
+  input:not([type=checkbox]):not([type=radio])[aria-invalid=true], select[aria-invalid=true], textarea[aria-invalid=true] { border-color: var(--danger); background-color: #fffbfc; }
   input[type=checkbox], input[type=radio] { width: 17px; height: 17px; accent-color: var(--primary); transition: scale var(--motion-fast) var(--motion-ease); }
   input:is([type=checkbox], [type=radio]):active:not(:disabled) { scale: .9; }
   input[type=file] { font-size: var(--text-sm); }
