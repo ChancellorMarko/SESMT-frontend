@@ -1,3 +1,4 @@
+import { brasiliaDayEnd, brasiliaDayStart } from '../../shared/lib/format';
 import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { isIsoInstant } from '../../shared/auth/session-response';
@@ -51,7 +52,7 @@ export function nativeDashboardCriteria(params: URLSearchParams, defaults: { fro
   return { from, to, scope: scope as 'account' | 'unit', localId: scope === 'unit' ? unitId?.toLowerCase() : undefined };
 }
 export function nativeDashboardQuery(criteria: NativeDashboardCriteria) {
-  return { from: `${criteria.from}T00:00:00Z`, to: `${criteria.to}T23:59:59.9999999Z`, localId: criteria.localId };
+  return { from: brasiliaDayStart(criteria.from), to: brasiliaDayEnd(criteria.to), localId: criteria.localId };
 }
 export async function requestNativeDashboard(criteria: NativeDashboardCriteria, signal: AbortSignal) {
   const controller = new AbortController(), abort = () => controller.abort();

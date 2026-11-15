@@ -60,7 +60,7 @@ describe('dashboard operacional no contrato nativo', () => {
     expect(requestNativeDashboard).toHaveBeenCalledTimes(calls);
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     await waitFor(() => expect(vi.mocked(requestNativeDashboard).mock.lastCall?.[0].localId).toBe(dashboardUnit));
-    fireEvent.change(screen.getByLabelText('De (UTC)'), { target: { value: '2020-01-01' } });
+    fireEvent.change(screen.getByLabelText('De'), { target: { value: '2020-01-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     expect(screen.getByRole('status')).toHaveTextContent('até 36 meses');
   });

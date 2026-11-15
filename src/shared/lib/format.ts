@@ -9,3 +9,10 @@ export const dateOnly = (date = new Date()) => new Intl.DateTimeFormat('en-CA', 
 export const statusLabels: Record<string, string> = { DRAFT: 'Rascunho', IN_REVIEW: 'Em revisão', APPROVED: 'Aprovado', ACTIVE: 'Vigente', EXPIRED: 'Vencido', SUPERSEDED: 'Substituído', ARCHIVED: 'Arquivado', ON_LEAVE: 'Afastado', TERMINATED: 'Desligado', CLEAN: 'Liberado', PENDING: 'Em verificação', REJECTED: 'Rejeitado', INTERNAL: 'Interno', RESTRICTED: 'Restrito', MEDICAL: 'Médico' };
 /** "1 registro", "3 registros": counts read as written Portuguese instead of "registro(s)". */
 export const plural = (count: number, one: string, many: string) => `${count.toLocaleString('pt-BR')} ${count === 1 ? one : many}`;
+/** Calendar days are Brasília days (UTC−3, no daylight saving since 2019). Instants still travel as UTC ISO strings. */
+const BRASILIA_OFFSET = '-03:00';
+export const brasiliaDayStart = (day: string) => new Date(`${day}T00:00:00${BRASILIA_OFFSET}`).toISOString();
+/** First instant of the following Brasília day: the exclusive end of a half-open interval. */
+export const brasiliaNextDayStart = (day: string) => new Date(Date.parse(`${day}T00:00:00${BRASILIA_OFFSET}`) + 86_400_000).toISOString();
+/** Last millisecond of the Brasília day, for APIs that take an inclusive end. */
+export const brasiliaDayEnd = (day: string) => new Date(Date.parse(`${day}T00:00:00${BRASILIA_OFFSET}`) + 86_399_999).toISOString();

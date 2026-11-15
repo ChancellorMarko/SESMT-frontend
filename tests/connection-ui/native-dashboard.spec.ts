@@ -64,7 +64,7 @@ test('dashboard nativo apresenta indicadores, listas e histórico nos endpoints 
   await expect(page.getByRole('region', { name: 'Tabela mensal de movimentações', exact: true }).getByRole('row')).toHaveCount(13);
   const reads = state.requests.filter(request => request.startsWith('GET /api/v1/dashboard/'));
   expect(reads).toHaveLength(5);
-  expect(reads.every(request => request.includes('from=2025-11-01T00') && request.includes('to=2026-10-31T23') && !request.includes('unitId'))).toBe(true);
+  expect(reads.every(request => request.includes('from=2025-11-01T03') && request.includes('to=2026-11-01T02') && !request.includes('unitId'))).toBe(true);
   expect(state.requests.some(request => /\/permit-dashboard|\/permit-options|\/operations\/dashboard|\/browser\/dashboard/.test(request))).toBe(false);
   await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
   const navigation = page.getByRole('dialog', { name: 'Navegação', exact: true });
@@ -89,7 +89,7 @@ test('filtros e troca da unidade usam localId sem deixar o resultado anterior vi
   await expect(page.getByRole('region', { name: 'Atividades no período', exact: true }).getByRole('cell', { name: /Atividade da segunda unidade/ })).toHaveCount(5);
   expect(state.requests.filter(request => request.includes(`localId=${dashboardOtherUnit}`))).toHaveLength(5);
   const count = state.requests.length;
-  await page.getByLabel('De (UTC)', { exact: true }).fill('2020-01-01');
+  await page.getByLabel('De', { exact: true }).fill('2020-01-01');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('até 36 meses');
   expect(state.requests).toHaveLength(count);

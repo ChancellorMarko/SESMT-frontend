@@ -1,3 +1,4 @@
+import { brasiliaDayStart, brasiliaNextDayStart } from '../../shared/lib/format';
 import { z } from 'zod';
 import { isIsoInstant } from '../../shared/auth/session-response';
 import { checkedPage, isSafePage } from '../../shared/lib/scoped-page';
@@ -63,8 +64,8 @@ export function permitCriteria(params: URLSearchParams): PermitCriteria | undefi
 }
 export function permitQuery(criteria: PermitCriteria) {
   const { from, to, ...rest } = criteria;
-  return { ...rest, pageSize: permitPageSize, from: from ? `${from}T00:00:00Z` : undefined,
-    to: to ? new Date(Date.parse(`${to}T00:00:00Z`) + 86400000).toISOString() : undefined };
+  return { ...rest, pageSize: permitPageSize, from: from ? brasiliaDayStart(from) : undefined,
+    to: to ? brasiliaNextDayStart(to) : undefined };
 }
 export function checkedPermits(value: unknown, criteria: PermitCriteria) {
   const page = checkedPage(value, { page: criteria.page, pageSize: permitPageSize }, (item): item is NativePermit => nativePermit.safeParse(item).success);

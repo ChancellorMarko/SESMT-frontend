@@ -40,10 +40,10 @@ function Dashboard() {
   }
   function clear() { setFrom(defaults.from); setTo(defaults.to); setScope('account'); setFormError(''); setParams(new URLSearchParams()); }
   return <div className="stack">
-    <PageHeader title="Visão geral" description="Indicadores e atividades retornados pela API para os acessos da sua conta. O período usa dias UTC e os horários são exibidos em Brasília. Para restringir o painel à unidade do cabeçalho, escolha essa abrangência nos filtros." actions={<Button variant="secondary" disabled={!criteria || dashboard.isFetching} onClick={() => void dashboard.refetch()}>{dashboard.isFetching && data ? 'Atualizando…' : 'Atualizar painel'}</Button>}/>
+    <PageHeader title="Visão geral" description="Indicadores e atividades retornados pela API para os acessos da sua conta. Datas e horários no horário de Brasília. Para restringir o painel à unidade do cabeçalho, escolha essa abrangência nos filtros." actions={<Button variant="secondary" disabled={!criteria || dashboard.isFetching} onClick={() => void dashboard.refetch()}>{dashboard.isFetching && data ? 'Atualizando…' : 'Atualizar painel'}</Button>}/>
     <form className={`panel ${styles.filters}`} onSubmit={submit} aria-label="Filtros do painel operacional">
-      <Field label="De (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
-      <Field label="Até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
+      <Field label="De"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
+      <Field label="Até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Field label="Abrangência"><select value={scope} onChange={event => setScope(event.target.value)}><option value="account">Acessos da conta</option><option value="unit" disabled={!unitId}>Unidade selecionada</option></select></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={clear}>Limpar</Button>
     </form>
@@ -51,7 +51,7 @@ function Dashboard() {
     {dashboard.isPending && <Spinner/>}
     {dashboard.isError && <Feedback tone="danger">{dashboard.error instanceof ApiError && dashboard.error.status === 403 ? 'A API não autorizou a consulta para esta abrangência. Confira seus escopos ou escolha Acessos da conta.' : 'Não foi possível conferir o painel operacional. Atualize a consulta para tentar novamente.'}</Feedback>}
     {data && <div className={styles.content} aria-busy={dashboard.isFetching}>
-      <div className={styles.scope}><Badge>{criteria!.scope === 'unit' ? 'Unidade selecionada' : 'Acessos da conta'}</Badge><span>Período UTC: {criteria!.from.split('-').reverse().join('/')} a {criteria!.to.split('-').reverse().join('/')}</span></div>
+      <div className={styles.scope}><Badge>{criteria!.scope === 'unit' ? 'Unidade selecionada' : 'Acessos da conta'}</Badge><span>Período: {criteria!.from.split('-').reverse().join('/')} a {criteria!.to.split('-').reverse().join('/')}</span></div>
       <NativeDashboardMetrics data={data.summary}/>
       {empty ? <div className="panel"><EmptyState title="Nenhuma atividade encontrada" description="A API não retornou atividades ou movimentações para este período e abrangência."/></div> : <>
         <NativeDashboardQueues key={JSON.stringify(criteria)} data={data}/>

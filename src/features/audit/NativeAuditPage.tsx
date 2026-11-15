@@ -36,12 +36,12 @@ function Audit() {
   function changePage(page: number) { const next = new URLSearchParams(params); next.set('page', String(page)); setParams(next); }
   if (!allowed) return <Feedback tone="warning">Seu acesso não permite consultar auditoria.</Feedback>;
   return <div className="stack">
-    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Os filtros de data usam dias em UTC; os horários dos registros são exibidos em Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<Button variant="secondary" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}>Atualizar auditoria</Button>}/>
+    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Datas dos filtros e horários dos registros no horário de Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<Button variant="secondary" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}>Atualizar auditoria</Button>}/>
     <form className={`panel ${styles.toolbar}`} onSubmit={submit} aria-label="Filtros de auditoria">
       <Field label="Ação"><input value={action} maxLength={100} placeholder="Ex.: UPDATE" onChange={event => setAction(event.target.value)}/></Field>
       <Field label="Recurso"><input value={resource} maxLength={100} placeholder="Ex.: documento" onChange={event => setResource(event.target.value)}/></Field>
-      <Field label="De (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
-      <Field label="Até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
+      <Field label="De"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
+      <Field label="Até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={() => { setParams(new URLSearchParams()); setAction(''); setResource(''); setFrom(''); setTo(''); setFormError(''); }}>Limpar</Button>
     </form>
     {(formError || !criteria) && <Feedback tone="warning">{formError || 'Os filtros do endereço são inválidos. Corrija a consulta ou limpe os filtros.'}</Feedback>}

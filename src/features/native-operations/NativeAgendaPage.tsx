@@ -37,7 +37,7 @@ function Agenda() {
     <form className={`panel ${styles.toolbar}`} aria-label="Filtros da agenda" onSubmit={submit}>
       <Field label="Buscar por título"><input type="search" value={q} maxLength={200} onChange={event => setQ(event.target.value)}/></Field>
       <Field label="Situação"><select value={status} onChange={event => setStatus(event.target.value)}><option value="">Todas</option>{Object.entries(nativeAppointmentLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field>
-      <Field label="De (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field><Field label="Até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
+      <Field label="De"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field><Field label="Até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={() => { setParams(new URLSearchParams()); setQ(''); setStatus(''); setFrom(''); setTo(''); setError(''); }}>Limpar</Button>
     </form>
     {criteria?.companyId&&<div className="actions"><Badge>Filtro de empresa aplicado</Badge><InfoButton title="Empresa da consulta"><p>{criteria.companyId}</p></InfoButton><Button variant="ghost" onClick={()=>{const next=new URLSearchParams(params);next.delete('companyId');next.delete('page');setParams(next);}}>Remover filtro de empresa</Button></div>}

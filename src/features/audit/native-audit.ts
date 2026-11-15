@@ -1,3 +1,4 @@
+import { brasiliaDayEnd, brasiliaDayStart } from '../../shared/lib/format';
 import { z } from 'zod';
 import { isIsoInstant } from '../../shared/auth/session-response';
 import { checkedPage, isSafePage } from '../../shared/lib/scoped-page';
@@ -28,8 +29,8 @@ export function nativeAuditCriteria(params: URLSearchParams): NativeAuditCriteri
 }
 export function nativeAuditQuery(criteria: NativeAuditCriteria) {
   return { pageNumber: criteria.page, pageSize: nativeAuditPageSize, action: criteria.action || undefined,
-    resourceType: criteria.resourceType || undefined, from: criteria.from ? `${criteria.from}T00:00:00Z` : undefined,
-    to: criteria.to ? `${criteria.to}T23:59:59.9999999Z` : undefined };
+    resourceType: criteria.resourceType || undefined, from: criteria.from ? brasiliaDayStart(criteria.from) : undefined,
+    to: criteria.to ? brasiliaDayEnd(criteria.to) : undefined };
 }
 export function checkedNativeAudit(value: unknown, criteria: NativeAuditCriteria) {
   const parsed = envelope.safeParse(value);

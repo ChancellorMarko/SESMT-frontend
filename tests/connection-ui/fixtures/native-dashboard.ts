@@ -7,7 +7,9 @@ export const dashboardCompany = '20000000-0000-4000-8000-000000000003';
 export const dashboardPermit = '20000000-0000-4000-8000-000000000004';
 
 export function emptyNativeDashboard(from: string, to: string): NativeDashboard {
-  const first = from.slice(0, 7), last = to.slice(0, 7), start = new Date(`${first}-01T00:00:00Z`);
+  // Months follow the Brasília calendar (UTC−3), like the API.
+  const brasiliaMonth = (instant: string) => new Date(Date.parse(instant) - 3 * 3_600_000).toISOString().slice(0, 7);
+  const first = brasiliaMonth(from), last = brasiliaMonth(to), start = new Date(`${first}-01T00:00:00Z`);
   const length = (Number(last.slice(0, 4)) - start.getUTCFullYear()) * 12 + Number(last.slice(5)) - start.getUTCMonth();
   return {
     summary: { emVerificacao: 0, liberadas: 0, emExecucao: 0, concluidasAguardandoRevisao: 0, pendenciasDocumentais: 0, periodo: { from, to } },

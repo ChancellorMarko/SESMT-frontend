@@ -1,3 +1,4 @@
+import { brasiliaDayStart, brasiliaNextDayStart } from '../../shared/lib/format';
 import { z } from 'zod';
 import { isIsoInstant } from '../../shared/auth/session-response';
 import { checkedPage, isSafePage } from '../../shared/lib/scoped-page';
@@ -41,9 +42,9 @@ export function nativeAgendaCriteria(params: URLSearchParams): NativeAgendaCrite
 }
 export function nativeAgendaQuery(criteria: NativeAgendaCriteria) {
   return { page: criteria.page, pageSize: nativeAgendaPageSize, q: criteria.q || undefined, status: criteria.status || undefined,
-    companyId: criteria.companyId || undefined, from: criteria.from ? `${criteria.from}T00:00:00Z` : undefined,
+    companyId: criteria.companyId || undefined, from: criteria.from ? brasiliaDayStart(criteria.from) : undefined,
     // Native repository uses overlapping half-open intervals, including the full selected final day.
-    to: criteria.to ? new Date(Date.parse(`${criteria.to}T00:00:00Z`) + 86400000).toISOString() : undefined };
+    to: criteria.to ? brasiliaNextDayStart(criteria.to) : undefined };
 }
 export function checkedNativeAgenda(value: unknown, criteria: NativeAgendaCriteria) {
   const response = z.object({ items: z.array(nativeAppointment), total: z.number(), page: z.number(), pageSize: z.number() }).safeParse(value);

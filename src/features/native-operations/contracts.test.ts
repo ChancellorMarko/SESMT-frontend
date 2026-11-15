@@ -24,10 +24,10 @@ describe('contratos nativos de agenda/equipes/designações',()=>{
     expect(()=>checkedNativeAppointment(item,ids.team)).toThrow();
   });
   it('confere sobreposição de intervalo, não apenas início dentro do período',()=>{
-    const item=appointmentFixture();item.startsAt='2099-11-19T23:00:00Z';item.endsAt='2099-11-20T01:00:00Z';
+    const item=appointmentFixture();item.startsAt='2099-11-20T02:00:00Z';item.endsAt='2099-11-20T04:00:00Z';
     const response={items:[item],total:1,page:1,pageSize:20};
     expect(checkedNativeAgenda(response,{...criteria,from:'2099-11-20',to:'2099-11-20'}).items).toHaveLength(1);
-    expect(nativeAgendaQuery({...criteria,from:'2099-11-20',to:'2099-11-20'}).to).toBe('2099-11-21T00:00:00.000Z');
+    expect(nativeAgendaQuery({...criteria,from:'2099-11-20',to:'2099-11-20'}).to).toBe('2099-11-21T03:00:00.000Z');
     expect(()=>checkedNativeAgenda(response,{...criteria,from:'2099-11-21'})).toThrow();
     for(const mismatch of[{status:'CONFIRMED'},{q:'outro título'},{companyId:ids.otherCompany},{page:2}])expect(()=>checkedNativeAgenda(response,{...criteria,...mismatch})).toThrow();
   });

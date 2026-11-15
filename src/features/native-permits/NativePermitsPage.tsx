@@ -32,12 +32,12 @@ function Permits() {
   }
   function page(number: number) { const next = new URLSearchParams(params); next.set('page', String(number)); setParams(next); }
   function remove(key: string) { const next = new URLSearchParams(params); next.delete(key); next.delete('page'); setParams(next); }
-  return <div className="stack"><PageHeader title="Permissões de trabalho" description="Consulta nos escopos autorizados da conta. O período filtra sobreposição do agendamento em dias UTC; horários são mostrados em Brasília. A situação operacional e a revisão são informações diferentes." actions={<Button variant="secondary" disabled={!criteria || result.isFetching} onClick={() => void result.refetch()}>Atualizar PTs</Button>}/>
+  return <div className="stack"><PageHeader title="Permissões de trabalho" description="Consulta nos escopos autorizados da conta. O período filtra agendamentos que tocam os dias escolhidos, no horário de Brasília. A situação operacional e a revisão são informações diferentes." actions={<Button variant="secondary" disabled={!criteria || result.isFetching} onClick={() => void result.refetch()}>Atualizar PTs</Button>}/>
     <form className={`panel ${styles.toolbar}`} aria-label="Filtros das PTs" onSubmit={submit}>
       <Field label="Buscar atividade ou serviço"><input type="search" maxLength={200} value={q} onChange={event => setQ(event.target.value)}/></Field>
       <Field label="Situação operacional"><select value={status} onChange={event => setStatus(event.target.value)}><option value="">Todas</option>{Object.entries(permitStatusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field>
-      <Field label="Atividade de (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
-      <Field label="Atividade até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
+      <Field label="Atividade de"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
+      <Field label="Atividade até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={() => setParams(new URLSearchParams())}>Limpar</Button>
     </form>
     <div className="actions"><label><input type="checkbox" disabled={!unitId || !criteria} checked={localOnly} onChange={event => { setLocalOnly(event.target.checked); const next = new URLSearchParams(params); next.delete('page'); if (event.target.checked && unitId) next.set('locationId', unitId); else next.delete('locationId'); setParams(next); }}/> Somente unidade selecionada</label>

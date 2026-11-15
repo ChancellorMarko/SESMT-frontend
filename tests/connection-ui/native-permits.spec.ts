@@ -93,13 +93,13 @@ async function action(page: Page, name: string, text?: { label: string; value: s
 }
 test('consulta nativa preserva filtros e cancela com estado português e versão real', async ({ page }) => {
   const state = await setup(page); await page.getByLabel('Buscar atividade ou serviço').fill('altura'); await page.getByLabel('Situação operacional', { exact: true }).selectOption('EM_VERIFICACAO');
-  await page.getByLabel('Atividade de (UTC)').fill('2026-10-31'); await page.getByLabel('Atividade até (UTC)').fill('2026-10-31'); await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await page.getByLabel('Atividade de').fill('2026-10-31'); await page.getByLabel('Atividade até').fill('2026-10-31'); await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Somente unidade selecionada' }).check(); await detail(page);
   await action(page, 'Cancelar PT', { label: 'Motivo', value: 'Atividade retirada da programação' });
   expect(state.commands).toEqual([{ path: `/api/v1/work-permits/${ids.permit}/cancel`, body: { expectedVersion: 4, reason: 'Atividade retirada da programação' } }]);
   await page.getByRole('link', { name: 'Voltar às PTs', exact: true }).click(); await expect(page.getByLabel('Situação operacional')).toHaveValue('EM_VERIFICACAO'); await expect(page.getByRole('heading', { name: 'Nenhuma PT encontrada' })).toBeVisible();
   await page.getByLabel('Situação operacional').selectOption('CANCELADA'); await page.getByRole('button', { name: 'Buscar', exact: true }).click(); await expect(page.getByRole('link', { name: state.item.title })).toBeVisible();
-  const query = state.requests.filter(value => value.includes('/work-permits/search?')).at(-1)!; expect(query).toContain(`locationId=${ids.unit}`); expect(query).toContain('to=2026-11-01T00%3A00%3A00.000Z'); expect(query).not.toContain('unitId='); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+  const query = state.requests.filter(value => value.includes('/work-permits/search?')).at(-1)!; expect(query).toContain(`locationId=${ids.unit}`); expect(query).toContain('to=2026-11-01T03%3A00%3A00.000Z'); expect(query).not.toContain('unitId='); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
 });
 test('libera, inicia, observa, suspende e retoma pelos comandos nativos versionados', async ({ page }) => {
   const state = await setup(page); await detail(page);
