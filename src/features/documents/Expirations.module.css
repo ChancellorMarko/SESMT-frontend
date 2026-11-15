@@ -1,14 +1,6 @@
 .workspace{min-width:0;gap:22px}
-.pageHeader{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:22px 28px;min-width:0;padding:25px 28px;border:1px solid #dce5f0;border-radius:25px;background:radial-gradient(ellipse at 100% 0,#e9f1ff99,transparent 55%),var(--surface-raised);box-shadow:0 13px 32px -27px #183b6855,inset 0 1px #fff}
-.pageHeader::before{position:absolute;top:25px;bottom:25px;left:0;width:3px;border-radius:0 3px 3px 0;background:#4679ee;content:''}
-.headerCopy{flex:1 1 340px;min-width:0;max-width:690px}
 .eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 10px;color:#526e91;font-size: 12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;line-height:1.6}
 .eyebrow>span{display:grid;place-items:center;width:28px;height:28px;flex-shrink:0;border:1px solid #dce7f7;border-radius:9px;background:#edf3fe;color:var(--link)}
-.pageHeader h1{position:relative;margin:0;color:var(--brand-navy);font-size:30px;font-weight:550;letter-spacing:-.045em;line-height:1.2;overflow-wrap:anywhere}
-.pageHeader h1[data-page-focus]:focus{outline:0;border-radius:0}
-.pageHeader h1[data-page-focus]:focus::before{position:absolute;top:3px;bottom:3px;left:-14px;width:3px;border-radius:3px;background:#4679ee;content:''}
-.description{max-width:650px;margin:10px 0 0;color:#5a6f89;font-size:12px;line-height:1.8}
-.pageHeader>:global(.button){min-height:44px;white-space:normal}
 .filterPanel{display:grid;min-width:0;gap:16px;padding:23px 25px;border:1px solid #e0e7ef;border-radius:23px;background:var(--surface-raised);box-shadow:0 9px 28px -24px #183b6840}
 .filterGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr);align-items:end;gap:16px;min-width:0}
 .expiredGrid{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
@@ -53,9 +45,9 @@
 @keyframes refresh-turn{to{transform:rotate(360deg)}}
 @media(hover:hover) and (pointer:fine){.results tbody tr:hover{background:#f4f8ff}.results tbody a:hover{color:#285bcc}}
 @media(max-width:1199px){.filterGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.searchForm{grid-column:1/-1}.expiredGrid{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}.expiredGrid .searchForm{grid-column:auto}}
-@media(max-width:767px){.workspace{gap:18px}.pageHeader{padding:22px}.filterPanel{padding:19px}.period{padding:16px 18px}.resultsHeading{padding:18px}.results tbody{background:#f6f7f4}.results tbody tr{background:var(--surface-raised);border-color:#e2e8ef}.results tbody td{background:transparent}.pagination{padding:16px 18px}}
-@media(max-width:639px){.pageHeader{gap:19px}.pageHeader h1{font-size:27px}.headerCopy{flex-basis:100%}.pageHeader>:global(.button){width:100%}.filterGrid,.expiredGrid{grid-template-columns:1fr}.expiredGrid .searchForm{grid-column:1/-1}.periodIcon{width:36px;height:36px;border-radius:12px}.periodCopy{flex-basis:calc(100% - 52px)}.period>:global(.button){width:100%}}
-@media(max-width:359px){.pageHeader{padding:20px 18px}.eyebrow{font-size: 12px;letter-spacing:.06em}.filterPanel{padding:17px 14px}.searchForm{flex-wrap:wrap}.searchForm>:global(.field){flex-basis:100%}.searchForm>:global(.button){width:100%}.resultsHeading{padding:16px 14px}.pagination{padding:15px 14px}}
+@media(max-width:767px){.workspace{gap:18px}.filterPanel{padding:19px}.period{padding:16px 18px}.resultsHeading{padding:18px}.results tbody{background:#f6f7f4}.results tbody tr{background:var(--surface-raised);border-color:#e2e8ef}.results tbody td{background:transparent}.pagination{padding:16px 18px}}
+@media(max-width:639px){.filterGrid,.expiredGrid{grid-template-columns:1fr}.expiredGrid .searchForm{grid-column:1/-1}.periodIcon{width:36px;height:36px;border-radius:12px}.periodCopy{flex-basis:calc(100% - 52px)}.period>:global(.button){width:100%}}
+@media(max-width:359px){.eyebrow{font-size: 12px;letter-spacing:.06em}.filterPanel{padding:17px 14px}.searchForm{flex-wrap:wrap}.searchForm>:global(.field){flex-basis:100%}.searchForm>:global(.button){width:100%}.resultsHeading{padding:16px 14px}.pagination{padding:15px 14px}}
 @media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) .refreshing{animation:none}}
 :global(:root[data-motion=reduced]) .refreshing{animation:none}
-@media print{.pageHeader,.filterPanel,.period,.results{box-shadow:none;background:#fff}.pageHeader{break-inside:avoid}.pageHeader>:global(.button),.filterPanel,.period>:global(.button),.pagination{display:none}.refreshing{animation:none}}
+@media print{.filterPanel,.period,.results{box-shadow:none;background:#fff}.filterPanel,.period>:global(.button),.pagination{display:none}.refreshing{animation:none}}

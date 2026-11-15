@@ -2,11 +2,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
-import { CalendarClock, ArrowUpRight, FileText, RefreshCw, Search } from 'lucide-react';
+import { CalendarClock, FileText, RefreshCw, Search } from 'lucide-react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import type { DocumentReadDto as DocumentDto, PageDto } from '../../shared/contracts';
-import { Badge, Button, EmptyState, Feedback, Field, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, PageHeader, Spinner } from '../../shared/ui';
 import { AppliedFilters, type AppliedFilter } from '../../shared/ui/filter-controls';
 import { dateOnly, formatDate } from '../../shared/lib/format';
 import { checkedPage, isRecord, isSafePage, ScopedPageError, scopedQueryError, shortText } from '../../shared/lib/scoped-page';
@@ -106,14 +106,8 @@ function ExpirationsContextPage() {
     ...(!expired && params.has('days') ? [{ key: 'days', label: 'Antecedência', value: `Próximos ${days} dias` }] : []),
   ];
   return <div className={`stack ${styles.workspace}`}>
-    <header className={styles.pageHeader}>
-      <div className={styles.headerCopy}>
-
-        <h1>Vencimentos de documentos</h1>
-        <p className={styles.description}>Antecipe renovações e acompanhe documentos vencidos da unidade selecionada.</p>
-      </div>
-      {enabled && !failed && <Link className="button button--secondary" to={documentsLink}>Abrir no repositório <ArrowUpRight size={16} aria-hidden="true" /></Link>}
-    </header>
+    <PageHeader title="Vencimentos de documentos" description="Antecipe renovações e acompanhe documentos vencidos da unidade selecionada."
+      actions={enabled && !failed && <Link className="button button--secondary" to={documentsLink}>Abrir no repositório</Link>}/>
     <section className={styles.filterPanel} aria-label="Consulta de vencimentos">
       <div className={`${styles.filterGrid} ${expired ? styles.expiredGrid : ''}`}>
         <Field label="Consultar"><select value={expired ? 'expired' : 'upcoming'} disabled={disabled} onChange={event => change('view', event.target.value)}><option value="upcoming">A vencer</option><option value="expired">Vencidos</option></select></Field>

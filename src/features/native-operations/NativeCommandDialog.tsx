@@ -23,8 +23,8 @@ function ambiguous(failure: unknown) {
  * `replayable` commands send a stable Idempotency-Key for the same form content, so an ambiguous
  * result may be sent again: the API returns the record already created instead of another one.
  */
-export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar', replayable = false }: {
-  title: string; dirty: boolean; disabled?: boolean; onClose: () => void;
+export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar', replayable = false, inline = false }: {
+  title: string; dirty: boolean; disabled?: boolean; onClose: () => void; inline?: boolean;
   perform: (signal: AbortSignal) => Promise<void>; onDone: () => Promise<void>; children: (busy: boolean, fieldErrors: FieldErrors) => ReactNode; submitLabel?: string; replayable?: boolean;
 }) {
   const request = useEditorRequest(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [blocked, setBlocked] = useState(false);
@@ -53,5 +53,7 @@ export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, 
         : 'Não foi possível confirmar a conclusão. Consulte a lista atualizada antes de repetir a operação.');
     } finally { if (request.isActive()) setBusy(false); }
   }
-  return <Modal open title={title} onClose={close}><form ref={form} noValidate className={`stack ${styles.form}`} onSubmit={event => void submit(event)}>{children(busy, fieldErrors)}{error && <Feedback tone="danger">{error}</Feedback>}<div className="actions"><Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy || disabled || blocked}>{busy ? 'Salvando…' : submitLabel}</Button></div></form></Modal>;
+  const body = <form ref={form} noValidate aria-label={inline ? title : undefined} className={`stack ${styles.form}`} onSubmit={event => void submit(event)}>{children(busy, fieldErrors)}{error && <Feedback tone="danger">{error}</Feedback>}<div className="actions"><Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy || disabled || blocked}>{busy ? 'Salvando…' : submitLabel}</Button></div></form>;
+  // Full records are created on their own page (inline); modals stay for short confirmations and edits.
+  return inline ? <section className="panel">{body}</section> : <Modal open title={title} onClose={close}>{body}</Modal>;
 }

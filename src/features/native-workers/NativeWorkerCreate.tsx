@@ -38,7 +38,7 @@ function Create() {
       || (raw as { sectorId?: unknown }).sectorId !== body.departmentId || (raw as { jobId?: unknown }).jobId !== body.positionId) throw new InvalidReadResponse();
     savedId.current = id;
   }
-  return <div className="stack"><PageHeader title="Novo trabalhador"/>{!allowed ? <Feedback tone="warning">Seu acesso não permite cadastrar trabalhadores.</Feedback> : <NativeCommandDialog title="Cadastrar trabalhador" dirty={Boolean(name || enrollment || cpf || dateOfBirth || departmentId || positionId || admissionDate !== todayCivil())} disabled={!ready} submitLabel="Cadastrar"
+  return <div className="stack"><PageHeader title="Novo trabalhador"/>{!allowed ? <Feedback tone="warning">Seu acesso não permite cadastrar trabalhadores.</Feedback> : <NativeCommandDialog inline title="Cadastrar trabalhador" dirty={Boolean(name || enrollment || cpf || dateOfBirth || departmentId || positionId || admissionDate !== todayCivil())} disabled={!ready} submitLabel="Cadastrar"
     perform={perform} onClose={() => void navigate(`/app/trabalhadores${origin?.workerListReturnTo.search ?? ''}`, { state: origin })}
     onDone={async () => { await client.invalidateQueries({ queryKey: ['workers', sessionKey] }); void navigate(`/app/trabalhadores/${savedId.current}`, { replace: true, state: origin }); }}>{(busy, errors) => <>
       {!unitId && <Feedback>Selecione a unidade de trabalho para iniciar o cadastro.</Feedback>}{!catalogsAllowed && <Feedback tone="warning">Seu acesso precisa permitir a consulta da organização para selecionar setor e cargo.</Feedback>}

@@ -13,10 +13,14 @@ export function NativeDashboardMetrics({ data }: { data: NativeDashboard['summar
     { label: 'Revisões e correções', value: data.concluidasAguardandoRevisao, help: 'Encerramentos disponíveis para revisão ou correção no seu escopo, conforme a lista retornada pela API.' },
     { label: 'Requisitos pendentes', value: data.pendenciasDocumentais, help: 'Soma dos requisitos documentais faltantes nas PTs consultadas. Não representa a quantidade de pessoas ou de arquivos.' },
   ];
-  return <dl className={styles.metrics} aria-label="Indicadores operacionais">{metrics.map(metric => <div key={metric.label}>
-    <dt>{metric.label}<InfoButton title={metric.label}><p>{metric.help}</p></InfoButton></dt>
-    <dd>{metric.value.toLocaleString('pt-BR')}</dd>
-  </div>)}</dl>;
+  // One explanation for the whole block instead of a help button per number.
+  return <div className={styles.metricsBlock}>
+    <dl className={styles.metrics} aria-label="Indicadores operacionais">{metrics.map(metric => <div key={metric.label}>
+      <dt>{metric.label}</dt>
+      <dd>{metric.value.toLocaleString('pt-BR')}</dd>
+    </div>)}</dl>
+    <InfoButton title="Indicadores operacionais"><dl className={styles.details}>{metrics.map(metric => <div key={metric.label} className={styles.metricHelp}><dt>{metric.label}</dt><dd>{metric.help}</dd></div>)}</dl></InfoButton>
+  </div>;
 }
 
 function Pager({ page, pages, count, onChange, label }: { page: number; pages: number; count: number; onChange: (page: number) => void; label: string }) {

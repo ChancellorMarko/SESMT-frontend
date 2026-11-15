@@ -34,7 +34,7 @@ async function setup(page: Page, writable = true) {
   await page.goto(`/app/trabalhadores?unitId=${ids.unit}`); await expect(page.getByRole('heading', { name: 'Trabalhadores', exact: true })).toBeVisible(); return state;
 }
 async function form(page: Page) {
-  await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Cadastrar trabalhador', exact: true });
+  await page.getByRole('link', { name: 'Novo trabalhador', exact: true }).click(); const dialog = page.getByRole('form', { name: 'Cadastrar trabalhador', exact: true });
   for (const [name, value] of Object.entries({ 'Nome completo': workerDraft.name, Matrícula: workerDraft.enrollment, CPF: workerDraft.cpf, Nascimento: workerDraft.dateOfBirth, Admissão: workerDraft.admissionDate })) await dialog.getByLabel(name, { exact: true }).fill(value);
   await dialog.getByLabel('Setor', { exact: true }).selectOption(ids.sector); await dialog.getByLabel('Cargo', { exact: true }).selectOption(ids.position); return dialog;
 }
@@ -58,6 +58,6 @@ test('falha de rede após possível persistência conserva os dados e bloqueia r
 
 test('ADMIN com leitura não recebe acesso ao cadastro sem a permissão de criar', async ({ page }) => {
   const state = await setup(page, false); await expect(page.getByRole('link', { name: 'Novo trabalhador', exact: true })).toHaveCount(0);
-  await page.goto('/app/trabalhadores/novo'); await expect(page.getByRole('dialog', { name: 'Cadastrar trabalhador', exact: true })).toHaveCount(0);
+  await page.goto('/app/trabalhadores/novo'); await expect(page.getByRole('form', { name: 'Cadastrar trabalhador', exact: true })).toHaveCount(0);
   expect(state.posts).toEqual([]); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });

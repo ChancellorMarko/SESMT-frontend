@@ -62,5 +62,5 @@ it('permissão de leitura não habilita a criação por nome de perfil', async (
 });
 it('recusa de acesso após abrir o formulário bloqueia o envio sem apagar o CPF preenchido', async () => {
   vi.mocked(createNativeWorker).mockRejectedValue(new ApiError(403, { code: 'FORBIDDEN', message: 'Não autorizado', requestId: 'test' })); show(); await fill(); fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
-  const dialog = screen.getByRole('dialog'); await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cadastrar' })).toBeDisabled()); expect(screen.getByLabelText(/^CPF/)).toHaveValue(workerDraft.cpf);
+  const dialog = screen.getByRole('form', { name: 'Cadastrar trabalhador' }); await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cadastrar' })).toBeDisabled()); expect(screen.getByLabelText(/^CPF/)).toHaveValue(workerDraft.cpf);
 });
