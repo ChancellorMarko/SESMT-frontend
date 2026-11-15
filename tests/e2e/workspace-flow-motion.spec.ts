@@ -18,14 +18,20 @@ async function captureNext(page: Page, selector: string) {
   await page.evaluate(selector => {
     const capture: Capture = { frames: [], done: false };
     (window as unknown as { __flowCapture: Capture }).__flowCapture = capture;
-    let attempts = 0;
+    let attempts = 0, changedAt = -1;
     const sample = () => {
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) { if (++attempts < 300) requestAnimationFrame(sample); else capture.done = true; return; }
       const style = getComputedStyle(element);
       if (!capture.frames.length && (element.hidden || style.display === 'none')) { if (++attempts < 300) requestAnimationFrame(sample); else capture.done = true; return; }
       capture.frames.push({ opacity: Number(style.opacity), height: element.getBoundingClientRect().height, transform: style.transform, translate: style.translate });
-      if (capture.frames.length < 65) requestAnimationFrame(sample);
+      // Sample until the change has happened and settled, not for a fixed time: a slow click or render used to
+      // spend the whole window before the transition started, making this test fail 2 of 3 runs.
+      const key = (frame: Frame) => `${frame.opacity}|${Math.round(frame.height)}|${frame.transform}|${frame.translate}`;
+      const count = capture.frames.length, last = key(capture.frames[count - 1]);
+      if (changedAt < 0 && count > 1 && last !== key(capture.frames[0])) changedAt = count;
+      const settled = changedAt >= 0 && count - changedAt >= 20 && capture.frames.slice(-20).every(frame => key(frame) === last);
+      if (!settled && count < 180) requestAnimationFrame(sample);
       else capture.done = true;
     };
     requestAnimationFrame(sample);
