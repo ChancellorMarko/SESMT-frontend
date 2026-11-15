@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { roleLabels } from '../../shared/auth/role-labels';
 import { checkedNativeUsers, nativeUserDetails, type NativeUser } from './native-users';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
@@ -41,7 +41,7 @@ function Users() {
       ? 'A consulta de usuários não está disponível nesta API.'
       : 'Não foi possível conferir a lista de usuários. Tente atualizar a consulta.';
   return <div className="stack">
-    <PageHeader title="Usuários e acesso" description="Contas, perfis e locais autorizados. A relação segue os escopos da sua conta." actions={<><Button variant="secondary" disabled={users.isFetching} onClick={() => void users.refetch()}>Atualizar usuários</Button>{can('usuario:criar') && <Button onClick={() => { setConfirmation(''); setAccessEditor({}); }}>Cadastrar usuário</Button>}</>} />
+    <PageHeader title="Usuários e acesso" description="Contas, perfis e locais autorizados. A relação segue os escopos da sua conta." actions={<><RefreshButton label="Atualizar usuários" disabled={users.isFetching} onClick={() => void users.refetch()}/>{can('usuario:criar') && <Button onClick={() => { setConfirmation(''); setAccessEditor({}); }}>Cadastrar usuário</Button>}</>} />
     <div className={`panel ${styles.filters}`}><Field label="Buscar por nome, e-mail ou perfil"><input type="search" value={search} maxLength={200} onChange={event => { setSearch(event.target.value); setPage(1); }} /></Field><Badge>{can('users.edit') || can('users.deactivate') || can('usuario:criar') ? 'Escopo da conta' : 'Escopo da conta · somente leitura'}</Badge></div>
     {confirmation && !users.isError && <Feedback tone="success">{confirmation}</Feedback>}
     {users.isPending ? <Spinner/> : users.isError ? <Feedback tone="danger">{failure}</Feedback> : users.data && <section className={styles.results} aria-label="Contas autorizadas" aria-busy={users.isFetching}>

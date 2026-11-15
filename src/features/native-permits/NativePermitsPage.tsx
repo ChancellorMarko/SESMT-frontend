@@ -5,7 +5,7 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { formatDate, plural } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, InfoButton, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, InfoButton, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { checkedPermits, permitCriteria, permitPageSize, permitQuery, permitReviewLabels, permitStatusLabels } from './contracts';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
@@ -32,7 +32,7 @@ function Permits() {
   }
   function page(number: number) { const next = new URLSearchParams(params); next.set('page', String(number)); setParams(next); }
   function remove(key: string) { const next = new URLSearchParams(params); next.delete(key); next.delete('page'); setParams(next); }
-  return <div className="stack"><PageHeader title="Permissões de trabalho" description="Consulta nos escopos autorizados da conta. O período filtra agendamentos que tocam os dias escolhidos, no horário de Brasília. A situação operacional e a revisão são informações diferentes." actions={<Button variant="secondary" disabled={!criteria || result.isFetching} onClick={() => void result.refetch()}>Atualizar PTs</Button>}/>
+  return <div className="stack"><PageHeader title="Permissões de trabalho" description="Consulta nos escopos autorizados da conta. O período filtra agendamentos que tocam os dias escolhidos, no horário de Brasília. A situação operacional e a revisão são informações diferentes." actions={<RefreshButton label="Atualizar PTs" disabled={!criteria || result.isFetching} onClick={() => void result.refetch()}/>}/>
     <form className={`panel ${styles.toolbar}`} aria-label="Filtros das PTs" onSubmit={submit}>
       <Field label="Buscar atividade ou serviço"><input type="search" maxLength={200} value={q} onChange={event => setQ(event.target.value)}/></Field>
       <Field label="Situação operacional"><select value={status} onChange={event => setStatus(event.target.value)}><option value="">Todas</option>{Object.entries(permitStatusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field>

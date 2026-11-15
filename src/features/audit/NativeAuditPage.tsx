@@ -4,7 +4,7 @@ import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { formatDate, plural } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { checkedNativeAudit, nativeAuditCriteria, nativeAuditPageSize, nativeAuditQuery } from './native-audit';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
@@ -36,7 +36,7 @@ function Audit() {
   function changePage(page: number) { const next = new URLSearchParams(params); next.set('page', String(page)); setParams(next); }
   if (!allowed) return <Feedback tone="warning">Seu acesso não permite consultar auditoria.</Feedback>;
   return <div className="stack">
-    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Datas dos filtros e horários dos registros no horário de Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<Button variant="secondary" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}>Atualizar auditoria</Button>}/>
+    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Datas dos filtros e horários dos registros no horário de Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<RefreshButton label="Atualizar auditoria" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}/>}/>
     <form className={`panel ${styles.toolbar}`} onSubmit={submit} aria-label="Filtros de auditoria">
       <Field label="Ação"><input value={action} maxLength={100} placeholder="Ex.: UPDATE" onChange={event => setAction(event.target.value)}/></Field>
       <Field label="Recurso"><input value={resource} maxLength={100} placeholder="Ex.: documento" onChange={event => setResource(event.target.value)}/></Field>

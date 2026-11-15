@@ -5,7 +5,7 @@ import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { formatDate, plural } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedAso, checkedContext, checkedHistory, checkedPage, correctionLabels, dueLabels, dueStatus, fieldsSchema, formatDay,
   historyLabels, kindLabels, localDay, revocationLabels, states, type Aso, type AsoContext, type AsoScope } from './contracts';
@@ -43,7 +43,7 @@ function AsoWorkspace() {
   async function saved(id: string) { setEditor(undefined); setRevoking(undefined); setSuccess('Registro salvo.'); await client.invalidateQueries({ queryKey: ['native-aso', sessionKey] }); setParams(criteria({ view: 'ALL', registro: id })); }
   function search(e: FormEvent) { e.preventDefault(); setParams(criteria({ q: input.trim(), due, view })); if (input.trim() === q && page === 1) void list.refetch(); }
   return <div className="stack"><PageHeader title="ASOs" description="Acompanhe atestados registrados e próximas avaliações."
-    actions={context.data && <><Button variant="secondary" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-aso', sessionKey] })}>Atualizar</Button>{context.data.canEdit && <Button onClick={() => { close(); setEditor({}); }}>Registrar ASO</Button>}</>}/>
+    actions={context.data && <><RefreshButton label="Atualizar ASOs" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-aso', sessionKey] })}/>{context.data.canEdit && <Button onClick={() => { close(); setEditor({}); }}>Registrar ASO</Button>}</>}/>
     {mismatch ? <Feedback tone="warning"><p>O endereço se refere a outra unidade.</p><div className="actions"><Button variant="secondary" onClick={() => setParams(criteria({}))}>Usar unidade atual</Button>{params.getAll('unitId').length === 1 && me?.scope.unitIds?.includes(linkedUnit!) && <Button onClick={() => { if (window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) setUnitId(linkedUnit!); }}>Abrir unidade do link</Button>}</div></Feedback>
       : !enabled ? <Feedback tone="warning">Selecione uma unidade com acesso a ASOs.</Feedback> : context.isPending ? <Spinner/> : context.isError ? <Feedback tone="danger">Não foi possível consultar os ASOs desta unidade.</Feedback> : context.data && <>
         {success && <Feedback tone="success">{success}</Feedback>}

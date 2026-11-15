@@ -5,7 +5,7 @@ import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { formatDate, plural } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedContext, checkedHistory, checkedPage, checkedTraining, duration, formatDay, kindLabels, localDay, statuses,
   trainingFields, trainingStatus, historyLabels, type Training, type TrainingContext, type TrainingScope } from './contracts';
@@ -69,7 +69,7 @@ function TrainingWorkspace() {
   }
   return <div className="stack">
     <PageHeader title="Treinamentos" description="Acompanhe cursos registrados e datas de renovação informadas. O cadastro não emite certificado, comprova habilitação ou libera uma atividade."
-      actions={context.data && <><Button variant="secondary" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}>Atualizar</Button>{canRegisterTraining && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
+      actions={context.data && <><RefreshButton label="Atualizar treinamentos" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}/>{canRegisterTraining && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
     {unitMismatch ? <Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions"><Button variant="secondary" onClick={() => setParams(new URLSearchParams(unitId ? { unitId } : {}))}>Usar unidade atual</Button>{params.getAll('unitId').length === 1 && me?.scope.unitIds?.includes(linkedUnit!) && <Button onClick={() => { if (window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) setUnitId(linkedUnit!); }}>Abrir unidade do link</Button>}</div></Feedback>
       : !enabled ? <Feedback tone="warning">Selecione uma unidade com acesso a treinamentos.</Feedback>
       : context.isPending ? <Spinner/> : context.isError ? <Feedback tone="danger">Não foi possível consultar os treinamentos desta unidade.</Feedback> : context.data && <>

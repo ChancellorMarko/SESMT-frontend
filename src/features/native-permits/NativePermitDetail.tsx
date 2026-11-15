@@ -5,7 +5,7 @@ import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { formatDate } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, InfoButton, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, InfoButton, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { nativeId } from '../native-operations/contracts';
 import { nativeAgendaReturn } from '../native-operations/agenda-navigation';
 import { checkedDeclarations, checkedEligibility, checkedPermit, checkedPermitHistory, checkedPermitReview, permitReturn, permitReviewLabels, permitStatusLabels, type NativePermit, type PermitDeclarations } from './contracts';
@@ -55,7 +55,7 @@ function Detail({ id }: { id: string }) {
   const allowedActions = item ? (Object.keys(permitActions) as PermitAction[]).filter(action => permitActionAllowed(item, action, can)) : [];
   const blockedByReadiness = allowedActions.some(action => actionNeedsReadiness(action)) && readiness.data && !readiness.data.ready;
   return <div className="stack">
-    <div className="actions"><Link className="button button--ghost" to={fromAppointment ? `/app/agenda/${item!.appointmentId}` : permitReturn(location.state?.nativePermitReturnTo)} state={fromAppointment ? { nativeReturnTo: nativeAgendaReturn(location.state?.nativeAgendaReturnTo) } : undefined}>{fromAppointment ? 'Voltar ao agendamento' : 'Voltar às PTs'}</Link><Button variant="secondary" disabled={!validId || busy} onClick={() => void refresh()}>Atualizar PT</Button></div>
+    <div className="actions"><Link className="button button--ghost" to={fromAppointment ? `/app/agenda/${item!.appointmentId}` : permitReturn(location.state?.nativePermitReturnTo)} state={fromAppointment ? { nativeReturnTo: nativeAgendaReturn(location.state?.nativeAgendaReturnTo) } : undefined}>{fromAppointment ? 'Voltar ao agendamento' : 'Voltar às PTs'}</Link><RefreshButton label="Atualizar PT" disabled={!validId || busy} onClick={() => void refresh()}/></div>
     <PageHeader title={item?.title ?? 'Permissão de trabalho'} description="Situação e requisitos retornados pela API. Liberação, início e retomada revalidam as condições no servidor. Uma consulta sem pendências não substitui a decisão de liberação."/>
     {query.isPending && <Spinner/>}{(!validId || query.isError) && <Feedback tone="danger">{query.error instanceof ApiError && [403, 404].includes(query.error.status) ? 'PT não encontrada ou não autorizada para esta conta.' : 'Não foi possível conferir esta PT.'}</Feedback>}
     {item && <>

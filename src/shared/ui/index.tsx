@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react';
 import { Children, cloneElement, isValidElement, useLayoutEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type ReactElement, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { X, LoaderCircle, Inbox } from 'lucide-react';
@@ -104,4 +105,9 @@ export function Modal({ open, title, onClose, children, className = '' }: { open
   }, [open]);
   if (!open) return null;
   return createPortal(<div className={`modal-backdrop ${motionStyles.backdrop}`} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><div className={`modal ${className || motionStyles.dialog}`} ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><div className="modal-header"><h2 id={titleId}>{title}</h2><Button variant="ghost" aria-label="Fechar janela" onClick={onClose}><X size={20} /></Button></div>{children}</div></div>, document.body);
+}
+
+/** Secondary page action to re-read data: quiet look, short visible text, full name for assistive technology. */
+export function RefreshButton({ label, busy, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; busy?: boolean }) {
+  return <Button variant="ghost" aria-label={label} title={label} {...props}><RefreshCw size={16} aria-hidden="true" className={busy ? 'spin' : undefined}/>Atualizar</Button>;
 }

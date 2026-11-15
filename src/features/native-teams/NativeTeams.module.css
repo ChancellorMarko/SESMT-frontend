@@ -11,4 +11,4 @@
 .table th:last-child { width: 94px; }
 .table small { display: block; margin-top: 3px; color: var(--muted); }
 .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.edit { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; padding: 6px; }
+.edit { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 6px 10px; font-size: 13px; }

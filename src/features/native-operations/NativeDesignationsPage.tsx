@@ -5,7 +5,7 @@ import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { formatDate } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, InfoButton, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, InfoButton, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { checkedNativeDesignations, nativeDesignationTypes, nativeId, type NativeDesignation } from './contracts';
 import { NativeCommandDialog } from './NativeCommandDialog';
 import styles from '../../shared/ui/NativeRecords.module.css';
@@ -22,7 +22,7 @@ function Designations() {
   const deep=id&&validId?result.data?.find(item=>item.id===id.toLowerCase()):undefined;
   const items = result.data?.filter(item => (!type || item.type === type) && (!localOnly || item.locationIds.includes(unitId ?? ''))) ?? [];
   const pages = Math.max(1, Math.ceil(items.length / 10)), current = Math.min(page, pages);
-  return <div className="stack"><PageHeader title="Designações" description="Designações retornadas pela API para os escopos da conta. A situação indica revogação; a validade para uma operação depende também do período, serviços e locais da designação." actions={<><Button variant="secondary" disabled={result.isFetching} onClick={() => void result.refetch()}>Atualizar designações</Button>{can('designacao:editar')&&<Link className="button button--primary" to="/app/designacoes/nova">Nova designação</Link>}</>}/>
+  return <div className="stack"><PageHeader title="Designações" description="Designações retornadas pela API para os escopos da conta. A situação indica revogação; a validade para uma operação depende também do período, serviços e locais da designação." actions={<><RefreshButton label="Atualizar designações" disabled={result.isFetching} onClick={() => void result.refetch()}/>{can('designacao:editar')&&<Link className="button button--primary" to="/app/designacoes/nova">Nova designação</Link>}</>}/>
     {location.state?.nativeCreated===true&&<Feedback tone="success">Designação registrada.</Feedback>}
     {(!validId||id&&result.data&&!deep)&&<Feedback tone="warning">Designação não encontrada nos acessos atuais.</Feedback>}
     <div className={`panel ${styles.toolbar}`}><Field label="Tipo de designação"><select value={type} onChange={event => { setType(event.target.value); setPage(1); }}><option value="">Todos</option>{Object.entries(nativeDesignationTypes).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></Field><label><input type="checkbox" checked={localOnly} disabled={!unitId} onChange={event => { setLocal(event.target.checked); setPage(1); }}/> Somente unidade selecionada</label></div>

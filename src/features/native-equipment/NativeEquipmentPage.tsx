@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { catalogFields, checkedDelivery, checkedEquipment, checkedEquipmentContext, checkedEquipmentPage, deliveryFields, equipmentDay, localEquipmentDay, type Delivery, type Equipment, type EquipmentContext, type EquipmentScope } from './contracts';
 import { safetyFilter, safetyId, safetyReturn } from '../workers/worker-safety-navigation';
@@ -51,7 +51,7 @@ function EquipmentWorkspace() {
   async function saved() { close(); setSuccess('Registro salvo.'); await Promise.all([client.invalidateQueries({queryKey:['native-equipment',sessionKey]}), client.invalidateQueries({queryKey:['worker-safety',sessionKey]})]); }
   function find(event:FormEvent) { event.preventDefault(); apply(q.trim()); setPage(1); if(search===q.trim()&&page===1) void data.refetch(); }
   function changeTab(value:string) { setTab(value);setPage(1);setQ('');apply('');setStatus(''); }
-  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><Button variant="secondary" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}>Atualizar</Button>{!subjectWorkerId&&context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{canRegisterDelivery&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
+  return <div className="stack"><PageHeader title="EPIs" actions={context.data && <><RefreshButton label="Atualizar EPIs" disabled={data.isFetching} onClick={()=>void Promise.all([data.refetch(),context.refetch()])}/>{!subjectWorkerId&&context.data.canCreate&&<Button variant="secondary" onClick={()=>{selectEquipment(undefined);setEditor('catalog');}}>Cadastrar EPI</Button>}{canRegisterDelivery&&<Button onClick={()=>setEditor('delivery')}>Registrar entrega</Button>}</>}/>
     {unitMismatch?<Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions">
       <Button variant="secondary" onClick={()=>void reset()}>Usar unidade atual</Button>
       {linkedUnit && params.getAll('unitId').length===1 && me?.scope.unitIds?.includes(linkedUnit) && <Button onClick={()=>{if(window.dispatchEvent(new Event('sesmt:before-context-change',{cancelable:true})))setUnitId(linkedUnit);}}>Abrir unidade do link</Button>}
