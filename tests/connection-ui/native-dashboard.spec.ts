@@ -71,7 +71,7 @@ test('dashboard nativo apresenta indicadores, listas e histórico nos endpoints 
   await expect(navigation.getByRole('link', { name: 'Visão geral', exact: true })).toBeVisible();
   await expect(navigation.getByRole('link', { name: 'Inspeções de segurança', exact: true })).toHaveCount(0);
   await expect(navigation.getByRole('link', { name: 'Permissões de trabalho', exact: true })).toBeVisible();
-  await expect(navigation.getByRole('link', { name: 'Modelo de permissão de trabalho', exact: true })).toHaveCount(0);
+  await expect(navigation.getByRole('link', { name: 'Modelos de permissão de trabalho', exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByText('Ver dados por mês', { exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath('dashboard-nativo-desktop.png'), fullPage: true });

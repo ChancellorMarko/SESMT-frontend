@@ -7,7 +7,7 @@ test('navegação por toque tem nomes visíveis e capacitações cabem em 320px'
   await loginDemo(page, 'Engenheiro');
   const shortcuts = page.getByRole('navigation', { name: 'Acesso rápido' });
   const captions: { x: number; width: number }[] = [];
-  for (const [name, caption] of [['Dashboard', 'Início'], ['Inspeções', 'Inspeções'], ['Saúde e capacitações', 'Saúde'], ['Equipamentos de proteção individual (EPI)', 'Proteção'], ['Relatórios', 'Relatórios']]) {
+  for (const [name, caption] of [['Visão geral', 'Início'], ['Inspeções', 'Inspeções'], ['Saúde e capacitações', 'Saúde'], ['Equipamentos de proteção individual (EPI)', 'Proteção'], ['Relatórios', 'Relatórios']]) {
     const link = shortcuts.getByRole('link', { name, exact: true });
     const text = link.getByText(caption, { exact: true }).filter({ visible: true });
     await expect(text).toBeVisible();

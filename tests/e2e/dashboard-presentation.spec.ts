@@ -70,7 +70,7 @@ for (const width of [320, 1440]) {
     await loginDemo(page, 'Engenheiro');
     const shortcuts = page.getByRole('navigation', { name: 'Acesso rápido' });
     for (const area of [
-      { link: 'Dashboard', title: 'Visão geral', action: 'Agendar serviço' },
+      { link: 'Visão geral', title: 'Visão geral', action: 'Agendar serviço' },
       { link: 'Inspeções', title: 'Inspeções de segurança', action: 'Consultar agenda de inspeções' },
       { link: 'Saúde e capacitações', title: 'Saúde ocupacional e capacitações', action: 'Consultar vencimentos' },
       { link: 'Equipamentos de proteção individual (EPI)', title: 'Equipamentos de proteção', action: 'Consultar documentos de EPIs' },

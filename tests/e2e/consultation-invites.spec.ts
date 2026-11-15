@@ -46,7 +46,7 @@ test('pagina resultados reais da demonstração e oferece retorno de página for
   await navigateWithinApp(page, `/app/consulta?tab=documents&q=CONSULTA-E2E&unitId=${unitId}`);
   const table = page.getByRole('table', { name: 'Resultados da consulta documental' });
   await expect(table.locator('tbody tr')).toHaveCount(10);
-  await expect(page.getByText('12 documentos encontrados · Página 1 de 2')).toBeVisible();
+  await expect(page.getByText('12 documento(s) encontrado(s) · Página 1 de 2')).toBeVisible();
   await page.getByRole('button', { name: 'Próxima', exact: true }).click();
   await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Próxima', exact: true })).toBeDisabled();

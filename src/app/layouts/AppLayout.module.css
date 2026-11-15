@@ -101,10 +101,10 @@
  .shell :global(.page-header) h1 { font-size: 25px; }
  .main { padding-bottom: 24px; }
  /* Phones: the quick-access bar sits at the bottom, within thumb reach, and the page starts right below the header. */
- .rail { position: fixed; z-index: 40; top: auto; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; width: calc(100% - 24px); max-width: 420px; margin: 0; transform: translateX(-50%); }
+ .rail { position: fixed; z-index: 40; top: auto; right: 0; bottom: max(8px, env(safe-area-inset-bottom)); left: 0; width: calc(100% - 24px); max-width: 420px; margin: 0 auto; }
  .footer { padding-bottom: 96px; }
 }
-@media (max-width: 359px) { .headerBrand { width: 44px; }.rail { width: calc(100% - 20px); }.header { column-gap: 2px; }.railCompactLabel { font-size: 12px; letter-spacing: -.02em; } }
+@media (max-width: 359px) { .headerBrand { width: 44px; }.rail { width: calc(100% - 16px); }.header { column-gap: 2px; }.railItems { gap: 4px; }/* Exception to the 12 px floor: six short captions next to icons on the narrowest phones; each link keeps its full accessible name. */.railCompactLabel { font-size: 10.5px; letter-spacing: -.03em; } }
 @media (prefers-reduced-motion: reduce) {
  :global(:root:not([data-motion=full])) :is(.iconButton,.searchButton,.searchButton i,.railItem,.railLabel,.moduleLink) { transition: none; }
  :global(:root:not([data-motion=full])) :is(.iconButton,.searchButton,.searchButton i,.railItem,.moduleLink) { transform: none !important; }

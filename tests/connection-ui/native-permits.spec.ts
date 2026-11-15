@@ -79,7 +79,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
   await expect(page).toHaveURL(/\/app\/configuracoes\/usuarios$/);
   await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Navegação', exact: true });
-  await expect(menu.getByRole('link', { name: 'Modelo de permissão de trabalho', exact: true })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: 'Modelos de permissão de trabalho', exact: true })).toHaveCount(0);
   await menu.getByRole('link', { name: 'Permissões de trabalho', exact: true }).click();
   await expect(page.getByRole('link', { name: state.item.title, exact: true })).toBeVisible(); return state;
 }

@@ -11,7 +11,7 @@ test('dock, busca por teclado e acompanhamento mantêm ações e retorno de foco
   expect(railBounds).not.toBeNull();
   expect(railBounds!.height).toBeGreaterThan(railBounds!.width);
   await expect(dock).toBeInViewport();
-  for (const name of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) await expect(dock.getByRole('link', { name, exact: true })).toBeVisible();
+  for (const name of ['Visão geral', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) await expect(dock.getByRole('link', { name, exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Dias sem acidentes', exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Entregas de EPIs' })).toHaveAttribute('aria-valuenow', '92');
   await dock.getByRole('link', { name: 'Inspeções', exact: true }).click();

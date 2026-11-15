@@ -46,7 +46,7 @@ function Create() {
       {unit && company && <p>{company.name} · {unit.name}</p>}
       <Field label="Nome completo" required error={errors.name}><input maxLength={200} autoComplete="off" disabled={busy} value={name} onChange={e => setName(e.target.value)}/></Field>
       <div className="form-grid"><Field label="Matrícula" required error={errors.enrollment}><input maxLength={30} autoComplete="off" disabled={busy} value={enrollment} onChange={e => setEnrollment(e.target.value)}/></Field>
-      <Field label="CPF (somente números)" required error={errors.cpf}><input inputMode="numeric" maxLength={14} autoComplete="off" disabled={busy} value={cpf} onChange={e => setCpf(e.target.value)}/></Field>
+      <Field label="CPF" required error={errors.cpf}><input inputMode="numeric" maxLength={14} autoComplete="off" disabled={busy} value={cpf} onChange={e => setCpf(e.target.value)}/></Field>
       <Field label="Nascimento" required error={errors.dateOfBirth}><input type="date" max={todayCivil()} disabled={busy} value={dateOfBirth} onChange={e => setBirth(e.target.value)}/></Field>
       <Field label="Admissão" required error={errors.admissionDate}><input type="date" disabled={busy} value={admissionDate} onChange={e => setAdmission(e.target.value)}/></Field>
       <Field label="Setor"><select disabled={busy || !unit} value={departmentId} onChange={e => setDepartment(e.target.value)}><option value="">Não informado</option>{directory.data?.sectors.filter(s => s.unitId === unitId && s.status === 'ACTIVE').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
