@@ -10,10 +10,9 @@ export function dashboardPath(can: PermissionCheck, native = false) {
 }
 
 export function homePath(can: PermissionCheck, native = false) {
-  // Whoever operates work permits starts on the overview, even when also managing accounts.
-  if (native && ['pt:criar', 'pt:editar', 'pt:liberar', 'pt:iniciar', 'pt:concluir'].some(can)) return '/app/dashboard';
   if (can('users.read') && (!native || can('users.edit') || can('usuario:criar') || can('users.deactivate'))) return '/app/configuracoes/usuarios';
   if (native) {
+    if (['pt:criar', 'pt:editar', 'pt:liberar', 'pt:iniciar', 'pt:concluir'].some(can)) return '/app/dashboard';
     if (can('trabalhador:criar') || can('trabalhador:editar')) return '/app/trabalhadores';
     if (can('audit.read')) return '/app/auditoria';
   }

@@ -28,8 +28,7 @@ describe('destino inicial sem concessão presumida', () => {
     expect(permissions).toEqual(['recurso_novo:consultar']);
   });
   it.each([
-    [['usuario:ler', 'usuario:criar', 'pt:editar'], '/app/dashboard'],
-    [['usuario:ler', 'usuario:criar'], '/app/configuracoes/usuarios'],
+    [['usuario:ler', 'usuario:criar', 'pt:editar'], '/app/configuracoes/usuarios'],
     [['pt:criar', 'documento:ler'], '/app/dashboard'],
     [['pt:iniciar', 'trabalhador:editar'], '/app/dashboard'],
     [['trabalhador:ler', 'trabalhador:editar', 'documento:ler'], '/app/trabalhadores'],

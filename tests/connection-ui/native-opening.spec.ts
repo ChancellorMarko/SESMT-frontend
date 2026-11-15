@@ -41,6 +41,9 @@ async function setup(page: Page, options: { unlinked?: boolean; deniedWorker?: b
   });
   await page.goto('/login'); await expect(page.locator('[data-auth-scene]')).toHaveAttribute('data-arrival', 'ready'); await page.getByLabel('E-mail', { exact: true }).fill('operacao@example.invalid'); await page.getByLabel('Senha', { exact: true }).fill('Senha fictícia'); await page.getByRole('button', { name: 'Entrar na plataforma', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/configuracoes\/usuarios$/); await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click(); await page.getByRole('dialog', { name: 'Navegação', exact: true }).getByRole('link', { name: 'Agenda', exact: true }).click();
+  // On phones the agenda filters are folded behind "Filtros".
+  const folded = page.locator('summary', { hasText: 'Filtros' }), search = page.getByLabel('Buscar por título', { exact: true });
+  await expect(search.or(folded).first()).toBeVisible(); if (await folded.isVisible()) await folded.click();
   await page.getByLabel('Buscar por título', { exact: true }).fill('Inspeção'); await page.getByLabel('Situação', { exact: true }).selectOption('CONFIRMED'); await page.getByRole('button', { name: 'Buscar', exact: true }).click(); await page.getByRole('link', { name: state.appointment.title, exact: true }).click(); await page.getByRole('button', { name: 'Abrir PT', exact: true }).click();
   return state;
 }
