@@ -45,6 +45,7 @@ it('rejeita vínculo nativo de outro trabalhador ou empresa', async () => {
 it('reutiliza PT existente sem carregar participantes ou modelos', async () => {
   vi.mocked(api.get).mockResolvedValueOnce([openedPermitFixture()] as never); const result = await loadOpeningContext(appointment, new AbortController().signal);
   expect(result.kind).toBe('existing'); expect(api.get).toHaveBeenCalledTimes(1); expect(readNativeWorker).not.toHaveBeenCalled();
+  expect(api.get).toHaveBeenCalledWith('/work-permits', expect.objectContaining({ query: { appointmentId: appointment.id } }));
   expect(() => existingAppointmentPermit([openedPermitFixture(), { ...openedPermitFixture(), id: ids.event }], appointment)).toThrow();
 });
 it('escolhe explicitamente a versão e envia TemplateId separado do ID do registro de versão', () => {
