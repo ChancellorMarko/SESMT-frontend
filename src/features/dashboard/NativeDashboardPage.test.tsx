@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeDashboardPage } from './NativeDashboardPage';
 import { ApiError } from '../../shared/api/client';
 import { nativeDashboardFixture, emptyNativeDashboard, dashboardUnit } from '../../../tests/connection-ui/fixtures/native-dashboard';
+import { deadlinesFixture } from '../../../tests/connection-ui/fixtures/native-deadlines';
 
-const state = vi.hoisted(() => ({ me: true, sessionKey: 'dashboard-test', unitId: undefined as string | undefined }));
-vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ ...state, me: state.me ? { user: { id: 'test' } } : null }) }));
+const state = vi.hoisted(() => ({ me: true, sessionKey: 'dashboard-test', unitId: undefined as string | undefined, permissions: [] as string[] }));
+vi.mock('../../shared/auth/SessionProvider', () => ({ useSession: () => ({ ...state, can: (p: string) => state.permissions.includes(p), me: state.me ? { user: { id: 'test' } } : null }) }));
+vi.mock('./native-deadlines', async original => ({ ...await original<typeof import('./native-deadlines')>(), requestNativeDeadlines: vi.fn(async (days: number) => ({ ...deadlinesFixture(), days })) }));
 vi.mock('./native-dashboard', async original => ({ ...await original<typeof import('./native-dashboard')>(), requestNativeDashboard: vi.fn() }));
 import { nativeDashboardQuery, requestNativeDashboard } from './native-dashboard';
 
@@ -16,7 +18,7 @@ function show(path = '/app/dashboard') {
   return { ...render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><NativeDashboardPage/></MemoryRouter></QueryClientProvider>), client };
 }
 beforeEach(() => {
-  state.me = true; state.unitId = undefined; vi.clearAllMocks();
+  state.me = true; state.unitId = undefined; state.permissions = []; vi.clearAllMocks();
   vi.mocked(requestNativeDashboard).mockImplementation(async criteria => { const query = nativeDashboardQuery(criteria); return nativeDashboardFixture(query.from, query.to); });
 });
 describe('dashboard operacional no contrato nativo', () => {
@@ -63,5 +65,13 @@ describe('dashboard operacional no contrato nativo', () => {
     fireEvent.change(screen.getByLabelText('De (UTC)'), { target: { value: '2020-01-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     expect(screen.getByRole('status')).toHaveTextContent('até 36 meses');
+  });
+  it('mostra as renovações depois dos filtros e do conteúdo filtrado, que não se aplicam a elas', async () => {
+    state.permissions = ['treinamento:ler']; show();
+    const renewals = await screen.findByRole('region', { name: 'Renovações' });
+    const filters = screen.getByRole('form', { name: 'Filtros do painel operacional' });
+    const activities = await screen.findByRole('region', { name: 'Atividades no período' });
+    expect(filters.compareDocumentPosition(renewals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(activities.compareDocumentPosition(renewals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
