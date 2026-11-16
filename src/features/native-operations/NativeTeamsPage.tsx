@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Link2, Pencil, PowerOff } from 'lucide-react';
-import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
 import { Button, EmptyState, Feedback, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { checkedNativeTeam, type NativeTeam } from './contracts';
 import { loadNativeTeams } from './queries';
-import { NativeCommandDialog } from './NativeCommandDialog';
 import styles from '../../shared/ui/NativeRecords.module.css';
 import teamStyles from '../native-teams/NativeTeams.module.css';
 import { teamReturnPage } from '../native-teams/contracts';
 import { canManageInvites, NativeTeamInvites } from '../native-invites/NativeTeamInvites';
+import { NativeTeamDeactivation } from '../native-teams/NativeTeamDeactivation';
 
 export function NativeTeamsPage() {
   const { sessionKey, unitId } = useSession();
@@ -45,14 +44,8 @@ function Teams() {
     </section>}
     {inviting && teams.data?.items.some(item => item.id === inviting.id) && canManageInvites(inviting, can) && <NativeTeamInvites team={inviting} onClose={() => setInviting(undefined)}/>}
     {deactivated && <Feedback tone="success">{deactivated}</Feedback>}
-    {deactivating && teams.data?.items.some(item => item.id === deactivating.id) && can('equipe:excluir') && <NativeCommandDialog title="Desativar equipe" dirty={false} submitLabel="Confirmar desativação"
+    {deactivating && teams.data?.items.some(item => item.id === deactivating.id) && can('equipe:excluir') && <NativeTeamDeactivation team={deactivating}
       onClose={() => setDeactivating(undefined)}
-      perform={async signal => { await api.delete<unknown>(`/teams/${deactivating.id}`, { signal }); }}
-      onDone={async () => { const name = deactivating.name; setDeactivating(undefined); setDeactivated(`Equipe ${name} desativada. O histórico foi preservado.`); await teams.refetch(); }}>
-      {() => <div className="stack">
-        <p>Desativar a equipe <strong>{deactivating.name}</strong>?</p>
-        <Feedback tone="warning">A equipe deixa de aparecer nas consultas e não pode ser escolhida em novos agendamentos. Agendamentos já registrados mantêm a equipe no histórico; confira na agenda os que ainda não aconteceram. Convites desta equipe deixam de funcionar.</Feedback>
-      </div>}
-    </NativeCommandDialog>}
+      onDone={async name => { setDeactivating(undefined); setDeactivated(`Equipe ${name} desativada. O motivo foi registrado e o histórico foi preservado.`); await teams.refetch(); }}/>}
   </div>;
 }
