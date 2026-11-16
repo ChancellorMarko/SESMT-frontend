@@ -8,6 +8,7 @@ import { Badge, Button, EmptyState, Feedback, Field, PageHeader, RefreshButton, 
 import { checkedNativeDashboard, defaultNativeDashboardPeriod, nativeDashboardCriteria, requestNativeDashboard } from './native-dashboard';
 import { NativeDashboardMetrics, NativeDashboardQueues } from './NativeDashboardPanels';
 import { NativeDashboardEvolution } from './NativeDashboardEvolution';
+import { NativeDeadlinesPanel } from './NativeDeadlinesPanel';
 import styles from './NativeDashboardPage.module.css';
 
 /** The native controller requires authentication; its repository applies actor visibility. */
@@ -58,5 +59,6 @@ function Dashboard() {
         <NativeDashboardEvolution data={data.evolution}/>
       </>}
     </div>}
+    <NativeDeadlinesPanel/>
   </div>;
 }

@@ -9,21 +9,23 @@ import { NativeTeamsPage } from './NativeTeamsPage';
 import { NativeDesignationsPage } from './NativeDesignationsPage';
 import { appointmentFixture, designationFixture, teamFixture, operationIds as ids, nativePersonFixture, nativeOrganizationFixture, nativeServicesFixture, nativeResponsibleFixture } from '../../../tests/connection-ui/fixtures/native-operations';
 
-const state=vi.hoisted(()=>({grants:['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'],companies:['61000000-0000-4000-8000-000000000001']}));
+const state=vi.hoisted(()=>({impact:{} as Record<string,unknown>,grants:['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'],companies:['61000000-0000-4000-8000-000000000001']}));
 vi.mock('../../shared/auth/SessionProvider',()=>({useSession:()=>({sessionKey:'native-operation-test',unitId:ids.unit,me:{user:{id:ids.user},roles:['ADMIN'],scope:{companyIds:state.companies,unitIds:[ids.unit]}},can:(permission:string)=>state.grants.includes(permission)})}));
 vi.mock('../../shared/api/client',async original=>({...await original<typeof import('../../shared/api/client')>(),api:{get:vi.fn(),post:vi.fn(),put:vi.fn(),delete:vi.fn()}}));
+function impactFixture():Record<string,unknown>{return{teamId:ids.team,name:'Equipe de manutenção',version:3,canDeactivate:true,blockingAppointmentCount:0,blockingAppointments:[],activeInviteCount:2};}
 function show(component:React.ReactNode,path='/app/agenda/detail'){
   const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
   const view=render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><Routes><Route path="/app/agenda/:id" element={component}/><Route path="*" element={component}/></Routes></MemoryRouter></QueryClientProvider>);
   return{...view,client};
 }
 beforeEach(()=>{
-  vi.clearAllMocks();state.grants=['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'];state.companies=[ids.company];
+  vi.clearAllMocks();state.impact=impactFixture();state.grants=['pt:editar','pt:criar','agenda:ler','agenda:criar','agenda:editar','designacao:ler','designacao:editar','users.read','organization.read','workers.read','equipe:ler'];state.companies=[ids.company];
   vi.mocked(api.get).mockImplementation(async(path,options)=>{
     if(path==='/organization')return nativeOrganizationFixture as never;
     if(path==='/work-permits/services')return nativeServicesFixture as never;
     if(path==='/teams')return[teamFixture()] as never;
     if(path===`/teams/${ids.team}`)return teamFixture() as never;
+    if(path===`/teams/${ids.team}/deactivation-impact`)return state.impact as never;
     if(path===`/workers/${ids.worker}`)return nativePersonFixture as never;
     if(path==='/workers')return{items:[nativePersonFixture],total:1,page:options?.query?.page??1,pageSize:20} as never;
     if(path==='/users'||path===`/appointments/${ids.appointment}/responsibles`)return[nativeResponsibleFixture] as never;
@@ -145,13 +147,45 @@ describe('workspaces operacionais nativos',()=>{
     show(<NativeTeamsPage/>,'/app/equipes');await screen.findByText('Equipe de manutenção');
     expect(screen.queryByRole('button',{name:/Convites da equipe/})).not.toBeInTheDocument();
   });
-  it('desativa equipe somente com equipe:excluir, após confirmação, e relê a lista',async()=>{
-    state.grants=[...state.grants,'equipe:excluir'];vi.mocked(api.delete).mockResolvedValueOnce(undefined as never);
+  it('desativa equipe com motivo e revisão conferida, avisa dos convites e relê a lista',async()=>{
+    state.grants=[...state.grants,'equipe:excluir'];vi.mocked(api.post).mockResolvedValueOnce({} as never);
     show(<NativeTeamsPage/>,'/app/equipes');fireEvent.click(await screen.findByRole('button',{name:'Desativar equipe Equipe de manutenção'}));
-    expect(screen.getByText(/deixa de aparecer nas consultas/)).toBeVisible();expect(api.delete).not.toHaveBeenCalled();
+    expect(await screen.findByText(/2 convite\(s\) ativo\(s\) desta equipe serão revogados/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'Confirmar desativação'})).toBeEnabled();
     fireEvent.click(screen.getByRole('button',{name:'Confirmar desativação'}));
-    expect(await screen.findByText('Equipe Equipe de manutenção desativada. O histórico foi preservado.')).toBeVisible();
-    expect(api.delete).toHaveBeenCalledWith(`/teams/${ids.team}`,expect.anything());
+    expect(await screen.findByText(/entre 3 e 200 caracteres/)).toBeVisible();expect(api.post).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Motivo da desativação/),{target:{value:'  Equipe incorporada a outra  '}});
+    fireEvent.click(screen.getByRole('button',{name:'Confirmar desativação'}));
+    expect(await screen.findByText('Equipe Equipe de manutenção desativada. O motivo foi registrado e o histórico foi preservado.')).toBeVisible();
+    expect(api.post).toHaveBeenCalledWith(`/teams/${ids.team}/deactivate`,{expectedVersion:3,reason:'Equipe incorporada a outra'},expect.anything());
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+  it('agendamentos pendentes impedem a desativação e só viram link com leitura da agenda',async()=>{
+    state.grants=[...state.grants,'equipe:excluir'].filter(item=>item!=='agenda:ler');
+    state.impact={...impactFixture(),canDeactivate:false,blockingAppointmentCount:21,blockingAppointments:[{appointmentId:ids.appointment,startsAt:'2026-12-01T12:00:00Z',endsAt:'2026-12-01T14:00:00Z',status:'CONFIRMED',workPermitStatus:'LIBERADA'}]};
+    state.impact.blockingAppointments=Array.from({length:20},(_,index)=>({appointmentId:`72000000-0000-4000-8000-${String(index).padStart(12,'0')}`,startsAt:'2026-12-01T12:00:00Z',endsAt:'2026-12-01T14:00:00Z',status:'CONFIRMED',workPermitStatus:index?null:'LIBERADA'}));
+    show(<NativeTeamsPage/>,'/app/equipes');fireEvent.click(await screen.findByRole('button',{name:'Desativar equipe Equipe de manutenção'}));
+    expect(await screen.findByText(/21 agendamento\(s\) futuro\(s\)/)).toBeVisible();
+    expect(screen.getByText('Mais 1 agendamento(s) não listado(s).')).toBeVisible();expect(screen.getAllByText(/PT liberada/)).toHaveLength(1);
+    expect(screen.queryByRole('link',{name:/2026|12\/2026/})).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Motivo da desativação/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Confirmar desativação'})).toBeDisabled();
+  });
+  it('uma API que recusa por agendamento novo relê os impactos e bloqueia a repetição',async()=>{
+    state.grants=[...state.grants,'equipe:excluir'];
+    vi.mocked(api.post).mockImplementationOnce(async()=>{state.impact={...impactFixture(),canDeactivate:false,blockingAppointmentCount:1,blockingAppointments:[{appointmentId:ids.appointment,startsAt:'2026-12-01T12:00:00Z',endsAt:'2026-12-01T14:00:00Z',status:'REQUESTED',workPermitStatus:null}]};throw new ApiError(409,{code:'TEAM_HAS_PENDING_APPOINTMENTS',message:'detalhe interno',requestId:'x'});});
+    show(<NativeTeamsPage/>,'/app/equipes');fireEvent.click(await screen.findByRole('button',{name:'Desativar equipe Equipe de manutenção'}));
+    fireEvent.change(await screen.findByLabelText(/Motivo da desativação/),{target:{value:'Equipe incorporada'}});
+    fireEvent.click(screen.getByRole('button',{name:'Confirmar desativação'}));
+    expect(await screen.findByText('Surgiram agendamentos pendentes para esta equipe. Confira a lista acima.')).toBeVisible();
+    expect(await screen.findByText(/1 agendamento\(s\) futuro\(s\)/)).toBeVisible();expect(screen.queryByText('detalhe interno')).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Confirmar desativação'})).toBeDisabled();expect(api.post).toHaveBeenCalledTimes(1);
+  });
+  it('recusa impactos incoerentes sem permitir a desativação',async()=>{
+    state.grants=[...state.grants,'equipe:excluir'];state.impact={...impactFixture(),canDeactivate:true,blockingAppointmentCount:2};
+    show(<NativeTeamsPage/>,'/app/equipes');fireEvent.click(await screen.findByRole('button',{name:'Desativar equipe Equipe de manutenção'}));
+    expect(await screen.findByText(/Não foi possível conferir os impactos/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'Confirmar desativação'})).toBeDisabled();
   });
   it('sem equipe:excluir não oferece desativação',async()=>{
     show(<NativeTeamsPage/>,'/app/equipes');await screen.findByText('Equipe de manutenção');
