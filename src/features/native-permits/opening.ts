@@ -45,7 +45,8 @@ export function checkedOpeningContext(value: unknown, appointment: NativeAppoint
   return { kind: 'create', people: people.data, templates, services };
 }
 export async function loadOpeningContext(appointment: NativeAppointment, signal: AbortSignal): Promise<OpeningContext> {
-  const existing = existingAppointmentPermit(await api.get<unknown>('/work-permits', { signal }), appointment);
+  // The API filters by appointment in the database; the local check below still rejects any other permit it returns.
+  const existing = existingAppointmentPermit(await api.get<unknown>('/work-permits', { signal, query: { appointmentId: appointment.id } }), appointment);
   if (existing) return { kind: 'existing', permit: existing };
   if (!appointmentCanOpen(appointment)) throw new OpeningIssue('Confirme o agendamento e confira local, equipe, período, serviços e participantes antes de abrir a PT.');
   // All IDs must pass the scoped browser read before any native worker read is attempted.
