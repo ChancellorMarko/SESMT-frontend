@@ -55,7 +55,6 @@ export function AuthCard({ title, description, children }: { title: string; desc
 export function AuthLayout({ children, arrival = 'ready', featured = false }: { children: ReactNode; arrival?: LoginArrivalPhase; featured?: boolean }) {
   const entering = arrival !== 'ready';
   return <div className={`${styles.root} ${featured ? styles.featuredRoot : ''}`}>
-    {featured && <LoginBackground />}
     {entering && <LoginPreloader leaving={arrival === 'leaving'} />}
     <div className={styles.scene} data-auth-scene data-arrival={arrival} inert={entering} aria-hidden={entering || undefined}>
       <header className={styles.masthead}>
@@ -63,8 +62,9 @@ export function AuthLayout({ children, arrival = 'ready', featured = false }: { 
       </header>
       <main className={`${styles.main} ${featured ? styles.featuredMain : ''}`}>
         {featured && <section className={styles.story} aria-labelledby="login-story-title">
-          <h2 id="login-story-title">Gestão de SST</h2>
+          <h2 id="login-story-title">Segurança e saúde no trabalho</h2>
           <p className={styles.storyDescription}>Documentos, pessoas e prazos da sua unidade.</p>
+          <LoginBackground ready={!entering} />
         </section>}
         <div className={styles.surface} data-auth-surface>{children}</div>
       </main>
