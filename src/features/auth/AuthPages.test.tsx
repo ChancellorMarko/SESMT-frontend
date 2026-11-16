@@ -84,7 +84,7 @@ describe('continuidade do acesso', () => {
     expect(screen.getAllByRole('img', { name: 'Ampara SESMT' })).toHaveLength(1);
     expect(screen.getByLabelText('E-mail', { exact: true })).toHaveAttribute('autocomplete', 'username');
     expect(screen.getByLabelText('Senha', { exact: true })).toHaveAttribute('autocomplete', 'current-password');
-    expect(screen.getByRole('heading', { name: 'Gestão de SST' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Segurança e saúde no trabalho' })).toBeInTheDocument();
     expect(document.querySelector('[data-login-background]')).toHaveAttribute('aria-hidden', 'true');
     expect(document.querySelector('[data-auth-artwork]')).not.toBeInTheDocument();
     const demo = screen.getByRole('button', { name: 'Ver demonstrações' });
