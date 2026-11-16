@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { plural } from '../../shared/lib/format';
 import { Link, useLocation } from 'react-router';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
@@ -159,7 +160,7 @@ function WorkersPageContent() {
         <div className={styles.resultsHeader}><h2><UsersRound size={17} aria-hidden="true" />Pessoas da unidade</h2><p role="status">{workers.isFetching ? 'Atualizando lista…' : `${new Intl.NumberFormat('pt-BR').format(workers.data.total)} trabalhador(es) encontrado(s)`}</p></div>
         {workers.data.items.length ? <>
           <WorkerList workers={workers.data.items} companyName={companyName} unitName={unitName} sectorName={sectorName} origin={origin} />
-          <nav className={styles.pagination} aria-label="Paginação de trabalhadores"><p>{workers.data.total} registro(s) · Página {page} de {Math.max(1, Math.ceil(workers.data.total / pageSize))}</p><div className="actions"><Button variant="secondary" disabled={page <= 1 || workers.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * pageSize >= workers.data.total || workers.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
+          <nav className={styles.pagination} aria-label="Paginação de trabalhadores"><p>{plural(workers.data.total, 'registro', 'registros')} · Página {page} de {Math.max(1, Math.ceil(workers.data.total / pageSize))}</p><div className="actions"><Button variant="secondary" disabled={page <= 1 || workers.isFetching} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" disabled={page * pageSize >= workers.data.total || workers.isFetching} onClick={() => setPage(page + 1)}>Próxima</Button></div></nav>
         </> : <><EmptyState title={page > 1 ? 'Esta página não possui resultados' : hasFilters ? 'Nenhum resultado para estes filtros' : 'Nenhum trabalhador cadastrado'} description={page > 1 ? 'Volte à primeira página para consultar os trabalhadores com os filtros atuais.' : hasFilters ? 'Revise a busca ou limpe os filtros para consultar outros registros.' : 'Cadastre o primeiro vínculo para organizar os documentos da equipe.'} />{page > 1 ? <div className={styles.emptyAction}><Button variant="secondary" onClick={() => setPage(1)}>Voltar à primeira página</Button></div> : !hasFilters && mayCreate && <div className={styles.emptyAction}><Link className="button button--primary" to="/app/trabalhadores/novo" state={origin}><Plus size={16} aria-hidden="true" />Cadastrar primeiro trabalhador</Link></div>}</>}
       </section>}
       <p className={styles.notice}>A integração exibida é administrativa. A liberação do trabalho depende da conferência dos requisitos e da autorização operacional.</p>

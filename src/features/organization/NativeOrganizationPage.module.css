@@ -1,15 +1,15 @@
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; }
 .toolbar > :last-child { flex: 0 1 300px; }
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid #e0e6ed; border-radius: 10px; background: #fffefa; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface-raised); }
 .tabs button { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border: 0; border-radius: 6px; background: transparent; color: #526b87; font-size: 13px; cursor: pointer; }
 .tabs button[aria-pressed='true'] { background: #eaf1fb; color: #174779; }
 .tabs button:focus-visible { outline: 2px solid #174779; outline-offset: 2px; }
-.results { min-width: 0; border: 1px solid #e0e6ed; border-radius: 12px; background: #fffefa; overflow: hidden; }
+.results { min-width: 0; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface-raised); overflow: hidden; }
 .scroll { overflow-x: auto; }
 .scroll table { table-layout: fixed; width: 100%; min-width: 560px; }
 .scroll td { overflow-wrap: anywhere; }
 .scroll th:last-child { width: 112px; }
 .scroll :global(.button) { white-space: nowrap; min-width: 68px; padding: 8px 12px; }
-.code { display: block; color: #63758b; font-size: 12px; margin-top: 4px; }
+.code { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 599px) { .formGrid { grid-template-columns: 1fr; } .toolbar > :last-child { flex: 1 1 100%; } .tabs { width: 100%; } .tabs button { flex: 1 1 45%; } .scroll td,.scroll th { padding: 10px 8px; font-size: 12px; } .scroll th:last-child { width: 90px; } }

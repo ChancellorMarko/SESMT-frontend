@@ -1,8 +1,8 @@
 .orientation{display:flex;flex-direction:column;gap:18px;min-width:0}
 .intro{display:flex;align-items:flex-start;gap:12px;min-width:0}
-.icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border-radius:12px;background:#edf3fb;color:#5275a3}
+.icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border-radius:12px;background:#edf3fb;color:var(--muted)}
 .intro h2{margin:0;font-size:16px;line-height:1.6;color:#315884}
-.intro p{margin:4px 0 0;font-size:11px;line-height:1.7;color:var(--muted);overflow-wrap:anywhere}
+.intro p{margin:4px 0 0;font-size: 12px;line-height:1.7;color:var(--muted);overflow-wrap:anywhere}
 .guidance{display:flex;align-items:center;justify-content:space-between;gap:20px;min-width:0;border:1px solid #dce7f4;background:#f5f8fd;padding:18px;border-radius:16px}
 .guidance>div{min-width:0}
 .guidance h3{margin:0;font-size:14px;line-height:1.6;color:#315884;overflow-wrap:anywhere}
@@ -12,7 +12,7 @@
 .index{border-top:1px solid #e8edf5;padding-top:6px;min-width:0}
 .index summary{min-height:44px;align-content:center;font-size:12px;font-weight:600;color:#426389;cursor:pointer;line-height:1.7}
 .sections{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding-top:8px}
-.sections a{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px;padding:10px 12px;border:1px solid #e4eaf2;border-radius:10px;color:#53667e;text-decoration:none;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.sections a{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px;padding:10px 12px;border:1px solid #e4eaf2;border-radius:10px;color:#53667e;text-decoration:none;font-size: 12px;line-height:1.6;overflow-wrap:anywhere}
 .sections a svg{flex-shrink:0;color:#8a9eb8}
 .sections a:hover,.sections a[aria-current]{background:#edf3fb;border-color:#b7cce6;color:#315884}
 .sections a:focus-visible,.primaryLink:focus-visible,.index summary:focus-visible{outline:3px solid #5275a3;outline-offset:3px}

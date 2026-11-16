@@ -1,7 +1,7 @@
 // Explicit user-administration grants keep the setup page stable; module grants remain independent.
 import { expect, test, type Page } from '@playwright/test';
 import { declarationFixture, historyFixture, permitFixture, permitIds as ids } from './fixtures/native-permits';
-import { nativeOrganizationFixture, nativeResponsibleFixture } from './fixtures/native-operations';
+import { nativeOrganizationFixture, nativeResponsibleFixture, nativeServicesFixture } from './fixtures/native-operations';
 import { checklistIds, templateFixture, laterTemplateFixture } from './fixtures/native-checklists';
 import { scienceFixture, scienceParticipantFixture } from './fixtures/native-science';
 import type { NativePermit } from '../../src/features/native-permits/contracts';
@@ -26,6 +26,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
     if (path === '/api/v1/auth/me') return json({ user: { id: ids.user, displayName: 'Pessoa da operação', email: 'operacao@example.invalid' }, roles: ['ADMIN'], permissions: ['usuario:ler', 'usuario:editar', 'empresa:ler', 'unidade:ler', 'setor:ler', 'cargo:ler', 'pt:ler', ...grants], scope: { companyIds: [ids.company], unitIds: [ids.unit], sectorIds: [], teamIds: [], ownOnly: false }, accessExpiresAt: session.accessExpiresAt });
     if (path === '/api/v1/organization') return json({ ...nativeOrganizationFixture, establishments: [], sectors: [], jobs: [], jobFunctions: [], workCenters: [] });
     if (path === '/api/v1/users') return json([nativeResponsibleFixture]);
+    if (path === '/api/v1/work-permits/services') return json(nativeServicesFixture);
     if (path === '/api/v1/work-permits/pt-templates' && method === 'GET') {
       if (state.modelsDenied) return json({ code: 'FORBIDDEN', message: 'Informação privada', requestId: 'test' }, 403);
       const model = options.noClosing ? { ...templateFixture(), closingQuestions: [] } : templateFixture();
@@ -78,7 +79,7 @@ async function setup(page: Page, grants = ['pt:liberar', 'pt:iniciar', 'pt:edita
   await expect(page).toHaveURL(/\/app\/configuracoes\/usuarios$/);
   await page.getByRole('button', { name: 'Abrir navegação', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Navegação', exact: true });
-  await expect(menu.getByRole('link', { name: 'Modelo de permissão de trabalho', exact: true })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: 'Modelos de permissão de trabalho', exact: true })).toHaveCount(0);
   await menu.getByRole('link', { name: 'Permissões de trabalho', exact: true }).click();
   await expect(page.getByRole('link', { name: state.item.title, exact: true })).toBeVisible(); return state;
 }
@@ -92,13 +93,13 @@ async function action(page: Page, name: string, text?: { label: string; value: s
 }
 test('consulta nativa preserva filtros e cancela com estado português e versão real', async ({ page }) => {
   const state = await setup(page); await page.getByLabel('Buscar atividade ou serviço').fill('altura'); await page.getByLabel('Situação operacional', { exact: true }).selectOption('EM_VERIFICACAO');
-  await page.getByLabel('Atividade de (UTC)').fill('2026-10-31'); await page.getByLabel('Atividade até (UTC)').fill('2026-10-31'); await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await page.getByLabel('Atividade de').fill('2026-10-31'); await page.getByLabel('Atividade até').fill('2026-10-31'); await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Somente unidade selecionada' }).check(); await detail(page);
   await action(page, 'Cancelar PT', { label: 'Motivo', value: 'Atividade retirada da programação' });
   expect(state.commands).toEqual([{ path: `/api/v1/work-permits/${ids.permit}/cancel`, body: { expectedVersion: 4, reason: 'Atividade retirada da programação' } }]);
   await page.getByRole('link', { name: 'Voltar às PTs', exact: true }).click(); await expect(page.getByLabel('Situação operacional')).toHaveValue('EM_VERIFICACAO'); await expect(page.getByRole('heading', { name: 'Nenhuma PT encontrada' })).toBeVisible();
   await page.getByLabel('Situação operacional').selectOption('CANCELADA'); await page.getByRole('button', { name: 'Buscar', exact: true }).click(); await expect(page.getByRole('link', { name: state.item.title })).toBeVisible();
-  const query = state.requests.filter(value => value.includes('/work-permits/search?')).at(-1)!; expect(query).toContain(`locationId=${ids.unit}`); expect(query).toContain('to=2026-11-01T00%3A00%3A00.000Z'); expect(query).not.toContain('unitId='); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+  const query = state.requests.filter(value => value.includes('/work-permits/search?')).at(-1)!; expect(query).toContain(`locationId=${ids.unit}`); expect(query).toContain('to=2026-11-01T03%3A00%3A00.000Z'); expect(query).not.toContain('unitId='); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
 });
 test('libera, inicia, observa, suspende e retoma pelos comandos nativos versionados', async ({ page }) => {
   const state = await setup(page); await detail(page);
@@ -118,7 +119,7 @@ test('conflito preserva o motivo e impede reenvio sem atualizar a PT', async ({ 
 test('pendências bloqueiam liberação e ausência de grants não é substituída pelo perfil ADMIN', async ({ page }) => {
   const state = await setup(page, []); await detail(page); await expect(page.getByRole('button', { name: /Liberar PT|Cancelar PT|Iniciar serviço/ })).toHaveCount(0);
   state.ready = false; await page.getByRole('button', { name: 'Atualizar PT', exact: true }).click(); await expect(page.getByText('Ciência pendente', { exact: true })).toBeVisible();
-  await expect(page.getByText('Sem pendências nesta consulta')).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
+  await expect(page.getByText('Sem pendências', { exact: true })).toHaveCount(0); expect(state.commands).toEqual([]); expect(state.errors).toEqual([]);
 });
 test('PT de outro ID ou consulta recusada ocultam os dados em cache', async ({ page }) => {
   const state = await setup(page); await detail(page); await expect(page.getByRole('button', { name: 'Liberar PT', exact: true })).toBeEnabled(); state.wrongItem = true;

@@ -7,7 +7,7 @@ test('navegação por toque tem nomes visíveis e capacitações cabem em 320px'
   await loginDemo(page, 'Engenheiro');
   const shortcuts = page.getByRole('navigation', { name: 'Acesso rápido' });
   const captions: { x: number; width: number }[] = [];
-  for (const [name, caption] of [['Dashboard', 'Início'], ['Inspeções', 'Inspeções'], ['Saúde e capacitações', 'Saúde'], ['Equipamentos de proteção individual (EPI)', 'Proteção'], ['Relatórios', 'Relatórios']]) {
+  for (const [name, caption] of [['Visão geral', 'Início'], ['Inspeções', 'Inspeções'], ['Saúde e capacitações', 'Saúde'], ['Equipamentos de proteção individual (EPI)', 'Proteção'], ['Relatórios', 'Relatórios']]) {
     const link = shortcuts.getByRole('link', { name, exact: true });
     const text = link.getByText(caption, { exact: true }).filter({ visible: true });
     await expect(text).toBeVisible();
@@ -57,7 +57,7 @@ test('guia fica fora do conteúdo e pode ser aberto pelo menu sem sobrepor modai
   await expect(trigger).toBeFocused();
   await navigateWithinApp(page, '/app/dashboard?area=desconhecida');
   await expect(page.getByRole('heading', { name: 'Visão geral', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Dashboard', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation', { name: 'Acesso rápido' }).getByRole('link', { name: 'Visão geral', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 test('EPIs mantém indicadores compactos e permite desfazer o acompanhamento sem conferir o lote', async ({ page }, testInfo) => {

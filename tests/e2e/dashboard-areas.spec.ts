@@ -54,7 +54,7 @@ test('os acessos rápidos apresentam indicadores e seções próprios de cada á
   await expect(page.getByRole('heading', { name: 'Atestados de saúde ocupacional (ASO)', exact: true })).toHaveCount(0);
   await expectNoGenericDashboard(page);
 
-  await dock.getByRole('link', { name: 'Dashboard', exact: true }).click();
+  await dock.getByRole('link', { name: 'Visão geral', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Visão geral', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Operação da unidade selecionada', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Dias sem acidentes', exact: true })).toBeVisible();

@@ -15,7 +15,7 @@ describe('dashboard nativo publicado', () => {
   it('separa abrangência da conta do local que corresponde à unidade selecionada', () => {
     expect(nativeDashboardCriteria(new URLSearchParams(), period, dashboardUnit)).toEqual({ ...criteria, localId: undefined });
     const selected = nativeDashboardCriteria(new URLSearchParams({ scope: 'unit' }), period, dashboardUnit)!;
-    expect(nativeDashboardQuery(selected)).toEqual({ from: '2026-01-01T00:00:00Z', to: '2026-12-31T23:59:59.9999999Z', localId: dashboardUnit });
+    expect(nativeDashboardQuery(selected)).toEqual({ from: '2026-01-01T03:00:00.000Z', to: '2027-01-01T02:59:59.999Z', localId: dashboardUnit });
   });
   it.each(['from=2026-01-01', 'from=2026-01-01&to=2026-12-31&from=2026-02-01', 'from=2026-02-30&to=2026-12-31', 'from=0000-01-01&to=0000-12-31', 'from=2026-02-02&to=2026-02-01', 'from=2023-01-01&to=2026-01-01', 'scope=other', 'scope=unit', 'area=saude', 'unitId=unidade', 'teamId=equipe'])('não consulta com critérios inválidos ou sem unidade: %s', query => {
     expect(nativeDashboardCriteria(new URLSearchParams(query), period)).toBeUndefined();

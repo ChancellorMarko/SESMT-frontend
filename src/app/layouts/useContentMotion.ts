@@ -25,11 +25,11 @@ export function useContentMotion(root: RefObject<HTMLElement | null>, context: s
       // A scroll-triggered entrance must not move a control between pointer targeting and click.
       const hasControls = element.matches(interactiveControls) || Boolean(element.querySelector(interactiveControls));
       const keyframes = hasControls ? [{ opacity: .15 }, { opacity: 1 }] : [
-        { opacity: .15, translate: '0 28px' },
+        { opacity: .15, translate: '0 8px' },
         { opacity: 1, translate: '0 0' },
       ];
       // The resting style is always visible; cancellation also restores it immediately.
-      const animation = element.animate(keyframes, { duration: 620, delay: Math.min(order, 5) * 85, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'backwards' });
+      const animation = element.animate(keyframes, { duration: 280, delay: Math.min(order, 5) * 40, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'backwards' });
       running.set(element, animation);
       animation.onfinish = () => { if (running.get(element) === animation) running.delete(element); };
     }

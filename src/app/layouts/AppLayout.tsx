@@ -2,11 +2,11 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useAnimationControls } from 'framer-motion';
-import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Users, Building2, Bell, History, SlidersHorizontal, LogOut, Menu, ArrowUpRight, BookOpen, CircleHelp, CalendarDays, CalendarClock, ClipboardCheck, ClipboardList, FileCheck2, FileSignature, DoorOpen, Files, UsersRound, UserCheck, FileSearch, Search, Command, ShieldCheck, HeartPulse, HardHat, ChartNoAxesCombined, Sparkles, GraduationCap, X, type LucideIcon } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { NATIVE_MODULES } from '../../shared/api/native-mode';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { roleLabels } from '../../shared/auth/role-labels';
+import { roleLabels, roleSummary } from '../../shared/auth/role-labels';
 import { BrandLogo } from '../../shared/brand/BrandLogo';
 import { Button, Modal, Spinner } from '../../shared/ui';
 import { MotionPreferencesContent, useAppReducedMotion } from '../../shared/motion/MotionPreferences';
@@ -15,6 +15,7 @@ import { HeaderNotifications } from './HeaderNotifications';
 import { WorkspaceGuide } from './WorkspaceGuide';
 import { TerminologyGuide } from '../../shared/ui/TerminologyGuide';
 import { useContentMotion } from './useContentMotion';
+import { useCardTableLabels } from './useCardTableLabels';
 import { canReadOperationsDashboard, dashboardPath } from '../navigation';
 import styles from './AppLayout.module.css';
 import navigationStyles from './WorkspaceNavigation.module.css';
@@ -28,15 +29,15 @@ const nav = [
   { to: 'epis', label: 'EPIs', icon: HardHat, permission: 'epi:ler' },
   { to: 'treinamentos', label: 'Treinamentos', icon: GraduationCap, permission: 'treinamento:ler' },
   { to: 'asos', label: 'ASOs', icon: HeartPulse, permission: 'aso:acompanhar' },
-  { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardCheck, permission: 'eligibility.read' },
-  { to: 'ats', label: 'Autorizações de trabalho', icon: ClipboardCheck, permission: 'at.read' },
-  { to: 'pts', label: 'Permissões de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
+  { to: 'pendencias', label: 'Pendências documentais', icon: ClipboardList, permission: 'eligibility.read' },
+  { to: 'ats', label: 'Autorizações de trabalho', icon: FileSignature, permission: 'at.read' },
+  { to: 'pts', label: 'Permissões de trabalho', icon: FileCheck2, permission: 'permits.read' },
   { to: 'designacoes', label: 'Designações', icon: UserCheck, permission: 'appointments.read' },
-  { to: 'pets', label: 'Permissões de entrada e trabalho (PET)', icon: ClipboardCheck, permission: 'pet.read' },
-  { to: 'modelos-pt', label: 'Modelo de permissão de trabalho', icon: ClipboardCheck, permission: 'permits.read' },
+  { to: 'pets', label: 'Permissões de entrada e trabalho (PET)', icon: DoorOpen, permission: 'pet.read' },
+  { to: 'modelos-pt', label: 'Modelos de permissão de trabalho', icon: Files, permission: 'permits.read' },
   { to: 'equipes', label: 'Equipes', icon: UsersRound, permission: 'teams.read' },
   { to: 'documentos', label: 'Documentos', icon: FolderOpen, permission: 'documents.read' },
-  { to: 'vencimentos', label: 'Vencimentos', icon: CalendarClock, permission: 'documents.read' },
+  { to: 'vencimentos', label: 'Vencimentos de documentos', icon: CalendarClock, permission: 'documents.read' },
   { to: 'trabalhadores', label: 'Trabalhadores', icon: Users, permission: 'workers.read' },
   { to: 'organizacao', label: 'Organização', icon: Building2, permission: 'organization.read' },
   { to: 'notificacoes', label: 'Notificações', icon: Bell, permission: 'notifications.read' },
@@ -51,13 +52,15 @@ const config = [
   { to: 'configuracoes/parametros', label: 'Parâmetros', permission: 'documentTypes.write', alternativePermission: 'documents.read' },
 ];
 const navigationGroups = [
-  { label: 'Operação', routes: ['dashboard', 'agenda', 'epis', 'treinamentos', 'asos', 'pendencias', 'pts', 'ats', 'pets', 'designacoes'] },
-  { label: 'Gestão documental', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
+  { label: 'Início', routes: ['dashboard', 'agenda'] },
+  { label: 'Liberação de trabalho', routes: ['pts', 'ats', 'pets', 'designacoes', 'pendencias'] },
+  { label: 'Saúde e segurança das pessoas', routes: ['treinamentos', 'asos', 'epis'] },
+  { label: 'Documentos', routes: ['consulta', 'documentos', 'vencimentos', 'modelos-pt'] },
   { label: 'Pessoas e organização', routes: ['equipes', 'trabalhadores', 'organizacao'] },
   { label: 'Controle', routes: ['notificacoes', 'auditoria'] },
 ];
 const dockItems: { to: string; label: string; compactLabel?: string; icon: LucideIcon; area?: string }[] = [
-  { to: '/app/dashboard', label: 'Dashboard', compactLabel: 'Início', icon: LayoutDashboard },
+  { to: '/app/dashboard', label: 'Visão geral', compactLabel: 'Início', icon: LayoutDashboard },
   { to: '/app/dashboard?area=inspecoes', label: 'Inspeções', icon: ShieldCheck, area: 'inspecoes' },
   { to: '/app/dashboard?area=saude', label: 'Saúde e capacitações', compactLabel: 'Saúde', icon: HeartPulse, area: 'saude' },
   { to: '/app/dashboard?area=epis', label: 'Equipamentos de proteção individual (EPI)', compactLabel: 'Proteção', icon: HardHat, area: 'epis' },
@@ -173,6 +176,7 @@ export function AppLayout() {
   const [motionSettings, setMotionSettings] = useState(false);
   const [motionReplay, setMotionReplay] = useState(0);
   const closeMotionSettings = () => { setMotionSettings(false); setMotionReplay(value => value + 1); };
+  useCardTableLabels(contentRef);
   useContentMotion(contentRef, `${pageContext}:${s.sessionKey}:${s.unitId}:${motionReplay}`, reduceMotion, Boolean(location.hash));
   const canNavigate = (item: { to: string; permission: string; alternativePermissions?: string[] }) => NATIVE_MODULES
     ? item.to==='dashboard' || item.to==='agenda' && s.can('agenda:ler') || item.to==='designacoes' && s.can('designacao:ler') || item.to==='pts' && s.can('pt:ler') || item.to==='equipes' && s.can('equipe:ler') || s.can(item.permission) || Boolean(item.alternativePermissions?.some(permission => s.can(permission)))
@@ -277,7 +281,7 @@ export function AppLayout() {
 
   const org = useQuery({ queryKey: ['shell-organization', s.sessionKey], queryFn: ({ signal }) => api.get<OrganizationDto>('/organization', { signal }), enabled: s.can('organization.read') });
   const initials = s.me?.user.displayName.split(' ').slice(0, 2).map(v => v[0]).join('');
-  const role = roleLabels(s.me?.roles ?? []);
+  const role = roleLabels(s.me?.roles ?? []), shortRole = roleSummary(s.me?.roles ?? []);
   const activeArea = areaName ? dashboardArea : null;
   const visibleDockItems = dockItems.filter(item => NATIVE_MODULES ? item.to === '/app/dashboard' && !item.area : item.to === '/app/painel-documental' ? s.can('dashboard.read') : canReadOperationsDashboard(s.can));
   if (NATIVE_MODULES && s.can('epi:ler')) visibleDockItems.push({to:'/app/epis',label:'EPIs',compactLabel:'EPIs',icon:HardHat});
@@ -329,7 +333,7 @@ export function AppLayout() {
         <HeaderNotifications className={styles.iconButton} />
         <div role="group" aria-label={`Perfil: ${s.me?.user.displayName} · ${role}`} className={styles.profile} title={`${s.me?.user.displayName} · ${role}`}>
           <div aria-hidden="true" className={styles.avatar}>{initials}</div>
-          <div className={styles.profileText}><strong>{s.me?.user.displayName}</strong><span>{role}</span></div>
+          <div className={styles.profileText}><strong>{s.me?.user.displayName}</strong><span>{shortRole}</span></div>
         </div>
         <button type="button" className={styles.iconButton} aria-label="Sair da plataforma" title="Sair da plataforma" onClick={() => requestLogout(() => { void s.logout(); })}><LogOut size={17} aria-hidden="true" /></button>
       </div>

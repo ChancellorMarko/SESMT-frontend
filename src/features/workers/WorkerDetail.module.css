@@ -6,11 +6,11 @@
 .section { scroll-margin-top: 110px; min-width: 0; }
 .sectionHeader { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
 .sectionHeader h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; line-height: 1.6; }
-.sectionHeader h2 svg { flex-shrink: 0; color: #6582b0; }
+.sectionHeader h2 svg { flex-shrink: 0; color: var(--muted); }
 .sectionHeader p { margin: 6px 0 0; }
 .assignment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin: 0; }
 .assignment > div { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(0, 1.2fr); align-items: baseline; gap: 12px; min-width: 0; padding: 9px 0; border-top: 1px solid #eef2f6; }
-.assignment dt { margin: 0; font-size: 11px; }
+.assignment dt { margin: 0; font-size: 12px; }
 .assignment dd { margin: 0; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .tableWrap { min-width: 0; overflow-x: auto; }
 .relatedTable { min-width: 600px; }
@@ -32,7 +32,7 @@
   .relatedTable tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 8px; border: 1px solid #e2e8f0; border-radius: 16px; }
   .relatedTable tbody td { min-width: 0; padding: 10px; border: 0; }
   .fullCell { grid-column: 1 / -1; }
-  .mobileLabel { display: block; margin-bottom: 6px; font-size: 11px; color: #526179; }
+  .mobileLabel { display: block; margin-bottom: 6px; font-size: 12px; color: #526179; }
   .relatedAction { justify-content: center; width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 12px; }
 }
 @media (max-width: 479px) { .assignment { grid-template-columns: minmax(0, 1fr); } }

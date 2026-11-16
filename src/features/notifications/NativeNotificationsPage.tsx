@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
-import { formatDate } from '../../shared/lib/format';
+import { formatDate, plural } from '../../shared/lib/format';
 import { Badge, Button, EmptyState, Feedback, Field, InfoButton, PageHeader, Spinner } from '../../shared/ui';
 import { denyVerifiedRead, InvalidReadResponse } from '../../shared/lib/verified-read';
 import { useEditorRequest } from '../administration/useEditorRequest';
@@ -55,7 +55,7 @@ function Notifications() {
     {confirmation && !notices.isError && !denied && <Feedback tone="success">{confirmation}</Feedback>}
     {items && !notices.isError && <section className={styles.results} aria-label="Notificações da conta" aria-busy={notices.isFetching}>
       {!filtered.length ? <EmptyState title="Nenhuma notificação" description="Não há avisos para o filtro escolhido."/> : <div className={styles.scroll} tabIndex={0} role="region" aria-label="Tabela de notificações"><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Aviso</th><th scope="col">Recebimento</th><th scope="col">Leitura</th></tr></thead><tbody>{filtered.slice((current - 1) * 20, current * 20).map(item => <tr key={item.id}><td><strong>{nativeNotificationType(item.type)}</strong><p className={styles.message}>{item.text}</p><InfoButton title={`Detalhes do aviso: ${nativeNotificationType(item.type)}`}><dl className={styles.details}><dt>Tipo</dt><dd>{item.type}</dd><dt>Registro</dt><dd>{item.resourceId}</dd><dt>Notificação</dt><dd>{item.id}</dd><dt>Leitura</dt><dd>{item.readAt ? formatDate(item.readAt) : 'Não lida'}</dd></dl></InfoButton></td><td>{formatDate(item.createdAt)}</td><td>{item.readAt ? <Badge>Lida</Badge> : <Button variant="secondary" disabled={Boolean(saving) || notices.isFetching} onClick={() => void markRead(item)}>{saving === item.id ? 'Registrando…' : 'Marcar como lida'}</Button>}</td></tr>)}</tbody></table></div>}
-      <nav className={styles.footer} aria-label="Paginação de notificações"><span>{filtered.length} aviso(s) · página {current} de {pages}</span><div className="actions"><Button variant="secondary" disabled={current <= 1 || Boolean(saving)} onClick={() => setPage(current - 1)}>Anterior</Button><Button variant="secondary" disabled={current >= pages || Boolean(saving)} onClick={() => setPage(current + 1)}>Próxima</Button></div></nav>
+      <nav className={styles.footer} aria-label="Paginação de notificações"><span>{plural(filtered.length, 'aviso', 'avisos')} · página {current} de {pages}</span><div className="actions"><Button variant="secondary" disabled={current <= 1 || Boolean(saving)} onClick={() => setPage(current - 1)}>Anterior</Button><Button variant="secondary" disabled={current >= pages || Boolean(saving)} onClick={() => setPage(current + 1)}>Próxima</Button></div></nav>
     </section>}
   </div>;
 }

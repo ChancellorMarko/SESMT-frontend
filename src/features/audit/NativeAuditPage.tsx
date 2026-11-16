@@ -2,9 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { useAppQueryParams } from '../../shared/lib/app-query-params';
-import { formatDate } from '../../shared/lib/format';
+import { formatDate, plural } from '../../shared/lib/format';
 import { useVerifiedRead } from '../../shared/lib/verified-read';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton } from '../../shared/ui';
 import { checkedNativeAudit, nativeAuditCriteria, nativeAuditPageSize, nativeAuditQuery } from './native-audit';
 import styles from '../../shared/ui/NativeRecords.module.css';
 
@@ -36,12 +36,12 @@ function Audit() {
   function changePage(page: number) { const next = new URLSearchParams(params); next.set('page', String(page)); setParams(next); }
   if (!allowed) return <Feedback tone="warning">Seu acesso não permite consultar auditoria.</Feedback>;
   return <div className="stack">
-    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Os filtros de data usam dias em UTC; os horários dos registros são exibidos em Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<Button variant="secondary" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}>Atualizar auditoria</Button>}/>
+    <PageHeader title="Auditoria" description="Histórico autorizado pela API para os escopos da sua conta. Datas dos filtros e horários dos registros no horário de Brasília. A unidade do cabeçalho não filtra esta consulta." actions={<RefreshButton label="Atualizar auditoria" disabled={!criteria || events.isFetching} onClick={() => void events.refetch()}/>}/>
     <form className={`panel ${styles.toolbar}`} onSubmit={submit} aria-label="Filtros de auditoria">
       <Field label="Ação"><input value={action} maxLength={100} placeholder="Ex.: UPDATE" onChange={event => setAction(event.target.value)}/></Field>
       <Field label="Recurso"><input value={resource} maxLength={100} placeholder="Ex.: documento" onChange={event => setResource(event.target.value)}/></Field>
-      <Field label="De (UTC)"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
-      <Field label="Até (UTC)"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
+      <Field label="De"><input type="date" value={from} onChange={event => setFrom(event.target.value)}/></Field>
+      <Field label="Até"><input type="date" value={to} onChange={event => setTo(event.target.value)}/></Field>
       <Button type="submit">Buscar</Button><Button variant="ghost" onClick={() => { setParams(new URLSearchParams()); setAction(''); setResource(''); setFrom(''); setTo(''); setFormError(''); }}>Limpar</Button>
     </form>
     {(formError || !criteria) && <Feedback tone="warning">{formError || 'Os filtros do endereço são inválidos. Corrija a consulta ou limpe os filtros.'}</Feedback>}
@@ -50,7 +50,7 @@ function Audit() {
     {data && criteria!.page > pages && <Feedback tone="warning">A página solicitada está além do fim da consulta. <Button variant="ghost" onClick={() => changePage(1)}>Ir para a primeira página</Button></Feedback>}
     {data && <section className={styles.results} aria-label="Eventos de auditoria" aria-busy={events.isFetching}>
       {!data.items.length ? <EmptyState title="Nenhum evento encontrado" description="Não há registros nesta página para os filtros e acessos atuais."/> : <div className={styles.scroll} tabIndex={0} role="region" aria-label="Tabela de auditoria"><table className={`data-table ${styles.table}`}><thead><tr><th scope="col">Data e hora</th><th scope="col">Ação e recurso</th><th scope="col">Resultado</th><th scope="col">Detalhes</th></tr></thead><tbody>{data.items.map(item => <tr key={item.id}><td>{formatDate(item.momento)}</td><td><strong>{item.acao}</strong><small>{item.recursoTipo}</small></td><td>{item.resultado ? <Badge>{item.resultado}</Badge> : 'Não informado'}</td><td><Button variant="ghost" onClick={() => select(item.id)} aria-label={`Ver evento ${item.id}`}>Ver evento</Button></td></tr>)}</tbody></table></div>}
-      <nav className={styles.footer} aria-label="Paginação de auditoria"><span>{data.total} evento(s) · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || events.isFetching} onClick={() => changePage(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || events.isFetching} onClick={() => changePage(criteria!.page + 1)}>Próxima</Button></div></nav>
+      <nav className={styles.footer} aria-label="Paginação de auditoria"><span>{plural(data.total, 'evento', 'eventos')} · página {criteria!.page} de {pages}</span><div className="actions"><Button variant="secondary" disabled={criteria!.page <= 1 || events.isFetching} onClick={() => changePage(criteria!.page - 1)}>Anterior</Button><Button variant="secondary" disabled={criteria!.page >= pages || events.isFetching} onClick={() => changePage(criteria!.page + 1)}>Próxima</Button></div></nav>
     </section>}
     <Modal open={Boolean(selected)} title="Detalhes do evento" onClose={() => select('')}>{selected && <dl className={styles.details}>{[
       ['Evento', selected.id], ['Data e hora', formatDate(selected.momento)], ['Ação', selected.acao], ['Recurso', selected.recursoTipo], ['ID do recurso', selected.recursoId], ['Versão', selected.versao], ['Ator', selected.atorId], ['Declarante', selected.declaranteId], ['Empresa', selected.empresaId], ['Resultado', selected.resultado], ['Rastreamento', selected.traceId],

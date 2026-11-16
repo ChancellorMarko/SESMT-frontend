@@ -4,8 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../shared/api/client';
 import { useSession } from '../../shared/auth/SessionProvider';
 import { InvalidReadResponse, useVerifiedRead } from '../../shared/lib/verified-read';
-import { formatDate } from '../../shared/lib/format';
-import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner } from '../../shared/ui';
+import { formatDate, plural } from '../../shared/lib/format';
+import { Badge, Button, EmptyState, Feedback, Field, Modal, PageHeader, Spinner, RefreshButton, PhoneFilters } from '../../shared/ui';
 import { NativeCommandDialog, NativeContextConflict, NativeFormError } from '../native-operations/NativeCommandDialog';
 import { checkedContext, checkedHistory, checkedPage, checkedTraining, duration, formatDay, kindLabels, localDay, statuses,
   trainingFields, trainingStatus, historyLabels, type Training, type TrainingContext, type TrainingScope } from './contracts';
@@ -69,7 +69,7 @@ function TrainingWorkspace() {
   }
   return <div className="stack">
     <PageHeader title="Treinamentos" description="Acompanhe cursos registrados e datas de renovação informadas. O cadastro não emite certificado, comprova habilitação ou libera uma atividade."
-      actions={context.data && <><Button variant="secondary" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}>Atualizar</Button>{canRegisterTraining && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
+      actions={context.data && <><RefreshButton label="Atualizar treinamentos" disabled={list.isFetching} onClick={() => void client.invalidateQueries({ queryKey: ['native-training', sessionKey] })}/>{canRegisterTraining && <Button onClick={() => { closeDetails(); setEditor({}); }}>Registrar treinamento</Button>}</>}/>
     {unitMismatch ? <Feedback tone="warning"><p>O endereço se refere a outra unidade. Escolha o contexto antes de consultar.</p><div className="actions"><Button variant="secondary" onClick={() => setParams(new URLSearchParams(unitId ? { unitId } : {}))}>Usar unidade atual</Button>{params.getAll('unitId').length === 1 && me?.scope.unitIds?.includes(linkedUnit!) && <Button onClick={() => { if (window.dispatchEvent(new Event('sesmt:before-context-change', { cancelable: true }))) setUnitId(linkedUnit!); }}>Abrir unidade do link</Button>}</div></Feedback>
       : !enabled ? <Feedback tone="warning">Selecione uma unidade com acesso a treinamentos.</Feedback>
       : context.isPending ? <Spinner/> : context.isError ? <Feedback tone="danger">Não foi possível consultar os treinamentos desta unidade.</Feedback> : context.data && <>
@@ -78,17 +78,17 @@ function TrainingWorkspace() {
           <Button variant="ghost" onClick={() => setParams(criteria({}, false), false)}>Limpar filtro de trabalhador</Button>
         </div>}
         {success && <Feedback tone="success">{success}</Feedback>}
-        <form className={`panel ${styles.toolbar}`} onSubmit={search}>
+        <PhoneFilters><form className={`panel ${styles.toolbar}`} onSubmit={search}>
           <Field label="Buscar curso ou trabalhador"><input maxLength={160} value={input} onChange={event => setInput(event.target.value)}/></Field>
           <Field label="Situação"><select value={status} onChange={event => setParams(criteria({ q: query, status: event.target.value }))}><option value="">Todas</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Button type="submit" disabled={list.isFetching}>Buscar</Button>
-        </form>
+        </form></PhoneFilters>
         {!validCriteria ? <Feedback tone="warning">Os filtros do endereço são inválidos. <Button variant="ghost" onClick={() => setParams(criteria({}, false), false)}>Limpar filtros</Button></Feedback>
           : list.isPending ? <Spinner/> : list.isError ? <Feedback tone="danger">Não foi possível consultar os registros. Atualize a consulta.</Feedback>
-          : list.data && (list.data.items.length ? <div className={styles.results}><div className={styles.scroll} role="region" aria-label="Tabela de treinamentos" tabIndex={0}><table className={`data-table ${styles.table}`}>
+          : list.data && (list.data.items.length ? <div className={styles.results}><div className={styles.scroll} role="region" aria-label="Tabela de treinamentos" tabIndex={0}><table className={`data-table card-table ${styles.table}`}>
             <thead><tr><th scope="col">Curso</th><th scope="col">Trabalhador</th><th scope="col">Conclusão e carga horária</th><th scope="col">Renovação prevista</th><th scope="col">Situação</th></tr></thead>
             <tbody>{list.data.items.map(item => <tr key={item.id}><td><Link state={state} to={{ search: `?${criteria({ q: query, status, page, registro: item.id })}` }}>{item.title}</Link>{item.reference && <small>{item.reference}</small>}</td><td>{item.workerName}</td><td>{formatDay(item.completedOn)}<small>{duration(item.durationMinutes)}</small></td><td>{formatDay(item.renewalOn)}</td><td><TrainingBadge item={item}/></td></tr>)}</tbody>
-          </table></div><div className={styles.footer}><span>{list.data.total} registro(s) · página {page} de {Math.max(1, Math.ceil(list.data.total / 20))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams(criteria({ q: query, status, page: page - 1 }))}>Anterior</Button><Button variant="secondary" disabled={page * 20 >= list.data!.total} onClick={() => setParams(criteria({ q: query, status, page: page + 1 }))}>Próxima</Button></div></div></div>
+          </table></div><div className={styles.footer}><span>{plural(list.data.total, 'registro', 'registros')} · página {page} de {Math.max(1, Math.ceil(list.data.total / 20))}</span><div className="actions"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams(criteria({ q: query, status, page: page - 1 }))}>Anterior</Button><Button variant="secondary" disabled={page * 20 >= list.data!.total} onClick={() => setParams(criteria({ q: query, status, page: page + 1 }))}>Próxima</Button></div></div></div>
             : <EmptyState title="Nenhum treinamento encontrado" description={context.data.canCreate ? 'Ajuste os filtros ou registre um treinamento realizado.' : 'Nenhum registro disponível para esta consulta.'}/>)}
       </>}
     {detailId && !unitMismatch && <Modal open title="Detalhes do treinamento" onClose={closeDetails}>

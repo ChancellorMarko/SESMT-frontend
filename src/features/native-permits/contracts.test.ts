@@ -25,7 +25,7 @@ describe('contratos nativos das PTs', () => {
   });
   it('envia locationId e período de sobreposição do agendamento, incluindo o dia final', () => {
     const selected = permitCriteria(new URLSearchParams(`locationId=${ids.unit}&from=2026-10-30&to=2026-10-31&serviceCode=altura`))!;
-    expect(permitQuery(selected)).toMatchObject({ locationId: ids.unit, serviceCode: 'ALTURA', from: '2026-10-30T00:00:00Z', to: '2026-11-01T00:00:00.000Z', pageSize: 20 });
+    expect(permitQuery(selected)).toMatchObject({ locationId: ids.unit, serviceCode: 'ALTURA', from: '2026-10-30T03:00:00.000Z', to: '2026-11-01T03:00:00.000Z', pageSize: 20 });
     // The response has no appointment dates/local; do not make up a CreatedAt comparison.
     expect(checkedPermits({ items: [permitFixture()], total: 1, page: 1, pageSize: 20 }, selected).items).toHaveLength(1);
   });

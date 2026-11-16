@@ -1,42 +1,42 @@
-.launcher{position:static;align-self:flex-end;display:flex;min-height:48px;align-items:center;gap:10px;margin:0 0 20px;padding:6px 17px 6px 7px;border:1px solid #41658d;border-radius:30px;background:linear-gradient(130deg,#2a558b,#183b68 75%);color:#fffefa;font-size:12px;font-weight:550;box-shadow:0 8px 22px -10px #183b6860,inset 0 1px 0 #ffffff20;transition:transform .2s,box-shadow .2s}
+.launcher{position:static;align-self:flex-end;display:flex;min-height:48px;align-items:center;gap:10px;margin:0 0 20px;padding:6px 17px 6px 7px;border:1px solid #41658d;border-radius:30px;background:linear-gradient(130deg,#2a558b,var(--brand-navy) 75%);color:var(--surface-raised);font-size:12px;font-weight:550;box-shadow:0 8px 22px -10px #183b6860,inset 0 1px 0 #ffffff20;transition:transform .2s,box-shadow .2s}
 .launcher:focus-visible{box-shadow:0 10px 25px -10px #183b6880}
 .launcher:active{transform:scale(.97)}
 .miniOrb,.orb{position:relative;display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;border-radius:50%;background:radial-gradient(circle at 30% 25%,#b0d1ff 0,#7199ff 25%,#466ef0 50%,#264797 77%,#9cc6ff 100%);box-shadow:inset -3px -4px 9px #3457ba55,inset 2px 3px 7px #e7f1ff88}
 .miniOrb{width:34px;height:34px;gap:4px;transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.miniOrb>span,.orb>span{display:block;width:3px;height:8px;border-radius:3px;background:#fffefa}
+.miniOrb>span,.orb>span{display:block;width:3px;height:8px;border-radius:3px;background:var(--surface-raised)}
 .orb{width:84px;height:84px;margin-bottom:20px;gap:10px;animation:arrive .65s cubic-bezier(.22,1,.36,1) both}
 .orb>span{width:5px;height:17px;box-shadow:0 0 8px #fff8}
-.drawer{position:fixed;top:18px;right:18px;bottom:18px;display:flex;flex-direction:column;width:min(380px,calc(100% - 36px));max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain;padding:22px;border-radius:26px;border-color:#dce5f0;background:linear-gradient(180deg,#f2f6fe,#fffefa 210px);box-shadow:0 25px 80px -35px #183b6870,inset 0 1px 0 #fff;animation:drawer-in .4s cubic-bezier(.22,1,.36,1) both}
+.drawer{position:fixed;top:18px;right:18px;bottom:18px;display:flex;flex-direction:column;width:min(380px,calc(100% - 36px));max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain;padding:22px;border-radius:26px;border-color:#dce5f0;background:linear-gradient(180deg,#f2f6fe,var(--surface-raised) 210px);box-shadow:0 25px 80px -35px #183b6870,inset 0 1px 0 #fff;animation:drawer-in .4s cubic-bezier(.22,1,.36,1) both}
 .drawer>*{flex-shrink:0}
 :global(.modal-backdrop):has(.drawer){background:#183b6810;backdrop-filter:blur(3px)}
 .drawer :global(.modal-header){margin-bottom:20px}
-.drawer :global(.modal-header) h2{font-size:18px;font-weight:600;color:#183b68;letter-spacing:-.025em}
+.drawer :global(.modal-header) h2{font-size:18px;font-weight:600;color:var(--brand-navy);letter-spacing:-.025em}
 .intro{display:flex;flex-direction:column;align-items:center;padding:20px 4px 22px;text-align:center}
-.eyebrow{color:#637a97;font-size:10px;font-weight:600;letter-spacing:.12em}
-.intro h3{max-width:100%;margin:10px 0 8px;color:#183b68;font-size:24px;font-weight:550;letter-spacing:-.04em;overflow-wrap:anywhere}
-.intro p{max-width:270px;margin:0;color:#657b96;font-size:12px;line-height:1.8}
+.eyebrow{color:var(--muted);font-size: 12px;font-weight:600;letter-spacing:.12em}
+.intro h3{max-width:100%;margin:10px 0 8px;color:var(--brand-navy);font-size:24px;font-weight:550;letter-spacing:-.04em;overflow-wrap:anywhere}
+.intro p{max-width:270px;margin:0;color:var(--muted);font-size:12px;line-height:1.8}
 .shortcuts{display:flex;flex-direction:column;gap:8px}
 .terminology{width:100%;margin-top:8px;text-align:left;cursor:pointer}
-.shortcut{display:flex;min-height:64px;align-items:center;gap:11px;padding:11px;border:1px solid #dfe7f0;border-radius:15px;background:#fffefa;color:#52719b;box-shadow:0 4px 10px -10px #183b6855;transition:background .2s,border-color .2s,transform .2s}
+.shortcut{display:flex;min-height:64px;align-items:center;gap:11px;padding:11px;border:1px solid #dfe7f0;border-radius:15px;background:var(--surface-raised);color:var(--muted);box-shadow:0 4px 10px -10px #183b6855;transition:background .2s,border-color .2s,transform .2s}
 .shortcut:focus-visible{border-color:#c4d5f3;background:#eff4ff}
 .shortcut:active{transform:scale(.99)}
-.shortcutIcon{display:grid;width:36px;height:36px;flex-shrink:0;place-items:center;border:1px solid #dde7f8;border-radius:12px;background:linear-gradient(145deg,#f5f8ff,#e9f0fc);color:#4679ee}
+.shortcutIcon{display:grid;width:36px;height:36px;flex-shrink:0;place-items:center;border:1px solid #dde7f8;border-radius:12px;background:linear-gradient(145deg,#f5f8ff,#e9f0fc);color:var(--link)}
 .shortcut>span:nth-child(2){min-width:0;flex:1}
 .shortcut strong{display:block;color:#294e7b;font-size:12px;font-weight:550;line-height:1.5}
-.shortcut small{display:block;margin-top:3px;color:#6c7e94;font-size:11px;line-height:1.55}
+.shortcut small{display:block;margin-top:3px;color:var(--muted);font-size: 12px;line-height:1.55}
 .shortcut>svg{flex-shrink:0;transition:transform .24s cubic-bezier(.22,1,.36,1)}
 .profile{display:flex;align-items:center;gap:9px;margin-top:24px;padding:16px 0;border-top:1px solid #dfe7f0;}
-.profile>span:first-child{display:grid;width:34px;height:34px;flex-shrink:0;place-items:center;border:3px solid white;border-radius:50%;background:#e6efff;color:#4b71ac;font-size:9px;font-weight:600}
+.profile>span:first-child{display:grid;width:34px;height:34px;flex-shrink:0;place-items:center;border:3px solid white;border-radius:50%;background:#e6efff;color:var(--muted);font-size: 12px;font-weight:600}
 .profile>div{min-width:0;flex:1}
 .profile strong{display:block;color:#385679;font-size:12px;font-weight:550;overflow-wrap:anywhere}
-.profile small{display:block;margin-top:3px;color:#6c7e94;font-size:11px;line-height:1.5}
-.connected{padding:5px 7px;border:1px solid #dce7f8;border-radius:7px;background:#edf3ff;color:#506f9b;font-size:10px;white-space:nowrap}
+.profile small{display:block;margin-top:3px;color:var(--muted);font-size: 12px;line-height:1.5}
+.connected{padding:5px 7px;border:1px solid #dce7f8;border-radius:7px;background:#edf3ff;color:#506f9b;font-size: 12px;white-space:nowrap}
 .search{margin-top:auto;padding-top:16px}
-.search p{margin:0 0 9px;color:#657b96;font-size:11px}
-.search>button{width:100%;justify-content:space-between;background:#fffefa}
+.search p{margin:0 0 9px;color:var(--muted);font-size: 12px}
+.search>button{width:100%;justify-content:space-between;background:var(--surface-raised)}
 @keyframes drawer-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
 @keyframes arrive{from{opacity:0;transform:translateY(12px) scale(.86);filter:blur(5px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
-@media(hover:hover) and (pointer:fine){.launcher:hover{transform:translateY(-5px);box-shadow:0 14px 30px -10px #183b6880}.launcher:hover .miniOrb{transform:rotate(12deg) scale(1.1)}.launcher:active{transform:scale(.97)}.shortcut:hover{border-color:#b4caf0;background:#e9f1ff;transform:translateX(-4px)}.shortcut:hover>svg{transform:translate(4px,-4px)}.shortcut:active{transform:scale(.99)}}
+@media(hover:hover) and (pointer:fine){.launcher:hover{transform:translateY(-1px);box-shadow:0 10px 24px -10px #183b6880}.launcher:hover .miniOrb{transform:rotate(12deg) scale(1.1)}.launcher:active{transform:scale(.97)}.shortcut:hover{border-color:#b4caf0;background:#e9f1ff;transform:translateX(-4px)}.shortcut:hover>svg{transform:translate(4px,-4px)}.shortcut:active{transform:scale(.99)}}
 @media(max-width:599px){.launcher{min-height:46px;padding-right:12px}.drawer{top:10px;right:10px;bottom:10px;width:calc(100% - 20px);max-height:calc(100dvh - 20px);padding:18px}.intro{padding-top:8px}.orb{width:68px;height:68px;margin-bottom:16px}.intro h3{font-size:20px}.shortcut{min-height:58px}.profile{margin-top:18px}}
 @media(prefers-reduced-motion:reduce){:global(:root:not([data-motion=full])) :is(.launcher,.miniOrb,.shortcut,.shortcut>svg){transition:none;transform:none!important}:global(:root:not([data-motion=full])) :is(.drawer,.orb){animation:none}}
 :global(:root[data-motion=reduced]) :is(.launcher,.miniOrb,.shortcut,.shortcut>svg){transition:none;transform:none!important}

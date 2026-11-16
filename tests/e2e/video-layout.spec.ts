@@ -129,7 +129,7 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     expect(bounds).not.toBeNull();
     if (width >= 1024) expect(bounds!.height).toBeGreaterThan(bounds!.width);
     else expect(bounds!.width).toBeGreaterThan(bounds!.height);
-    for (const label of ['Dashboard', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) {
+    for (const label of ['Visão geral', 'Inspeções', 'Saúde e capacitações', 'Equipamentos de proteção individual (EPI)', 'Relatórios']) {
       await expect(rail.getByRole('link', { name: label, exact: true })).toBeInViewport();
     }
     await expect(rail.getByRole('button', { name: 'Abrir navegação', exact: true })).toBeInViewport();

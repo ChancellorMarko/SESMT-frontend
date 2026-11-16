@@ -221,7 +221,7 @@ export function AgendaPage() {
       <header className={styles.planningHeader} data-motion-surface>
         <div className={styles.planningCopy}>
           <p className={styles.planningEyebrow}><span aria-hidden="true"><CalendarDays size={16} /></span>Planejamento e atendimento</p>
-          <h1>Agenda de serviços</h1>
+          <h1>Agenda</h1>
           <p className={styles.planningDescription}>Organize a equipe, o horário e os participantes de cada serviço. A liberação para executar acontece na PT em campo.</p>
         </div>
         <div className={styles.planningActions}>

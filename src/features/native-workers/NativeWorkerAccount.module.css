@@ -3,7 +3,7 @@
 .accounts li { border-bottom: 1px solid #e2e8f0; padding: 10px 0; }
 .accounts label { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 .accounts span, .confirmation { min-width: 0; overflow-wrap: anywhere; }
-.accounts small { display: block; color: #63758b; font-size: 12px; }
+.accounts small { display: block; color: var(--muted); font-size: 12px; }
 .confirmation { display: grid; gap: 6px; padding: 12px; border: 1px solid #d4e1f1; border-radius: 10px; background: #f6f9fd; }
 .confirmation label { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .accounts input[type=radio], .confirmation input[type=checkbox] { width: auto; min-height: 0; margin: 0; flex-shrink: 0; }

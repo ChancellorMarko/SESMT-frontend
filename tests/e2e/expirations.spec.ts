@@ -4,8 +4,8 @@ import { loginDemo, navigateWithinApp, openModule } from './helpers';
 test('vencimentos combinam antecedência, busca, repositório e unidade', async ({ page }) => {
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await loginDemo(page);
-  await openModule(page, 'Vencimentos');
-  await expect(page.getByRole('heading',{name:'Vencimentos',exact:true})).toBeVisible();
+  await openModule(page, 'Vencimentos de documentos');
+  await expect(page.getByRole('heading',{name:'Vencimentos de documentos',exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:'Inventário de riscos · Matriz (demo)',exact:true})).toBeVisible();
   await page.getByLabel('Antecedência',{exact:true}).selectOption('7');
   await expect(page.getByRole('heading',{name:'Nenhum vencimento encontrado'})).toBeVisible();
@@ -20,7 +20,7 @@ test('vencimentos combinam antecedência, busca, repositório e unidade', async 
   await expect(page.getByLabel('Situação',{exact:true})).toHaveValue('ACTIVE');
   await expect(page.getByLabel('Buscar por título ou código',{exact:true})).toHaveValue('PROC-2026-002');
   await page.goBack();
-  await expect(page.getByRole('heading',{name:'Vencimentos',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Vencimentos de documentos',exact:true})).toBeVisible();
   await expect(page.getByLabel('Antecedência',{exact:true})).toHaveValue('90');
   await page.getByLabel('Buscar por título ou código',{exact:true}).fill('');
   await page.getByRole('button',{name:'Buscar',exact:true}).click();

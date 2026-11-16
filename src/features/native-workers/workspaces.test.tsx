@@ -34,7 +34,16 @@ it('cadastra com CPF apenas no comando e confirma o perfil sem cachear os dados 
 });
 it('CPF incorreto é recusado antes do comando e permite correção', async () => {
   show(); await fill(); fireEvent.change(screen.getByLabelText(/^CPF/), { target: { value: '11111111111' } }); fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Confira os 11 dígitos'); expect(createNativeWorker).not.toHaveBeenCalled(); expect(screen.getByRole('button', { name: 'Cadastrar' })).toBeEnabled();
+  const cpf = screen.getByLabelText(/^CPF/);
+  await waitFor(() => expect(cpf).toHaveFocus()); expect(cpf).toHaveAttribute('aria-invalid', 'true'); expect(cpf).toHaveAccessibleDescription(/Confira os 11 dígitos/);
+  expect(screen.getByText('Confira o campo destacado.')).toBeVisible(); expect(createNativeWorker).not.toHaveBeenCalled(); expect(screen.getByRole('button', { name: 'Cadastrar' })).toBeEnabled();
+});
+it('formulário vazio destaca cada campo obrigatório com a própria mensagem', async () => {
+  show(); await screen.findByLabelText(/^Nome completo/); fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
+  expect(await screen.findByText('Confira os 4 campos destacados.')).toBeVisible();
+  for (const [label, message] of [[/^Nome completo/, 'Informe o nome completo.'], [/^Matrícula/, 'Informe a matrícula'], [/^CPF/, 'Confira os 11 dígitos'], [/^Nascimento/, 'Informe a data de nascimento.']] as const)
+    expect(screen.getByLabelText(label)).toHaveAccessibleDescription(new RegExp(message.replace('.', '\.')));
+  expect(screen.getByLabelText(/^Nome completo/)).toHaveFocus(); expect(createNativeWorker).not.toHaveBeenCalled();
 });
 it('um cargo desativado durante o preenchimento impede a criação', async () => {
   show(); await fill(); directory.jobs[0].status = 'INACTIVE'; fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
@@ -53,5 +62,5 @@ it('permissão de leitura não habilita a criação por nome de perfil', async (
 });
 it('recusa de acesso após abrir o formulário bloqueia o envio sem apagar o CPF preenchido', async () => {
   vi.mocked(createNativeWorker).mockRejectedValue(new ApiError(403, { code: 'FORBIDDEN', message: 'Não autorizado', requestId: 'test' })); show(); await fill(); fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
-  const dialog = screen.getByRole('dialog'); await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cadastrar' })).toBeDisabled()); expect(screen.getByLabelText(/^CPF/)).toHaveValue(workerDraft.cpf);
+  const dialog = screen.getByRole('form', { name: 'Cadastrar trabalhador' }); await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cadastrar' })).toBeDisabled()); expect(screen.getByLabelText(/^CPF/)).toHaveValue(workerDraft.cpf);
 });

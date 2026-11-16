@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
 import { InvalidReadResponse } from '../../shared/lib/verified-read';
 import { Button, Feedback, Modal } from '../../shared/ui';
@@ -6,7 +6,12 @@ import { useEditorProtection } from '../administration/useEditorProtection';
 import { useEditorRequest } from '../administration/useEditorRequest';
 import styles from './NativeForms.module.css';
 
-export class NativeFormError extends Error {}
+/** A form problem the person can fix. `fields` maps a field name to its message so each control can show its own error. */
+export class NativeFormError extends Error {
+  constructor(message: string, readonly fields: Readonly<Record<string, string>> = {}) { super(message); }
+}
+export type FieldErrors = Readonly<Record<string, string>>;
+const fieldCount = (count: number) => count === 1 ? 'Confira o campo destacado.' : `Confira os ${count} campos destacados.`;
 export class NativeContextConflict extends Error {}
 /** Network failure, timeout or server error: the command may or may not have been applied. */
 function ambiguous(failure: unknown) {
@@ -18,22 +23,28 @@ function ambiguous(failure: unknown) {
  * `replayable` commands send a stable Idempotency-Key for the same form content, so an ambiguous
  * result may be sent again: the API returns the record already created instead of another one.
  */
-export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar', replayable = false }: {
-  title: string; dirty: boolean; disabled?: boolean; onClose: () => void;
-  perform: (signal: AbortSignal) => Promise<void>; onDone: () => Promise<void>; children: (busy: boolean) => ReactNode; submitLabel?: string; replayable?: boolean;
+export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, onDone, children, submitLabel = 'Salvar', replayable = false, inline = false }: {
+  title: string; dirty: boolean; disabled?: boolean; onClose: () => void; inline?: boolean;
+  perform: (signal: AbortSignal) => Promise<void>; onDone: () => Promise<void>; children: (busy: boolean, fieldErrors: FieldErrors) => ReactNode; submitLabel?: string; replayable?: boolean;
 }) {
   const request = useEditorRequest(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [blocked, setBlocked] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({}), form = useRef<HTMLFormElement>(null);
+  // Move focus to the first invalid control so keyboard and screen reader users land on what to fix.
+  useEffect(() => { if (Object.keys(fieldErrors).length) form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); }, [fieldErrors]);
   const close = useEditorProtection({ dirty, busy }, onClose);
   async function submit(event: FormEvent) {
     event.preventDefault(); if (disabled || blocked || request.isPending()) return;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setFieldErrors({});
     try { await request.run(perform); if (request.isActive()) await onDone(); }
     catch (failure) {
       if (!request.isActive()) return;
       const replay = replayable && ambiguous(failure);
       const retryable = replay || failure instanceof NativeFormError || failure instanceof ApiError && [400, 422].includes(failure.status);
       setBlocked(!retryable);
+      const fields = failure instanceof NativeFormError ? failure.fields : {};
+      setFieldErrors(fields);
       setError(replay ? 'Não foi possível confirmar a conclusão. Você pode enviar de novo sem alterar o formulário: a mesma solicitação não cria outro registro.'
+        : failure instanceof NativeFormError && Object.keys(fields).length ? fieldCount(Object.keys(fields).length)
         : failure instanceof NativeFormError || failure instanceof NativeContextConflict ? failure.message
         : failure instanceof ApiError && failure.status === 409 ? 'O registro ou as condições da operação mudaram. Seus dados foram mantidos. Feche a janela e atualize a consulta antes de tentar novamente.'
         : failure instanceof ApiError && [401, 403, 404].includes(failure.status) ? 'A API não autorizou ou não encontrou este registro. Atualize a consulta antes de tentar novamente.'
@@ -42,5 +53,7 @@ export function NativeCommandDialog({ title, dirty, disabled, onClose, perform, 
         : 'Não foi possível confirmar a conclusão. Consulte a lista atualizada antes de repetir a operação.');
     } finally { if (request.isActive()) setBusy(false); }
   }
-  return <Modal open title={title} onClose={close}><form className={`stack ${styles.form}`} onSubmit={event => void submit(event)}>{children(busy)}{error && <Feedback tone="danger">{error}</Feedback>}<div className="actions"><Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy || disabled || blocked}>{busy ? 'Salvando…' : submitLabel}</Button></div></form></Modal>;
+  const body = <form ref={form} noValidate aria-label={inline ? title : undefined} className={`stack ${styles.form}`} onSubmit={event => void submit(event)}>{children(busy, fieldErrors)}{error && <Feedback tone="danger">{error}</Feedback>}<div className="actions"><Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy || disabled || blocked}>{busy ? 'Salvando…' : submitLabel}</Button></div></form>;
+  // Full records are created on their own page (inline); modals stay for short confirmations and edits.
+  return inline ? <section className="panel">{body}</section> : <Modal open title={title} onClose={close}>{body}</Modal>;
 }
