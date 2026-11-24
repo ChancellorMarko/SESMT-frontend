@@ -1,0 +1,18 @@
+name: sesmt-frontend
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_MODE: api
+        VITE_API_BASE_URL: /api/v1
+        VITE_API_BROWSER_PREFIX: /browser
+        VITE_AUTH_CONTRACT_KIND: native
+    container_name: sesmt_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
