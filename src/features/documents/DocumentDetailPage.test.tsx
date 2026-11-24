@@ -108,7 +108,7 @@ describe('detalhe de documento', () => {
     expect(signal?.aborted).toBe(true);
     await act(async () => finish({ url: '/arquivo-antigo.pdf', fileName: 'arquivo-antigo.pdf', mimeType: 'application/pdf', expiresAt: '2099-01-01T00:00:00Z' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('Prévia de arquivo-antigo.pdf')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Prévia de arquivo-antigo.pdf')).not.toBeInTheDocument();
   });
   it('não abre um arquivo quando a autorização de download retorna dados incompletos', async () => {
     vi.mocked(api.post).mockResolvedValue({ url: '/arquivo.pdf', expiresAt: '2099-01-01T00:00:00Z' } as never);
